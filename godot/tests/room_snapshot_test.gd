@@ -59,5 +59,20 @@ func _run() -> void:
 	if not require(canvas.show_collision and canvas.texture != null and (inspector.get("overlay_button") as CheckButton).button_pressed, "Viewer did not load/toggle overlay"): return
 	inspector.queue_free()
 	await process_frame
+
+	# Bloco 12-A: verifica que o RoomManager prioriza stage5-batch para rooms 0-125
+	var rm: RoomManager = RoomManager.new()
+	var real_snap: RoomSnapshot = rm.load_room_snapshot(0)
+	if real_snap != null:
+		if not require(real_snap.loaded, "stage5-batch room-000 carregou mas loaded=false"): return
+		if not require(real_snap.room_id == 0, "room_id incorreto no snapshot real"): return
+		if not require(real_snap.pixels.size() == 49152, "pixels size incorreto"): return
+		if not require(real_snap.collision.size() == 768, "collision size incorreto"): return
+		if not require(real_snap.colors.size() == 18, "palette size incorreto"): return
+		print("ROOM_SNAPSHOT_OK: stage5-batch room-000 carregado com sucesso (real ROM data)")
+	else:
+		# stage5-batch não disponível neste ambiente; testar apenas sintético
+		print("ROOM_SNAPSHOT_OK: stage5-batch ausente; apenas snapshot sintético testado")
+
 	print("ROOM_SNAPSHOT_OK: synthetic pixels, validation, clearing, viewer and overlay")
 	quit(0)

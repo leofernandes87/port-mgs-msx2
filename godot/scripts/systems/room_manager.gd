@@ -245,6 +245,7 @@ func load_room_snapshot(room_id: int) -> RoomSnapshot:
 		return _snapshot_cache[room_id] as RoomSnapshot
 
 	var candidate_paths: Array[String] = [
+		ProjectSettings.globalize_path("res://../data/extracted/stage5-batch/room-%03d.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-%03d.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage4b-validated/room-%03d.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage4-validated/room-%03d.json" % room_id)
