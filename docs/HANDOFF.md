@@ -69,7 +69,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `c061014` | 12-C | Spawn dinâmico de atores e itens no sandbox via RoomManager |
 | `7a8e299` | 12b | Documentação 57 atores, tipos canônicos e portas automatizadas |
 | `5215f17` | fix | Bloqueio de patrulha por colisão e correção de postura dos cães |
-| *(a seguir)* | 12c | Extração e integração das 81 salas lorry e interiores (126-207) |
+| `cda3bf6` | 12c | Extração e integração das 81 salas lorry e interiores (126-207) |
 
 ### Dados extraídos disponíveis
 
