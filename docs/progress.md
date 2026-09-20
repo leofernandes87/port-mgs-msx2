@@ -680,6 +680,29 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
 - `python3 tools/validate.py`: 100% PASS (46 testes Python + 9 suites Godot).
 - Teste headless de salas reais: salas 1, 5, 16, 64, 127 carregam com background, colisão e guardas fiéis.
 
+## 2026-09-20 — Etapa 12b concluída: Spawn de Inimigos, Itens e Portas Canônicas da ROM
+
+### O que foi feito
+1. **Evidências Documentadas**:
+   - `docs/reverse_engineering/stage-12b-actors-and-items-evidence.md`:
+     - Tabela completa de todos os 57 tipos de atores do MSX2 RC750 (`Banks0123.asm:6404-6468`).
+     - Tabela de regras de portas (`Enums.asm:113-122`): `DOOR_CARD1` (2) a `DOOR_CARD8` (9), `DOOR_PUNCH` (10), `DOOR_ELEVATOR` (1).
+     - Catálogo de itens da ROM (`data/itemsinrooms.asm:19-46`).
+2. **Refinamento de Inimigos no Godot**:
+   - `sandbox_gameplay.gd`:
+     - Filtra tipos de atores não combatentes (minas, gás, alçapões, câmeras, prisioneiros) para evitar sprites incorretos.
+     - Mapeia velocidades fiéis da ROM: `SLOW` (0.5 px/tick) para guardas lentos e escorpiões; `FAST` (1.5 px/tick) para cães e guardas rápidos; `MEDIUM` (1.0 px/tick) para guardas padrão e atiradores.
+     - Sentinelas (`InitSentinel`, tipo 48): sentinelas estáticos posicionados no posto de vigia.
+3. **Automação de Portas Canônicas**:
+   - `sandbox_gameplay.gd` instancia portas dinamicamente a partir do array `doors` em `room-NNN-actors.json`.
+   - Mapeia orientações (`NORTH`, `SOUTH`, `WEST`, `EAST`) a partir de `render_type_id`.
+   - Mapeia trancas e requisitos de cartão (`CARD1` a `CARD8`) a partir de `open_rule_id`.
+   - Adicionadas constantes `ITEM_CARD5`..`ITEM_CARD8` a `InventoryManager`.
+4. **Testes e Verificação**:
+   - `doors_and_inventory_test.gd`: adicionado caso de teste para porta trancada por `CARD4` (sala 6 da ROM com 3 portas canônicas e 2 cães de guarda).
+   - Suíte de validação completa: 100% PASS (46 testes Python + 9 suítes Godot).
+
+
 
 
 

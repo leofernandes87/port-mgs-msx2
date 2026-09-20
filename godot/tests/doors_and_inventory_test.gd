@@ -186,5 +186,52 @@ func _run() -> void:
 	box_128.step_tick(Vector2(112.0, 64.0), truck_inv)
 	if not require(box_128.collected and truck_inv.has_item("BINOCULARS"), "Binóculos da sala 128 devem ser coletados"): return
 
+	# 6. Teste de Portas Canônicas Automatizadas e Trancas por Card 4 (Etapa 12b)
+	var card4_inv: InventoryManager = InventoryManager.new()
+	card4_inv.collect_item(InventoryManager.ITEM_CARD4)
+
+	var door_c4: RoomDoor = RoomDoor.new()
+	door_c4.door_id = 3
+	door_c4.room_id = 6
+	door_c4.required_card = InventoryManager.ITEM_CARD4
+	door_c4.orientation = RoomDoor.DoorOrientation.NORTH
+	door_c4.position = Vector2(36.0, 64.0)
+	door_c4.destination_room = 129
+	root.add_child(door_c4)
+	await process_frame
+
+	var dummy_collision: Array = []
+	dummy_collision.resize(768)
+	dummy_collision.fill(0)
+	door_c4.inject_collision(dummy_collision)
+
+	# Snake tenta abrir sem cartão correto (usando inventário vazio)
+	var empty_inv: InventoryManager = InventoryManager.new()
+	var dummy_player: PlayerController = packed_player.instantiate() as PlayerController
+	root.add_child(dummy_player)
+	dummy_player.position = Vector2(36.0, 74.0)
+	dummy_player.current_direction = PlayerController.Direction.UP
+
+	var entered: int = door_c4.check_interaction(dummy_player, empty_inv, dummy_collision)
+	if not require(entered == -1 and not door_c4.is_open, "Porta Card 4 deve permanecer fechada sem o cartão"): return
+
+	# Snake usa Card 4 e abre a porta
+	entered = door_c4.check_interaction(dummy_player, card4_inv, dummy_collision)
+	if not require(door_c4.is_open, "Porta Card 4 deve abrir com Card 4 selecionado"): return
+
+	# Testar carregamento dos metadados de portas da sala 6 via RoomManager
+	var rm: RoomManager = RoomManager.new()
+	var r6_data: Dictionary = rm.load_room_actors(6)
+	if not r6_data.is_empty():
+		var r6_doors: Array = r6_data.get("doors", [])
+		if not require(r6_doors.size() == 3, "Sala 6 da ROM deve ter 3 portas"): return
+		var r6_actors: Array = r6_data.get("actors", [])
+		if not require(r6_actors.size() == 2, "Sala 6 da ROM deve ter 2 cães de guarda"): return
+
+	door_c4.queue_free()
+	dummy_player.queue_free()
+	await process_frame
+
 	print("DOORS_AND_INVENTORY_OK: item collection, cycle, ration healing, locked door collision, card unlock, lorry doors enter/exit, and canonical truck items")
 	quit(0)
+

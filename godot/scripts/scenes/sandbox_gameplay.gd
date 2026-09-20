@@ -208,17 +208,27 @@ func _spawn_room_enemies(room_id: int) -> void:
 	var actors_data: Array = room_data.get("actors", [])
 
 	if not actors_data.is_empty():
+		# Tipos de atores que são combatentes/vigias/animais no MSX2 (Banks0123.asm:6404)
+		# 4: GuardSlow, 5: GuardMedium, 10/11: GuardAlert, 13: Shooter, 14: GuardElevat, 19: GuardLorry,
+		# 24: GuardSwitch, 25/27: Dog, 28: LorryShooter, 30: GuardFast, 31: Scorpion, 46: DesertSecurity, 48: Sentinel, 57: GuardSilencer
+		var valid_enemy_types: Array[int] = [4, 5, 10, 11, 13, 14, 19, 24, 25, 27, 28, 30, 31, 46, 48, 57]
+
 		for act_variant: Variant in actors_data:
 			if not act_variant is Dictionary:
 				continue
 			var act: Dictionary = act_variant as Dictionary
 			var type_id: int = int(act.get("actor_type_id", 0))
+			if not type_id in valid_enemy_types:
+				continue
+
 			var spawn_pos := Vector2(float(act.get("x", 0)), float(act.get("y", 0)))
 
 			var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
-			# Na ROM MSX: tipos 3 e 4 são guardas lentos (0.5 px/tick); 5, 10, 19 são médios (1.0 px/tick)
-			if type_id in [3, 4]:
+			# Mapeamento fiel das velocidades da ROM
+			if type_id in [4, 14, 24, 31, 46, 48]:
 				g.guard_type = EnemyGuard.GuardType.SLOW
+			elif type_id in [25, 27, 30]:
+				g.guard_type = EnemyGuard.GuardType.FAST
 			else:
 				g.guard_type = EnemyGuard.GuardType.MEDIUM
 
@@ -233,10 +243,14 @@ func _spawn_room_enemies(room_id: int) -> void:
 					waypoints.append(Vector2(float(pt[1]), float(pt[0])))
 
 			if waypoints.is_empty():
-				var left_x: float = clampf(spawn_pos.x - 32.0, 16.0, 240.0)
-				var right_x: float = clampf(spawn_pos.x + 32.0, 16.0, 240.0)
-				waypoints.append(Vector2(left_x, spawn_pos.y))
-				waypoints.append(Vector2(right_x, spawn_pos.y))
+				if type_id == 48:
+					# Sentinela estático: permanece vigilante no posto
+					waypoints.append(spawn_pos)
+				else:
+					var left_x: float = clampf(spawn_pos.x - 32.0, 16.0, 240.0)
+					var right_x: float = clampf(spawn_pos.x + 32.0, 16.0, 240.0)
+					waypoints.append(Vector2(left_x, spawn_pos.y))
+					waypoints.append(Vector2(right_x, spawn_pos.y))
 
 			g.set_patrol_path(waypoints)
 			g.show_debug_vision = show_enemy_vision
@@ -483,6 +497,64 @@ func _spawn_room_doors(room_id: int) -> void:
 		game_world.add_child(d)
 		d.inject_collision(snapshot.collision)
 		room_doors.append(d)
+	else:
+		# Portas canônicas carregadas de stage5-batch/room-NNN-actors.json
+		var room_data: Dictionary = room_manager.load_room_actors(room_id)
+		var doors_data: Array = room_data.get("doors", [])
+		for door_var: Variant in doors_data:
+			if not door_var is Dictionary:
+				continue
+			var d_info: Dictionary = door_var as Dictionary
+			var d_id: int = int(d_info.get("door_id", 0))
+			var r_type: int = int(d_info.get("render_type_id", 1))
+			var dest_room: int = int(d_info.get("destination_room_id", -1))
+			var rule_id: int = int(d_info.get("open_rule_id", 1))
+			var dx: float = float(d_info.get("draw_x", 0))
+			var dy: float = float(d_info.get("draw_y", 0))
+
+			# Portas dummy/invisíveis ou sem destino
+			if r_type == 6 or dest_room == -1:
+				continue
+
+			var d: RoomDoor = RoomDoor.new()
+			d.door_id = d_id
+			d.room_id = room_id
+			d.position = Vector2(dx, dy)
+			d.destination_room = dest_room
+
+			match r_type:
+				1, 5:
+					d.orientation = RoomDoor.DoorOrientation.NORTH
+					d.entry_position = Vector2(dx + 8.0, 160.0)
+				2:
+					d.orientation = RoomDoor.DoorOrientation.SOUTH
+					d.entry_position = Vector2(dx + 8.0, 32.0)
+				3:
+					d.orientation = RoomDoor.DoorOrientation.WEST
+					d.entry_position = Vector2(230.0, dy)
+				4:
+					d.orientation = RoomDoor.DoorOrientation.EAST
+					d.entry_position = Vector2(24.0, dy)
+				_:
+					d.orientation = RoomDoor.DoorOrientation.NORTH
+					d.entry_position = Vector2(dx + 8.0, 160.0)
+
+			# Regras canônicas de cartões da ROM (Enums.asm:113-122)
+			match rule_id:
+				2: d.required_card = InventoryManager.ITEM_CARD1
+				3: d.required_card = InventoryManager.ITEM_CARD2
+				4: d.required_card = InventoryManager.ITEM_CARD3
+				5: d.required_card = InventoryManager.ITEM_CARD4
+				6: d.required_card = InventoryManager.ITEM_CARD5
+				7: d.required_card = InventoryManager.ITEM_CARD6
+				8: d.required_card = InventoryManager.ITEM_CARD7
+				9: d.required_card = InventoryManager.ITEM_CARD8
+				_: d.required_card = ""
+
+			game_world.add_child(d)
+			if snapshot and snapshot.loaded:
+				d.inject_collision(snapshot.collision)
+			room_doors.append(d)
 
 func _create_synthetic_fallback_room() -> void:
 	var pixels: Array[int] = []

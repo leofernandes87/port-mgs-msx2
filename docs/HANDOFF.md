@@ -49,7 +49,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ---
 
-## 5. Estado atual do projeto (HEAD pós-Etapa 12)
+## 5. Estado atual do projeto (HEAD pós-Etapa 12b)
 
 ### Etapas concluídas e commitadas
 
@@ -66,7 +66,8 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `27a2815` | 11 | Extração em lote: 126 snapshots, `batch_snapshots.py` |
 | `356ee1b` | 12-A | RoomManager prioriza stage5-batch; rooms 0-125 reais |
 | `d559100` | 12-B | export_room_data.py gera room-NNN-actors.json (0-128) |
-| *(a seguir)* | 12-C | Spawn dinâmico de atores e itens no sandbox via RoomManager |
+| `c061014` | 12-C | Spawn dinâmico de atores e itens no sandbox via RoomManager |
+| *(a seguir)* | 12b | Documentação 57 atores, tipos canônicos e portas automatizadas |
 
 ### Dados extraídos disponíveis
 
@@ -80,9 +81,9 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ### Snapshots por cobertura de edifício (stage5-batch)
 
-- Prédio 1 (salas 0–15): **16 snapshots** com atores e colisão reais
-- Prédio 2 (salas 16–63): **48 snapshots** com atores e colisão reais
-- Prédio 3 (salas 64–125): **62 snapshots** com atores e colisão reais
+- Prédio 1 (salas 0–15): **16 snapshots** com atores, portas e colisão reais
+- Prédio 2 (salas 16–63): **48 snapshots** com atores, portas e colisão reais
+- Prédio 3 (salas 64–125): **62 snapshots** com atores, portas e colisão reais
 - 7/126 cross-checked pixel-a-pixel contra emulador (rooms 0, 1, 2, 3, 5, 31, 121)
 - Salas lorry (126–207) e elevadores (208–250): lorries 126-128 têm atores/itens exportados; snapshot derivado do 127.
 
@@ -90,23 +91,26 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 - `RoomManager.load_room_snapshot()` carrega snapshots reais de `stage5-batch/`.
 - `RoomManager.load_room_actors()` carrega metadados reais de atores, itens e portas.
-- `sandbox_gameplay.gd` spawna inimigos e itens dinamicamente da ROM para qualquer uma das 126+ salas navegáveis.
+- `sandbox_gameplay.gd`:
+  - Spawna inimigos dinamicamente filtrando combatentes/vigias (SLOW, MEDIUM, FAST, Sentinelas).
+  - Spawna portas canônicas dinamicamente com orientações autênticas e trancas por cartão (`CARD1` a `CARD8`).
+  - Spawna caixas de itens autênticas mapeando catálogo da ROM.
 
 ---
 
-## 6. Próximas opções de trabalho (Etapa 13)
+## 6. Próximas opções de trabalho
 
-A Etapa 12 está **concluída**. Candidatos para a próxima etapa:
+A Etapa 12b está **concluída**. Candidatos para a próxima etapa:
 
-1. **Etapa 13 — Extração e Integração das Salas Lorry e Isoladas (126–207)**:
+1. **Etapa 12c — Extração e Integração das Salas Lorry e Isoladas (126–207)**:
    - Rodar `batch_snapshots.py --rooms 126-207` para gerar snapshots de todas as salas isoladas e interiores.
-   - Conectar saídas dessas salas de volta aos prédios principais.
+   - Integrar transições de retorno das salas isoladas para os prédios principais.
 
-2. **Etapa 13b — Sistema de Portas Canônicas Automatizado**:
-   - Usar a lista `doors` de `room-NNN-actors.json` para instanciar todas as portas interativas/trancadas automaticamente, em vez de configurar manualmente.
+2. **Etapa 12d — Sistema de Elevadores e Conexões Verticais (Salas 240–250)**:
+   - Extrair e implementar elevadores conectando andares dos prédios (ex: porta da sala 3 para sala 240).
 
-3. **Etapa 13c — Elevadores e Conexões Verticais (Salas 240–250)**:
-   - Extrair e implementar elevadores conectando pisos dos prédios.
+3. **Armas e Tiroteio (Handgun, SMG, Silenciador)**:
+   - Sistema de projéteis de Snake e dos guardas atiradores (`InitShooter`, `InitGuardSilencer`).
 
 ---
 
