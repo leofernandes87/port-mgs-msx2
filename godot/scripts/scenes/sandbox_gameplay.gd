@@ -14,6 +14,11 @@ var show_enemy_vision: bool = false
 var zoom: float = 3.0
 var canvas_origin: Vector2 = Vector2.ZERO
 
+var previous_room_id: int = -1
+var is_in_elevator: bool = false
+var elevator_cabin: ElevatorCabin
+var elevator_y: float = 180.0
+
 var status_label: Label
 var collision_btn: CheckButton
 var colliders_btn: CheckButton
@@ -114,6 +119,11 @@ func _ready() -> void:
 	room_display = Node2D.new()
 	room_display.draw.connect(_draw_room_and_collision)
 	game_world.add_child(room_display)
+
+	# Cabine visual do elevador
+	elevator_cabin = ElevatorCabin.new()
+	elevator_cabin.visible = false
+	game_world.add_child(elevator_cabin)
 
 	# Instanciar Player no mundo nativo 256x192
 	player = preload("res://scenes/player.tscn").instantiate() as PlayerController
@@ -490,19 +500,6 @@ func _spawn_room_doors(room_id: int) -> void:
 		game_world.add_child(d)
 		d.inject_collision(snapshot.collision)
 		room_doors.append(d)
-	elif room_id == 3:
-		# Sala 003: Porta norte (DoorsRoom003) para o interior do prédio 1 (sala 5)
-		var d: RoomDoor = RoomDoor.new()
-		d.door_id = 3
-		d.room_id = room_id
-		d.required_card = ""
-		d.orientation = RoomDoor.DoorOrientation.NORTH
-		d.position = Vector2(120.0, 32.0)
-		d.destination_room = 5
-		d.entry_position = Vector2(128.0, 160.0)
-		game_world.add_child(d)
-		d.inject_collision(snapshot.collision)
-		room_doors.append(d)
 	else:
 		# Portas canônicas carregadas de stage5-batch/room-NNN-actors.json
 		var room_data: Dictionary = room_manager.load_room_actors(room_id)
@@ -656,9 +653,40 @@ func _physics_process(_delta: float) -> void:
 	elif Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
 		input_dir = Vector2i(1, 0)
 
-	var moved: bool = player.step_tick(input_dir)
-	if moved:
-		_check_and_handle_room_transition()
+	if is_in_elevator:
+		# Mecânica de Elevador (salas 240 a 250)
+		# 1. Movimentação vertical da cabine quando Snake está dentro dela (PlayerX <= 120)
+		if player.position.x <= ElevatorSystem.CABIN_TRIGGER_X and input_dir.y != 0:
+			var move_res: Dictionary = ElevatorSystem.step_movement(snapshot.room_id, player.position, elevator_y, input_dir.y)
+			if bool(move_res.get("is_moving", false)):
+				elevator_y = float(move_res.get("elevator_y", elevator_y))
+				if elevator_cabin:
+					elevator_cabin.elevator_y = elevator_y
+				var np: Vector2 = move_res.get("player_pos", player.position) as Vector2
+				player.position.y = np.y
+				player.queue_redraw()
+
+		# 2. Movimento horizontal de Snake no corredor do poço
+		var moved_elev: bool = player.step_tick(input_dir)
+		if moved_elev:
+			# Limite esquerdo da cabine (parede esquerda)
+			if player.position.x < ElevatorSystem.SHAFT_MIN_X:
+				player.position.x = ElevatorSystem.SHAFT_MIN_X
+				player.queue_redraw()
+
+			# Checar se Snake atinge o limite direito para sair do elevador no andar correspondente
+			var exit_res: Dictionary = ElevatorSystem.check_exit(snapshot.room_id, player.position, elevator_y)
+			if bool(exit_res.get("should_exit", false)):
+				var dest_room: int = int(exit_res.get("destination_room_id", -1))
+				var dest_pos: Vector2 = exit_res.get("entry_position", Vector2(108.0, 36.0)) as Vector2
+				var dest_dir: int = int(exit_res.get("destination_direction", PlayerController.Direction.DOWN))
+				print("ELEVATOR_EXIT: Snake saiu do elevador %d para sala %d na posição %s" % [snapshot.room_id, dest_room, dest_pos])
+				change_to_room(dest_room, dest_pos, dest_dir)
+				return
+	else:
+		var moved: bool = player.step_tick(input_dir)
+		if moved:
+			_check_and_handle_room_transition()
 
 	# Atualizar caixas de itens coletáveis
 	for box: ItemBox in item_boxes:
@@ -697,6 +725,11 @@ func _physics_process(_delta: float) -> void:
 			life_bar, player.life, player.max_life, item_str, defeated_count, enemies.size()
 		]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
+	elif is_in_elevator:
+		status_label.text = "ELEVADOR %d | Cabine Y: %.0f | CIMA/BAIXO: Mover | DIREITA: Sair" % [
+			snapshot.room_id, elevator_y
+		]
+		status_label.modulate = Color(0.9, 0.8, 0.3)
 	elif snapshot.loaded:
 		status_label.text = "Sala %03d | VIDA: [%s] %02d/%02d | ITEM: %s" % [
 			snapshot.room_id, life_bar, player.life, player.max_life, item_str
@@ -733,6 +766,9 @@ func _clamp_to_room_bounds(exit_dir: int) -> void:
 	player.queue_redraw()
 
 func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1) -> bool:
+	var old_room_id: int = snapshot.room_id if snapshot and snapshot.loaded else -1
+	previous_room_id = old_room_id
+
 	var snap: RoomSnapshot = room_manager.load_room_snapshot(new_room_id)
 	if snap == null:
 		print("ROOM_TRANSITION_ABORTED: snapshot para sala %d não encontrado localmente" % new_room_id)
@@ -740,6 +776,22 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1) -
 
 	snapshot = snap
 	_apply_snapshot()
+
+	if ElevatorSystem.is_elevator_room(new_room_id):
+		is_in_elevator = true
+		var elev_state: Dictionary = ElevatorSystem.get_entry_state(new_room_id, old_room_id)
+		elevator_y = float(elev_state.get("elevator_y", 180.0))
+		entry_pos = elev_state.get("player_pos", Vector2(216.0, 184.0)) as Vector2
+		entry_dir = int(elev_state.get("player_dir", PlayerController.Direction.LEFT))
+		if elevator_cabin:
+			elevator_cabin.elevator_y = elevator_y
+			elevator_cabin.visible = true
+		print("ELEVATOR_ENTER: Snake entrou no elevador %d a partir da sala %d (Y: %.1f)" % [new_room_id, old_room_id, elevator_y])
+	else:
+		is_in_elevator = false
+		if elevator_cabin:
+			elevator_cabin.visible = false
+
 	if player:
 		player.set_grid_position(entry_pos.x, entry_pos.y)
 		if entry_dir != -1:

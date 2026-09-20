@@ -82,5 +82,13 @@ func _run() -> void:
 		if not require(lorry_snap.pixels.size() == 49152, "pixels size incorreto em room-126"): return
 		print("ROOM_SNAPSHOT_OK: stage5-lorries room-126 carregado com sucesso")
 
+	# Bloco 12d: verifica que o RoomManager carrega salas de elevador de stage5-elevators (ex: room 240)
+	var elev_snap: RoomSnapshot = rm.load_room_snapshot(240)
+	if elev_snap != null:
+		if not require(elev_snap.loaded, "stage5-elevators room-240 carregou mas loaded=false"): return
+		if not require(elev_snap.room_id == 240, "room_id incorreto no snapshot elevador"): return
+		if not require(elev_snap.pixels.size() == 49152, "pixels size incorreto em room-240"): return
+		print("ROOM_SNAPSHOT_OK: stage5-elevators room-240 carregado com sucesso")
+
 	print("ROOM_SNAPSHOT_OK: synthetic pixels, validation, clearing, viewer and overlay")
 	quit(0)

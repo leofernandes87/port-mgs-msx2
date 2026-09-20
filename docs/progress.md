@@ -728,14 +728,22 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
    - `room_snapshot_test.gd`: adicionada validação de carregamento real da sala 126 a partir de `stage5-lorries`.
    - `validate.py`: 100% PASS (46 testes Python + 9 suítes Godot).
 
+## 2026-09-20 — Etapa 12d concluída: Sistema de Elevadores e Conexões Verticais (Salas 240–250)
 
-
-
-
-
-
-
-
-
-
+### O que foi feito
+1. **Extração das 11 Salas de Elevador (240 a 250)**:
+   - batch_snapshots.py e export_room_data.py executados com --rooms 240-250 para data/extracted/stage5-elevators/.
+   - Sala 240 cross-checada pixel a pixel com 100% de precisão contra capturas do emulador (stage4c-validated).
+   - Metadados de atores e portas dummy de saída (render_type_id: 6) exportados para todas as 11 salas.
+2. **Implementação do Sistema de Elevadores**:
+   - ElevatorSystem (godot/scripts/systems/elevator_system.gd): implementa tabelas canônicas de limites e andares (data/elevatorrooms.asm), cálculo de entrada por andar (GetElevatorPosY), movimentação vertical a 1 px/tick (MoveElevator) e detecção de saída por andar (data/doors.asm).
+   - ElevatorCabin (godot/scripts/systems/elevator_cabin.gd): representação visual autêntica da cabine do MSX2 com cabos, teto/chão metálico e painel com botões iluminados.
+   - RoomManager: atualizado para carregar snapshots e metadados de atores de stage5-elevators/.
+   - sandbox_gameplay.gd: integração da mecânica de elevador, movimentação vertical dentro da cabine e transições bidirecionais entre andares e prédios (ex: Sala 3 Térreo <-> Sala 240 Elevador <-> Sala 31 Telhado).
+   - door.gd: tolerâncias aprimoradas para centro da porta e entrada em portas de elevador.
+3. **Testes e Verificação**:
+   - godot/tests/elevator_test.gd: suíte completa cobrindo dados da ROM, física da cabine a 1 px/tick, tolerâncias de andares e ciclo bidirecional Sala 3 <-> Sala 240 <-> Sala 31.
+   - godot/tests/room_snapshot_test.gd: validação de carregamento real da Sala 240 a partir de stage5-elevators.
+   - tools/validate.py: integrado godot-elevator com validação obrigatória.
+   - Resultado: 100% PASS (46 testes Python + 10 suítes Godot).
 

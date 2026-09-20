@@ -49,7 +49,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ---
 
-## 5. Estado atual do projeto (HEAD pós-Etapa 12c)
+## 5. Estado atual do projeto (HEAD pós-Etapa 12d)
 
 ### Etapas concluídas e commitadas
 
@@ -70,6 +70,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `7a8e299` | 12b | Documentação 57 atores, tipos canônicos e portas automatizadas |
 | `5215f17` | fix | Bloqueio de patrulha por colisão e correção de postura dos cães |
 | `cda3bf6` | 12c | Extração e integração das 81 salas lorry e interiores (126-207) |
+| *(a seguir)* | 12d | Sistema de elevadores e conexões verticais (salas 240-250) |
 
 ### Dados extraídos disponíveis
 
@@ -81,6 +82,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `data/extracted/stage4-validated/` | 4 snapshots (rooms 1, 5, 31, 127) |
 | `data/extracted/stage5-batch/` | **126 snapshots rooms 0–125** + PNGs + **129 room-NNN-actors.json** (salas 0-128) |
 | `data/extracted/stage5-lorries/` | **81 snapshots rooms 126–207** + PNGs + **81 room-NNN-actors.json** (salas 126-207) |
+| `data/extracted/stage5-elevators/` | **11 snapshots rooms 240–250** + PNGs + **11 room-NNN-actors.json** (sala 240 validada contra emulador) |
 
 ### Cobertura de salas disponíveis
 
@@ -88,28 +90,31 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - Prédio 2 (salas 16–63): **48 snapshots** com atores, portas e colisão reais
 - Prédio 3 (salas 64–125): **62 snapshots** com atores, portas e colisão reais
 - Caminhões e Interiores (salas 126–207): **81 snapshots** reais com atores e portas (sala 155 indefinida na ROM)
-- Total de salas reais com background, colisão e atores: **207 salas** (0 a 207)!
+- Elevadores (salas 240–250): **11 snapshots** com atores, portas dummy e colisão reais
+- Total de salas reais com background, colisão e atores: **218 salas** (0 a 207 e 240 a 250)!
 
 ### Estado do Godot
 
-- `RoomManager.load_room_snapshot()` carrega snapshots reais de `stage5-batch/` e `stage5-lorries/`.
-- `RoomManager.load_room_actors()` carrega metadados reais de atores, itens e portas de ambos os lotes.
-- `sandbox_gameplay.gd`: navegação disponível por todas as 207 salas com colisões e portas canônicas.
+- `ElevatorSystem` (`godot/scripts/systems/elevator_system.gd`): limites e paradas dos 11 elevadores da ROM, movimentação vertical a 1 px/tick e tolerâncias de saída.
+- `ElevatorCabin` (`godot/scripts/systems/elevator_cabin.gd`): cabine do elevador renderizada sobre o poço com estética industrial MSX2.
+- `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/` e `stage5-elevators/`.
+- `sandbox_gameplay.gd`: transições verticais operacionais (ex: Sala 3 Térreo <-> Sala 240 Elevador <-> Sala 31 Telhado).
+- Validação contínua: `python3 tools/validate.py` executa 46 testes Python + 10 suítes Godot (100% PASS).
 
 ---
 
 ## 6. Próximas opções de trabalho
 
-A Etapa 12c está **concluída**. Candidatos para a próxima etapa:
+A Etapa 12d está **concluída**. Candidatos para a próxima etapa:
 
-1. **Etapa 12d — Sistema de Elevadores e Conexões Verticais (Salas 240–250)**:
-   - Extrair e implementar elevadores conectando andares dos prédios (ex: porta da sala 3 para sala 240).
+1. **Sistema de Armas e Munição (Handgun, Silenciador, SMG)**:
+   - Disparo de projéteis por Snake e soldados atiradores (`InitShooter`, `InitGuardSilencer`), inventário de armas e contadores de munição.
 
-2. **Sistema de Armas e Munição (Handgun, SMG, Silenciador)**:
-   - Disparos de Snake, consumo de munição e combate à distância.
+2. **Sistema de Transições de Entrada/Saída dos Interiores de Edifícios (Salas 129–207)**:
+   - Portas de retorno que conectam os interiores aos corredores dos prédios.
 
-3. **Sistema de Transições de Entrada/Saída dos Interiores de Edifícios (Salas 129–207)**:
-   - Mapear portas de retorno que conectam os interiores aos corredores principais.
+3. **Sistema de Rádio / Transceptor**:
+   - Frequências de Big Boss (120.85), Schneider e outros contatos canônicos da ROM.
 
 ---
 

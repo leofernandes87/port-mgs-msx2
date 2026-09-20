@@ -87,11 +87,14 @@ func check_interaction(player: PlayerController, inventory: InventoryManager, co
 		return -1
 
 	# Lógica padrão de portas normais de prédios
-	var dist: float = position.distance_to(player.position)
+	var door_w: float = 16.0 if (orientation == DoorOrientation.NORTH or orientation == DoorOrientation.SOUTH) else 8.0
+	var door_h: float = 8.0 if (orientation == DoorOrientation.NORTH or orientation == DoorOrientation.SOUTH) else 16.0
+	var center_pos: Vector2 = position + Vector2(door_w / 2.0, door_h / 2.0)
+	var dist: float = center_pos.distance_to(player.position)
 
 	# 1. Se a porta estiver fechada, verificar se Snake tenta abrir
 	if not is_open:
-		if dist <= 20.0:
+		if dist <= 24.0:
 			var expected_dir: PlayerController.Direction
 			match orientation:
 				DoorOrientation.NORTH: expected_dir = PlayerController.Direction.UP
@@ -109,7 +112,7 @@ func check_interaction(player: PlayerController, inventory: InventoryManager, co
 
 	# 2. Se a porta já estiver aberta, verificar se Snake entrou no vão
 	if is_open and destination_room != -1:
-		if dist <= 10.0:
+		if dist <= 14.0:
 			print("DOOR_ENTER: Snake entrou na porta %d rumo à sala %d!" % [door_id, destination_room])
 			return destination_room
 
