@@ -9,6 +9,8 @@ enum DoorOrientation {
 	SOUTH = 2,
 	WEST = 3,
 	EAST = 4,
+	LORRY_ENTER = 5,
+	LORRY_EXIT = 6,
 }
 
 var door_id: int = 0
@@ -16,18 +18,25 @@ var room_id: int = 0
 var required_card: String = ""
 var destination_room: int = -1
 var entry_position: Vector2 = Vector2.ZERO
+var destination_direction: int = -1
 var orientation: DoorOrientation = DoorOrientation.NORTH
 var is_open: bool = false
+var is_lorry: bool = false
+var trigger_rect: Rect2 = Rect2()
 
 # Tiles ocupados na grade 32x24 (onde a colisão é injetada/removida)
 var collision_tile_indices: Array[int] = []
 
 func _ready() -> void:
 	z_index = 6
+	if is_lorry:
+		is_open = true
 	_calculate_collision_tiles()
 
 func _calculate_collision_tiles() -> void:
 	collision_tile_indices.clear()
+	if is_lorry:
+		return
 	var center_tx: int = int(position.x) / 8
 	var center_ty: int = int(position.y) / 8
 
@@ -43,7 +52,7 @@ func _calculate_collision_tiles() -> void:
 			collision_tile_indices = [t1, t2]
 
 func inject_collision(collision_grid: Array) -> void:
-	if collision_grid.is_empty():
+	if is_lorry or collision_grid.is_empty():
 		return
 	for idx: int in collision_tile_indices:
 		if idx >= 0 and idx < collision_grid.size():
@@ -55,6 +64,29 @@ func check_interaction(player: PlayerController, inventory: InventoryManager, co
 	if player == null:
 		return -1
 
+	# Lógica para portas de caminhão (lorries)
+	if is_lorry:
+		if destination_room == -1:
+			return -1
+		var in_zone: bool = false
+		if trigger_rect.size != Vector2.ZERO:
+			in_zone = trigger_rect.has_point(player.position)
+		else:
+			in_zone = position.distance_to(player.position) <= 12.0
+
+		if in_zone:
+			var expected_dir: int = -1
+			if orientation == DoorOrientation.LORRY_ENTER:
+				expected_dir = PlayerController.Direction.UP
+			elif orientation == DoorOrientation.LORRY_EXIT:
+				expected_dir = PlayerController.Direction.RIGHT
+
+			if expected_dir == -1 or player.current_direction == expected_dir:
+				print("LORRY_DOOR_ENTER: Snake usou porta de caminhão %d para sala %d!" % [door_id, destination_room])
+				return destination_room
+		return -1
+
+	# Lógica padrão de portas normais de prédios
 	var dist: float = position.distance_to(player.position)
 
 	# 1. Se a porta estiver fechada, verificar se Snake tenta abrir
@@ -99,6 +131,9 @@ func close_door(collision_grid: Array) -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	if is_lorry:
+		return
+
 	var door_w: float = 16.0 if (orientation == DoorOrientation.NORTH or orientation == DoorOrientation.SOUTH) else 8.0
 	var door_h: float = 8.0 if (orientation == DoorOrientation.NORTH or orientation == DoorOrientation.SOUTH) else 16.0
 	var door_rect := Rect2(0, 0, door_w, door_h)

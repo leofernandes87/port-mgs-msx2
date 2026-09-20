@@ -257,4 +257,18 @@ func load_room_snapshot(room_id: int) -> RoomSnapshot:
 				_snapshot_cache[room_id] = snap
 				return snap
 
+	# Salas de caminhão (126, 127, 128) compartilham o mesmo layout de VRAM/tiles (layout_1b780 / metatiles 5)
+	if room_id in [126, 128]:
+		var lorry_snap: RoomSnapshot = load_room_snapshot(127)
+		if lorry_snap != null:
+			var copy_snap := RoomSnapshot.new()
+			copy_snap.room_id = room_id
+			copy_snap.pixels = lorry_snap.pixels.duplicate()
+			copy_snap.collision = lorry_snap.collision.duplicate()
+			copy_snap.colors = lorry_snap.colors.duplicate()
+			copy_snap.source = lorry_snap.source
+			copy_snap.loaded = true
+			_snapshot_cache[room_id] = copy_snap
+			return copy_snap
+
 	return null

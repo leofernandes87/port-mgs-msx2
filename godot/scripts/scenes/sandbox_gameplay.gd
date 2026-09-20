@@ -254,6 +254,26 @@ func _spawn_room_enemies(room_id: int) -> void:
 		game_world.add_child(g1)
 		enemies.append(g1)
 
+	elif room_id == 5:
+		# Sala 005 (pátio dos 3 caminhões): guarda de vigia autêntico (data/actorsinrooms.asm:34)
+		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g0.guard_type = EnemyGuard.GuardType.MEDIUM
+		g0.position = Vector2(112.0, 120.0)
+		g0.set_patrol_path([Vector2(80.0, 120.0), Vector2(176.0, 120.0)])
+		g0.show_debug_vision = show_enemy_vision
+		game_world.add_child(g0)
+		enemies.append(g0)
+
+	elif room_id == 127:
+		# Sala 127 (interior do caminhão central): guarda em alerta da ROM (data/actorsinrooms.asm:824)
+		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g0.guard_type = EnemyGuard.GuardType.MEDIUM
+		g0.position = Vector2(72.0, 112.0)
+		g0.set_patrol_path([Vector2(72.0, 88.0), Vector2(72.0, 112.0)])
+		g0.show_debug_vision = show_enemy_vision
+		game_world.add_child(g0)
+		enemies.append(g0)
+
 func _spawn_room_items(room_id: int) -> void:
 	for box: ItemBox in item_boxes:
 		if is_instance_valid(box):
@@ -264,36 +284,36 @@ func _spawn_room_items(room_id: int) -> void:
 		return
 
 	# Caixas de itens autênticas da ROM por sala (data/itemsinrooms.asm:6-13, 75-86)
-	if room_id == 1:
-		# Na sala 001: caixa de Ração próxima às caixas para teste
+	if room_id == 126:
+		# Caminhão da esquerda: Ração autêntica da ROM (ItemRation dw 5050h -> X=80, Y=80)
 		var b: ItemBox = ItemBox.new()
 		b.item_id = InventoryManager.ITEM_RATION
 		b.room_id = room_id
-		b.position = Vector2(40.0, 100.0)
+		b.position = Vector2(80.0, 80.0)
 		game_world.add_child(b)
 		item_boxes.append(b)
-	elif room_id == 2:
-		# Sala 002: caixa com CARD1 para permitir destrancar portas
-		var b: ItemBox = ItemBox.new()
-		b.item_id = InventoryManager.ITEM_CARD1
-		b.room_id = room_id
-		b.position = Vector2(40.0, 160.0)
-		game_world.add_child(b)
-		item_boxes.append(b)
-	elif room_id == 4:
-		# Sala 004: CARD1 canônico da ROM em (112, 80)
+	elif room_id == 127:
+		# Caminhão do centro: Cartão 1 autêntico da ROM (ItemCard1 dw 7050h -> X=112, Y=80)
 		var b: ItemBox = ItemBox.new()
 		b.item_id = InventoryManager.ITEM_CARD1
 		b.room_id = room_id
 		b.position = Vector2(112.0, 80.0)
 		game_world.add_child(b)
 		item_boxes.append(b)
-	elif room_id == 5:
-		# Sala 005: BINOCULARS em (112, 64)
+	elif room_id == 128:
+		# Caminhão da direita: Binóculos autênticos da ROM (ItemBinoculars dw 7040h -> X=112, Y=64)
 		var b: ItemBox = ItemBox.new()
 		b.item_id = InventoryManager.ITEM_BINOCULARS
 		b.room_id = room_id
 		b.position = Vector2(112.0, 64.0)
+		game_world.add_child(b)
+		item_boxes.append(b)
+	elif room_id == 4:
+		# Sala 004: CARD1 de backup em (112, 80)
+		var b: ItemBox = ItemBox.new()
+		b.item_id = InventoryManager.ITEM_CARD1
+		b.room_id = room_id
+		b.position = Vector2(112.0, 80.0)
 		game_world.add_child(b)
 		item_boxes.append(b)
 	elif room_id == 6:
@@ -314,8 +334,76 @@ func _spawn_room_doors(room_id: int) -> void:
 	if not game_world:
 		return
 
-	# Portas interativas autênticas (data/doors.asm:308-320)
-	if room_id == 2:
+	# Portas interativas autênticas (data/doors.asm:308-320, 634-638)
+	if room_id == 5:
+		# Sala 005: Pátio dos 3 caminhões (DoorsRoom005 em data/doors.asm:311-316)
+		# Caminhão 1 (Esquerda) -> leva à Sala 126
+		var d1: RoomDoor = RoomDoor.new()
+		d1.door_id = 101 # 0x65
+		d1.room_id = room_id
+		d1.is_lorry = true
+		d1.orientation = RoomDoor.DoorOrientation.LORRY_ENTER
+		d1.position = Vector2(36.0, 68.0)
+		d1.trigger_rect = Rect2(32.0, 80.0, 32.0, 16.0)
+		d1.destination_room = 126
+		d1.entry_position = Vector2(196.0, 112.0)
+		d1.destination_direction = PlayerController.Direction.LEFT
+		game_world.add_child(d1)
+		room_doors.append(d1)
+
+		# Caminhão 2 (Meio) -> leva à Sala 127
+		var d2: RoomDoor = RoomDoor.new()
+		d2.door_id = 109 # 0x6D
+		d2.room_id = room_id
+		d2.is_lorry = true
+		d2.orientation = RoomDoor.DoorOrientation.LORRY_ENTER
+		d2.position = Vector2(100.0, 100.0)
+		d2.trigger_rect = Rect2(96.0, 112.0, 32.0, 16.0)
+		d2.destination_room = 127
+		d2.entry_position = Vector2(196.0, 112.0)
+		d2.destination_direction = PlayerController.Direction.LEFT
+		game_world.add_child(d2)
+		room_doors.append(d2)
+
+		# Caminhão 3 (Direita) -> leva à Sala 128
+		var d3: RoomDoor = RoomDoor.new()
+		d3.door_id = 113 # 0x71
+		d3.room_id = room_id
+		d3.is_lorry = true
+		d3.orientation = RoomDoor.DoorOrientation.LORRY_ENTER
+		d3.position = Vector2(164.0, 68.0)
+		d3.trigger_rect = Rect2(160.0, 80.0, 32.0, 16.0)
+		d3.destination_room = 128
+		d3.entry_position = Vector2(196.0, 112.0)
+		d3.destination_direction = PlayerController.Direction.LEFT
+		game_world.add_child(d3)
+		room_doors.append(d3)
+
+	elif room_id in [126, 127, 128]:
+		# Saída da traseira de dentro do caminhão de volta ao pátio da Sala 5 (DoorsRoom126-128 em data/doors.asm:634-638)
+		var exit_d: RoomDoor = RoomDoor.new()
+		exit_d.room_id = room_id
+		exit_d.is_lorry = true
+		exit_d.orientation = RoomDoor.DoorOrientation.LORRY_EXIT
+		exit_d.position = Vector2(208.0, 96.0)
+		exit_d.trigger_rect = Rect2(204.0, 92.0, 24.0, 36.0)
+		exit_d.destination_room = 5
+		exit_d.destination_direction = PlayerController.Direction.DOWN
+
+		if room_id == 126:
+			exit_d.door_id = 101
+			exit_d.entry_position = Vector2(48.0, 104.0)
+		elif room_id == 127:
+			exit_d.door_id = 109
+			exit_d.entry_position = Vector2(112.0, 136.0)
+		elif room_id == 128:
+			exit_d.door_id = 113
+			exit_d.entry_position = Vector2(176.0, 104.0)
+
+		game_world.add_child(exit_d)
+		room_doors.append(exit_d)
+
+	elif room_id == 2:
 		# Porta oeste trancada (exige CARD1!) para acessar a sala 4
 		var d: RoomDoor = RoomDoor.new()
 		d.door_id = 1
@@ -463,7 +551,7 @@ func _physics_process(_delta: float) -> void:
 		if is_instance_valid(door):
 			var target_room: int = door.check_interaction(player, inventory, snapshot.collision)
 			if target_room != -1:
-				change_to_room(target_room, door.entry_position)
+				change_to_room(target_room, door.entry_position, door.destination_direction)
 				break
 
 	# Atualizar soldados inimigos, perseguição e combate
@@ -525,7 +613,7 @@ func _clamp_to_room_bounds(exit_dir: int) -> void:
 			player.position.y = RoomManager.EXIT_DOWN_Y - 0.1
 	player.queue_redraw()
 
-func change_to_room(new_room_id: int, entry_pos: Vector2) -> bool:
+func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1) -> bool:
 	var snap: RoomSnapshot = room_manager.load_room_snapshot(new_room_id)
 	if snap == null:
 		print("ROOM_TRANSITION_ABORTED: snapshot para sala %d não encontrado localmente" % new_room_id)
@@ -535,6 +623,8 @@ func change_to_room(new_room_id: int, entry_pos: Vector2) -> bool:
 	_apply_snapshot()
 	if player:
 		player.set_grid_position(entry_pos.x, entry_pos.y)
+		if entry_dir != -1:
+			player.current_direction = entry_dir as PlayerController.Direction
 		player.queue_redraw()
 	print("ROOM_TRANSITION_OK: transição para sala %d na posição %s" % [new_room_id, entry_pos])
 	return true

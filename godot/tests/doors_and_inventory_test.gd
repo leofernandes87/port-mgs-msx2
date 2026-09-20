@@ -103,5 +103,88 @@ func _run() -> void:
 	dest = door.check_interaction(player, inv, collision_grid)
 	if not require(dest == 4, "Atravessar porta aberta deve retornar a sala de destino (4)"): return
 
-	print("DOORS_AND_INVENTORY_OK: item collection, cycle, ration healing, locked door collision, card unlock and door entry")
+	# 4. Teste de Portas de Caminhão (Lorry Doors) e Interior de Caminhões (Salas 126, 127, 128)
+	# Entrada no caminhão da Sala 5 -> Sala 127
+	var lorry_door: RoomDoor = RoomDoor.new()
+	lorry_door.door_id = 109
+	lorry_door.room_id = 5
+	lorry_door.is_lorry = true
+	lorry_door.orientation = RoomDoor.DoorOrientation.LORRY_ENTER
+	lorry_door.position = Vector2(100.0, 100.0)
+	lorry_door.trigger_rect = Rect2(96.0, 112.0, 32.0, 16.0)
+	lorry_door.destination_room = 127
+	lorry_door.entry_position = Vector2(196.0, 112.0)
+	lorry_door.destination_direction = PlayerController.Direction.LEFT
+	root.add_child(lorry_door)
+	await process_frame
+
+	if not require(lorry_door.is_open, "Porta de caminhão deve estar aberta por padrão"): return
+	if not require(lorry_door.collision_tile_indices.is_empty(), "Porta de caminhão não deve bloquear colisão de tiles"): return
+
+	# Snake fora da zona de entrada
+	player.set_grid_position(50.0, 50.0)
+	player.current_direction = PlayerController.Direction.UP
+	var lorry_dest: int = lorry_door.check_interaction(player, inv, collision_grid)
+	if not require(lorry_dest == -1, "Snake longe do caminhão não deve entrar"): return
+
+	# Snake entra na traseira do caminhão olhando para cima (UP)
+	player.set_grid_position(108.0, 118.0) # Dentro de trigger_rect Rect2(96, 112, 32, 16)
+	player.current_direction = PlayerController.Direction.UP
+	lorry_dest = lorry_door.check_interaction(player, inv, collision_grid)
+	if not require(lorry_dest == 127, "Snake deve entrar no caminhão (sala 127) ao subir pela traseira"): return
+
+	# Saída de dentro do caminhão (Sala 127 -> Sala 5)
+	var lorry_exit: RoomDoor = RoomDoor.new()
+	lorry_exit.door_id = 109
+	lorry_exit.room_id = 127
+	lorry_exit.is_lorry = true
+	lorry_exit.orientation = RoomDoor.DoorOrientation.LORRY_EXIT
+	lorry_exit.position = Vector2(208.0, 96.0)
+	lorry_exit.trigger_rect = Rect2(204.0, 92.0, 24.0, 36.0)
+	lorry_exit.destination_room = 5
+	lorry_exit.entry_position = Vector2(112.0, 136.0)
+	lorry_exit.destination_direction = PlayerController.Direction.DOWN
+	root.add_child(lorry_exit)
+	await process_frame
+
+	# Snake caminha para a direita para sair do caminhão
+	player.set_grid_position(210.0, 100.0)
+	player.current_direction = PlayerController.Direction.RIGHT
+	var exit_dest: int = lorry_exit.check_interaction(player, inv, collision_grid)
+	if not require(exit_dest == 5, "Snake deve sair do caminhão de volta para a sala 5 ao caminhar pela direita"): return
+
+	# 5. Teste de Coleta dos Itens Canônicos dentro dos caminhões (Salas 126, 127, 128)
+	var truck_inv: InventoryManager = InventoryManager.new()
+	var box_126: ItemBox = ItemBox.new()
+	box_126.item_id = InventoryManager.ITEM_RATION
+	box_126.room_id = 126
+	box_126.position = Vector2(80.0, 80.0)
+	root.add_child(box_126)
+
+	var box_127: ItemBox = ItemBox.new()
+	box_127.item_id = InventoryManager.ITEM_CARD1
+	box_127.room_id = 127
+	box_127.position = Vector2(112.0, 80.0)
+	root.add_child(box_127)
+
+	var box_128: ItemBox = ItemBox.new()
+	box_128.item_id = InventoryManager.ITEM_BINOCULARS
+	box_128.room_id = 128
+	box_128.position = Vector2(112.0, 64.0)
+	root.add_child(box_128)
+	await process_frame
+
+	# Coleta da ração no caminhão 126
+	box_126.step_tick(Vector2(80.0, 80.0), truck_inv)
+	if not require(box_126.collected and truck_inv.has_item("RATION"), "Ração da sala 126 deve ser coletada"): return
+
+	# Coleta do Card 1 no caminhão 127
+	box_127.step_tick(Vector2(112.0, 80.0), truck_inv)
+	if not require(box_127.collected and truck_inv.has_item("CARD1"), "Card 1 da sala 127 deve ser coletado"): return
+
+	# Coleta dos Binóculos no caminhão 128
+	box_128.step_tick(Vector2(112.0, 64.0), truck_inv)
+	if not require(box_128.collected and truck_inv.has_item("BINOCULARS"), "Binóculos da sala 128 devem ser coletados"): return
+
+	print("DOORS_AND_INVENTORY_OK: item collection, cycle, ration healing, locked door collision, card unlock, lorry doors enter/exit, and canonical truck items")
 	quit(0)

@@ -124,8 +124,52 @@ func _run() -> void:
 	if not require(current_snap.room_id == 121, "Transição DOWN da Sala 0 deve carregar Sala 121 (praia)"): return
 	if not require(p.position == Vector2(128.0, 18.0), "Snake deve aparecer em (128, 18) na Sala 121"): return
 
+	# 3. Testar Transição Leste para Sala 5 (Pátio dos Caminhões) e Entrada/Saída dos Caminhões
+	# Voltar para Sala 1
+	sandbox.call("change_to_room", 1, Vector2(128.0, 104.0))
+	current_snap = sandbox.get("snapshot") as RoomSnapshot
+	if not require(current_snap.room_id == 1, "Deve carregar Sala 1"): return
+
+	# Avançar para o Leste rumo à Sala 5
+	p.set_grid_position(242.0, 104.0)
+	p.step_tick(Vector2i(1, 0)) # X vai para 244.0 (limite RIGHT)
+	sandbox.call("_check_and_handle_room_transition")
+
+	current_snap = sandbox.get("snapshot") as RoomSnapshot
+	if not require(current_snap.room_id == 5, "Transição RIGHT da Sala 1 deve carregar Sala 5 (pátio dos caminhões)"): return
+	if not require(p.position == Vector2(12.0, 104.0), "Snake deve aparecer em (12, 104) na Sala 5"): return
+
+	# Entrar no caminhão central (Sala 127) pela traseira
+	p.set_grid_position(108.0, 118.0)
+	p.current_direction = PlayerController.Direction.UP
+	sandbox.call("_physics_process", 1.0 / 60.0)
+
+	current_snap = sandbox.get("snapshot") as RoomSnapshot
+	if not require(current_snap.room_id == 127, "Snake deve entrar no caminhão central (Sala 127)"): return
+	if not require(p.position == Vector2(196.0, 112.0), "Snake deve aparecer em (196, 112) dentro do caminhão"): return
+	if not require(p.current_direction == PlayerController.Direction.LEFT, "Snake deve estar virado para a esquerda dentro do caminhão"): return
+
+	# Sair pela abertura direita da carroceria de volta à Sala 5
+	p.set_grid_position(210.0, 100.0)
+	p.current_direction = PlayerController.Direction.RIGHT
+	sandbox.call("_physics_process", 1.0 / 60.0)
+
+	current_snap = sandbox.get("snapshot") as RoomSnapshot
+	if not require(current_snap.room_id == 5, "Snake deve sair do caminhão de volta para o pátio da Sala 5"): return
+	if not require(p.position == Vector2(112.0, 136.0), "Snake deve reaparecer abaixo do caminhão central em (112, 136)"): return
+	if not require(p.current_direction == PlayerController.Direction.DOWN, "Snake deve sair virado para baixo"): return
+
+	# Voltar para a Sala 1 pelo Oeste
+	p.set_grid_position(12.0, 104.0)
+	p.step_tick(Vector2i(-1, 0)) # X vai para 10.0 (< 12.0)
+	sandbox.call("_check_and_handle_room_transition")
+
+	current_snap = sandbox.get("snapshot") as RoomSnapshot
+	if not require(current_snap.room_id == 1, "Transição LEFT da Sala 5 deve retornar à Sala 1"): return
+	if not require(p.position == Vector2(242.0, 104.0), "Snake deve reaparecer na borda leste da Sala 1"): return
+
 	sandbox.queue_free()
 	await process_frame
 
-	print("ROOM_TRANSITION_OK: room connections, authentic exit bounds, entry XY recalculation, bidirectional room changes")
+	print("ROOM_TRANSITION_OK: room connections, authentic exit bounds, entry XY recalculation, bidirectional room changes, and lorry truck transitions")
 	quit(0)

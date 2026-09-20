@@ -551,6 +551,69 @@ Etapa 9 implementada com total fidelidade às rotinas da ROM original do MSX2 RC
   - `godot-doors-inventory`: PASS (`DOORS_AND_INVENTORY_OK`)
   - `godot-main`: PASS (`BOOT_OK`)
 
+## 2026-09-20 — Etapa 10: Entrada e Saída em Caminhões (Lorries 126, 127, 128), Posicionamento Canônico e Salas Interiores
+
+Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 RC750. Documentação em `docs/reverse_engineering/stage-10-lorries-and-canonical-items.md`.
+
+### Metodologia e Fundamentação da ROM
+
+- **Caminhões Estacionados na Sala 005 (`data/doors.asm:311-316`)**:
+  - A Sala 005 possui 3 caminhões estacionados com suas portas de entrada registradas em `DoorsRoom005`:
+    - Caminhão 1 (Esquerda): `Door ID 101` (`0x65`), $X=36, Y=68 \rightarrow$ Destino: Sala 126 (`0x7E`).
+    - Caminhão 2 (Meio): `Door ID 109` (`0x6D`), $X=100, Y=100 \rightarrow$ Destino: Sala 127 (`0x7F`).
+    - Caminhão 3 (Direita): `Door ID 113` (`0x71`), $X=164, Y=68 \rightarrow$ Destino: Sala 128 (`0x80`).
+- **Lógica de Abertura Automática (`Banks0123.asm:1015-1022` e `data/doors.asm:917-918`)**:
+  - Na tabela `IdDoorsLogic`, as portas 101, 109 e 113 têm valores com bit 7 setado (`0x8A`, `0x8B`, `0x8B`).
+  - A rotina `SetDefaultDoorLock` mascara com `0xC0` e detecta `0x80`, definindo o estado como aberto por padrão (`0 = Open`). Portas de caminhão não exigem cartão e não desenham o sprite metálico de porta com leitor.
+- **Dimensões do Vão e Caixas de Acionamento (`DoorOpenEnterDat` em `data/doors.asm:15-18`)**:
+  - Tipo de renderização 1 (Entrada de caminhão): zona de entrada com tolerância de largura de 32 px.
+  - Tipo de renderização 4 (Saída da carroceria): abertura lateral direita de $X=208, Y \in [92, 128]$.
+- **Posicionamento Relativo de Snake ao Entrar/Sair (`logic/nextroom.asm:463-482`)**:
+  - `PlayerInDoorDat` tipo 4: ao entrar no caminhão, Snake se posiciona em $X=198, Y=112$ olhando para a esquerda (`Direction.LEFT`).
+  - `PlayerInDoorDat` tipo 1: ao sair para o pátio da Sala 5, Snake reaparece logo abaixo da traseira do caminhão correspondente olhando para baixo (`Direction.DOWN`).
+- **Posicionamento Canônico de Itens nos Caminhões (`data/itemsinrooms.asm:6-13, 75-86` e `logic/addroomitems.asm:15-35`)**:
+  - As caixas temporárias que haviam sido colocadas no chão das salas 1, 2 e 5 para validação preliminar foram removidas.
+  - Cada item foi realocado para sua sala canônica exata:
+    - **Sala 126** (Caminhão da esquerda): `RATION` (`dw 5050h` $\rightarrow X=80, Y=80$).
+    - **Sala 127** (Caminhão central): `CARD1` (`dw 7050h` $\rightarrow X=112, Y=80$) e 1 guarda em alerta (`ActorsRoom127: ID_GUARD_ALERT` `dw 4870h` $\rightarrow X=72, Y=112$).
+    - **Sala 128** (Caminhão da direita): `BINOCULARS` (`dw 7040h` $\rightarrow X=112, Y=64$).
+  - Sala 005: 1 guarda em patrulha (`ActorsRoom005: ID_GUARD_EXIT_LORRY` `dw 7078h` $\rightarrow X=112, Y=120$).
+
+### Implementação em Godot 4
+
+1. **`RoomDoor` (`door.gd`)**:
+   - Adicionadas orientações `LORRY_ENTER` e `LORRY_EXIT`.
+   - Adicionadas propriedades `is_lorry`, `trigger_rect` e `destination_direction`.
+   - Lorry doors são abertas por padrão, não bloqueiam colisão na matriz de tiles e não desenham sprite de porta de prédio.
+2. **`RoomManager` (`room_manager.gd`)**:
+   - Carregamento e cache compartilhado para as salas de caminhão 126 e 128 reutilizando o layout/colisão de `room-127.json`.
+3. **`PlayerController` e `sandbox_gameplay.gd`**:
+   - Suporte a mudança de direção ao atravessar portas (`entry_dir` / `destination_direction`).
+   - Spawning das 3 portas de caminhão na Sala 5 e portas de saída nas salas 126, 127 e 128.
+   - Posicionamento canônico de itens militares e guardas nas salas de caminhão.
+
+### Validação Automatizada
+
+- **`godot/tests/doors_and_inventory_test.gd`**:
+  - Valida abertura padrão e colisão desimpedida de portas de caminhão.
+  - Valida entrada no caminhão pela traseira (UP) para a Sala 127.
+  - Valida saída do caminhão pela abertura direita (RIGHT) de volta à Sala 5.
+  - Valida coleta limpa dos itens canônicos nos caminhões: Ração na 126, Card 1 na 127 e Binóculos na 128.
+- **`godot/tests/room_transition_test.gd`**:
+  - Valida transição bidirecional contínua Sala 1 $\leftrightarrow$ Sala 5.
+  - Valida transição Sala 5 $\rightarrow$ Sala 127 (caminhão) e retorno para a Sala 5.
+- **Suíte Completa (`python3 tools/validate.py`)**:
+  - `python-tests`: PASS (39 testes unitários)
+  - `godot-import`: PASS
+  - `godot-smoke`: PASS (`SMOKE_OK`)
+  - `godot-room-snapshot`: PASS (`ROOM_SNAPSHOT_OK`)
+  - `godot-player-movement`: PASS (`PLAYER_MOVEMENT_OK`)
+  - `godot-room-transition`: PASS (`ROOM_TRANSITION_OK`)
+  - `godot-enemy-patrol`: PASS (`ENEMY_PATROL_OK`)
+  - `godot-combat-health`: PASS (`COMBAT_AND_HEALTH_OK`)
+  - `godot-doors-inventory`: PASS (`DOORS_AND_INVENTORY_OK`)
+  - `godot-main`: PASS (`BOOT_OK`)
+
 
 
 
