@@ -11,6 +11,7 @@ from tools.extractors.codecs import (read, word, pointer, nibble, collision_bits
     planar, flip_x, terminated, unpack_gfx, rgb_palette, png_indexed, connection_index)
 from tools.extractors.extract import encode, publish
 from tools.extractors.schema import validate, validate_relations, SCHEMA
+from tools.extractors.batch_snapshots import _compose_raster, build_palette, parse_room_range, BUILDING_SCOPES
 from tools.reverse_engineering.analyze import data_segment
 
 
@@ -150,3 +151,98 @@ class ContractAndSafetyTests(unittest.TestCase):
         for mutate in mutations:
             invalid=copy.deepcopy(p);mutate(invalid)
             with self.assertRaises(ValueError):validate_relations(invalid)
+
+
+class BatchSnapshotTests(unittest.TestCase):
+    """Synthetic tests for batch_snapshots.py using no real ROM or emulator output."""
+
+    def _make_minimal_package(self):
+        """Build a minimal package stub with 2 synthetic decoded rooms."""
+        # 16 colours, each a flat [R,G,B]
+        default_pairs = [[0, 0]] * 16
+        palette_patch = {'registers': [[1, 0x70, 7]], 'evidence': {}}
+        tile_all_zero = [0] * 64
+        tile_all_one = [1] * 64
+        pixels_by_tile = [None] * 256
+        pixels_by_tile[3] = tile_all_zero
+        pixels_by_tile[4] = tile_all_one
+        tileset = {'id': 0, 'pixels_by_tile': pixels_by_tile, 'unloaded_tile_ids': [0, 1, 2]}
+        room0 = {
+            'id': 0, 'status': 'decoded', 'graphics_set_ref': 0, 'palette_ref': 0,
+            'expanded_tiles': [3] * 768,  # all tile 3 (all-zero pixels)
+            'static_collision': [0] * 768,
+        }
+        room1 = {
+            'id': 1, 'status': 'decoded', 'graphics_set_ref': 0, 'palette_ref': 0,
+            'expanded_tiles': [3] * 767 + [1],  # last cell uses unloaded tile 1
+            'static_collision': [0] * 768,
+        }
+        package = {
+            'tilesets': [tileset],
+            'palettes': [{'id': 0, 'registers': [], 'evidence': {}}],
+            'palette_base': {
+                'default_register_pairs': default_pairs,
+                'menu_patch': {'registers': []},
+            },
+            'manifest': {'input_sha256': 'a' * 64},
+        }
+        return package, [room0, room1]
+
+    def test_compose_raster_dimensions(self):
+        """_compose_raster always returns exactly 49152 ints."""
+        tiles = [3] * 768
+        atlas = [None] * 256
+        atlas[3] = [5] * 64
+        result = _compose_raster(tiles, atlas)
+        self.assertEqual(len(result), 49152)
+        self.assertTrue(all(p == 5 for p in result))
+
+    def test_compose_raster_unloaded_renders_zero(self):
+        """Unloaded tile slots (atlas[tid] is None) must render as pixel 0."""
+        tiles = [0] * 768  # tile 0 is unloaded (None)
+        atlas = [None] * 256
+        result = _compose_raster(tiles, atlas)
+        self.assertEqual(result, [0] * 49152)
+
+    def test_compose_raster_tile_placement(self):
+        """Each metatile cell is placed in the correct 8×8 pixel block."""
+        atlas = [[0] * 64 for _ in range(256)]
+        atlas[1] = [7] * 64  # distinct value
+        # Put tile 1 at cell (row=0, col=1) and nowhere else
+        tiles = [0] * 768
+        tiles[1] = 1
+        result = _compose_raster(tiles, atlas)
+        # Pixels at (y=0..7, x=8..15) should be 7
+        for y in range(8):
+            for x in range(8):
+                self.assertEqual(result[y * 256 + 8 + x], 7, f'cell y={y} x={x}')
+        # All other pixels should be 0
+        others = [result[y * 256 + x] for y in range(192) for x in range(256)
+                  if not (0 <= y <= 7 and 8 <= x <= 15)]
+        self.assertTrue(all(p == 0 for p in others))
+
+    def test_build_palette_applies_patches(self):
+        """build_palette returns an 18-entry list (16 room + 2 diagnostic colours)."""
+        package, _ = self._make_minimal_package()
+        palette = build_palette(package, 0)
+        self.assertEqual(len(palette), 18)
+        self.assertEqual(len(palette[0]), 3)
+        # Last two entries are diagnostic colours from compare.py convention
+        self.assertEqual(palette[16], [255, 0, 255])
+        self.assertEqual(palette[17], [40, 0, 40])
+
+    def test_parse_room_range_single_and_range(self):
+        self.assertEqual(parse_room_range('5'), {5})
+        self.assertEqual(parse_room_range('0-3'), {0, 1, 2, 3})
+        with self.assertRaises(ValueError):
+            parse_room_range('0-1-2')
+
+    def test_building_scopes_cover_correct_ranges(self):
+        self.assertEqual(set(BUILDING_SCOPES['building1']), set(range(0, 16)))
+        self.assertEqual(set(BUILDING_SCOPES['building2']), set(range(16, 64)))
+        self.assertEqual(set(BUILDING_SCOPES['building3']), set(range(64, 126)))
+        b123 = set(BUILDING_SCOPES['buildings123'])
+        self.assertEqual(b123, set(range(0, 126)))
+        self.assertTrue(b123 == set(BUILDING_SCOPES['building1']) |
+                        set(BUILDING_SCOPES['building2']) |
+                        set(BUILDING_SCOPES['building3']))

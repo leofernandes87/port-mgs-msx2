@@ -614,6 +614,46 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
   - `godot-doors-inventory`: PASS (`DOORS_AND_INVENTORY_OK`)
   - `godot-main`: PASS (`BOOT_OK`)
 
+## 2026-09-20 — Etapa 11: Extração em Lote de Todas as Salas dos Prédios 1, 2 e 3
+
+**Objetivo**: Gerar e validar em lote os snapshots de fundo e colisão de todas as salas dos Prédios 1, 2 e 3 a partir da ROM.
+
+### O que foi feito
+
+- **Ferramenta criada**: `tools/extractors/batch_snapshots.py`
+  - Lê `data/extracted/rc750-verified/package.json` (produzido por `extract.py`, sem tocar a ROM)
+  - Reconstrói os pixels de cada sala usando `_compose_raster()` — mesma lógica de `compare.py`
+  - Tiles não carregados no slot estático (IDs 0, 1, 2) renderizados como índice 0 (preto), confirmado pelas capturas do emulador
+  - Constrói paleta RGB com `build_palette()`: par base + patch da sala
+  - Valida cada snapshot contra o esquema `data/schemas/room-snapshot.schema.json`
+  - Faz cross-check pixel-a-pixel contra snapshots validados por emulador (stage4b/c/d)
+  - Escreve `room-NNN.json` + `room-NNN.png` + `batch_summary.json` + `checksums.json`
+
+- **Salas extraídas**: 126 snapshots (rooms 000–125, todos os Prédios 1, 2 e 3)
+  - Prédio 1 (salas 0–15): 16 snapshots
+  - Prédio 2 (salas 16–63): 48 snapshots
+  - Prédio 3 (salas 64–125): 62 snapshots
+  - Salas com tiles não carregados: 84/126 (tiles 1 e/ou 2 renderizados como zeros)
+  - Cross-check contra emulador: 7/126 salas com correspondência pixel-a-pixel exata (rooms 000, 001, 002, 003, 005, 031, 121)
+
+- **Destino**: `data/extracted/stage5-batch/` (254 arquivos: 126 JSON + 126 PNG + 2 meta)
+
+- **Testes adicionados** a `tests/test_extractors.py` — classe `BatchSnapshotTests` (6 novos testes sintéticos):
+  - `test_compose_raster_dimensions`: sempre 49152 ints
+  - `test_compose_raster_unloaded_renders_zero`: tile None → pixel 0
+  - `test_compose_raster_tile_placement`: posicionamento correto de bloco 8×8
+  - `test_build_palette_applies_patches`: 18 entradas, 2 cores diagnósticas no final
+  - `test_parse_room_range_single_and_range`: parsing de faixas de sala
+  - `test_building_scopes_cover_correct_ranges`: escopos de prédios corretos
+
+### Verificações reais
+
+- **`python3 tools/validate.py`**: PASS (45 testes Python + 9 suites Godot)
+- **Extração em lote**: 126/126 snapshots, 0 falhas, 7 cross-checks exatos
+- ROM original: não modificada; package.json é a entrada intermediária
+
+
+
 
 
 
