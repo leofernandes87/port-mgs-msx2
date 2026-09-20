@@ -1,0 +1,167 @@
+class_name PlayerController
+extends Node2D
+
+## Controlador de movimento de Snake fiel à física e colisão MSX2 (Etapa 5).
+## Coordenadas em subpixels com avanço discreto de 2.0 pixels/tick e 2 pontos de colisão por direção.
+
+enum Direction {
+	UP = 1,
+	DOWN = 2,
+	LEFT = 3,
+	RIGHT = 4,
+}
+
+const SPEED_NORMAL: float = 2.0
+const ANIM_TICKS_PER_FRAME: int = 6
+
+# Pontos exatos de amostragem de colisão da ROM (Shape 0 / BoxColliderDat)
+const COLLIDER_OFFSETS = {
+	Direction.UP: [Vector2i(-6, -5), Vector2i(5, -5)],
+	Direction.DOWN: [Vector2i(-6, 4), Vector2i(5, 4)],
+	Direction.LEFT: [Vector2i(-8, -4), Vector2i(-8, 3)],
+	Direction.RIGHT: [Vector2i(7, -4), Vector2i(7, 3)],
+}
+
+var current_direction: Direction = Direction.DOWN
+var is_moving: bool = false
+var anim_wait_cnt: int = 0
+var frame_num: int = 0  # 0: Parado, 1: Passo 1, 2: Passo 2
+
+var collision_grid: Array = []  # 768 inteiros (32x24 tiles, 1=bloqueio, 0=livre)
+var show_debug_colliders: bool = false
+
+func _ready() -> void:
+	z_index = 10
+
+func set_collision_grid(grid: Array) -> void:
+	collision_grid = grid
+
+func set_grid_position(px: float, py: float) -> void:
+	position = Vector2(px, py)
+	queue_redraw()
+
+func step_tick(input_dir: Vector2i) -> bool:
+	if input_dir == Vector2i.ZERO:
+		is_moving = false
+		anim_wait_cnt = 0
+		frame_num = 0
+		queue_redraw()
+		return false
+
+	var new_dir: Direction
+	if input_dir.y < 0:
+		new_dir = Direction.UP
+	elif input_dir.y > 0:
+		new_dir = Direction.DOWN
+	elif input_dir.x < 0:
+		new_dir = Direction.LEFT
+	else:
+		new_dir = Direction.RIGHT
+
+	current_direction = new_dir
+
+	var speed_vector := Vector2.ZERO
+	match current_direction:
+		Direction.UP:
+			speed_vector = Vector2(0.0, -SPEED_NORMAL)
+		Direction.DOWN:
+			speed_vector = Vector2(0.0, SPEED_NORMAL)
+		Direction.LEFT:
+			speed_vector = Vector2(-SPEED_NORMAL, 0.0)
+		Direction.RIGHT:
+			speed_vector = Vector2(SPEED_NORMAL, 0.0)
+
+	var next_pos := position + speed_vector
+
+	if is_colliding_at(next_pos, current_direction):
+		is_moving = false
+		queue_redraw()
+		return false
+
+	position = next_pos
+	is_moving = true
+
+	anim_wait_cnt += 1
+	if anim_wait_cnt >= ANIM_TICKS_PER_FRAME:
+		anim_wait_cnt = 0
+		frame_num += 1
+		if frame_num >= 3:
+			frame_num = 1
+
+	queue_redraw()
+	return true
+
+func is_colliding_at(target_pos: Vector2, dir: Direction) -> bool:
+	if collision_grid.is_empty():
+		return false
+
+	var offsets: Array = COLLIDER_OFFSETS.get(dir, [])
+	for offset: Vector2i in offsets:
+		var sample_x: float = target_pos.x + float(offset.x)
+		var sample_y: float = target_pos.y + float(offset.y)
+
+		if sample_x < 0.0 or sample_x >= 256.0 or sample_y < 0.0 or sample_y >= 192.0:
+			return true
+
+		var tile_x: int = int(sample_x) / 8
+		var tile_y: int = int(sample_y) / 8
+
+		if tile_x < 0 or tile_x >= 32 or tile_y < 0 or tile_y >= 24:
+			return true
+
+		var tile_index: int = tile_y * 32 + tile_x
+		if tile_index < collision_grid.size() and int(collision_grid[tile_index]) == 1:
+			return true
+
+	return false
+
+func _draw() -> void:
+	# Representação visual de Snake (16x16 pixels centralizado)
+	var body_rect := Rect2(-8, -12, 16, 16)
+	
+	# Uniforme militar (verde oliva autêntico MSX)
+	var uniform_color := Color("486838")
+	var shadow_color := Color("283818")
+	var skin_color := Color("d89870")
+	var bandana_color := Color("c83030")
+
+	draw_rect(body_rect, uniform_color)
+	draw_rect(Rect2(-8, -12, 16, 2), shadow_color)
+
+	# Faixa da bandana
+	draw_rect(Rect2(-7, -10, 14, 2), bandana_color)
+	
+	# Rosto / Pele visível
+	draw_rect(Rect2(-5, -8, 10, 4), skin_color)
+
+	# Indicador de direção dos olhos / visão
+	var eye_offset := Vector2.ZERO
+	match current_direction:
+		Direction.UP:
+			draw_rect(Rect2(-6, -11, 12, 4), shadow_color) # Costas da cabeça
+		Direction.DOWN:
+			draw_rect(Rect2(-4, -7, 2, 2), Color.BLACK)
+			draw_rect(Rect2(2, -7, 2, 2), Color.BLACK)
+		Direction.LEFT:
+			draw_rect(Rect2(-6, -7, 2, 2), Color.BLACK)
+		Direction.RIGHT:
+			draw_rect(Rect2(4, -7, 2, 2), Color.BLACK)
+
+	# Pés com animação de passos
+	var leg_left := Rect2(-6, 2, 4, 3)
+	var leg_right := Rect2(2, 2, 4, 3)
+	if is_moving:
+		if frame_num == 1:
+			leg_left.position.y += 1
+			leg_right.position.y -= 1
+		elif frame_num == 2:
+			leg_left.position.y -= 1
+			leg_right.position.y += 1
+	draw_rect(leg_left, shadow_color)
+	draw_rect(leg_right, shadow_color)
+
+	# Debug: desenhar os 2 pontos de colisão ativos de BoxColliderDat
+	if show_debug_colliders:
+		var offsets: Array = COLLIDER_OFFSETS.get(current_direction, [])
+		for offset: Vector2i in offsets:
+			draw_circle(Vector2(offset.x, offset.y), 1.5, Color.RED)

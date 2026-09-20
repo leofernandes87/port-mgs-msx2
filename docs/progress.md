@@ -275,4 +275,62 @@ Objetivo concluído conforme planejado: modelagem analítica e validação emula
 
 ### Fronteira e Próximos Passos
 
-A composição visual completa das salas (fundo estático por metatiles + atlas de VRAM herdado/carregado + deltas de portas fechadas e itens) está agora integralmente comprovada e validada com tolerância zero. O pipeline visual da Etapa 4 está formalmente concluído. Próximo escopo: transição para a **Etapa 5 (Medições por Tick e Modelo de Movimento/Colisão de Snake)**.
+A composição visual completa das salas (fundo estático por metatiles + atlas de VRAM herdado/carregado + deltas de portas fechadas e itens) está agora integralmente comprovada e validada com tolerância zero. O pipeline visual da Etapa 4 está formalmente concluído.
+
+## 2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4
+
+Objetivo concluído: modelagem analítica e implementação fiel em Godot 4 da física discreta de movimento e sistema de colisão de Snake (`PlayerController`), acompanhada de cena jogável interativa (`sandbox_gameplay.tscn`) e suíte de validação automatizada headless.
+
+### Metodologia e Fundamentação da ROM
+
+- **Constantes de Física Revertidas**:
+  - `PlayerMovSpeed`: `0x0200` (ponto fixo 8.8, equivalente a exatamente **2.0 pixels/tick** em velocidade normal de caminhada) localizado em `Banks0123.asm` (linha 8416).
+  - Movimento estritamente ortogonal: sem deslocamento diagonal (apenas 1 eixo processado por tick).
+  - Temporização de passos: 6 ticks por quadro de animação (passo 1 → passo 2 → passo 1) e reset para 0 ao parar.
+- **Tabela de Colisão `BoxColliderDat` (Shape 0)**:
+  - Definida em `logic/collisions.asm` (linhas 135-144). Snake utiliza `Shape 0` (`ShapeSize_0`), que amostra exatamente **2 pontos de teste** por direção relativa ao centro do ator:
+    - **UP** (1): `(-6, -5)` e `(5, -5)`
+    - **DOWN** (2): `(-6, 4)` e `(5, 4)`
+    - **LEFT** (3): `(-8, -4)` e `(-8, 3)`
+    - **RIGHT** (4): `(7, -4)` e `(7, 3)`
+  - O teste de colisão avalia as amostras contra a grade 32×24 de `static_collision` (tiles de 8×8 pixels). Se qualquer uma das amostras atingir um tile com valor `1` ou as bordas da tela (`0..255`, `0..191`), o movimento no tick é bloqueado sem alterar a posição de Snake.
+
+### Implementação em Godot 4
+
+1. **`PlayerController` (`godot/scripts/systems/player.gd` & `godot/scenes/player.tscn`)**:
+   - Nó `Node2D` com tipagem estática completa GDScript (`Direction`, `SPEED_NORMAL = 2.0`, `COLLIDER_OFFSETS`).
+   - Método `step_tick(input_dir: Vector2i) -> bool` com física discreta determinística e teste de colisão prévio.
+   - Renderização autoral e procedural da silhueta de Snake com uniforme militar verde-oliva, bandana vermelha, orientação dos olhos e passos animados.
+   - Suporte a depuração visual (`show_debug_colliders`) desenhando os 2 pontos de amostragem de `BoxColliderDat`.
+2. **Cena Sandbox Jogável (`godot/scripts/scenes/sandbox_gameplay.gd` & `godot/scenes/sandbox_gameplay.tscn`)**:
+   - Espaço nativo 256×192 desacoplado com `game_world: Node2D` aplicando escala inteira (zoom) e centralização visual automática com base na janela.
+   - Carregamento prioritário de snapshot real validado (Sala 1 do Prédio 1) ou fallback sintético limpo sem dependência de ROM.
+   - Controles interativos: Setas/WASD para mover, `C` para exibir grade de colisão de 32×24, `V` para visualizar pontos de contato do colisor e `R` para resetar posição.
+   - Integração no menu inicial de `godot/scenes/main.tscn` com botão direto "Jogar Sandbox Gameplay (Snake)".
+
+### Validação Automatizada
+
+- **Teste Headless Godot (`godot/tests/player_movement_test.gd`)**:
+  - Verifica avanço exato de 2.0 px/tick em espaço aberto para as 4 direções.
+  - Verifica ciclo de 6 ticks de animação de passos.
+  - Valida isoladamente a rejeição nos 2 pontos de `BoxColliderDat` para cada uma das 4 direções contra obstáculo sintético calibrado.
+  - Valida bloqueio nos 4 limites da tela (0..255, 0..191).
+  - Instancia `sandbox_gameplay.tscn`, confirmando carregamento da grade e árvore de nós.
+  - Saída oficial: `PLAYER_MOVEMENT_OK: 2.0px speed, authentic BoxColliderDat points, 4-direction blocking, scene integration`.
+- **Suíte Integrada (`python3 tools/validate.py`)**:
+  - `python-tests`: PASS (39 testes unitários)
+  - `godot-import`: PASS
+  - `godot-smoke`: PASS (`SMOKE_OK`)
+  - `godot-room-snapshot`: PASS (`ROOM_SNAPSHOT_OK`)
+  - `godot-player-movement`: PASS (`PLAYER_MOVEMENT_OK`)
+  - `godot-main`: PASS (`BOOT_OK`)
+
+### Como Executar e Jogar
+
+- **Via Godot**:
+  - Executável: `/Applications/Godot.app/Contents/MacOS/Godot --path godot`
+  - Na tela inicial, clique em **"Jogar Sandbox Gameplay (Snake)"** ou execute diretamente a cena:
+    `/Applications/Godot.app/Contents/MacOS/Godot --path godot res://scenes/sandbox_gameplay.tscn`
+- **Via Validador**:
+  - `python3 tools/validate.py`
+

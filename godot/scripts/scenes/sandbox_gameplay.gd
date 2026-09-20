@@ -1,0 +1,231 @@
+extends Control
+## Cena de teste jogável de Snake com movimentação e colisão fiéis ao MSX2 (Etapa 5).
+
+var snapshot: RoomSnapshot = RoomSnapshot.new()
+var player: PlayerController
+var room_texture: ImageTexture
+var show_collision: bool = false
+var zoom: float = 3.0
+var canvas_origin: Vector2 = Vector2.ZERO
+
+var status_label: Label
+var collision_btn: CheckButton
+var colliders_btn: CheckButton
+
+# Posição inicial padrão (Sala 1: centro do corredor livre da entrada)
+const DEFAULT_SPAWN_X: float = 128.0
+const DEFAULT_SPAWN_Y: float = 104.0
+
+func _ready() -> void:
+	# Montar interface
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side: String in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 12)
+	add_child(margin)
+
+	var column := VBoxContainer.new()
+	margin.add_child(column)
+
+	var bar := HBoxContainer.new()
+	column.add_child(bar)
+
+	var title := Label.new()
+	title.text = "Metal Gear MSX2 · Gameplay Sandbox (Etapa 5)"
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bar.add_child(title)
+
+	collision_btn = CheckButton.new()
+	collision_btn.text = "Grade de Colisão (C)"
+	collision_btn.toggled.connect(func(v: bool) -> void: 
+		show_collision = v
+		if room_display:
+			room_display.queue_redraw()
+	)
+	bar.add_child(collision_btn)
+
+	colliders_btn = CheckButton.new()
+	colliders_btn.text = "Pontos de Teste (V)"
+	colliders_btn.toggled.connect(func(v: bool) -> void: 
+		if player:
+			player.show_debug_colliders = v
+			player.queue_redraw()
+	)
+	bar.add_child(colliders_btn)
+
+	var reset_btn := Button.new()
+	reset_btn.text = "Resetar (R)"
+	reset_btn.pressed.connect(reset_player)
+	bar.add_child(reset_btn)
+
+	status_label = Label.new()
+	status_label.text = "Controles: Setas / WASD para mover · C: Colisão · V: Pontos do Snake"
+	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(status_label)
+
+	# Área central de jogo (Control que contém e centraliza o mundo do jogo)
+	viewport_area = Control.new()
+	viewport_area.custom_minimum_size = Vector2(256, 192)
+	viewport_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	viewport_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	viewport_area.clip_contents = true
+	viewport_area.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	viewport_area.resized.connect(_on_viewport_resized)
+	column.add_child(viewport_area)
+
+	# Nó container 2D escalado (mundo nativo 256x192)
+	game_world = Node2D.new()
+	viewport_area.add_child(game_world)
+
+	# Fundo da sala
+	room_display = Node2D.new()
+	room_display.draw.connect(_draw_room_and_collision)
+	game_world.add_child(room_display)
+
+	# Instanciar Player no mundo nativo 256x192
+	player = preload("res://scenes/player.tscn").instantiate() as PlayerController
+	game_world.add_child(player)
+
+	# Carregar sala inicial (tenta caminho real exportado, ou fallback sintético)
+	_load_initial_room()
+	reset_player()
+	call_deferred("_post_ready_layout")
+
+var viewport_area: Control
+var game_world: Node2D
+var room_display: Node2D
+
+func _post_ready_layout() -> void:
+	if viewport_area:
+		_update_world_transform(viewport_area.size)
+
+func _on_viewport_resized() -> void:
+	if viewport_area:
+		_update_world_transform(viewport_area.size)
+
+func _update_world_transform(area_size: Vector2) -> void:
+	if not game_world or area_size.x <= 0.0 or area_size.y <= 0.0:
+		return
+	var zoom_x: float = floorf(area_size.x / 256.0)
+	var zoom_y: float = floorf(area_size.y / 192.0)
+	zoom = maxf(1.0, minf(zoom_x, zoom_y))
+	canvas_origin = ((area_size - Vector2(256, 192) * zoom) / 2.0).floor()
+	game_world.position = canvas_origin
+	game_world.scale = Vector2(zoom, zoom)
+
+func _draw_room_and_collision() -> void:
+	if room_texture:
+		room_display.draw_texture(room_texture, Vector2.ZERO)
+	if show_collision and snapshot.loaded:
+		for i: int in range(768):
+			if int(snapshot.collision[i]) == 1:
+				var cell := Vector2(i % 32, i / 32) * 8.0
+				room_display.draw_rect(Rect2(cell, Vector2(8, 8)), Color(1.0, 0.2, 0.1, 0.35))
+				room_display.draw_rect(Rect2(cell, Vector2(8, 8)), Color(1.0, 0.2, 0.1, 0.8), false, 1.0)
+
+func _load_initial_room() -> void:
+	var arguments: PackedStringArray = OS.get_cmdline_user_args()
+	for i: int in range(arguments.size() - 1):
+		if arguments[i] == "--snapshot":
+			if snapshot.load_path(arguments[i + 1]) == OK:
+				_apply_snapshot()
+				return
+
+	# Tentar caminhos locais existentes sob data/extracted
+	var candidate_paths: Array[String] = [
+		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-001.json"),
+		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-121.json"),
+		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-003.json"),
+		ProjectSettings.globalize_path("res://../data/extracted/stage4-validated/room-005.json")
+	]
+
+	for path: String in candidate_paths:
+		if FileAccess.file_exists(path) and snapshot.load_path(path) == OK:
+			_apply_snapshot()
+			return
+
+	# Fallback sintético limpo caso nenhuma extração esteja presente
+	_create_synthetic_fallback_room()
+
+func _apply_snapshot() -> void:
+	room_texture = ImageTexture.create_from_image(snapshot.make_image())
+	if player:
+		player.set_collision_grid(snapshot.collision)
+	status_label.text = "Sala %03d · %s · Use Setas/WASD para controlar Snake" % [snapshot.room_id, snapshot.source]
+	print("SANDBOX_ROOM_LOADED: %d" % snapshot.room_id)
+	if room_display:
+		room_display.queue_redraw()
+
+func _create_synthetic_fallback_room() -> void:
+	var pixels: Array[int] = []
+	pixels.resize(49152)
+	pixels.fill(2) # Verde chão
+	var collision: Array[int] = []
+	collision.resize(768)
+	collision.fill(0)
+	# Paredes nas bordas
+	for ty: int in range(24):
+		for tx: int in range(32):
+			if tx == 0 or tx == 31 or ty == 0 or ty == 23:
+				collision[ty * 32 + tx] = 1
+				for py: int in range(8):
+					for px: int in range(8):
+						pixels[(ty * 8 + py) * 256 + (tx * 8 + px)] = 1 # Parede
+			# Bloco de obstáculo central
+			if tx >= 12 and tx <= 19 and ty >= 8 and ty <= 12:
+				collision[ty * 32 + tx] = 1
+				for py: int in range(8):
+					for px: int in range(8):
+						pixels[(ty * 8 + py) * 256 + (tx * 8 + px)] = 1
+	var palette: Array = []
+	for i: int in range(18):
+		palette.append([0, 0, 0])
+	palette[1] = [120, 120, 120] # Cinza parede
+	palette[2] = [40, 100, 40]   # Verde chão
+
+	snapshot.decode({
+		"format_version": "1.0.0", "room_id": 999, "width": 256, "height": 192,
+		"pixels": pixels, "collision": collision, "palette_rgb": palette,
+		"source": "synthetic_sandbox", "input_sha256": "0".repeat(64)
+	})
+	_apply_snapshot()
+
+func reset_player() -> void:
+	if player:
+		# Posição inicial livre na sala
+		player.set_grid_position(DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y)
+		player.current_direction = PlayerController.Direction.UP
+		player.is_moving = false
+		player.queue_redraw()
+
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_C:
+			show_collision = not show_collision
+			collision_btn.set_pressed_no_signal(show_collision)
+			if room_display:
+				room_display.queue_redraw()
+		elif event.keycode == KEY_V:
+			if player:
+				player.show_debug_colliders = not player.show_debug_colliders
+				colliders_btn.set_pressed_no_signal(player.show_debug_colliders)
+				player.queue_redraw()
+		elif event.keycode == KEY_R:
+			reset_player()
+
+func _physics_process(_delta: float) -> void:
+	if not player:
+		return
+
+	# Leitura de entrada com prioridade de eixos autêntica MSX
+	var input_dir := Vector2i.ZERO
+	if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W):
+		input_dir = Vector2i(0, -1)
+	elif Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S):
+		input_dir = Vector2i(0, 1)
+	elif Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A):
+		input_dir = Vector2i(-1, 0)
+	elif Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
+		input_dir = Vector2i(1, 0)
+
+	player.step_tick(input_dir)
