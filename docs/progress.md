@@ -165,3 +165,70 @@ Falhas intermediárias registradas: captura prematura com tileset 255; captura c
 Esta etapa introduz evidência em execução, limitada a openMSX/C-BIOS e quatro fundos. Paleta nominal não foi comparada ao RGB final dinâmico; não houve implementação de portas desenhadas, entidades, movimento ou IA. A máscara exibida não representa toda a colisão do jogo. Campos de portas conferidos não comprovam todos os eventos de abertura/destruição.
 
 Marco diagnóstico entregue. Próximo escopo proposto: capturas de outros tilesets/início de jogo → composição por deltas de portas/itens → medições por tick do jogador → controlador mínimo com testes. Etapa 5 não iniciada. Nenhum novo commit ou push feito automaticamente.
+
+## 2026-09-20 — Transferência de contexto para Gemini CLI
+
+Última tarefa executada: inspeção do repositório, documentação e verificações para transferência, sem novas funcionalidades. Criados `docs/HANDOFF.md` (14 seções, evidências, limites, comandos, próxima tarefa e critérios) e `GEMINI.md` (regras curtas referenciando AGENTS.md). Histórico anterior preservado. O estado atual prevalece sobre menções históricas à ausência de emulador ou às etapas ainda não iniciadas.
+
+Estado efetivo: Etapas 1–3 entregues nos escopos documentados; Etapa 4 entregue como captura/comparação de quatro fundos e visualizador diagnóstico. Não há gameplay implementado. Etapa 5 não iniciada.
+
+### Verificações nesta transferência
+
+- Ambiente reconferido: macOS 15.7.7/24G720, x86_64, Python 3.9.6, Git 2.50.1, Godot 4.7.2 e openMSX 21.0. Nenhuma instalação.
+- `python3 tools/validate.py`: código 0; **35 testes Python OK**; importação do editor headless, `SMOKE_OK`, `ROOM_SNAPSHOT_OK` e `BOOT_OK` passaram. Logs usuais renovados em reports/.
+- `verify.py` sobre rc750-verified/rc750-repeat: código 0; **33 arquivos idênticos**, contrato e derivados aprovados, duas entradas negativas rejeitadas em memória, ROM inalterada. Hash do pacote permanece `438c3c25cc8aee6e70828594e27959a7a784135291befeac1cca42d41d31d738`. Dois `.DS_Store` preservados e explicitamente excluídos do inventário de geração.
+- Integração Godot headless com snapshot/PNG existentes da sala 5: código 0, `ROOM_INTEGRATION_OK: 49152 pixels matched Python; room 5`.
+- Ambas as ROMs lidas para hash: principal `254ffcd94d9ba2322c00df88b21b33b338e3238b90962820bbcaa2bb621e18cf`; tradução `89cfeee7d990a6bed050dcffa12ddff179e1632f13450247ee8860587adec6f4`, iguais aos registros anteriores.
+- Conferidos como ignorados os 102 arquivos presentes nos dois pacotes e nos dois diretórios finais da Etapa 4. Nas árvores privadas, somente READMEs explicativos são rastreados. Referência no commit fixado, sem alterações rastreadas; `.DS_Store` não rastreado preservado.
+- `git diff --check`: passou; índice permanece sem alterações. Revisão final limitada aos três documentos da transferência, sem conteúdo protegido incorporado.
+- Não repetida captura no openMSX nem inspeção gráfica: resultados de emulação/screenshots continuam os da Etapa 4, sem nova alegação de cobertura.
+
+### Git e retomada
+
+Entrada limpa em `main`, HEAD `d1210d2` (Etapa 4), anterior `fe4c755`; nenhum remoto. A transferência deixa `docs/HANDOFF.md` e `GEMINI.md` novos e este progresso modificado; nenhuma mudança de código, staging, commit ou push. Nenhuma alteração existente descartada.
+
+Próxima tarefa exata no Gemini: ler regras/handoff/última entrada, conferir estado local, executar a validação e apresentar plano delimitado de captura de início de jogo e de pelo menos um tileset adicional, para distinguir limpeza de herança de VRAM. Desenvolvimento dessa próxima etapa depende de autorização; os critérios estão nas seções 13–14 do handoff. Composição dinâmica e controlador vêm depois das evidências necessárias.
+
+`gemini` não foi encontrado no PATH desta sessão; a instalação não foi realizada. Iniciar o CLI na raiz existente após disponibilizá-lo. Clone Git isolado não preserva ROMs, referência, pacotes ou relatórios privados: manter esta pasta para a continuidade local. Transferência encerrada sem avançar no desenvolvimento.
+
+## 2026-09-20 — Etapa 4B: Início de jogo, Tileset 3 e Comprovação de Herança de VRAM
+
+Objetivo concluído conforme critérios das seções 13 e 14 de `docs/HANDOFF.md`: ampliação da evidência em execução no openMSX para início de jogo (sala 121, tileset 0) e um tileset adicional além de 0 e 4 (sala 240, elevador, tileset 3), registrando o estado anterior de VRAM (`prior-vram.bin`) e posterior estabilizado (`settled-vram.bin`) para comprovar a herança de atlas de tiles versus inicialização limpa.
+
+### Metodologia e Instrumentação
+
+- **Âncoras de instrução verificadas**:
+  - `RenderRoom`: ROM `0x0CF0`, CPU `0x4CF0`, banco 0.
+  - `WaitVdpCmd`: ROM `0x0ED2`, CPU `0x4ED2`, RET `0x4EDB`, banco 0.
+  - `LoadRoomTiles`: ROM `0x0935`, CPU `0x4935`, banco 0 (assinatura única `\xcd\xc4\x42\xcd\x6a\x42\x21\x00\x60\xcd\xd1\x42\x21\x57\xc1` confirmada no binário).
+- **Captura do atlas anterior**: adicionada captura em `0x4935` (`LoadRoomTiles`), imediatamente antes de qualquer descompactação ou alteração do atlas pela nova sala.
+- **Navegação física determinística reproduzível**:
+  - Implementado modo `--mode gameplay` no `capture.py`/`capture.tcl` utilizando unicamente a matriz do teclado MSX (`SNSMAT` via `keymatrixdown`/`keymatrixup`), sem escritas de RAM/ROM/VRAM e sem salto de PC.
+  - Sequência: skip de logo (Espaço aos 2s) → New Game (Espaço em `GameStatus == 1`) → avanço de textos de rádio com tecla RETURN (`keymatrixdown 7 128` em `TextWindowStatus == 3`) → caminhada autônoma de Snake: Sala 121 (praia) → Sala 0 (portão) → Sala 1 (fachada) → Sala 2 (corredor) → Sala 3 (hall) → entrada física na porta do elevador (Porta 2, `render_type 5`, sem exigência de cartão) → Sala 240 (**Tileset 3: Elevador**).
+- **Análise e classificação de herança no `compare.py`**:
+  - Função `classify_atlas_inheritance` compara os 256 tiles do atlas da página 1 (`0x8000..0xFFFF`) entre `prior_vram` e `settled_vram`.
+  - Classificação estrita: `overwritten` (modificado pela sala), `inherited` (não modificado e não-nulo) e `zeroed` (não modificado e todo zero).
+
+### Resultados Medidos
+
+- **6 salas capturadas e validadas**:
+  - Sala 121 (Início de jogo, TS 0): 235 tiles carregados, 21 slots zerados; 49.152 pixels do fundo coincidentes (100%). Página 0 inicial com 100% de bytes zero.
+  - Salas 0, 1, 2, 3 (TS 0): reuso imediato de tileset (`CurrentTileSet == a`), zero sobrescrita no atlas (`overwritten_count: 0`, `inherited_count: 235`); 49.152 pixels coincidentes em todas. Porta 2 na Sala 3 conferida com a RAM em execução.
+  - Sala 240 (Elevador, **Tileset 3**): `TileSetElevator` descompacta exatamente **21 tiles** (slots 3 a 23). Exatamente esses 21 slots foram sobrescritos (`overwritten_count: 21`). Todos os outros **214 slots não-nulos** do atlas permaneceram **rigorosamente idênticos** aos tiles do Prédio 1 (Tileset 0) carregados na Sala 3 (`inherited_count: 214`).
+  - Fundo estabilizado da Sala 240: 49.152 / 49.152 pixels coincidentes (100%). Ambos os registros de porta em RAM conferidos com a extração.
+
+### Validação e Integração
+
+- **Testes unitários Python**: 37 testes executados com `unittest` e aprovados (adicionados testes sintéticos de classificação de herança de atlas e integração de prior VRAM no `tests/test_emulation.py`).
+- **Validador integrado (`python3 tools/validate.py`)**: código 0; 37 testes Python OK, importação headless Godot PASS, `SMOKE_OK`, `ROOM_SNAPSHOT_OK` e `BOOT_OK` aprovados.
+- **Integração Godot 4 headless**:
+  - `room_snapshot_integration.gd` testado com `room-240.json` (Tileset 3) e `room-121.json` (Início de jogo): 49.152 pixels RGB nominais idênticos aos gerados pelo Python em ambas as salas.
+- **Artefatos gerados**:
+  - `data/extracted/emulator-stage4b-settled/`: 43 arquivos privados (prior-vram, ram, vram, settled-vram, palette, state para as 6 salas, manifest, finished, config, script e log).
+  - `data/extracted/stage4b-validated/`: 6 snapshots JSON (`room-000`, `room-001`, `room-002`, `room-003`, `room-121`, `room-240`), 6 PNGs, `comparison.json` e `checksums.json`.
+  - Documentação detalhada em `docs/reverse_engineering/stage-4b-vram-inheritance.md`.
+  - ROM principal com SHA-256 preservado e inalterado.
+
+### Fronteira e Próximos Passos
+
+A herança de atlas entre tilesets e o comportamento da inicialização a frio estão agora empiricamente comprovados em execução física/emulada sem escrita de memória. Não avançar para Etapa 5 (física/movimento de Snake) antes da composição de deltas de portas/itens e medições por tick de colisão. Próximo escopo: deltas de portas (aberto/fechado, tipo 6 e paredes destrutíveis) e itens.

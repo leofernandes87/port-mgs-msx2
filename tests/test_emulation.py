@@ -3,7 +3,7 @@ import copy
 import json
 import unittest
 from pathlib import Path
-from tools.emulation.compare import atlas_tile,screen_pixels,compose,compare_room,door_record
+from tools.emulation.compare import atlas_tile,screen_pixels,compose,compare_room,door_record,classify_atlas_inheritance
 from tools.extractors.schema import validate
 
 
@@ -64,3 +64,20 @@ class CaptureComparisonTests(unittest.TestCase):
         self.assertEqual(result[1],1)
         door['render_type_id']=6
         self.assertEqual(door_record(door,1)[1],0)
+
+    def test_atlas_inheritance_classification(self):
+        prior=bytearray(65536);settled=bytearray(65536)
+        addr1=0x8000+4;prior[addr1]=0x11;settled[addr1]=0x22
+        addr2=0x8000+8;prior[addr2]=0x33;settled[addr2]=0x33
+        res=classify_atlas_inheritance(prior,settled,[1])
+        self.assertEqual(res['overwritten_tile_ids'],[1])
+        self.assertEqual(res['inherited_tile_ids'],[2])
+        self.assertEqual(res['zeroed_count'],254)
+        self.assertTrue(res['loaded_subset_of_overwritten_or_common'])
+        with self.assertRaises(ValueError):classify_atlas_inheritance(bytes(10),settled,[])
+
+    def test_compare_room_with_prior_vram(self):
+        p,ram,v=self.fixture();prior=bytearray(65536);prior[0x8000]=0x10
+        snapshot,report=compare_room(p,ram,v,v,prior_vram=prior)
+        self.assertIn('atlas_inheritance',report)
+        self.assertIn(0,report['atlas_inheritance']['overwritten_tile_ids'])

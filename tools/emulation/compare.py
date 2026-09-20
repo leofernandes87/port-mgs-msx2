@@ -42,7 +42,25 @@ def door_record(door,persistent_state):
             (x+g[6])&255,g[7],door['destination_room_id']]
 
 
-def compare_room(package,ram,initial_vram,settled_vram):
+def classify_atlas_inheritance(prior_vram,settled_vram,loaded_tile_ids):
+    if len(prior_vram)!=65536 or len(settled_vram)!=65536:
+        raise ValueError('Expected 64 KiB VRAM captures')
+    overwritten=[];inherited=[];zeroed=[]
+    for tile_id in range(256):
+        t_prior=atlas_tile(prior_vram,tile_id)
+        t_settled=atlas_tile(settled_vram,tile_id)
+        if t_prior!=t_settled:
+            overwritten.append(tile_id)
+        elif all(p==0 for p in t_settled):
+            zeroed.append(tile_id)
+        else:
+            inherited.append(tile_id)
+    return {'overwritten_tile_ids':overwritten,'inherited_tile_ids':inherited,'zeroed_tile_ids':zeroed,
+            'overwritten_count':len(overwritten),'inherited_count':len(inherited),'zeroed_count':len(zeroed),
+            'loaded_subset_of_overwritten_or_common':all(t in overwritten or t in inherited for t in loaded_tile_ids)}
+
+
+def compare_room(package,ram,initial_vram,settled_vram,prior_vram=None):
     if len(ram)!=16384:
         raise ValueError('Expected C000..FFFF memory capture')
     room_id=ram[0x130];gfx=ram[0x157]
@@ -81,6 +99,8 @@ def compare_room(package,ram,initial_vram,settled_vram):
             'door_records_matched':len(doors),'loaded_tiles_matched':len(loaded),'background_pixels_matched':len(actual),
             'initial_pending_pixels':sum(a!=b for a,b in zip(expected,screen_pixels(initial_vram))),
             'unloaded_referenced_tiles_observed':{str(i):sorted(set(atlas[i])) for i in missing}}
+    if prior_vram is not None:
+        report['atlas_inheritance']=classify_atlas_inheritance(prior_vram,settled_vram,loaded)
     return snapshot,report
 
 
@@ -100,8 +120,10 @@ def run(package_path,capture,output):
     files={};results=[]
     for f in sorted(capture.glob('room-*-ram.bin')):
         prefix=f.name[:-8]
+        prior_file=capture/(prefix+'-prior-vram.bin')
+        prior_vram=prior_file.read_bytes() if prior_file.exists() else None
         snapshot,report=compare_room(package,f.read_bytes(),(capture/(prefix+'-vram.bin')).read_bytes(),
-                                     (capture/(prefix+'-settled-vram.bin')).read_bytes())
+                                     (capture/(prefix+'-settled-vram.bin')).read_bytes(),prior_vram=prior_vram)
         validate(snapshot,schema)
         files[prefix+'.json']=encode(snapshot)
         files[prefix+'.png']=png_indexed(256,192,snapshot['pixels'],snapshot['palette_rgb'])
