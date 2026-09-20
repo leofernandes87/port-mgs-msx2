@@ -72,7 +72,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `cda3bf6` | 12c | Extração e integração das 81 salas lorry e interiores (126-207) |
 | `000b622` | 12d | Sistema de elevadores e conexões verticais (salas 240-250) |
 | `f13d908` | fix | Física e trânsito canônico do elevador (ControlPlayerH/SprElevatorDat) |
-| (pendente) | 13 | Sistema de Armas, Silenciador e Balística (WeaponSystem, Bullet, 1-shot kill) |
+| `062290f` | 13 | Sistema de Armas, Silenciador e Balística (WeaponSystem, Bullet, 1-shot kill) |
 
 ### Dados extraídos disponíveis
 
