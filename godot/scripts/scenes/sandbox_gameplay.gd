@@ -4,14 +4,17 @@ extends Control
 var snapshot: RoomSnapshot = RoomSnapshot.new()
 var player: PlayerController
 var room_manager: RoomManager = RoomManager.new()
+var enemies: Array[EnemyGuard] = []
 var room_texture: ImageTexture
 var show_collision: bool = false
+var show_enemy_vision: bool = false
 var zoom: float = 3.0
 var canvas_origin: Vector2 = Vector2.ZERO
 
 var status_label: Label
 var collision_btn: CheckButton
 var colliders_btn: CheckButton
+var vision_btn: CheckButton
 
 # Posição inicial padrão (Sala 1: centro do corredor livre da entrada)
 const DEFAULT_SPAWN_X: float = 128.0
@@ -32,7 +35,7 @@ func _ready() -> void:
 	column.add_child(bar)
 
 	var title := Label.new()
-	title.text = "Metal Gear MSX2 · Gameplay & World Navigation (Etapa 6)"
+	title.text = "Metal Gear MSX2 · Gameplay, Stealth & World (Etapa 7)"
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(title)
 
@@ -54,13 +57,23 @@ func _ready() -> void:
 	)
 	bar.add_child(colliders_btn)
 
+	vision_btn = CheckButton.new()
+	vision_btn.text = "Visão Guardas (B)"
+	vision_btn.toggled.connect(func(v: bool) -> void:
+		show_enemy_vision = v
+		for enemy: EnemyGuard in enemies:
+			enemy.show_debug_vision = v
+			enemy.queue_redraw()
+	)
+	bar.add_child(vision_btn)
+
 	var reset_btn := Button.new()
 	reset_btn.text = "Resetar (R)"
 	reset_btn.pressed.connect(reset_player)
 	bar.add_child(reset_btn)
 
 	status_label = Label.new()
-	status_label.text = "Controles: Setas / WASD para navegar entre salas · C: Colisão · V: Pontos do Snake · R: Resetar"
+	status_label.text = "Controles: Setas / WASD para mover · C: Colisão · V: Pontos do Snake · B: Visão Guardas · R: Resetar"
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(status_label)
 
@@ -153,10 +166,71 @@ func _apply_snapshot() -> void:
 	room_texture = ImageTexture.create_from_image(snapshot.make_image())
 	if player:
 		player.set_collision_grid(snapshot.collision)
+	_spawn_room_enemies(snapshot.room_id)
 	status_label.text = "Sala %03d · %s · Use Setas/WASD para mover Snake entre as salas" % [snapshot.room_id, snapshot.source]
-	print("SANDBOX_ROOM_LOADED: %d" % snapshot.room_id)
+	print("SANDBOX_ROOM_LOADED: %d (Inimigos: %d)" % [snapshot.room_id, enemies.size()])
 	if room_display:
 		room_display.queue_redraw()
+
+func _spawn_room_enemies(room_id: int) -> void:
+	for enemy: EnemyGuard in enemies:
+		if is_instance_valid(enemy):
+			enemy.queue_free()
+	enemies.clear()
+
+	if not game_world:
+		return
+
+	var enemy_scene: PackedScene = preload("res://scenes/enemy.tscn")
+	if room_id == 1:
+		# Sala 001 (fachada com caixas): 3 guardas autênticos da ROM (data/actorsinrooms.asm:6)
+		# Guarda 0: MEDIUM (1.0 px/tick), spawn (64, 176), rota horizontal inferior
+		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g0.guard_type = EnemyGuard.GuardType.MEDIUM
+		g0.position = Vector2(64.0, 176.0)
+		g0.set_patrol_path([Vector2(200.0, 176.0), Vector2(56.0, 176.0)])
+		g0.show_debug_vision = show_enemy_vision
+		game_world.add_child(g0)
+		enemies.append(g0)
+
+		# Guarda 1: SLOW (0.5 px/tick), spawn (80, 80), rota de 8 pontos ao redor das caixas centrais
+		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g1.guard_type = EnemyGuard.GuardType.SLOW
+		g1.position = Vector2(80.0, 80.0)
+		g1.set_patrol_path([
+			Vector2(56.0, 80.0), Vector2(56.0, 116.0), Vector2(200.0, 116.0), Vector2(200.0, 80.0),
+			Vector2(168.0, 80.0), Vector2(168.0, 104.0), Vector2(88.0, 104.0), Vector2(88.0, 80.0)
+		])
+		g1.show_debug_vision = show_enemy_vision
+		game_world.add_child(g1)
+		enemies.append(g1)
+
+		# Guarda 2: MEDIUM (1.0 px/tick), spawn (192, 24), rota horizontal superior
+		var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g2.guard_type = EnemyGuard.GuardType.MEDIUM
+		g2.position = Vector2(192.0, 24.0)
+		g2.set_patrol_path([Vector2(56.0, 24.0), Vector2(200.0, 24.0)])
+		g2.show_debug_vision = show_enemy_vision
+		game_world.add_child(g2)
+		enemies.append(g2)
+
+	elif room_id == 2:
+		# Sala 002 (corredor interno): 2 guardas autênticos da ROM (data/actorsinrooms.asm:14)
+		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g0.guard_type = EnemyGuard.GuardType.SLOW
+		g0.position = Vector2(64.0, 48.0)
+		g0.set_patrol_path([Vector2(72.0, 48.0), Vector2(136.0, 48.0), Vector2(168.0, 48.0)])
+		g0.show_debug_vision = show_enemy_vision
+		game_world.add_child(g0)
+		enemies.append(g0)
+
+		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g1.guard_type = EnemyGuard.GuardType.MEDIUM
+		g1.position = Vector2(168.0, 112.0)
+		g1.set_patrol_path([Vector2(88.0, 112.0), Vector2(168.0, 112.0)])
+		g1.show_debug_vision = show_enemy_vision
+		game_world.add_child(g1)
+		enemies.append(g1)
 
 func _create_synthetic_fallback_room() -> void:
 	var pixels: Array[int] = []
@@ -212,6 +286,13 @@ func _input(event: InputEvent) -> void:
 				player.show_debug_colliders = not player.show_debug_colliders
 				colliders_btn.set_pressed_no_signal(player.show_debug_colliders)
 				player.queue_redraw()
+		elif event.keycode == KEY_B:
+			show_enemy_vision = not show_enemy_vision
+			vision_btn.set_pressed_no_signal(show_enemy_vision)
+			for enemy: EnemyGuard in enemies:
+				if is_instance_valid(enemy):
+					enemy.show_debug_vision = show_enemy_vision
+					enemy.queue_redraw()
 		elif event.keycode == KEY_R:
 			reset_player()
 
@@ -233,6 +314,21 @@ func _physics_process(_delta: float) -> void:
 	var moved: bool = player.step_tick(input_dir)
 	if moved:
 		_check_and_handle_room_transition()
+
+	# Atualizar soldados inimigos e detecção de visão
+	var any_alert: bool = false
+	for enemy: EnemyGuard in enemies:
+		if is_instance_valid(enemy):
+			enemy.step_tick(snapshot.collision, player.position)
+			if enemy.is_alert:
+				any_alert = true
+
+	if any_alert:
+		status_label.text = "ALERTA! Snake foi detectado por um soldado inimigo!"
+		status_label.modulate = Color(1.0, 0.3, 0.3)
+	elif snapshot.loaded:
+		status_label.text = "Sala %03d · %s · Use Setas/WASD para mover Snake · Furtividade ativa" % [snapshot.room_id, snapshot.source]
+		status_label.modulate = Color(1.0, 1.0, 1.0)
 
 func _check_and_handle_room_transition() -> void:
 	if not player or not snapshot:

@@ -388,4 +388,59 @@ Objetivo concluído: modelagem analítica e implementação fiel em Godot 4 do s
   - `godot-room-transition`: PASS (`ROOM_TRANSITION_OK`)
   - `godot-main`: PASS (`BOOT_OK`)
 
+## 2026-09-20 — Etapa 7: Inimigos, Patrulhas e Linha de Visão (Furtividade)
+
+Etapa 7 implementada com total fidelidade ao comportamento do MSX2 RC750. Documentação em `docs/reverse_engineering/stage-7-enemy-patrols.md`.
+
+### Metodologia e Fundamentação da ROM
+
+- **Tipos de Soldados e Velocidades Canônicas**:
+  - `ID_GUARD_SLOW = 4`: $0.5$ px/tick.
+  - `ID_GUARD_MEDIUM = 5`: $1.0$ px/tick.
+  - `ID_GUARD_FAST = 6`: $1.5$ px/tick.
+- **Tabela de Atores por Sala (`ActorsInRooms` em `data/actorsinrooms.asm`)**:
+  - **Sala 001**: Guarda 0 (MEDIUM, spawn $(64, 176)$, rota `Path_000_01`), Guarda 1 (SLOW, spawn $(80, 80)$, rota `Path_000_02`), Guarda 2 (MEDIUM, spawn $(192, 24)$, rota `Path_000_03`).
+  - **Sala 002**: Guarda 0 (SLOW, spawn $(64, 48)$, rota `Path_002_01`), Guarda 1 (MEDIUM, spawn $(168, 112)$, rota `Path_002_02`).
+- **Rotas de Patrulha (`Paths` em `data/paths.asm`)**:
+  - Waypoints com percursos vai-e-vem horizontais e circulação de 8 pontos contornando caixas e obstáculos.
+- **Linha de Visão e Tolerâncias (`logic/actors/chkdiscover.asm:447-491`)**:
+  - Visão vertical (`UP`/`DOWN`): $|PlayerX - EnemyX| \le 8.0$ px.
+  - Visão horizontal (`LEFT`/`RIGHT`): $|PlayerY - EnemyY| \le 6.0$ px.
+  - Alcance visual máximo: $160.0$ px ($20$ tiles).
+  - Bloqueio por obstáculos (`ChkViewObstacles`): amostragem em saltos de 8 pixels na grade de colisão; bloqueia a visão se atingir tile sólido ($1$).
+- **Sinalização de Alerta**:
+  - Transição de estado para `ALERT` e renderização do clássico balão com exclamação (`!`) sobre a cabeça do guarda.
+
+### Implementação em Godot 4
+
+1. **`EnemyGuard` (`godot/scripts/systems/enemy.gd` e cena `res://scenes/enemy.tscn`)**:
+   - Controle de patrulha e waypoints, amostragem de linha de visão contra a grade de colisão de 768 tiles.
+   - Desenho do uniforme de Outer Heaven, capacete, rifle direcional, animação de passos e balão `!`.
+   - Alternância de visualização de depuração do cone de visão (`show_debug_vision`).
+2. **Integração no Sandbox (`sandbox_gameplay.gd`)**:
+   - `_spawn_room_enemies()` instancia os soldados canônicos ao entrar nas salas 1 e 2.
+   - Atualização em tempo real de patrulha e detecção em `_physics_process()`.
+   - Alerta visual no cabeçalho em vermelho ao avistar Snake.
+   - Tecla `B` e botão de interface para alternar os cones de visão dos guardas.
+
+### Validação Automatizada
+
+- **Teste Headless Godot (`godot/tests/enemy_patrol_test.gd`)**:
+  - Valida velocidades canônicas de `GuardType`.
+  - Valida percurso e reversão de waypoints.
+  - Valida tolerâncias exatas da visão vertical e horizontal.
+  - Valida oclusão e bloqueio por obstáculo sólido.
+  - Valida disparo de alerta em `step_tick`.
+  - Saída oficial: `ENEMY_PATROL_OK: waypoints patrol, authentic sight tolerances, obstacle occlusion, alert trigger`.
+- **Suíte Integrada (`python3 tools/validate.py`)**:
+  - `python-tests`: PASS (39 testes unitários)
+  - `godot-import`: PASS
+  - `godot-smoke`: PASS (`SMOKE_OK`)
+  - `godot-room-snapshot`: PASS (`ROOM_SNAPSHOT_OK`)
+  - `godot-player-movement`: PASS (`PLAYER_MOVEMENT_OK`)
+  - `godot-room-transition`: PASS (`ROOM_TRANSITION_OK`)
+  - `godot-enemy-patrol`: PASS (`ENEMY_PATROL_OK`)
+  - `godot-main`: PASS (`BOOT_OK`)
+
+
 
