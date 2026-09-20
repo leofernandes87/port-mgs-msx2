@@ -74,6 +74,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `f13d908` | fix | Física e trânsito canônico do elevador (ControlPlayerH/SprElevatorDat) |
 | `062290f` | 13 | Sistema de Armas, Silenciador e Balística (WeaponSystem, Bullet, 1-shot kill) |
 | `75586e0` | 14 | Portas e Transições Bidirecionais dos Interiores (Salas 129–207, PlayerInDoorDat) |
+| `HEAD` | 15 | Sistema de Rádio Transceptor / Codec (RadioSystem, frequências BCD, UI militar, chamadas autoreply) |
 
 ### Dados extraídos disponíveis
 
@@ -98,6 +99,8 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ### Estado do Godot
 
+- `RadioSystem` (`godot/scripts/systems/radio_system.gd`): frequências canônicas BCD da ROM (Big Boss 120.85/120.13, Schneider 120.79/120.26, Diane 120.33/120.91, Jennifer 120.48), sintonia BCD, envio SEND ("THIS IS SOLID SNAKE..."), banco canônico de diálogos de salas (0, 1, 4, 5, 20, 28, 29, 30, 31, 37, 50, 53, 54, 58, 67, 138), chamadas automáticas de entrada (`check_incoming_call`), autotune e 12 LEDs de sinal.
+- `RadioDialog` (`godot/scripts/systems/radio_dialog.gd`): interface visual militar autêntica MSX2 com visor numérico grande, retratos em pixel art (Snake, Big Boss, Schneider, Diane), typewriter e controle via teclado (atalhos T / F4). Congelamento total de física durante comunicação.
 - `RoomDoor` (`godot/scripts/systems/door.gd`): suporte canônico a `PlayerInDoorDat` (5 renders) e emparelhamento por `IdDoorEnter` para trânsito bidirecional perfeito entre corredores e depósitos/arsenais.
 - `WeaponSystem` (`godot/scripts/systems/weapon_system.gd`): arsenal com Handgun, SMG e Grenade Launcher, contadores de munição respeitando limite de Rank 1 (50 balas) e suporte a silenciador.
 - `Bullet` (`godot/scripts/systems/bullet.gd`): balística discreta a 6 px/tick, alcance de 16 ticks (96 px), colisão com grid de tiles e letalidade de 1 tiro fatal em soldados comuns.
@@ -106,19 +109,20 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - Sala 150: evento de drop do silenciador ao derrotar os 4 guardas silenciadores em (36, 98).
 - `ElevatorSystem` & `ElevatorCabin`: limites e paradas dos 11 elevadores, movimentação vertical a 1 px/tick.
 - `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/` e `stage5-elevators/`.
-- Validação contínua: `python3 tools/validate.py` executa 46 testes Python + 12 suítes Godot (100% PASS).
+- Validação contínua: `python3 tools/validate.py` executa 46 testes Python + 13 suítes Godot (100% PASS).
 
 ---
 
 ## 6. Próximas opções de trabalho
 
-A Etapa 13 está **concluída e validada**. Candidatos para a próxima etapa:
+A Etapa 15 está **concluída e validada**. Candidatos para a próxima etapa:
 
-1. **Sistema de Transições Bidirecionais de Entrada/Saída dos Interiores de Edifícios (Salas 129–207)**:
-   - Portas de retorno que conectam os interiores (quartos, arsenais, depósitos) de volta aos corredores dos prédios 1, 2 e 3.
+1. **Câmeras de Vigilância e Feixes Infravermelhos (Infrared Lasers / Surveillance Cameras)**:
+   - Câmeras com varredura angular e cone de visão.
+   - Feixes laser infravermelhos acionando alarme ao contato, detectáveis com Binóculos/Óculos Infravermelhos (Goggles).
 
-2. **Sistema de Rádio / Transceptor**:
-   - Frequências de Big Boss (120.85), Schneider (120.79) e outros contatos canônicos da ROM.
+2. **Sistema de Alarme Global, Níveis de Alerta e Reforços**:
+   - Estados de alerta (Normal, Alerta, Evasão), spawn de reforços e sirene.
 
 3. **Boss Fights e Atores Especiais**:
    - Shoot Gunner (Sala 132), Machine Gun Kid (Sala 145), Arnold (Sala 151).

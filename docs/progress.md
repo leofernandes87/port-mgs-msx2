@@ -816,7 +816,46 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
      - Validação de regras de abertura por cartões.
      - Ciclo bidirecional Sala 7 <-> Sala 130 via Porta 118 (coleta da Pistola `HANDGUN` no arsenal e retorno).
      - Ciclo Sala 8 <-> Sala 138 via Porta 1 (tranca por `CARD1`, desbloqueio e retorno).
-   - Integrado ao `tools/validate.py` como `godot-building-doors`.
-   - Resultado: 100% PASS (46 testes Python + 12 suítes Godot).
+## 2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+### O que foi feito
+1. **Núcleo Lógico do Transceptor (`RadioSystem`)**:
+   - Criado `godot/scripts/systems/radio_system.gd`:
+     - Frequências canônicas em BCD extraídas da ROM (`Banks0123.asm:10680-10975`, `radiocalls.asm`, `Enums.asm:15-36`):
+       - Big Boss: 120.85 (FREQ_BIGBOSS_B1) e 120.13 (FREQ_BIGBOSS_B2).
+       - Kyle Schneider: 120.79 (FREQ_SCHNEIDER_B1) e 120.26 (FREQ_SCHNEIDER_B2).
+       - Diane: 120.33 (FREQ_DIANE_B1) e 120.91 (FREQ_DIANE_B2).
+       - Jennifer: 120.48 (FREQ_JENNIFER, exige Rank 4).
+     - Mecânica de sintonia BCD (`tune_up`, `tune_down` de 0.01 em 0.01 entre 120.00 e 120.99 MHz).
+     - Transmissão ativa de Snake (SEND):
+       - Mensagem padrão canônica: *"THIS IS SOLID SNAKE... YOUR REPLY, PLEASE."* (Text ID 10).
+       - Obtenção da resposta do interlocutor sintonizado.
+     - Banco canônico de mensagens por sala (`ROOM_CALLS`):
+       - Diálogos autênticos de instrução e inteligência para salas 0, 1, 4, 5, 20, 28, 29, 30, 31, 37, 50, 53, 54, 58, 67 e 138.
+     - Chamadas de entrada automáticas e autotune (`RadioCallFlag` e `RADIO_AUTOREPLY`):
+       - Detecção automática de chamadas de rádio ao adentrar salas com gatilho (salas 0, 5, 29, 37...).
+       - Sintonização automática na frequência do contato ao abrir o rádio para atender.
+     - Nível de sinal e medidor com 12 LEDs (`RadioSignalUp`).
+2. **Interface Visual Militar MSX2 (`RadioDialog`)**:
+   - Criado `godot/scripts/systems/radio_dialog.gd`:
+     - Display militar autêntico MSX2 com painel superior, visor numérico de frequência grande ("120.85 MHz"), indicador de modo RECV / SEND e barra de 12 LEDs verdes de sinal.
+     - Retratos visuais em pixel art autoral desenhados via CanvasItem para Solid Snake, Big Boss (tapa-olho militar), Kyle Schneider (faixa de resistência) e Diane (comunicação por headset).
+     - Caixa de texto militar com efeito de máquina de escrever (typewriter) a 40 caracteres/segundo e navegação por páginas para mensagens longas.
+     - Controles de teclado dedicados: setas ESQUERDA/DIREITA para sintonia fina, CIMA/BAIXO para alternar RECV/SEND, ESPAÇO/ENTER para avançar diálogo/transmitir, ESC/T/F4 para fechar.
+3. **Integração no Sandbox e HUD (`sandbox_gameplay.gd`)**:
+   - Teclas de atalho para acionar o transceptor: `T` ou `F4` (tecla canônica dos computadores MSX2).
+   - Congelamento completo da física e lógica de Snake, inimigos, projéteis e portas durante a comunicação por rádio (`set_physics_process(false)`).
+   - Indicador visual militar piscante `[CALL]` no HUD de status ao receber chamadas de entrada.
+4. **Testes e Validação Automatizada**:
+   - Criada suíte `godot/tests/radio_system_test.gd`:
+     - Validação da inicialização na frequência 120.85 (Big Boss).
+     - Validação dos limites de sintonia BCD (120.00 a 120.99 MHz).
+     - Validação de chamadas enviadas por Snake (SEND) e recebidas (RECV).
+     - Validação do banco canônico de diálogos de salas críticas (ex: Sala 0 e Sala 5).
+     - Validação de chamadas automáticas de entrada e autotune.
+     - Validação da integração e congelamento de gameplay no `SandboxGameplay`.
+   - Integrado ao `tools/validate.py` como `godot-radio-system`.
+   - Resultado: 100% PASS (46 testes Python + 13 suítes Godot).
+
 
 

@@ -7,6 +7,8 @@ var room_manager: RoomManager = RoomManager.new()
 var enemies: Array[EnemyGuard] = []
 var inventory: InventoryManager = InventoryManager.new()
 var weapon_system: WeaponSystem = WeaponSystem.new()
+var radio_system: RadioSystem = RadioSystem.new()
+var radio_dialog: RadioDialog
 var bullets: Array[Bullet] = []
 var silencer_dropped_room_150: bool = false
 var item_boxes: Array[ItemBox] = []
@@ -147,7 +149,19 @@ func _ready() -> void:
 	# Carregar sala inicial (tenta caminho real exportado, ou fallback sintético)
 	_load_initial_room()
 	reset_player()
+
+	# Sistema de Rádio Transceptor (Etapa 15)
+	radio_dialog = RadioDialog.new()
+	add_child(radio_dialog)
+	radio_dialog.radio_closed.connect(_on_radio_closed)
+	if snapshot and snapshot.loaded:
+		radio_system.check_incoming_call(snapshot.room_id)
+
 	call_deferred("_post_ready_layout")
+
+func _on_radio_closed() -> void:
+	if player:
+		player.queue_redraw()
 
 var viewport_area: Control
 var game_world: Node2D
@@ -648,6 +662,11 @@ func reset_player() -> void:
 		_spawn_room_doors(snapshot.room_id)
 
 func _input(event: InputEvent) -> void:
+	if radio_dialog and radio_dialog.is_active:
+		if radio_dialog.handle_input(event):
+			get_viewport().set_input_as_handled()
+			return
+
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_C:
 			show_collision = not show_collision
@@ -666,6 +685,14 @@ func _input(event: InputEvent) -> void:
 				if is_instance_valid(enemy):
 					enemy.show_debug_vision = show_enemy_vision
 					enemy.queue_redraw()
+		elif event.keycode == KEY_T or event.keycode == KEY_F4:
+			if radio_dialog:
+				if radio_dialog.is_active:
+					radio_dialog.close_radio()
+				else:
+					radio_dialog.open_radio(radio_system, snapshot.room_id, radio_system.has_incoming_call)
+				get_viewport().set_input_as_handled()
+				return
 		elif event.keycode == KEY_Q or event.keycode == KEY_1 or event.keycode == KEY_2:
 			weapon_system.cycle_weapon()
 		elif event.keycode == KEY_SPACE or event.keycode == KEY_F:
@@ -706,6 +733,10 @@ func _input(event: InputEvent) -> void:
 
 func _physics_process(_delta: float) -> void:
 	if not player:
+		return
+
+	# Pausa movimentação e combate de todos os atores enquanto o rádio estiver ativo
+	if radio_dialog and radio_dialog.is_active:
 		return
 
 	# Leitura de entrada com prioridade de eixos autêntica MSX
@@ -868,23 +899,33 @@ func _physics_process(_delta: float) -> void:
 	var item_str: String = inventory.get_status_text()
 	var weapon_str: String = weapon_system.get_status_text()
 
+	if radio_dialog and radio_dialog.is_active:
+		status_label.text = "TRANSCEIVER CODEC ATIVO | Sintonize com A/D | Transmita com W | T/F4 para sair"
+		status_label.modulate = Color("50e080")
+		return
+
+	var call_str: String = ""
+	if radio_system.has_incoming_call:
+		var flash: bool = (Engine.get_physics_frames() % 30 < 15)
+		call_str = " | [CALL! Pressione T]" if flash else " | [      Pressione T]"
+
 	if player.life <= 0:
 		status_label.text = "SNAKE MORREU! [Pressione R para reiniciar]"
 		status_label.modulate = Color(1.0, 0.1, 0.1)
 	elif any_alert:
-		status_label.text = "ALERTA! | ARMA: %s | VIDA: [%s] %02d/%02d | ITEM: %s (Derrotados: %d/%d)" % [
-			weapon_str, life_bar, player.life, player.max_life, item_str, defeated_count, enemies.size()
+		status_label.text = "ALERTA! | ARMA: %s | VIDA: [%s] %02d/%02d | ITEM: %s%s (Derrotados: %d/%d)" % [
+			weapon_str, life_bar, player.life, player.max_life, item_str, call_str, defeated_count, enemies.size()
 		]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 	elif is_in_elevator:
 		var state_str: String = "EM MOVIMENTO..." if elevator_state == ELEVATOR_STATE_MOVING else "PARADO (CIMA/BAIXO: Mover | DIREITA: Sair)"
-		status_label.text = "ELEVADOR %d | Andar Y: %.0f | %s" % [
-			snapshot.room_id, elevator_y, state_str
+		status_label.text = "ELEVADOR %d | Andar Y: %.0f | %s%s" % [
+			snapshot.room_id, elevator_y, state_str, call_str
 		]
 		status_label.modulate = Color(0.9, 0.8, 0.3)
 	elif snapshot.loaded:
-		status_label.text = "Sala %03d | ARMA: %s | VIDA: [%s] %02d/%02d | ITEM: %s" % [
-			snapshot.room_id, weapon_str, life_bar, player.life, player.max_life, item_str
+		status_label.text = "Sala %03d | ARMA: %s | VIDA: [%s] %02d/%02d | ITEM: %s%s" % [
+			snapshot.room_id, weapon_str, life_bar, player.life, player.max_life, item_str, call_str
 		]
 		status_label.modulate = Color(1.0, 1.0, 1.0)
 
@@ -928,6 +969,7 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 
 	snapshot = snap
 	_apply_snapshot()
+	radio_system.check_incoming_call(new_room_id)
 
 	for b: Bullet in bullets:
 		if is_instance_valid(b):
