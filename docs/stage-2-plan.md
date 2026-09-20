@@ -1,0 +1,15 @@
+# Etapa 2 — identificação e mapa documentado da ROM
+
+Estado: plano, não iniciada. Objetivo: estabelecer uma base verificável de entradas, bancos e dados antes de implementar mecânicas.
+
+1. **Identificar a entrada.** O material atualmente disponível é DSK/ZIP: primeiro identificar o formato e a variante do disco, sem tratá-lo como ROM de cartucho. Receber o caminho de uma ROM disponível legitimamente, abrir somente em rb e gerar manifesto local com tamanho, SHA-256, CRC32, revisão da referência e versão da ferramenta. Comparar com CRC32 declarado no README; variantes desconhecidas devem produzir resultado explícito, sem afirmar compatibilidade. Sem ROM, esta validação fica pendente.
+2. **Inventariar a referência fixada.** Criar ferramenta em tools/reverse_engineering/ para registrar includes, org, condicionais e símbolos relevantes, sem executar assembly arbitrário. Documentar limitações do parser e evitar confundir texto condicional com saída montada. Registrar arquivo e linha em toda evidência.
+3. **Demonstrar mapeamento de bancos.** Inspecionar mudanças de banco e organização da montagem; distinguir offset físico, banco lógico e endereço CPU. Produzir tabela com intervalos, fórmulas, fontes e grau de confiança. Não presumir tamanho de banco ou mapper. Validar limites com fixtures sintéticas; cruzar amostras com ROM quando disponível.
+4. **Escolher uma amostra pequena.** Rastrear uma sala e seus metatiles/tiles/paleta a partir dos includes observados, documentando ponteiros e codificação. Selecionar endereços apenas após passos anteriores. Não expandir para todos os gráficos, áudio ou mecânicas nesta entrega.
+5. **Definir contratos.** Especificar manifestos e formato intermediário versionado em data/schemas/ com unidades, dimensões, origem, banco, endereço CPU, offset físico e hash da entrada. Fixtures versionadas serão sintéticas. Extraídos reais ficam em data/extracted/; não entrarão automaticamente no Godot.
+6. **Implementar prova de extração.** Ferramenta determinística em tools/extractors/, com leitura limitada, erros para truncamento/ponteiros inválidos e proteção contra destino igual à origem. Resultado e logs separados da ROM; comparar hash antes/depois para demonstrar preservação.
+7. **Validar e apresentar.** Testes de checksum conhecido sintético, limites de banco, conversões ida/volta, dados truncados, determinismo e preservação da entrada. Se for necessária comparação por emulador ou montagem, primeiro verificar disponibilidade, dependências e autorização de instalação. Não tratar ausência de emulador como comportamento validado.
+
+## Entrega e critérios de aceite
+
+Manifesto local da ROM quando fornecida; mapa de bancos com evidências; formatos documentados; uma extração limitada reproduzível se o mapeamento for confirmado; testes e limitações registrados em docs/progress.md. Separar fatos, hipóteses e perguntas abertas. Sem ROM, entregar apenas inventário e testes sintéticos e declarar compatibilidade/extração real pendentes. Apresentar resultados antes de uma Etapa 3. Mecânicas completas e remake moderno permanecem fora da Etapa 2.

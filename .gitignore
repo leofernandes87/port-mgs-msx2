@@ -1,0 +1,30 @@
+# Conteúdo local/protegido, independentemente da extensão
+/external/*
+!/external/README.md
+/roms/*
+!/roms/README.md
+/data/extracted/*
+!/data/extracted/README.md
+/assets/protected/*
+!/assets/protected/README.md
+/godot/assets/protected/*
+!/godot/assets/protected/README.md
+*.[rR][oO][mM]
+*.bin
+*.dsk
+*.cas
+*.zip
+*.7z
+*.rar
+# Cache, ambiente e saídas
+.godot/
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.DS_Store
+*.tmp
+*.log
+/builds/
+/reports/
+/coverage/
