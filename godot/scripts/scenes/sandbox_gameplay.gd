@@ -204,9 +204,49 @@ func _spawn_room_enemies(room_id: int) -> void:
 		return
 
 	var enemy_scene: PackedScene = preload("res://scenes/enemy.tscn")
+	var room_data: Dictionary = room_manager.load_room_actors(room_id)
+	var actors_data: Array = room_data.get("actors", [])
+
+	if not actors_data.is_empty():
+		for act_variant: Variant in actors_data:
+			if not act_variant is Dictionary:
+				continue
+			var act: Dictionary = act_variant as Dictionary
+			var type_id: int = int(act.get("actor_type_id", 0))
+			var spawn_pos := Vector2(float(act.get("x", 0)), float(act.get("y", 0)))
+
+			var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			# Na ROM MSX: tipos 3 e 4 são guardas lentos (0.5 px/tick); 5, 10, 19 são médios (1.0 px/tick)
+			if type_id in [3, 4]:
+				g.guard_type = EnemyGuard.GuardType.SLOW
+			else:
+				g.guard_type = EnemyGuard.GuardType.MEDIUM
+
+			g.position = spawn_pos
+
+			var raw_path: Array = act.get("patrol_path", [])
+			var waypoints: Array[Vector2] = []
+			for pt_variant: Variant in raw_path:
+				if pt_variant is Array and (pt_variant as Array).size() >= 2:
+					var pt: Array = pt_variant as Array
+					# JSON armazena [y, x]
+					waypoints.append(Vector2(float(pt[1]), float(pt[0])))
+
+			if waypoints.is_empty():
+				var left_x: float = clampf(spawn_pos.x - 32.0, 16.0, 240.0)
+				var right_x: float = clampf(spawn_pos.x + 32.0, 16.0, 240.0)
+				waypoints.append(Vector2(left_x, spawn_pos.y))
+				waypoints.append(Vector2(right_x, spawn_pos.y))
+
+			g.set_patrol_path(waypoints)
+			g.show_debug_vision = show_enemy_vision
+			game_world.add_child(g)
+			enemies.append(g)
+	else:
+		_spawn_room_enemies_fallback(room_id, enemy_scene)
+
+func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> void:
 	if room_id == 1:
-		# Sala 001 (fachada com caixas): 3 guardas autênticos da ROM (data/actorsinrooms.asm:6)
-		# Guarda 0: MEDIUM (1.0 px/tick), spawn (64, 176), rota horizontal inferior
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.MEDIUM
 		g0.position = Vector2(64.0, 176.0)
@@ -215,7 +255,6 @@ func _spawn_room_enemies(room_id: int) -> void:
 		game_world.add_child(g0)
 		enemies.append(g0)
 
-		# Guarda 1: SLOW (0.5 px/tick), spawn (80, 80), rota de 8 pontos ao redor das caixas centrais
 		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g1.guard_type = EnemyGuard.GuardType.SLOW
 		g1.position = Vector2(80.0, 80.0)
@@ -227,7 +266,6 @@ func _spawn_room_enemies(room_id: int) -> void:
 		game_world.add_child(g1)
 		enemies.append(g1)
 
-		# Guarda 2: MEDIUM (1.0 px/tick), spawn (192, 24), rota horizontal superior
 		var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g2.guard_type = EnemyGuard.GuardType.MEDIUM
 		g2.position = Vector2(192.0, 24.0)
@@ -235,9 +273,7 @@ func _spawn_room_enemies(room_id: int) -> void:
 		g2.show_debug_vision = show_enemy_vision
 		game_world.add_child(g2)
 		enemies.append(g2)
-
 	elif room_id == 2:
-		# Sala 002 (corredor interno): 2 guardas autênticos da ROM (data/actorsinrooms.asm:14)
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.SLOW
 		g0.position = Vector2(64.0, 48.0)
@@ -253,9 +289,7 @@ func _spawn_room_enemies(room_id: int) -> void:
 		g1.show_debug_vision = show_enemy_vision
 		game_world.add_child(g1)
 		enemies.append(g1)
-
 	elif room_id == 5:
-		# Sala 005 (pátio dos 3 caminhões): guarda de vigia autêntico (data/actorsinrooms.asm:34)
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.MEDIUM
 		g0.position = Vector2(112.0, 120.0)
@@ -263,9 +297,7 @@ func _spawn_room_enemies(room_id: int) -> void:
 		g0.show_debug_vision = show_enemy_vision
 		game_world.add_child(g0)
 		enemies.append(g0)
-
 	elif room_id == 127:
-		# Sala 127 (interior do caminhão central): guarda em alerta da ROM (data/actorsinrooms.asm:824)
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.MEDIUM
 		g0.position = Vector2(72.0, 112.0)
@@ -283,47 +315,56 @@ func _spawn_room_items(room_id: int) -> void:
 	if not game_world:
 		return
 
-	# Caixas de itens autênticas da ROM por sala (data/itemsinrooms.asm:6-13, 75-86)
-	if room_id == 126:
-		# Caminhão da esquerda: Ração autêntica da ROM (ItemRation dw 5050h -> X=80, Y=80)
-		var b: ItemBox = ItemBox.new()
-		b.item_id = InventoryManager.ITEM_RATION
-		b.room_id = room_id
-		b.position = Vector2(80.0, 80.0)
-		game_world.add_child(b)
-		item_boxes.append(b)
-	elif room_id == 127:
-		# Caminhão do centro: Cartão 1 autêntico da ROM (ItemCard1 dw 7050h -> X=112, Y=80)
+	var room_data: Dictionary = room_manager.load_room_actors(room_id)
+	var items_data: Array = room_data.get("items", [])
+
+	if not items_data.is_empty():
+		for item_variant: Variant in items_data:
+			if not item_variant is Dictionary:
+				continue
+			var item_dict: Dictionary = item_variant as Dictionary
+			var type_id: int = int(item_dict.get("item_type_id", 0))
+			var pos := Vector2(float(item_dict.get("x", 0)), float(item_dict.get("y", 0)))
+
+			var b: ItemBox = ItemBox.new()
+			b.room_id = room_id
+			b.position = pos
+
+			match type_id:
+				1, 21, 30:
+					b.item_id = InventoryManager.ITEM_RATION
+				2, 22:
+					b.item_id = InventoryManager.ITEM_CARD1
+				3, 17:
+					b.item_id = InventoryManager.ITEM_BINOCULARS
+				7, 16:
+					b.item_id = InventoryManager.ITEM_CARD2
+				18:
+					b.item_id = InventoryManager.ITEM_CARD3
+				8:
+					b.item_id = InventoryManager.ITEM_CARD4
+				_:
+					b.item_id = InventoryManager.ITEM_RATION
+
+			game_world.add_child(b)
+			item_boxes.append(b)
+
+	# Salas de progressão especial (salas < 122 onde itens são ativados por narrativa/chaves)
+	if room_id == 4 and item_boxes.is_empty():
 		var b: ItemBox = ItemBox.new()
 		b.item_id = InventoryManager.ITEM_CARD1
 		b.room_id = room_id
 		b.position = Vector2(112.0, 80.0)
 		game_world.add_child(b)
 		item_boxes.append(b)
-	elif room_id == 128:
-		# Caminhão da direita: Binóculos autênticos da ROM (ItemBinoculars dw 7040h -> X=112, Y=64)
-		var b: ItemBox = ItemBox.new()
-		b.item_id = InventoryManager.ITEM_BINOCULARS
-		b.room_id = room_id
-		b.position = Vector2(112.0, 64.0)
-		game_world.add_child(b)
-		item_boxes.append(b)
-	elif room_id == 4:
-		# Sala 004: CARD1 de backup em (112, 80)
-		var b: ItemBox = ItemBox.new()
-		b.item_id = InventoryManager.ITEM_CARD1
-		b.room_id = room_id
-		b.position = Vector2(112.0, 80.0)
-		game_world.add_child(b)
-		item_boxes.append(b)
-	elif room_id == 6:
-		# Sala 006: RATION em (96, 64)
+	elif room_id == 6 and item_boxes.is_empty():
 		var b: ItemBox = ItemBox.new()
 		b.item_id = InventoryManager.ITEM_RATION
 		b.room_id = room_id
 		b.position = Vector2(96.0, 64.0)
 		game_world.add_child(b)
 		item_boxes.append(b)
+
 
 func _spawn_room_doors(room_id: int) -> void:
 	for door: RoomDoor in room_doors:

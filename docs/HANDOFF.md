@@ -49,7 +49,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ---
 
-## 5. Estado atual do projeto (HEAD: `356ee1b` + Bloco 12-B pronto)
+## 5. Estado atual do projeto (HEAD pós-Etapa 12)
 
 ### Etapas concluídas e commitadas
 
@@ -65,6 +65,8 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `a7633eb` | 10 | Caminhões (lorries), salas internas, itens canônicos |
 | `27a2815` | 11 | Extração em lote: 126 snapshots, `batch_snapshots.py` |
 | `356ee1b` | 12-A | RoomManager prioriza stage5-batch; rooms 0-125 reais |
+| `d559100` | 12-B | export_room_data.py gera room-NNN-actors.json (0-128) |
+| *(a seguir)* | 12-C | Spawn dinâmico de atores e itens no sandbox via RoomManager |
 
 ### Dados extraídos disponíveis
 
@@ -78,45 +80,33 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ### Snapshots por cobertura de edifício (stage5-batch)
 
-- Prédio 1 (salas 0–15): **16 snapshots**
-- Prédio 2 (salas 16–63): **48 snapshots**
-- Prédio 3 (salas 64–125): **62 snapshots**
+- Prédio 1 (salas 0–15): **16 snapshots** com atores e colisão reais
+- Prédio 2 (salas 16–63): **48 snapshots** com atores e colisão reais
+- Prédio 3 (salas 64–125): **62 snapshots** com atores e colisão reais
 - 7/126 cross-checked pixel-a-pixel contra emulador (rooms 0, 1, 2, 3, 5, 31, 121)
 - Salas lorry (126–207) e elevadores (208–250): lorries 126-128 têm atores/itens exportados; snapshot derivado do 127.
 
 ### Estado do Godot
 
-O `RoomManager.load_room_snapshot()` busca nas pastas em ordem:
-1. `stage5-batch/` (salas 0–125 reais)
-2. `stage4c-validated/`
-3. `stage4b-validated/`
-4. `stage4-validated/`
+- `RoomManager.load_room_snapshot()` carrega snapshots reais de `stage5-batch/`.
+- `RoomManager.load_room_actors()` carrega metadados reais de atores, itens e portas.
+- `sandbox_gameplay.gd` spawna inimigos e itens dinamicamente da ROM para qualquer uma das 126+ salas navegáveis.
 
 ---
 
-## 6. Próxima tarefa: Etapa 12-C — Spawn dinâmico no sandbox e carregamento de atores
+## 6. Próximas opções de trabalho (Etapa 13)
 
-**Status: Bloco 12-A e 12-B prontos; Bloco 12-C a iniciar.**
+A Etapa 12 está **concluída**. Candidatos para a próxima etapa:
 
-### Sub-blocos da Etapa 12
+1. **Etapa 13 — Extração e Integração das Salas Lorry e Isoladas (126–207)**:
+   - Rodar `batch_snapshots.py --rooms 126-207` para gerar snapshots de todas as salas isoladas e interiores.
+   - Conectar saídas dessas salas de volta aos prédios principais.
 
-- [x] **Bloco 12-A — RoomManager prioriza stage5-batch** (commit `356ee1b`)
-- [x] **Bloco 12-B — Ferramenta Python `export_room_data.py`** (commit a seguir)
-  - `tools/extractors/export_room_data.py` gerou `room-NNN-actors.json` para 129 salas (0-128).
-  - Suíte `ExportRoomDataTests` em `tests/test_extractors.py`.
-- [ ] **Bloco 12-C — Integração de atores/itens dinâmicos no RoomManager e sandbox_gameplay.gd**
-  - Adicionar método `RoomManager.load_room_actors(room_id: int) -> Dictionary`.
-  - Atualizar `sandbox_gameplay.gd` para usar dados do JSON em vez de spawn puramente hardcoded.
-  - Manter hardcoded como fallback / compatibilidade garantida para testes existentes.
-  - Testar e validar. Commit + HANDOFF.
-- Testes Python sintéticos
-- Commit + validate + HANDOFF
+2. **Etapa 13b — Sistema de Portas Canônicas Automatizado**:
+   - Usar a lista `doors` de `room-NNN-actors.json` para instanciar todas as portas interativas/trancadas automaticamente, em vez de configurar manualmente.
 
-**Bloco 12-C — Spawn dinâmico no sandbox**
-- `_spawn_room_enemies()` e `_spawn_room_items()` leem `room-NNN-actors.json`
-- Fallback: hardcode existente para rooms sem arquivo
-- Guardas sem path data: patrulha horizontal ±32px ao redor do spawn
-- Commit + validate + HANDOFF
+3. **Etapa 13c — Elevadores e Conexões Verticais (Salas 240–250)**:
+   - Extrair e implementar elevadores conectando pisos dos prédios.
 
 ---
 

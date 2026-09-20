@@ -652,7 +652,7 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
 - **Extração em lote**: 126/126 snapshots, 0 falhas, 7 cross-checks exatos
 - ROM original: não modificada; package.json é a entrada intermediária
 
-## 2026-09-20 — Etapa 12 (Em andamento): Integração dos Snapshots e Dados Reais ao Godot
+## 2026-09-20 — Etapa 12 concluída: Integração dos Snapshots e Dados Reais ao Godot
 
 ### Bloco 12-A concluído (commit `356ee1b`)
 - `RoomManager`: adicionado `stage5-batch/` como primeira prioridade em `load_room_snapshot()`.
@@ -660,13 +660,26 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
 - `godot/tests/room_snapshot_test.gd`: teste verificado de carregamento real da sala 000.
 - `validate.py`: PASS (45 Python + 9 Godot).
 
-### Bloco 12-B concluído
+### Bloco 12-B concluído (commit `d559100`)
 - Criada ferramenta `tools/extractors/export_room_data.py`:
   - Extrai dados leves por sala (`room-NNN-actors.json`): atores, itens e portas canônicas.
   - Combina coordenadas YX de `entities` e waypoints ordenados de `room_paths` / `paths`.
   - Exportadas 129 salas (0–128) para `data/extracted/stage5-batch/`.
 - Adicionada suíte de testes sintéticos `ExportRoomDataTests` em `tests/test_extractors.py`.
 - `validate.py`: PASS (46 Python + 9 Godot).
+
+### Bloco 12-C concluído
+- `RoomManager.load_room_actors(room_id)` implementado com cache em memória.
+- `sandbox_gameplay.gd`:
+  - `_spawn_room_enemies()`: instancia guardas dinamicamente a partir de `room-NNN-actors.json` com waypoints de patrulha e GuardType (SLOW para tipos 3/4, MEDIUM para os demais).
+  - `_spawn_room_items()`: instancia ItemBoxes dinamicamente a partir de `items` do JSON mapeando IDs de item da ROM (Ration, Card1, Binoculars, etc.).
+  - Fallbacks preservados para salas canônicas de teste.
+- Testado e verificado: salas de todos os três prédios (Prédio 1 ex: sala 1 com 3 guardas; Prédio 2 ex: sala 16 com 1 guarda; Prédio 3 ex: sala 64 com 9 guardas).
+
+### Verificações reais
+- `python3 tools/validate.py`: 100% PASS (46 testes Python + 9 suites Godot).
+- Teste headless de salas reais: salas 1, 5, 16, 64, 127 carregam com background, colisão e guardas fiéis.
+
 
 
 

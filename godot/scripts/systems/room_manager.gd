@@ -179,6 +179,7 @@ const CONNECTIONS_TABLE: Array = [
 ]
 
 var _snapshot_cache: Dictionary = {}
+var _actors_cache: Dictionary = {}
 
 ## Consulta o ID da próxima sala com base na direção de saída (GetNextRoomNum em Banks0123.asm:889).
 static func get_next_room(room_id: int, dir: PlayerController.Direction) -> int:
@@ -273,3 +274,19 @@ func load_room_snapshot(room_id: int) -> RoomSnapshot:
 			return copy_snap
 
 	return null
+
+## Carrega metadados de atores, itens e portas canônicas da sala a partir de stage5-batch.
+func load_room_actors(room_id: int) -> Dictionary:
+	if _actors_cache.has(room_id):
+		return _actors_cache[room_id] as Dictionary
+
+	var path: String = ProjectSettings.globalize_path("res://../data/extracted/stage5-batch/room-%03d-actors.json" % room_id)
+	if FileAccess.file_exists(path):
+		var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+		if file != null:
+			var parser: JSON = JSON.new()
+			if parser.parse(file.get_as_text()) == OK and parser.data is Dictionary:
+				var data: Dictionary = parser.data as Dictionary
+				_actors_cache[room_id] = data
+				return data
+	return {}
