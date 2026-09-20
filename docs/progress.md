@@ -129,3 +129,39 @@ Criados `tools/extractors/{codecs,extract,schema,verify}.py`, contrato `data/sch
 Permanecem pendentes: inicialização/herança dos tiles ausentes, composição dinâmica e paletas especiais, associação precisa de caminhos por ator, disponibilidade de itens/eventos, sprites/texto/áudio completos e comparação em execução. Sjasm/openMSX não instalados; sem montagem integral ou emulação. Conteúdo protegido continua privado, sem licença de redistribuição presumida.
 
 Etapa 3 concluída como extração dos componentes comprovados, com limitações explícitas; não como reconstrução de um frame completo ou do jogo. Próximo escopo proposto no relatório: fechar cargas/composição → comparar RAM/VRAM em execução → propor importador de uma sala → especificar movimento/colisão. **Etapa 4 não iniciada; aguardar nova autorização.**
+
+## 2026-09-20 — Etapa 4: fundos em execução e visualizador
+
+Autorizada por “Vamos para proxima etapa?”. Partida em fe4c755, árvore limpa. Relatório: [reverse_engineering/stage-4-results.md](reverse_engineering/stage-4-results.md). Marco entregue: captura reprodutível, comparação com o jogo executando e visualizador diagnóstico separado. Composição dinâmica completa e movimento continuam pendentes.
+
+### Ambiente e descobertas
+
+Reconferidos x86_64, Python 3.9.6, Git 2.50.1, Godot 4.7.2. Encontrado openMSX 21.0 instalado em /Applications (fora do PATH), com C-BIOS_MSX2_JP. Nenhum componente instalado. Execuções autorizadas para configurações normais dos aplicativos.
+
+Captura automatizada segue título/demo sem injetar teclas, escrever RAM/VRAM/ROM ou mudar PC. ROM principal selecionada por SHA-256 e duas âncoras únicas de instrução verificadas antes dos breakpoints. Observação na volta de RenderRoom CPU 0x4CF0; se necessário, segunda VRAM no RET de WaitVdpCmd 0x4EDB.
+
+Salas 1/5/31 (tileset 0) e 127 (tileset 4): mapa 768/768 bytes e fundo 49.152/49.152 pixels coincidentes em cada uma. Respectivamente 235/235/235/158 tiles carregados conferidos. Sete registros RAM de portas coincidiram com regras/geometria extraídas e estado persistente observado. Slots antes nulos referenciados nessas amostras tinham índice 0. Não generalizado a outras salas/transições; extração anterior preservada.
+
+Três capturas iniciais tinham 42 pixels divergentes e VDP ocupado: a última cópia ainda não terminara. Esperar o VDP resolveu a divergência integralmente. Limpeza inicial de páginas é evidenciada por logic/inithardware.asm. Não se confunde fundo pré-portas com frame final.
+
+### Implementação e arquivos
+
+Criados tools/emulation/capture.py, capture.tcl, compare.py e README; data/schemas/room-snapshot.schema.json; tests/test_emulation.py; godot/scenes/room_inspector.tscn; scripts tipados room_inspector.gd, systems/room_snapshot.gd e room_canvas.gd; testes room_snapshot_test.gd e room_snapshot_integration.gd, com UIDs. Atualizado tools/validate.py para incluir o teste sintético Godot. Atualizados READMEs, schemas e documentação, sem mudar a cena principal ou o contrato de extração anterior.
+
+Saídas privadas finais: data/extracted/emulator-stage4-settled/ (24 arquivos de captura/manifesto) e data/extracted/stage4-validated/ (10 arquivos: quatro snapshots, quatro PNGs, comparação e checksums). Investigações intermediárias preservadas/ignoradas. Visualizador abre snapshot explicitamente, valida entrada, desenha em escala inteira e permite overlay; não incorpora conteúdo privado a res://.
+
+### Testes reais
+
+- `python3 tools/validate.py`: **35 testes Python OK**; importação Godot, smoke principal, novo teste `ROOM_SNAPSHOT_OK` e execução `BOOT_OK` passaram, código 0.
+- Captura final via `tools/emulation/capture.py` e comparação via `compare.py`: quatro salas coincidentes conforme tabela do relatório. SHA do manifesto de captura: `55d15792329e16f5dc2559f7469209a05c863e8e81fd8549ada5decfdc729fb4`.
+- Integração gráfica Godot da sala 5: `ROOM_INTEGRATION_OK: 49152 pixels matched Python; room 5`; OpenGL Compatibility/Intel UHD Graphics 630. Screenshots com e sem overlay em reports/stage4-inspector-final-plain.png e -overlay.png; conferidos visualmente. O botão reflete o estado do overlay.
+- Dados sintéticos verificam orientação, endereços/nibbles, erro de RAM/tiles/fundo, VDP pendente, geometria de portas com overflow e tipo 6, validação de números e limpeza após erro de importação. Nenhum teste normal depende da ROM.
+- `git diff --check`: sem erros. 34 arquivos dos dois diretórios finais conferidos como ignorados. Referência externa sem alterações rastreadas. ROM principal SHA-256 preservado `254ffcd94d9ba2322c00df88b21b33b338e3238b90962820bbcaa2bb621e18cf`; tradução preservada `89cfeee7d990a6bed050dcffa12ddff179e1632f13450247ee8860587adec6f4`.
+
+Falhas intermediárias registradas: captura prematura com tileset 255; captura com comando VDP pendente; fixture Godot Array[int] convertia fração antes do teste, corrigida para Array sem restrição; ajuste para sincronizar toggle programático e botão visível. Todas as validações finais citadas passaram.
+
+### Limites e sequência
+
+Esta etapa introduz evidência em execução, limitada a openMSX/C-BIOS e quatro fundos. Paleta nominal não foi comparada ao RGB final dinâmico; não houve implementação de portas desenhadas, entidades, movimento ou IA. A máscara exibida não representa toda a colisão do jogo. Campos de portas conferidos não comprovam todos os eventos de abertura/destruição.
+
+Marco diagnóstico entregue. Próximo escopo proposto: capturas de outros tilesets/início de jogo → composição por deltas de portas/itens → medições por tick do jogador → controlador mínimo com testes. Etapa 5 não iniciada. Nenhum novo commit ou push feito automaticamente.

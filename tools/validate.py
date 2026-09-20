@@ -26,6 +26,7 @@ def main():
         ("python-tests", [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"]),
         ("godot-import", [godot, "--headless", "--path", str(ROOT / "godot"), "--editor", "--quit"]),
         ("godot-smoke", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/smoke_test.gd"]),
+        ("godot-room-snapshot", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/room_snapshot_test.gd"]),
         ("godot-main", [godot, "--headless", "--path", str(ROOT / "godot"), "--quit-after", "5"]),
     ]
     for name, command in commands:
@@ -37,6 +38,8 @@ def main():
             raise RuntimeError(name + " falhou; consulte reports/")
         if name == "godot-smoke" and "SMOKE_OK:" not in result.stdout:
             raise RuntimeError("Teste Godot não confirmou conclusão")
+        if name == "godot-room-snapshot" and "ROOM_SNAPSHOT_OK:" not in result.stdout:
+            raise RuntimeError("Teste de snapshot não confirmou conclusão")
         if name == "godot-main" and "BOOT_OK:" not in result.stdout:
             raise RuntimeError("Cena principal não iniciou")
         print(name + ": PASS")

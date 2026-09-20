@@ -1,4 +1,4 @@
-# Engenharia reversa — Etapas 2 e 3
+# Engenharia reversa — Etapas 2 a 4
 
 Análise em 2026-09-19. Referência local: external/MetalGear, revisão `30d1b940bede10fdabbaf9767ad4f0ad8dd33291`, sem alterações rastreadas. Todas as referências `arquivo:linha` abaixo são relativas a essa cópia; símbolos permitem localizar novamente a evidência. Não foram incorporados fontes, tabelas ou imagens do jogo ao projeto versionável.
 
@@ -9,7 +9,7 @@ Análise em 2026-09-19. Referência local: external/MetalGear, revisão `30d1b94
 - **Hipótese (H):** inferência plausível ainda sem teste suficiente.
 - **Pendente (P):** não investigado a ponto de permitir conclusão.
 
-Nenhuma rotina foi validada executando o jogo em emulador. Não há prova de identidade integral da ROM. O principal resultado é que a ROM de 128 KiB pode ser usada como candidata de trabalho: salas/metatiles, conexões, seleção de tileset e sete máscaras de colisão correspondem à referência. A versão regional/revisão exata permanece desconhecida. A tradução de 160 KiB também preserva essas regiões.
+Na entrega da Etapa 2 nenhuma rotina havia sido validada em emulador. A Etapa 4 adicionou comparação em execução de quatro fundos e sete registros de portas; veja o relatório específico. Não há prova de identidade integral da ROM. O principal resultado é que a ROM de 128 KiB pode ser usada como candidata de trabalho: salas/metatiles, conexões, seleção de tileset e sete máscaras de colisão correspondem à referência. A versão regional/revisão exata permanece desconhecida. A tradução de 160 KiB também preserva essas regiões.
 
 ## Documentos
 
@@ -24,6 +24,8 @@ Nenhuma rotina foi validada executando o jogo em emulador. Não há prova de ide
 - [Validação](validation.md): comandos, testes, limitações das ferramentas.
 - [Plano da Etapa 3](stage-3-plan.md): escopo autorizado e critérios.
 - [Resultados da Etapa 3](stage-3-results.md): pacote, formatos, evidências, testes e limitações.
+
+- [Etapa 4](stage-4-results.md): fundos comparados em openMSX e visualizador Godot.
 
 ## Referência e direitos
 

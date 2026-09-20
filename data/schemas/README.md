@@ -7,3 +7,7 @@ Layouts preservam IDs de metatile base 1 em 8×6; metatiles têm 4×4 IDs de til
 `tools/extractors/schema.py` implementa somente o subconjunto de JSON Schema utilizado aqui, sem dependências nem referências de rede. Rejeita palavras-chave desconhecidas; não deve ser apresentado como validador genérico de todo draft 2020-12. Também verifica IDs, referências, expansão de metatiles e correspondência da grade de colisão. Uma mudança de contrato exige atualizar schema, validador e testes juntos.
 
 Manifesto vincula revisão externa e hashes; Evidence delimita bytes e declaração de origem. `binary_verified` significa comparação de dados, não execução Z80. Nenhum arquivo de dados reais pertence a esta pasta. Uso futuro em Godot ou SNES exige importador explícito; não há dependência dessas engines no contrato.
+
+## Snapshot diagnóstico 1.0.0
+
+`room-snapshot.schema.json` define uma sala com pixels indexados, paleta RGB nominal e máscara estática. O comparador de execução gera esse contrato somente depois de conferir RAM, tiles e framebuffer. Usa observação específica para slots antes nulos, sem alterar o contrato de extração 0.1.0. O Godot lê explicitamente um snapshot local; esse formato não substitui layouts/metatiles nem especifica gameplay.

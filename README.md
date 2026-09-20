@@ -1,6 +1,6 @@
 # Laboratório Metal Gear MSX2
 
-Projeto educacional para estudar o original RC750, construir uma reimplementação fiel em Godot 4 e posteriormente um remake com arte autoral e melhorias opcionais. Etapas 1–3: infraestrutura funcional, análise estática/binária e extração automatizada dos componentes comprovados. Mecânicas ainda não implementadas; dados e imagens do jogo permanecem privados e ignorados.
+Projeto educacional para estudar o original RC750, construir uma reimplementação fiel em Godot 4 e posteriormente um remake com arte autoral e melhorias opcionais. Etapas 1–4: infraestrutura, análise, extração e verificação de fundos em emulador, com visualizador diagnóstico no Godot. Mecânicas ainda não implementadas; dados e imagens do jogo permanecem privados e ignorados.
 
 ## Requisitos verificados
 
@@ -66,6 +66,12 @@ Há duas ROMs privadas em roms/, de 128 e 160 KiB. Ambas apresentam compatibilid
 
 O .gitignore cobre pastas privadas independentemente da extensão, ROMs, imagens de disco, arquivos binários, arquivos compactados, caches e builds. Revisão humana ainda é necessária para arquivos colocados fora dessas pastas.
 
-Análise atual e resultados: [docs/reverse_engineering/README.md](docs/reverse_engineering/README.md). Extração entregue: [resultados da Etapa 3](docs/reverse_engineering/stage-3-results.md) e [procedimentos do extrator](tools/extractors/README.md). Etapa 4 não iniciada. O plano anterior da Etapa 2 foi preservado como histórico.
+Análise atual e resultados: [docs/reverse_engineering/README.md](docs/reverse_engineering/README.md). Extração entregue: [resultados da Etapa 3](docs/reverse_engineering/stage-3-results.md) e [procedimentos do extrator](tools/extractors/README.md). Etapa 4 entregue no marco de fundos verificados: [resultados](docs/reverse_engineering/stage-4-results.md) e [como abrir as salas](tools/emulation/README.md). Gameplay permanece pendente. O plano anterior da Etapa 2 foi preservado como histórico.
 
 Para repetir a análise local: `python3 tools/reverse_engineering/analyze.py`. Exige a referência na revisão fixada e ROMs em roms/. Produz apenas metadados em reports/reverse-engineering.json; não gera pacote de assets.
+
+## Visualizador de salas — Etapa 4
+
+Abra `godot/scenes/room_inspector.tscn` no editor e pressione F6. Use **Abrir snapshot local** e selecione `data/extracted/stage4-validated/room-005.json` (ou 001, 031, 127). O botão **Colisão estática** alterna o diagnóstico. Os arquivos reais são locais/ignorados; não fazem parte de um clone público.
+
+O projeto principal continua independente de ROM. O visualizador não implementa movimento, portas ou entidades; mostra fundos comparados com execução em openMSX 21.0/C-BIOS, com paleta nominal. `tools/validate.py` inclui o teste sintético do novo visualizador.

@@ -1,0 +1,66 @@
+"""Synthetic framebuffer/capture tests; no game bytes required."""
+import copy
+import json
+import unittest
+from pathlib import Path
+from tools.emulation.compare import atlas_tile,screen_pixels,compose,compare_room,door_record
+from tools.extractors.schema import validate
+
+
+class CaptureComparisonTests(unittest.TestCase):
+    def test_atlas_boundary_addresses_and_nibbles(self):
+        for tile in (0,31,32,255):
+            v=bytearray(65536)
+            address=0x8000+(tile//32)*1024+(tile%32)*4
+            v[address]=0xab;v[address+7*128+3]=0xcd
+            pixels=atlas_tile(v,tile)
+            self.assertEqual(pixels[:2],[10,11]);self.assertEqual(pixels[-2:],[12,13])
+            self.assertEqual(sum(pixels),46)
+        with self.assertRaises(ValueError):atlas_tile(bytes(65535),0)
+
+    def test_compose_grid_and_orientation(self):
+        atlas=[[i%16]*64 for i in range(256)]
+        tiles=[i%256 for i in range(768)]
+        pixels=compose(tiles,atlas)
+        self.assertEqual(pixels[8],1)
+        self.assertEqual(pixels[255],15)
+        self.assertEqual(pixels[8*256+8],1)
+        with self.assertRaises(ValueError):compose([256]*768,atlas)
+
+    def fixture(self):
+        room={'status':'decoded','graphics_set_ref':0,'palette_ref':0,'expanded_tiles':[0]*768,'static_collision':[0]*768}
+        p={'doors':[],'rooms':[room],'tilesets':[{'pixels_by_tile':[[0]*64]+[None]*255,'unloaded_tile_ids':list(range(1,256))}],
+           'palette_base':{'default_register_pairs':[[0,0]]*16,'menu_patch':{'registers':[]}},
+           'palettes':[{'registers':[]}],'manifest':{'input_sha256':'0'*64}}
+        return p,bytearray(16384),bytearray(65536)
+
+    def test_matching_snapshot_and_contract(self):
+        p,ram,v=self.fixture();snapshot,report=compare_room(p,ram,v,v)
+        schema=json.loads(Path('data/schemas/room-snapshot.schema.json').read_text())
+        validate(snapshot,schema)
+        self.assertEqual(report['background_pixels_matched'],49152)
+        self.assertEqual(report['ram_bytes_matched'],768)
+        broken=copy.deepcopy(snapshot);broken['pixels'][0]=18
+        with self.assertRaises(ValueError):validate(broken,schema)
+
+    def test_pending_vdp_does_not_false_fail_but_settled_must_match(self):
+        p,ram,v=self.fixture();pending=v[:];pending[24575]=0x01
+        _,report=compare_room(p,ram,pending,v)
+        self.assertEqual(report['initial_pending_pixels'],1)
+        with self.assertRaises(ValueError):compare_room(p,ram,v,pending)
+
+    def test_corrupt_ram_and_loaded_tile_are_rejected(self):
+        p,ram,v=self.fixture();ram[0x2000]=1
+        with self.assertRaises(ValueError):compare_room(p,ram,v,v)
+        ram[0x2000]=0;v[0x8000]=0x10
+        with self.assertRaises(ValueError):compare_room(p,ram,v,v)
+        with self.assertRaises(ValueError):screen_pixels(bytes(1))
+
+    def test_door_region_wrap_and_dummy_open_state(self):
+        door={'door_id':1,'render_type_id':1,'open_logic_raw':65,'draw_y':250,'draw_x':6,
+              'region_profile_raw':[10,8,246,16,0,24,0,32],'destination_room_id':2}
+        result=door_record(door,1)
+        self.assertEqual(result[7:11],[4,8,252,16])
+        self.assertEqual(result[1],1)
+        door['render_type_id']=6
+        self.assertEqual(door_record(door,1)[1],0)

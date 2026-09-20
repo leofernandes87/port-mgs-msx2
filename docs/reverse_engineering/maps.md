@@ -52,3 +52,7 @@ Apenas Room000 foi expandida em memória pela ferramenta própria, sem gerar ima
 ## Atualização da Etapa 3
 
 A Etapa 3 resolveu os intervalos entre labels: 172 layouts distintos (165 labels numéricos e sete nomeados), 235 entradas decodificadas e 16 indefinidas. Listas de portas podem compartilhar finais. Veja [resultados e evidências](stage-3-results.md).
+
+## Validação em execução — Etapa 4
+
+Salas 1, 5, 31 e 127 tiveram RoomTileBuffer e fundo completo comparados com openMSX 21.0/C-BIOS_MSX2_JP. Captura ocorre antes da composição de portas/entidades, esperando o comando VDP pendente. Sete registros de DoorsList também coincidiram. Isso não valida toda a colisão ou todas as transições. Ver [Etapa 4](stage-4-results.md).
