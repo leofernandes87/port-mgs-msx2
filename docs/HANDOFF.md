@@ -77,7 +77,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `5e3b34d` | 15 | Sistema de Rádio Transceptor / Codec (RadioSystem, frequências BCD, UI militar, chamadas autoreply) |
 | `3bb9410` | 16 | Câmeras de Vigilância e Feixes Laser Infravermelhos (SecurityCamera, LaserSystem, Goggles) |
 | `1aef8a2` | fix | Sandbox: spawn seguro contra colisão no reset e toggle de vida infinita (God Mode) |
-| `PENDING` | 17 | Máquina de Estados de Alerta Global, Evasão e Reforços Militares (AlertSystem, RespawnInfo) |
+| `a43f6f7` | 17 | Máquina de Estados de Alerta Global, Evasão e Reforços Militares (AlertSystem, RespawnInfo) |
 
 ### Dados extraídos disponíveis
 
