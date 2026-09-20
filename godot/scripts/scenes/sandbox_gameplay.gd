@@ -18,6 +18,8 @@ var room_doors: Array[RoomDoor] = []
 var room_texture: ImageTexture
 var show_collision: bool = false
 var show_enemy_vision: bool = false
+var infinite_life: bool = false
+var god_mode_btn: CheckButton
 var zoom: float = 3.0
 var canvas_origin: Vector2 = Vector2.ZERO
 
@@ -110,6 +112,19 @@ func _ready() -> void:
 	)
 	controls_bar.add_child(vision_btn)
 
+	god_mode_btn = CheckButton.new()
+	god_mode_btn.text = "Vida Infinita (I)"
+	god_mode_btn.focus_mode = Control.FOCUS_NONE
+	god_mode_btn.toggled.connect(func(v: bool) -> void:
+		infinite_life = v
+		if player:
+			player.infinite_life = v
+			if v:
+				player.life = player.max_life
+				player.queue_redraw()
+	)
+	controls_bar.add_child(god_mode_btn)
+
 	var reset_btn := Button.new()
 	reset_btn.text = "Reiniciar (R)"
 	reset_btn.focus_mode = Control.FOCUS_NONE
@@ -117,7 +132,7 @@ func _ready() -> void:
 	controls_bar.add_child(reset_btn)
 
 	var help_label := Label.new()
-	help_label.text = "· Mover: Setas/WASD · Atirar: Espaço/F · Soco: M/Z/J · Arma: Q · Kit Teste: G · Item: E · Ração: U"
+	help_label.text = "· Mover: Setas/WASD · Atirar: Espaço/F · Soco: M/Z/J · Arma: Q · Kit: G · Item: E · Ração: U · Vida Inf: I · Reset: R"
 	controls_bar.add_child(help_label)
 
 	# Área central de jogo (Control que contém e centraliza o mundo do jogo)
@@ -214,6 +229,14 @@ func _load_initial_room() -> void:
 			var snap := room_manager.load_room_snapshot(req_id)
 			if snap != null:
 				snapshot = snap
+				if ElevatorSystem.is_elevator_room(req_id):
+					is_in_elevator = true
+					var elev_state: Dictionary = ElevatorSystem.get_entry_state(req_id, -1)
+					elevator_y = float(elev_state.get("elevator_y", 180.0))
+					elevator_target_y = elevator_y
+					if elevator_cabin:
+						elevator_cabin.elevator_y = elevator_y
+						elevator_cabin.visible = true
 				_apply_snapshot()
 				return
 
@@ -678,16 +701,57 @@ func _create_synthetic_fallback_room() -> void:
 	})
 	_apply_snapshot()
 
+func _is_position_safe(pos: Vector2) -> bool:
+	if not player:
+		return true
+	# Limites da sala jogável (fora de bordas de transição de tela 256x192)
+	if pos.x < 24.0 or pos.x > 232.0 or pos.y < 24.0 or pos.y > 168.0:
+		return false
+	if snapshot and not snapshot.collision.is_empty():
+		for dir in [PlayerController.Direction.UP, PlayerController.Direction.DOWN, PlayerController.Direction.LEFT, PlayerController.Direction.RIGHT]:
+			if player.is_colliding_at(pos, dir):
+				return false
+	return true
+
+func _get_safe_spawn_position() -> Vector2:
+	var pref_pos := Vector2(DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y)
+	if is_in_elevator and elevator_cabin:
+		pref_pos = Vector2(216.0, elevator_y + 4.0)
+		return pref_pos
+	elif snapshot and snapshot.room_id == 0:
+		pref_pos = Vector2(128.0, 100.0)
+
+	if _is_position_safe(pref_pos):
+		return pref_pos
+
+	# Se a posição preferida colidir com paredes ou objetos sólidos,
+	# busca em espiral o tile livre mais próximo em passos de 8 pixels
+	for radius in range(1, 24):
+		for dx in range(-radius, radius + 1):
+			for dy in [-radius, radius]:
+				var test_pos := pref_pos + Vector2(dx * 8.0, dy * 8.0)
+				if _is_position_safe(test_pos):
+					return test_pos
+		for dy in range(-radius + 1, radius):
+			for dx in [-radius, radius]:
+				var test_pos := pref_pos + Vector2(dx * 8.0, dy * 8.0)
+				if _is_position_safe(test_pos):
+					return test_pos
+
+	return pref_pos
+
 func reset_player() -> void:
 	if player:
-		# Posição inicial livre na sala
-		player.set_grid_position(DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y)
+		var spawn_pos: Vector2 = _get_safe_spawn_position()
+		player.set_grid_position(spawn_pos.x, spawn_pos.y)
 		player.current_direction = PlayerController.Direction.UP
 		player.is_moving = false
-		player.life = 24
+		player.life = player.max_life
 		player.invulnerable_timer = 0
 		player.punch_timer = 0
+		player.infinite_life = infinite_life
 		player.queue_redraw()
+		print("RESET_PLAYER: Snake reiniciado na posição segura %s (Vida Inf: %s)" % [spawn_pos, infinite_life])
 	for b: Bullet in bullets:
 		if is_instance_valid(b):
 			b.queue_free()
@@ -769,6 +833,16 @@ func _input(event: InputEvent) -> void:
 			weapon_system.set_silencer(not weapon_system.has_silencer)
 			inventory.collect_item(InventoryManager.ITEM_GOGGLES)
 			print("DEBUG_WEAPON_KIT: Kit de armas e equipamentos concedido! Handgun + SMG + Silenciador + Goggles.")
+		elif event.keycode == KEY_I:
+			infinite_life = not infinite_life
+			if god_mode_btn:
+				god_mode_btn.set_pressed_no_signal(infinite_life)
+			if player:
+				player.infinite_life = infinite_life
+				if infinite_life:
+					player.life = player.max_life
+					player.queue_redraw()
+			print("GOD_MODE: Vida infinita %s" % ("LIGADA" if infinite_life else "DESLIGADA"))
 		elif event.keycode == KEY_R:
 			reset_player()
 
@@ -963,12 +1037,14 @@ func _physics_process(_delta: float) -> void:
 		var flash: bool = (Engine.get_physics_frames() % 30 < 15)
 		call_str = " | [CALL! Pressione T]" if flash else " | [      Pressione T]"
 
-	if player.life <= 0:
+	var life_val_str: String = "INF (GOD MODE)" if infinite_life else "%02d/%02d" % [player.life, player.max_life]
+
+	if player.life <= 0 and not infinite_life:
 		status_label.text = "SNAKE MORREU! [Pressione R para reiniciar]"
 		status_label.modulate = Color(1.0, 0.1, 0.1)
 	elif any_alert:
-		status_label.text = "ALERTA! | ARMA: %s | VIDA: [%s] %02d/%02d | ITEM: %s%s (Derrotados: %d/%d)" % [
-			weapon_str, life_bar, player.life, player.max_life, item_str, call_str, defeated_count, enemies.size()
+		status_label.text = "ALERTA! | ARMA: %s | VIDA: [%s] %s | ITEM: %s%s (Derrotados: %d/%d)" % [
+			weapon_str, life_bar, life_val_str, item_str, call_str, defeated_count, enemies.size()
 		]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 	elif is_in_elevator:
@@ -978,8 +1054,8 @@ func _physics_process(_delta: float) -> void:
 		]
 		status_label.modulate = Color(0.9, 0.8, 0.3)
 	elif snapshot.loaded:
-		status_label.text = "Sala %03d | ARMA: %s | VIDA: [%s] %02d/%02d | ITEM: %s%s" % [
-			snapshot.room_id, weapon_str, life_bar, player.life, player.max_life, item_str, call_str
+		status_label.text = "Sala %03d | ARMA: %s | VIDA: [%s] %s | ITEM: %s%s" % [
+			snapshot.room_id, weapon_str, life_bar, life_val_str, item_str, call_str
 		]
 		status_label.modulate = Color(1.0, 1.0, 1.0)
 

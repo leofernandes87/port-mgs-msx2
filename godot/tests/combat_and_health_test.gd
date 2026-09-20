@@ -123,5 +123,12 @@ func _run() -> void:
 	if not require(player.life == 22, "Snake não deve sofrer dano contínuo durante o timer de invulnerabilidade"): return
 	if not require(player.invulnerable_timer == 31, "Timer de invulnerabilidade deve decrementar a cada tick"): return
 
-	print("COMBAT_AND_HEALTH_OK: punch 8-ticks, 4-direction impact boxes, 64-tick stun, 3-punch kill, touch damage and 32-tick invulnerability")
+	# 6. Teste de Vida Infinita (God Mode de sandbox)
+	player.infinite_life = true
+	player.life = player.max_life
+	var took_damage: bool = player.apply_damage(10)
+	if not require(not took_damage and player.life == player.max_life, "Em modo infinite_life, Snake não deve sofrer dano"): return
+	player.infinite_life = false
+
+	print("COMBAT_AND_HEALTH_OK: punch 8-ticks, 4-direction impact boxes, 64-tick stun, 3-punch kill, touch damage, 32-tick invulnerability and infinite life mode")
 	quit(0)

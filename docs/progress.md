@@ -904,7 +904,7 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
      - Validação de patrulha a 1 px/tick ao longo de waypoints.
      - Validação de detecção de Snake e início do ciclo de piscar.
      - Validação de oclusão de visão por obstáculos sólidos da grade 32×24.
-     - Validação da furtividade da caixa de papelão estática.
+     - Validação de furtividade da caixa de papelão estática.
      - Validação de contagem e geometria das tabelas das Salas 24, 25 e 72.
      - Validação de toque físico vertical e horizontal (`ChkTouchLaser`).
      - Validação de visibilidade condicionada a Goggles.
@@ -912,6 +912,24 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
    - Integrado a `tools/validate.py` como `godot-cameras-and-lasers`.
    - Resultado: 100% PASS (46 testes Python + 14 suítes Godot).
 
+## 2026-09-20 — Ajustes de Sandbox: Spawn Seguro no Reset e Modo Vida Infinita (God Mode)
 
-
-
+### O que foi feito
+1. **Spawn Seguro Contra Colisão (`_get_safe_spawn_position()`)**:
+   - `godot/scripts/scenes/sandbox_gameplay.gd`:
+     - Criado método `_is_position_safe(pos: Vector2) -> bool` que valida se o ponto está dentro da área jogável útil e se Snake colide contra a grade 32×24 em qualquer uma das 4 direções (`is_colliding_at`).
+     - Criado método `_get_safe_spawn_position() -> Vector2`:
+       - Em salas de elevador (240–250), posiciona Snake na cabine móvel `(216.0, elevator_y + 4.0)`.
+       - Em salas comuns, avalia o spawn inicial preferido. Se colidir com paredes, caixas ou obstáculos sólidos do mapa, realiza uma busca em espiral pelos tiles vizinhos em passos de 8 pixels, encontrando o primeiro ponto livre.
+     - `reset_player()` atualizado para usar `_get_safe_spawn_position()`, garantindo que Snake nunca renasça preso dentro de um collision box.
+2. **Modo de Vida Infinita / God Mode (`infinite_life`)**:
+   - `godot/scripts/systems/player.gd`:
+     - Adicionada propriedade `var infinite_life: bool = false`.
+     - `apply_damage()`: quando `infinite_life` for `true`, restaura `life = max_life` e ignora o dano sem acionar contagem de morte.
+   - `godot/scripts/scenes/sandbox_gameplay.gd`:
+     - Adicionado botão interativo `CheckButton` ("Vida Infinita (I)") na barra superior de controles.
+     - Adicionado atalho de teclado `KEY_I` para alternar o modo em tempo real.
+     - HUD atualizado: exibe `VIDA: [■■■■■■■■] INF (GOD MODE)` em vez de número de pontos quando ativo, mantendo Snake vivo mesmo sob dano contínuo.
+3. **Validação Automatizada**:
+   - Adicionada asserção no teste unitário `godot/tests/combat_and_health_test.gd` para garantir que dano é ignorado em modo `infinite_life`.
+   - `python3 tools/validate.py` 100% PASS (46 testes Python + 14 suítes Godot).

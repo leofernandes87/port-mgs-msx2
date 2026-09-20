@@ -37,6 +37,7 @@ var invulnerable_timer: int = 0 # 32 ticks de atraso de dano (logic/touchenemy.a
 
 var punch_timer: int = 0 # 8 ticks de duração do soco (Banks0123.asm:8949)
 var is_punching: bool = false
+var infinite_life: bool = false # Modo de teste (God Mode)
 
 func _ready() -> void:
 	z_index = 10
@@ -76,6 +77,9 @@ func fire_weapon(weapon_sys: WeaponSystem) -> Bullet:
 	return b
 
 func apply_damage(amount: int) -> bool:
+	if infinite_life:
+		life = max_life
+		return false
 	if invulnerable_timer <= 0 and life > 0:
 		life = maxi(0, life - amount)
 		invulnerable_timer = 32
