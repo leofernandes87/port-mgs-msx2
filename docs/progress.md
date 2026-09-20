@@ -700,7 +700,18 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
    - Adicionadas constantes `ITEM_CARD5`..`ITEM_CARD8` a `InventoryManager`.
 4. **Testes e Verificação**:
    - `doors_and_inventory_test.gd`: adicionado caso de teste para porta trancada por `CARD4` (sala 6 da ROM com 3 portas canônicas e 2 cães de guarda).
-   - Suíte de validação completa: 100% PASS (46 testes Python + 9 suítes Godot).
+### Correção de Colisão de Inimigos e Comportamento dos Cães (Sala 6)
+- **Problema identificado**: Cães da Sala 6 atravessavam as grades/cerca ao fazer a transição para a sala em (86.0, 184.0).
+- **Causa raiz na engenharia reversa**:
+  1. No MSX2 (`logic/actors/dog.asm`), cães (`InitDog`, IDs 25/27) não utilizam rotas de patrulha (`idxRoomPaths`). Eles iniciam adormecidos no spawn (`DogSleep`) e só se movem em perseguição/alerta com verificação de colisão (`ChkDogCollision`). O exportador havia vinculado rotas espúrias de outra sala compartilhada no `Paths_006`.
+  2. O método `_follow_patrol_path()` em `enemy.gd` movia a posição sem checar `collision_grid`, permitindo penetração em obstáculos.
+  3. `_is_colliding_grid()` checava apenas um ponto de 1 pixel em vez do bounding box (10x10 px) do ator.
+- **Solução implementada**:
+  - `enemy.gd`: `_follow_patrol_path(collision_grid)` agora valida colisões antes de avançar; `_is_colliding_grid()` testa os 4 cantos do bounding box do inimigo.
+  - `sandbox_gameplay.gd`: cães (IDs 25, 27) permanecem no posto de guarda adormecidos/vigilantes no spawn (sem avançar contra a grade).
+  - `enemy_patrol_test.gd`: adicionado teste de patrulha bloqueada por parede sólida (100% PASS).
+  - `validate.py`: 100% PASS (46 testes Python + 9 suítes Godot).
+
 
 
 

@@ -236,6 +236,12 @@ func _spawn_room_enemies(room_id: int) -> void:
 
 			var raw_path: Array = act.get("patrol_path", [])
 			var waypoints: Array[Vector2] = []
+
+			# Cães de guarda (ID 25, 27) não utilizam waypoints na ROM (dog.asm: InitDog / DogSleep)
+			# Eles iniciam adormecidos/vigilantes no ponto de spawn e só perseguem com alarme
+			if type_id in [25, 27]:
+				raw_path = []
+
 			for pt_variant: Variant in raw_path:
 				if pt_variant is Array and (pt_variant as Array).size() >= 2:
 					var pt: Array = pt_variant as Array
@@ -243,8 +249,8 @@ func _spawn_room_enemies(room_id: int) -> void:
 					waypoints.append(Vector2(float(pt[1]), float(pt[0])))
 
 			if waypoints.is_empty():
-				if type_id == 48:
-					# Sentinela estático: permanece vigilante no posto
+				if type_id == 48 or type_id in [25, 27]:
+					# Sentinela ou Cão no posto: permanece na posição de spawn
 					waypoints.append(spawn_pos)
 				else:
 					var left_x: float = clampf(spawn_pos.x - 32.0, 16.0, 240.0)

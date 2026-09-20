@@ -121,5 +121,26 @@ func _run() -> void:
 	if not require(enemy.state == EnemyGuard.GuardState.ALERT, "Estado deve mudar para GuardState.ALERT"): return
 	if not require(enemy.alert_timer == 60.0, "Timer de alerta deve ser inicializado em 60.0"): return
 
+	# 8. Teste de bloqueio de patrulha por colisão (inimigo não atravessa paredes nem grades)
+	var wall_collision: Array[int] = []
+	wall_collision.resize(768)
+	wall_collision.fill(0)
+	# Parede sólida vertical na coluna 14 (x = 112..119)
+	for ty: int in range(24):
+		wall_collision[ty * 32 + 14] = 1
+
+	var blocked_enemy: EnemyGuard = packed_enemy.instantiate() as EnemyGuard
+	root.add_child(blocked_enemy)
+	blocked_enemy.position = Vector2(100.0, 100.0)
+	blocked_enemy.speed = 1.0
+	blocked_enemy.set_patrol_path([Vector2(140.0, 100.0)]) # Alvo além da parede
+	for i: int in range(20):
+		blocked_enemy.step_tick(wall_collision, Vector2(-100, -100))
+
+	if not require(blocked_enemy.position.x <= 107.0, "Inimigo em patrulha não deve atravessar obstáculo sólido (colisão = 1)"): return
+	blocked_enemy.queue_free()
+	await process_frame
+
 	print("ENEMY_PATROL_OK: waypoints patrol, authentic sight tolerances, obstacle occlusion, alert trigger")
 	quit(0)
+

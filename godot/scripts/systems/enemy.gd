@@ -123,7 +123,7 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 	if state == GuardState.ALERT:
 		_chase_player(player_pos, collision_grid)
 	elif not waypoints.is_empty() and state == GuardState.PATROL:
-		_follow_patrol_path()
+		_follow_patrol_path(collision_grid)
 
 	# 4. Amostragem da linha de visão até Snake
 	var sees_player: bool = check_line_of_sight(player_pos, collision_grid)
@@ -177,25 +177,47 @@ func _chase_player(target_pos: Vector2, collision_grid: Array) -> void:
 func _is_colliding_grid(test_pos: Vector2, collision_grid: Array) -> bool:
 	if collision_grid.is_empty():
 		return false
-	var tx: int = int(test_pos.x) / 8
-	var ty: int = int(test_pos.y) / 8
-	if tx < 0 or tx >= 32 or ty < 0 or ty >= 24:
-		return true
-	var idx: int = ty * 32 + tx
-	return idx < collision_grid.size() and int(collision_grid[idx]) == 1
+	# Amostragem de bounding box (10x10 px ao redor da posição central)
+	var half_w: float = 5.0
+	var half_h: float = 5.0
+	var check_points: Array[Vector2] = [
+		test_pos + Vector2(-half_w, -half_h),
+		test_pos + Vector2(half_w, -half_h),
+		test_pos + Vector2(-half_w, half_h),
+		test_pos + Vector2(half_w, half_h)
+	]
+	for pt: Vector2 in check_points:
+		var tx: int = int(pt.x) / 8
+		var ty: int = int(pt.y) / 8
+		if tx < 0 or tx >= 32 or ty < 0 or ty >= 24:
+			return true
+		var idx: int = ty * 32 + tx
+		if idx >= 0 and idx < collision_grid.size() and int(collision_grid[idx]) == 1:
+			return true
+	return false
 
-func _follow_patrol_path() -> void:
+func _follow_patrol_path(collision_grid: Array = []) -> void:
+	if waypoints.is_empty():
+		return
 	var target: Vector2 = waypoints[current_waypoint_idx]
 	var diff: Vector2 = target - position
 
 	# Determinar eixo prioritário de avanço
 	if absf(diff.x) > 0.5:
 		var step_x: float = signf(diff.x) * minf(speed, absf(diff.x))
-		position.x += step_x
+		var new_pos := Vector2(position.x + step_x, position.y)
+		if not _is_colliding_grid(new_pos, collision_grid):
+			position.x += step_x
+		else:
+			_advance_waypoint()
 		current_direction = PlayerController.Direction.RIGHT if step_x > 0 else PlayerController.Direction.LEFT
 	elif absf(diff.y) > 0.5:
 		var step_y: float = signf(diff.y) * minf(speed, absf(diff.y))
-		position.y += step_y
+		var new_pos := Vector2(position.x, position.y + step_y)
+		if not _is_colliding_grid(new_pos, collision_grid):
+			position.y += step_y
+		else:
+			_advance_waypoint()
 		current_direction = PlayerController.Direction.DOWN if step_y > 0 else PlayerController.Direction.UP
 	else:
 		# Atingiu o waypoint atual: avançar para o próximo

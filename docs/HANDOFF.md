@@ -67,7 +67,8 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `356ee1b` | 12-A | RoomManager prioriza stage5-batch; rooms 0-125 reais |
 | `d559100` | 12-B | export_room_data.py gera room-NNN-actors.json (0-128) |
 | `c061014` | 12-C | Spawn dinâmico de atores e itens no sandbox via RoomManager |
-| *(a seguir)* | 12b | Documentação 57 atores, tipos canônicos e portas automatizadas |
+| `7a8e299` | 12b | Documentação 57 atores, tipos canônicos e portas automatizadas |
+| *(a seguir)* | fix | Bloqueio de patrulha por colisão e correção de postura dos cães |
 
 ### Dados extraídos disponíveis
 
