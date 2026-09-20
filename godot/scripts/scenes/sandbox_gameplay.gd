@@ -3,6 +3,7 @@ extends Control
 
 var snapshot: RoomSnapshot = RoomSnapshot.new()
 var player: PlayerController
+var room_manager: RoomManager = RoomManager.new()
 var room_texture: ImageTexture
 var show_collision: bool = false
 var zoom: float = 3.0
@@ -31,7 +32,7 @@ func _ready() -> void:
 	column.add_child(bar)
 
 	var title := Label.new()
-	title.text = "Metal Gear MSX2 · Gameplay Sandbox (Etapa 5)"
+	title.text = "Metal Gear MSX2 · Gameplay & World Navigation (Etapa 6)"
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	bar.add_child(title)
 
@@ -59,7 +60,7 @@ func _ready() -> void:
 	bar.add_child(reset_btn)
 
 	status_label = Label.new()
-	status_label.text = "Controles: Setas / WASD para mover · C: Colisão · V: Pontos do Snake"
+	status_label.text = "Controles: Setas / WASD para navegar entre salas · C: Colisão · V: Pontos do Snake · R: Resetar"
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(status_label)
 
@@ -130,19 +131,20 @@ func _load_initial_room() -> void:
 			if snapshot.load_path(arguments[i + 1]) == OK:
 				_apply_snapshot()
 				return
+		elif arguments[i] == "--room":
+			var req_id: int = arguments[i + 1].to_int()
+			var snap := room_manager.load_room_snapshot(req_id)
+			if snap != null:
+				snapshot = snap
+				_apply_snapshot()
+				return
 
-	# Tentar caminhos locais existentes sob data/extracted
-	var candidate_paths: Array[String] = [
-		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-001.json"),
-		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-121.json"),
-		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-003.json"),
-		ProjectSettings.globalize_path("res://../data/extracted/stage4-validated/room-005.json")
-	]
-
-	for path: String in candidate_paths:
-		if FileAccess.file_exists(path) and snapshot.load_path(path) == OK:
-			_apply_snapshot()
-			return
+	# Tentar carregar Sala 1 do Prédio 1 (entrada com caixas)
+	var initial_snap := room_manager.load_room_snapshot(1)
+	if initial_snap != null:
+		snapshot = initial_snap
+		_apply_snapshot()
+		return
 
 	# Fallback sintético limpo caso nenhuma extração esteja presente
 	_create_synthetic_fallback_room()
@@ -151,7 +153,7 @@ func _apply_snapshot() -> void:
 	room_texture = ImageTexture.create_from_image(snapshot.make_image())
 	if player:
 		player.set_collision_grid(snapshot.collision)
-	status_label.text = "Sala %03d · %s · Use Setas/WASD para controlar Snake" % [snapshot.room_id, snapshot.source]
+	status_label.text = "Sala %03d · %s · Use Setas/WASD para mover Snake entre as salas" % [snapshot.room_id, snapshot.source]
 	print("SANDBOX_ROOM_LOADED: %d" % snapshot.room_id)
 	if room_display:
 		room_display.queue_redraw()
@@ -228,4 +230,49 @@ func _physics_process(_delta: float) -> void:
 	elif Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
 		input_dir = Vector2i(1, 0)
 
-	player.step_tick(input_dir)
+	var moved: bool = player.step_tick(input_dir)
+	if moved:
+		_check_and_handle_room_transition()
+
+func _check_and_handle_room_transition() -> void:
+	if not player or not snapshot:
+		return
+
+	var exit_dir: int = RoomManager.check_room_exit(player.position)
+	if exit_dir == 0:
+		return
+
+	var next_room_id: int = RoomManager.get_next_room(snapshot.room_id, exit_dir)
+	if next_room_id != RoomManager.NO_ROOM:
+		var entry_pos: Vector2 = RoomManager.get_entry_position(exit_dir, player.position)
+		change_to_room(next_room_id, entry_pos)
+	else:
+		_clamp_to_room_bounds(exit_dir)
+
+func _clamp_to_room_bounds(exit_dir: int) -> void:
+	if not player:
+		return
+	match exit_dir:
+		PlayerController.Direction.LEFT:
+			player.position.x = RoomManager.EXIT_LEFT_X
+		PlayerController.Direction.RIGHT:
+			player.position.x = RoomManager.EXIT_RIGHT_X - 0.1
+		PlayerController.Direction.UP:
+			player.position.y = RoomManager.EXIT_UP_Y
+		PlayerController.Direction.DOWN:
+			player.position.y = RoomManager.EXIT_DOWN_Y - 0.1
+	player.queue_redraw()
+
+func change_to_room(new_room_id: int, entry_pos: Vector2) -> bool:
+	var snap: RoomSnapshot = room_manager.load_room_snapshot(new_room_id)
+	if snap == null:
+		print("ROOM_TRANSITION_ABORTED: snapshot para sala %d não encontrado localmente" % new_room_id)
+		return false
+
+	snapshot = snap
+	_apply_snapshot()
+	if player:
+		player.set_grid_position(entry_pos.x, entry_pos.y)
+		player.queue_redraw()
+	print("ROOM_TRANSITION_OK: transição para sala %d na posição %s" % [new_room_id, entry_pos])
+	return true

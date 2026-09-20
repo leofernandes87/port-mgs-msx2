@@ -28,6 +28,7 @@ def main():
         ("godot-smoke", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/smoke_test.gd"]),
         ("godot-room-snapshot", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/room_snapshot_test.gd"]),
         ("godot-player-movement", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/player_movement_test.gd"]),
+        ("godot-room-transition", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/room_transition_test.gd"]),
         ("godot-main", [godot, "--headless", "--path", str(ROOT / "godot"), "--quit-after", "5"]),
     ]
     for name, command in commands:
@@ -43,6 +44,8 @@ def main():
             raise RuntimeError("Teste de snapshot não confirmou conclusão")
         if name == "godot-player-movement" and "PLAYER_MOVEMENT_OK:" not in result.stdout:
             raise RuntimeError("Teste de movimento do jogador não confirmou conclusão")
+        if name == "godot-room-transition" and "ROOM_TRANSITION_OK:" not in result.stdout:
+            raise RuntimeError("Teste de transição de salas não confirmou conclusão")
         if name == "godot-main" and "BOOT_OK:" not in result.stdout:
             raise RuntimeError("Cena principal não iniciou")
         print(name + ": PASS")

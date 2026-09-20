@@ -334,3 +334,58 @@ Objetivo concluído: modelagem analítica e implementação fiel em Godot 4 da f
 - **Via Validador**:
   - `python3 tools/validate.py`
 
+## 2026-09-20 — Etapa 6: Transição de Salas e Navegação Contínua do Mundo
+
+Objetivo concluído: modelagem analítica e implementação fiel em Godot 4 do sistema de transições entre salas ao cruzar as bordas da tela, integrando a tabela canônica `RoomConnections` e os limites de reentrada da ROM.
+
+### Metodologia e Fundamentação da ROM
+
+- **Limites Canônicos de Saída (`ChkExitRoom` em `Banks0123.asm:9418`)**:
+  - LEFT (3): $X < 12.0$
+  - RIGHT (4): $X \ge 244.0$
+  - UP (1): $Y < 16.0$
+  - DOWN (2): $Y \ge 186.0$
+  - Esses limiares operam enquanto os pontos de amostragem de `BoxColliderDat` ainda estão contidos na grade de tiles $32 \times 24$, viabilizando a detecção de passagens abertas sem conflito com bordas nulas.
+- **Resolução de Vizinhança (`GetNextRoomNum` em `Banks0123.asm:889` e `RoomConnections` em `data/roomsconnections.asm`)**:
+  - Tabela com 156 quartetos `[UP, DOWN, LEFT, RIGHT]`.
+  - Mapeamento por faixas:
+    - Salas $0..125$: relação direta $1:1$ de índice.
+    - Salas $126..207$: salas isoladas/caminhões (sem saídas de borda $\rightarrow$ `NO_ROOM = 255`).
+    - Salas $208..227$: índice `Room - 82` ($126..145$).
+    - Salas $228..240$: indefinidas / elevador 240 (sem saída de borda $\rightarrow$ `NO_ROOM`).
+    - Salas $241..250$: elevadores superiores (índice `Room - 95`).
+- **Coordenadas de Reentrada (`SetRoomEntryXY` / `EntryRoomXY` em `logic/nextroom.asm:342`)**:
+  - UP $\rightarrow$ nova sala com $Y = \mathbf{184.0}$ (conserva $X$).
+  - DOWN $\rightarrow$ nova sala com $Y = \mathbf{18.0}$ (conserva $X$).
+  - LEFT $\rightarrow$ nova sala com $X = \mathbf{242.0}$ (conserva $Y$).
+  - RIGHT $\rightarrow$ nova sala com $X = \mathbf{12.0}$ (conserva $Y$).
+
+### Implementação em Godot 4
+
+1. **`RoomManager` (`godot/scripts/systems/room_manager.gd`)**:
+   - Classe com tipagem estática e tabela canônica `CONNECTIONS_TABLE`.
+   - Métodos estáticos: `get_next_room()`, `check_room_exit()` e `get_entry_position()`.
+   - Sistema de carregamento e cache em memória de `RoomSnapshot`s a partir dos diretórios validados (`stage4c-validated`, `stage4b-validated`, `stage4-validated`).
+2. **Navegação Integrada na Sandbox (`sandbox_gameplay.gd`)**:
+   - Chamada automática de `_check_and_handle_room_transition()` a cada passo de Snake.
+   - Troca de sala sem interrupção: fundo, textura e grade de colisão de 768 tiles atualizados instantaneamente.
+   - Bloqueio automático de bordas (`_clamp_to_room_bounds()`) quando a direção não possui sala conectada (`NO_ROOM`).
+
+### Validação Automatizada
+
+- **Teste Headless Godot (`godot/tests/room_transition_test.gd`)**:
+  - Valida resolução estática de conexões para salas canônicas (121, 0, 1, 2, 3, 208, 240).
+  - Valida detecção de limites e conversão de coordenadas de reentrada.
+  - Simula no SceneTree a caminhada bidirecional completa:
+    Sala 1 $\rightarrow$ UP $\rightarrow$ Sala 2 $(128, 184) \rightarrow$ UP $(X=144) \rightarrow$ Sala 3 $(144, 184) \rightarrow$ DOWN $\rightarrow$ Sala 2 $(144, 18) \rightarrow$ DOWN $\rightarrow$ Sala 1 $(128, 18) \rightarrow$ DOWN $\rightarrow$ Sala 0 $(128, 18) \rightarrow$ DOWN $\rightarrow$ Sala 121 $(128, 18)$.
+  - Saída oficial: `ROOM_TRANSITION_OK: room connections, authentic exit bounds, entry XY recalculation, bidirectional room changes`.
+- **Suíte Integrada (`python3 tools/validate.py`)**:
+  - `python-tests`: PASS (39 testes unitários)
+  - `godot-import`: PASS
+  - `godot-smoke`: PASS (`SMOKE_OK`)
+  - `godot-room-snapshot`: PASS (`ROOM_SNAPSHOT_OK`)
+  - `godot-player-movement`: PASS (`PLAYER_MOVEMENT_OK`)
+  - `godot-room-transition`: PASS (`ROOM_TRANSITION_OK`)
+  - `godot-main`: PASS (`BOOT_OK`)
+
+
