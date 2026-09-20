@@ -387,6 +387,8 @@ func _spawn_room_items(room_id: int) -> void:
 					b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
 				8:
 					b.item_id = InventoryManager.ITEM_SILENCER
+				13:
+					b.item_id = InventoryManager.ITEM_GAS_MASK
 				17:
 					b.item_id = InventoryManager.ITEM_BINOCULARS
 				21, 30:
@@ -558,6 +560,8 @@ func _spawn_room_doors(room_id: int) -> void:
 			var d: RoomDoor = RoomDoor.new()
 			d.door_id = d_id
 			d.room_id = room_id
+			d.render_type_id = r_type
+			d.open_rule_id = rule_id
 			d.position = Vector2(dx, dy)
 			d.destination_room = dest_room
 
@@ -565,30 +569,25 @@ func _spawn_room_doors(room_id: int) -> void:
 				1, 5:
 					d.orientation = RoomDoor.DoorOrientation.NORTH
 					d.entry_position = Vector2(dx + 8.0, 160.0)
+					d.destination_direction = PlayerController.Direction.DOWN
 				2:
 					d.orientation = RoomDoor.DoorOrientation.SOUTH
 					d.entry_position = Vector2(dx + 8.0, 32.0)
+					d.destination_direction = PlayerController.Direction.UP
 				3:
 					d.orientation = RoomDoor.DoorOrientation.WEST
 					d.entry_position = Vector2(230.0, dy)
+					d.destination_direction = PlayerController.Direction.RIGHT
 				4:
 					d.orientation = RoomDoor.DoorOrientation.EAST
 					d.entry_position = Vector2(24.0, dy)
+					d.destination_direction = PlayerController.Direction.LEFT
 				_:
 					d.orientation = RoomDoor.DoorOrientation.NORTH
 					d.entry_position = Vector2(dx + 8.0, 160.0)
+					d.destination_direction = PlayerController.Direction.DOWN
 
-			# Regras canônicas de cartões da ROM (Enums.asm:113-122)
-			match rule_id:
-				2: d.required_card = InventoryManager.ITEM_CARD1
-				3: d.required_card = InventoryManager.ITEM_CARD2
-				4: d.required_card = InventoryManager.ITEM_CARD3
-				5: d.required_card = InventoryManager.ITEM_CARD4
-				6: d.required_card = InventoryManager.ITEM_CARD5
-				7: d.required_card = InventoryManager.ITEM_CARD6
-				8: d.required_card = InventoryManager.ITEM_CARD7
-				9: d.required_card = InventoryManager.ITEM_CARD8
-				_: d.required_card = ""
+			d.required_card = RoomDoor.get_card_for_rule(rule_id)
 
 			game_world.add_child(d)
 			if snapshot and snapshot.loaded:
@@ -792,7 +791,7 @@ func _physics_process(_delta: float) -> void:
 		if is_instance_valid(door):
 			var target_room: int = door.check_interaction(player, inventory, snapshot.collision)
 			if target_room != -1:
-				change_to_room(target_room, door.entry_position, door.destination_direction)
+				change_to_room(target_room, door.entry_position, door.destination_direction, door.door_id)
 				break
 
 	# Atualizar soldados inimigos, perseguição e combate
@@ -918,7 +917,7 @@ func _clamp_to_room_bounds(exit_dir: int) -> void:
 			player.position.y = RoomManager.EXIT_DOWN_Y - 0.1
 	player.queue_redraw()
 
-func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1) -> bool:
+func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, from_door_id: int = -1) -> bool:
 	var old_room_id: int = snapshot.room_id if snapshot and snapshot.loaded else -1
 	previous_room_id = old_room_id
 
@@ -952,6 +951,22 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1) -
 		elevator_state = ELEVATOR_STATE_IDLE
 		if elevator_cabin:
 			elevator_cabin.visible = false
+
+		# Emparelhamento canônico de portas por IdDoorEnter (logic/nextroom.asm:398-453)
+		if from_door_id != -1:
+			var matched_door: RoomDoor = null
+			for d: RoomDoor in room_doors:
+				if is_instance_valid(d) and d.door_id == from_door_id:
+					matched_door = d
+					break
+			if matched_door != null and not matched_door.is_lorry:
+				var spawn_info: Dictionary = RoomDoor.get_door_spawn(matched_door.position, matched_door.render_type_id)
+				entry_pos = spawn_info.get("pos", entry_pos) as Vector2
+				entry_dir = int(spawn_info.get("dir", entry_dir))
+				matched_door.open_door(snapshot.collision)
+				print("DOOR_PAIR_MATCHED: Porta %d na sala %d (Render %d) -> Spawn em %s, Dir %d" % [
+					from_door_id, new_room_id, matched_door.render_type_id, entry_pos, entry_dir
+				])
 
 	if player:
 		player.set_grid_position(entry_pos.x, entry_pos.y)

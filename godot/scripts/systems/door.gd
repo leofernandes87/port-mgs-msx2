@@ -15,6 +15,8 @@ enum DoorOrientation {
 
 var door_id: int = 0
 var room_id: int = 0
+var render_type_id: int = 1
+var open_rule_id: int = 1
 var required_card: String = ""
 var destination_room: int = -1
 var entry_position: Vector2 = Vector2.ZERO
@@ -23,6 +25,37 @@ var orientation: DoorOrientation = DoorOrientation.NORTH
 var is_open: bool = false
 var is_lorry: bool = false
 var trigger_rect: Rect2 = Rect2()
+
+# Tabela canônica de posicionamento de Snake ao entrar/sair de portas (logic/nextroom.asm:457-480)
+# Offset Y, Offset X, Direção (1: UP, 2: DOWN, 3: LEFT, 4: RIGHT)
+const PLAYER_IN_DOOR_DAT = {
+	1: {"offset_y": 40.0, "offset_x": 12.0, "direction": PlayerController.Direction.DOWN},  # Porta Norte (Parede Superior)
+	2: {"offset_y": -8.0, "offset_x": 16.0, "direction": PlayerController.Direction.UP},    # Porta Sul (Parede Inferior)
+	3: {"offset_y": 48.0, "offset_x": 16.0, "direction": PlayerController.Direction.RIGHT}, # Porta Oeste (Parede Esquerda)
+	4: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT}, # Porta Leste (Parede Direita)
+	5: {"offset_y": 40.0, "offset_x": 12.0, "direction": PlayerController.Direction.DOWN},  # Elevador
+	6: {"offset_y": 40.0, "offset_x": 12.0, "direction": PlayerController.Direction.DOWN},  # Elevador Saída
+}
+
+static func get_door_spawn(draw_xy: Vector2, render_type: int) -> Dictionary:
+	var info: Dictionary = PLAYER_IN_DOOR_DAT.get(render_type, {
+		"offset_y": 40.0, "offset_x": 12.0, "direction": PlayerController.Direction.DOWN
+	})
+	var spawn_pos := Vector2(draw_xy.x + float(info.offset_x), draw_xy.y + float(info.offset_y))
+	var spawn_dir: int = int(info.direction)
+	return {"pos": spawn_pos, "dir": spawn_dir}
+
+static func get_card_for_rule(rule_id: int) -> String:
+	match rule_id:
+		2: return InventoryManager.ITEM_CARD1
+		3: return InventoryManager.ITEM_CARD2
+		4: return InventoryManager.ITEM_CARD3
+		5: return InventoryManager.ITEM_CARD4
+		6: return InventoryManager.ITEM_CARD5
+		7: return InventoryManager.ITEM_CARD6
+		8: return InventoryManager.ITEM_CARD7
+		9: return InventoryManager.ITEM_CARD8
+		_: return ""
 
 # Tiles ocupados na grade 32x24 (onde a colisão é injetada/removida)
 var collision_tile_indices: Array[int] = []

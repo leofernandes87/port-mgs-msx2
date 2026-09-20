@@ -786,3 +786,37 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
    - `tools/validate.py`: integrado `godot-weapon-combat`.
    - Resultado: 100% PASS (46 testes Python + 11 suítes Godot).
 
+## 2026-09-20 — Etapa 14 concluída: Sistema de Portas e Transições Bidirecionais dos Interiores de Edifícios (Salas 129–207)
+
+### O que foi feito
+1. **Emparelhamento Canônico de Portas por `IdDoorEnter`**:
+   - Reversão fiel de `logic/doors/enterdoor.asm:101-108` e `logic/nextroom.asm:398-453`: ao cruzar qualquer porta com `door_id`, o jogo define `IdDoorEnter = door_id` e busca na lista de portas da sala de destino a porta emparelhada com o mesmo `door_id`.
+   - Elimina necessidade de hardcoding de coordenadas de entrada para salas interiores de depósitos, arsenais e dormitórios.
+2. **Tabela Canônica de Posicionamento `PlayerInDoorDat` (`logic/nextroom.asm:457-480`)**:
+   - Implementada em `RoomDoor.PLAYER_IN_DOOR_DAT` e método estático `RoomDoor.get_door_spawn(draw_xy, render_type)`:
+     - **Render 1 (Norte / Parede Superior)**: `offset_y = +40.0`, `offset_x = +12.0`, `direction = DOWN (2)`.
+     - **Render 2 (Sul / Parede Inferior)**: `offset_y = -8.0`, `offset_x = +16.0`, `direction = UP (1)`.
+     - **Render 3 (Oeste / Parede Esquerda)**: `offset_y = +48.0`, `offset_x = +16.0`, `direction = RIGHT (4)`.
+     - **Render 4 (Leste / Parede Direita)**: `offset_y = +48.0`, `offset_x = -10.0`, `direction = LEFT (3)`.
+     - **Render 5 (Elevador)**: `offset_y = +40.0`, `offset_x = +12.0`, `direction = DOWN (2)`.
+   - Coloca Snake no exato ponto geométrico de saída e com a orientação correta sem colidir nas paredes ou na própria porta.
+3. **Regras de Cartão da ROM (`IdDoorsLogic` e `Enums.asm:113-122`)**:
+   - Método `RoomDoor.get_card_for_rule(rule_id)`:
+     - `rule_id == 1`: porta destrancada / aberta.
+     - `rule_id == 2..9`: portas trancadas por `CARD1` até `CARD8`.
+4. **Carregamento Universal de Portas no Sandbox (`sandbox_gameplay.gd`)**:
+   - `_spawn_room_doors(room_id)`: instancia dinamicamente portas a partir de `room-NNN-actors.json` com `door_id`, `render_type_id`, `open_rule_id`, orientação e injeção de colisão quando fechada.
+   - `change_to_room`: localiza a porta emparelhada na sala recém-carregada, aplica `get_door_spawn`, abre a porta para passagem fluida e posiciona Snake.
+   - Compatibilidade preservada para portas de caminhão (lorries) e elevadores.
+5. **Mapeamento de Novos Itens em Depósitos**:
+   - Adicionada constante `ITEM_GAS_MASK` (`InventoryManager`) para o item 13 da ROM (Máscara de Gás), presente na Sala 138.
+6. **Testes e Validação Automatizada**:
+   - Criada suíte `godot/tests/building_doors_test.gd`:
+     - Validação dos cálculos de `PlayerInDoorDat` nos 5 tipos de render.
+     - Validação de regras de abertura por cartões.
+     - Ciclo bidirecional Sala 7 <-> Sala 130 via Porta 118 (coleta da Pistola `HANDGUN` no arsenal e retorno).
+     - Ciclo Sala 8 <-> Sala 138 via Porta 1 (tranca por `CARD1`, desbloqueio e retorno).
+   - Integrado ao `tools/validate.py` como `godot-building-doors`.
+   - Resultado: 100% PASS (46 testes Python + 12 suítes Godot).
+
+
