@@ -74,5 +74,13 @@ func _run() -> void:
 		# stage5-batch não disponível neste ambiente; testar apenas sintético
 		print("ROOM_SNAPSHOT_OK: stage5-batch ausente; apenas snapshot sintético testado")
 
+	# Bloco 12c: verifica que o RoomManager carrega salas lorry/isoladas de stage5-lorries (ex: room 126)
+	var lorry_snap: RoomSnapshot = rm.load_room_snapshot(126)
+	if lorry_snap != null:
+		if not require(lorry_snap.loaded, "stage5-lorries room-126 carregou mas loaded=false"): return
+		if not require(lorry_snap.room_id == 126, "room_id incorreto no snapshot lorry"): return
+		if not require(lorry_snap.pixels.size() == 49152, "pixels size incorreto em room-126"): return
+		print("ROOM_SNAPSHOT_OK: stage5-lorries room-126 carregado com sucesso")
+
 	print("ROOM_SNAPSHOT_OK: synthetic pixels, validation, clearing, viewer and overlay")
 	quit(0)

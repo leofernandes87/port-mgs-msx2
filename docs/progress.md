@@ -710,7 +710,24 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
   - `enemy.gd`: `_follow_patrol_path(collision_grid)` agora valida colisões antes de avançar; `_is_colliding_grid()` testa os 4 cantos do bounding box do inimigo.
   - `sandbox_gameplay.gd`: cães (IDs 25, 27) permanecem no posto de guarda adormecidos/vigilantes no spawn (sem avançar contra a grade).
   - `enemy_patrol_test.gd`: adicionado teste de patrulha bloqueada por parede sólida (100% PASS).
-  - `validate.py`: 100% PASS (46 testes Python + 9 suítes Godot).
+## 2026-09-20 — Etapa 12c concluída: Extração e Integração das Salas Lorry e Isoladas (126–207)
+
+### O que foi feito
+1. **Extração em Lote das Salas Lorry e Interiores**:
+   - `tools/extractors/batch_snapshots.py` executado com escopo `--rooms 126-207`:
+     - 81 salas decodificadas extraídas com sucesso para `data/extracted/stage5-lorries/`.
+     - 1 sala indefinida ignorada conforme especificação da ROM (`sala 155`).
+     - Sala 127 cross-checked com 100% de precisão contra capturas do emulador.
+2. **Exportação de Metadados de Atores e Itens das Salas 126–207**:
+   - `tools/extractors/export_room_data.py` gerou `room-NNN-actors.json` para todas as 81 salas em `stage5-lorries/`.
+3. **Integração no Godot**:
+   - `RoomManager.load_room_snapshot()` atualizado para buscar `stage5-lorries/` como candidato prioritário para salas de caminhão e interiores.
+   - `RoomManager.load_room_actors()` atualizado para buscar metadados de atores em `stage5-lorries/`.
+   - Salas 126, 127, 128 (caminhões) e 129..207 (interiores/salas isoladas) agora possuem backgrounds, colisões, portas e itens autênticos da ROM.
+4. **Testes e Verificação**:
+   - `room_snapshot_test.gd`: adicionada validação de carregamento real da sala 126 a partir de `stage5-lorries`.
+   - `validate.py`: 100% PASS (46 testes Python + 9 suítes Godot).
+
 
 
 

@@ -247,6 +247,7 @@ func load_room_snapshot(room_id: int) -> RoomSnapshot:
 
 	var candidate_paths: Array[String] = [
 		ProjectSettings.globalize_path("res://../data/extracted/stage5-batch/room-%03d.json" % room_id),
+		ProjectSettings.globalize_path("res://../data/extracted/stage5-lorries/room-%03d.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-%03d.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage4b-validated/room-%03d.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage4-validated/room-%03d.json" % room_id)
@@ -275,18 +276,22 @@ func load_room_snapshot(room_id: int) -> RoomSnapshot:
 
 	return null
 
-## Carrega metadados de atores, itens e portas canônicas da sala a partir de stage5-batch.
+## Carrega metadados de atores, itens e portas canônicas da sala a partir de stage5-batch ou stage5-lorries.
 func load_room_actors(room_id: int) -> Dictionary:
 	if _actors_cache.has(room_id):
 		return _actors_cache[room_id] as Dictionary
 
-	var path: String = ProjectSettings.globalize_path("res://../data/extracted/stage5-batch/room-%03d-actors.json" % room_id)
-	if FileAccess.file_exists(path):
-		var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-		if file != null:
-			var parser: JSON = JSON.new()
-			if parser.parse(file.get_as_text()) == OK and parser.data is Dictionary:
-				var data: Dictionary = parser.data as Dictionary
-				_actors_cache[room_id] = data
-				return data
+	var candidate_paths: Array[String] = [
+		ProjectSettings.globalize_path("res://../data/extracted/stage5-batch/room-%03d-actors.json" % room_id),
+		ProjectSettings.globalize_path("res://../data/extracted/stage5-lorries/room-%03d-actors.json" % room_id)
+	]
+	for path: String in candidate_paths:
+		if FileAccess.file_exists(path):
+			var file: FileAccess = FileAccess.open(path, FileAccess.READ)
+			if file != null:
+				var parser: JSON = JSON.new()
+				if parser.parse(file.get_as_text()) == OK and parser.data is Dictionary:
+					var data: Dictionary = parser.data as Dictionary
+					_actors_cache[room_id] = data
+					return data
 	return {}
