@@ -29,53 +29,69 @@ func _ready() -> void:
 	add_child(margin)
 
 	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 6)
 	margin.add_child(column)
 
-	var bar := HBoxContainer.new()
-	column.add_child(bar)
+	# Linha 1: Título e Status de Vida/Alerta
+	var header_bar := HBoxContainer.new()
+	column.add_child(header_bar)
 
 	var title := Label.new()
-	title.text = "Metal Gear MSX2 · Gameplay, Stealth & World (Etapa 7)"
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	bar.add_child(title)
+	title.text = "Metal Gear MSX2 · Sandbox"
+	header_bar.add_child(title)
+
+	status_label = Label.new()
+	status_label.text = "Carregando..."
+	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	header_bar.add_child(status_label)
+
+	# Linha 2: Controles e Atalhos (HFlowContainer evita qualquer corte na direita)
+	var controls_bar := HFlowContainer.new()
+	controls_bar.add_theme_constant_override("h_separation", 10)
+	controls_bar.add_theme_constant_override("v_separation", 4)
+	column.add_child(controls_bar)
 
 	collision_btn = CheckButton.new()
-	collision_btn.text = "Grade de Colisão (C)"
+	collision_btn.text = "Colisão (C)"
+	collision_btn.focus_mode = Control.FOCUS_NONE
 	collision_btn.toggled.connect(func(v: bool) -> void: 
 		show_collision = v
 		if room_display:
 			room_display.queue_redraw()
 	)
-	bar.add_child(collision_btn)
+	controls_bar.add_child(collision_btn)
 
 	colliders_btn = CheckButton.new()
-	colliders_btn.text = "Pontos de Teste (V)"
+	colliders_btn.text = "Pontos Snake (V)"
+	colliders_btn.focus_mode = Control.FOCUS_NONE
 	colliders_btn.toggled.connect(func(v: bool) -> void: 
 		if player:
 			player.show_debug_colliders = v
 			player.queue_redraw()
 	)
-	bar.add_child(colliders_btn)
+	controls_bar.add_child(colliders_btn)
 
 	vision_btn = CheckButton.new()
-	vision_btn.text = "Visão Guardas (B)"
+	vision_btn.text = "Visão Inimigos (B)"
+	vision_btn.focus_mode = Control.FOCUS_NONE
 	vision_btn.toggled.connect(func(v: bool) -> void:
 		show_enemy_vision = v
 		for enemy: EnemyGuard in enemies:
 			enemy.show_debug_vision = v
 			enemy.queue_redraw()
 	)
-	bar.add_child(vision_btn)
+	controls_bar.add_child(vision_btn)
 
 	var reset_btn := Button.new()
-	reset_btn.text = "Resetar (R)"
+	reset_btn.text = "Reiniciar (R)"
+	reset_btn.focus_mode = Control.FOCUS_NONE
 	reset_btn.pressed.connect(reset_player)
-	bar.add_child(reset_btn)
+	controls_bar.add_child(reset_btn)
 
-	status_label = Label.new()
-	status_label.text = "Controles: Setas / WASD para mover · C: Colisão · V: Pontos do Snake · B: Visão Guardas · R: Resetar"
-	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(status_label)
+	var help_label := Label.new()
+	help_label.text = "· Mover: Setas/WASD · Soco: Espaço / Z / J"
+	controls_bar.add_child(help_label)
 
 	# Área central de jogo (Control que contém e centraliza o mundo do jogo)
 	viewport_area = Control.new()
@@ -272,7 +288,12 @@ func reset_player() -> void:
 		player.set_grid_position(DEFAULT_SPAWN_X, DEFAULT_SPAWN_Y)
 		player.current_direction = PlayerController.Direction.UP
 		player.is_moving = false
+		player.life = 24
+		player.invulnerable_timer = 0
+		player.punch_timer = 0
 		player.queue_redraw()
+	if snapshot:
+		_spawn_room_enemies(snapshot.room_id)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -293,6 +314,10 @@ func _input(event: InputEvent) -> void:
 				if is_instance_valid(enemy):
 					enemy.show_debug_vision = show_enemy_vision
 					enemy.queue_redraw()
+		elif event.keycode == KEY_SPACE or event.keycode == KEY_Z or event.keycode == KEY_J:
+			if player:
+				player.punch()
+			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_R:
 			reset_player()
 
@@ -315,19 +340,33 @@ func _physics_process(_delta: float) -> void:
 	if moved:
 		_check_and_handle_room_transition()
 
-	# Atualizar soldados inimigos e detecção de visão
+	# Atualizar soldados inimigos, perseguição e combate
 	var any_alert: bool = false
+	var defeated_count: int = 0
 	for enemy: EnemyGuard in enemies:
 		if is_instance_valid(enemy):
-			enemy.step_tick(snapshot.collision, player.position)
-			if enemy.is_alert:
+			enemy.step_tick(snapshot.collision, player.position, player.is_punching, player.current_direction, player)
+			if enemy.is_alert and not enemy.is_dead:
 				any_alert = true
+			if enemy.is_dead:
+				defeated_count += 1
 
-	if any_alert:
-		status_label.text = "ALERTA! Snake foi detectado por um soldado inimigo!"
+	var blocks: int = maxi(0, player.life / 3)
+	var empty_blocks: int = maxi(0, (player.max_life - player.life) / 3)
+	var life_bar: String = "■".repeat(blocks) + "□".repeat(empty_blocks)
+
+	if player.life <= 0:
+		status_label.text = "SNAKE MORREU! [Pressione R para reiniciar]"
+		status_label.modulate = Color(1.0, 0.1, 0.1)
+	elif any_alert:
+		status_label.text = "ALERTA! Soldados em perseguição! | VIDA: [%s] %02d/%02d (Derrotados: %d/%d)" % [
+			life_bar, player.life, player.max_life, defeated_count, enemies.size()
+		]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 	elif snapshot.loaded:
-		status_label.text = "Sala %03d · %s · Use Setas/WASD para mover Snake · Furtividade ativa" % [snapshot.room_id, snapshot.source]
+		status_label.text = "Sala %03d · %s | VIDA: [%s] %02d/%02d · Espaço: Soco" % [
+			snapshot.room_id, snapshot.source, life_bar, player.life, player.max_life
+		]
 		status_label.modulate = Color(1.0, 1.0, 1.0)
 
 func _check_and_handle_room_transition() -> void:

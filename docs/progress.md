@@ -442,5 +442,64 @@ Etapa 7 implementada com total fidelidade ao comportamento do MSX2 RC750. Docume
   - `godot-enemy-patrol`: PASS (`ENEMY_PATROL_OK`)
   - `godot-main`: PASS (`BOOT_OK`)
 
+## 2026-09-20 — Etapa 8: Combate Corpo a Corpo (Soco), Perseguição em Alerta e Vida/Dano
+
+Etapa 8 implementada com total fidelidade às rotinas de combate da ROM original do MSX2 RC750. Documentação em `docs/reverse_engineering/stage-8-combat-and-health.md`.
+
+### Metodologia e Fundamentação da ROM
+
+- **Soco de Snake (`chkPunch` em `Banks0123.asm:8934`)**:
+  - Duração de $8$ ticks com velocidade de movimento zerada (`PunchCnt = 8`, `PlayerAnimation = 1`).
+  - Caixas de impacto direcionais autênticas da ROM (`logic/punchenemy.asm:81-87`):
+    - UP: $Y_{+12}$, $R_Y=12$, $R_X=12$
+    - DOWN: $Y_{-12}$, $R_Y=12$, $R_X=12$
+    - LEFT: $X_{+12}$, $R_X=12$, $R_Y=12$
+    - RIGHT: $X_{-12}$, $R_X=12$, $R_Y=12$
+- **Atordoamento e Derrota de Guardas (`ChkKillPunching` em `Banks0123.asm:12815`)**:
+  - Cada soco recebido atordoa o guarda por $64$ ticks ($0x40$), imobilizando-o e impedindo acúmulo de dano simultâneo.
+  - Com $3$ socos recebidos (`PunchesCnt == 3`), o guarda é derrotado (`is_dead = true`), cai no chão e desativa visão e colisão.
+- **Perseguição em Alerta (`GuardAlertLogic` em `logic/actors/guardalert.asm`)**:
+  - Guardas em estado de alerta abandonam a patrulha e perseguem ativamente Snake pelo menor eixo com contorno de obstáculos no grid.
+- **Vida e Dano de Snake (`Life`, `MaxLife`, `TouchPlayer` em `logic/touchenemy.asm`)**:
+  - Vida inicial: $24$ pontos (Rank 1 / `Banks0123.asm:9672`).
+  - Dano por contato físico: $2$ pontos de vida por toque (`ActorTouchDamage` em `data/shapes.asm:36`).
+  - Invulnerabilidade temporária: $32$ ticks ($0x20$) com feedback visual piscante.
+
+### Implementação em Godot 4
+
+1. **`PlayerController` (`player.gd`)**:
+   - `life = 24`, `max_life = 24`, `invulnerable_timer`, `punch_timer`, `is_punching`.
+   - Método `punch()` e `apply_damage(amount)`.
+   - Animação do punho estendido e piscar intermitente de dano.
+2. **`EnemyGuard` (`enemy.gd`)**:
+   - `check_punched(player_pos, player_dir)` com caixas direcionais da ROM.
+   - `receive_punch()` com atordoamento de $64$ ticks e eliminação ao 3º soco.
+   - `_chase_player()` persegue Snake contornando a grade de colisão.
+   - Dano por contato direto aplicado a Snake.
+   - Desenho de estrelas de atordoamento e silhueta de derrota.
+3. **Sandbox (`sandbox_gameplay.gd`)**:
+   - Disparo de soco com tecla de espaço / J.
+   - Exibição gráfica da barra de vida (`VIDA: [■■■■■■■■] 24/24`) e contador de guardas derrotados.
+
+### Validação Automatizada
+
+- **Teste Headless Godot (`godot/tests/combat_and_health_test.gd`)**:
+  - Valida 8 ticks de imobilização do soco.
+  - Valida caixas de impacto de soco nas 4 direções.
+  - Valida 64 ticks de stun e morte com 3 socos.
+  - Valida 2 pontos de dano e 32 ticks de invulnerabilidade.
+  - Saída oficial: `COMBAT_AND_HEALTH_OK: punch 8-ticks, 4-direction impact boxes, 64-tick stun, 3-punch kill, touch damage and 32-tick invulnerability`.
+- **Suíte Integrada (`python3 tools/validate.py`)**:
+  - `python-tests`: PASS (39 testes unitários)
+  - `godot-import`: PASS
+  - `godot-smoke`: PASS (`SMOKE_OK`)
+  - `godot-room-snapshot`: PASS (`ROOM_SNAPSHOT_OK`)
+  - `godot-player-movement`: PASS (`PLAYER_MOVEMENT_OK`)
+  - `godot-room-transition`: PASS (`ROOM_TRANSITION_OK`)
+  - `godot-enemy-patrol`: PASS (`ENEMY_PATROL_OK`)
+  - `godot-combat-health`: PASS (`COMBAT_AND_HEALTH_OK`)
+  - `godot-main`: PASS (`BOOT_OK`)
+
+
 
 

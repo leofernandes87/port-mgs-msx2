@@ -30,6 +30,14 @@ var frame_num: int = 0  # 0: Parado, 1: Passo 1, 2: Passo 2
 var collision_grid: Array = []  # 768 inteiros (32x24 tiles, 1=bloqueio, 0=livre)
 var show_debug_colliders: bool = false
 
+# Sistema de Vida e Combate MSX2 RC750 (Etapa 8)
+var life: int = 24       # Rank 1: 24 pontos de vida (Banks0123.asm:9672)
+var max_life: int = 24
+var invulnerable_timer: int = 0 # 32 ticks de atraso de dano (logic/touchenemy.asm:155)
+
+var punch_timer: int = 0 # 8 ticks de duração do soco (Banks0123.asm:8949)
+var is_punching: bool = false
+
 func _ready() -> void:
 	z_index = 10
 
@@ -40,7 +48,34 @@ func set_grid_position(px: float, py: float) -> void:
 	position = Vector2(px, py)
 	queue_redraw()
 
+func punch() -> bool:
+	if punch_timer <= 0 and life > 0:
+		punch_timer = 8
+		is_punching = true
+		is_moving = false
+		queue_redraw()
+		return true
+	return false
+
+func apply_damage(amount: int) -> bool:
+	if invulnerable_timer <= 0 and life > 0:
+		life = maxi(0, life - amount)
+		invulnerable_timer = 32
+		queue_redraw()
+		return true
+	return false
+
 func step_tick(input_dir: Vector2i) -> bool:
+	if invulnerable_timer > 0:
+		invulnerable_timer -= 1
+
+	if punch_timer > 0:
+		punch_timer -= 1
+		is_punching = (punch_timer > 0)
+		is_moving = false
+		queue_redraw()
+		return false
+	is_punching = false
 	if input_dir == Vector2i.ZERO:
 		is_moving = false
 		anim_wait_cnt = 0
@@ -116,6 +151,10 @@ func is_colliding_at(target_pos: Vector2, dir: Direction) -> bool:
 	return false
 
 func _draw() -> void:
+	# Efeito de piscar durante o período de invulnerabilidade (32 ticks)
+	if invulnerable_timer > 0 and (invulnerable_timer % 4) < 2:
+		return
+
 	# Representação visual de Snake (16x16 pixels centralizado)
 	var body_rect := Rect2(-8, -12, 16, 16)
 	
@@ -159,6 +198,21 @@ func _draw() -> void:
 			leg_right.position.y += 1
 	draw_rect(leg_left, shadow_color)
 	draw_rect(leg_right, shadow_color)
+
+	# Animação do soco (braço/punho estendido na direção do ataque)
+	if is_punching:
+		var fist_rect := Rect2(0, 0, 4, 4)
+		match current_direction:
+			Direction.UP:
+				fist_rect = Rect2(-2, -16, 4, 5)
+			Direction.DOWN:
+				fist_rect = Rect2(-2, 4, 4, 5)
+			Direction.LEFT:
+				fist_rect = Rect2(-13, -6, 5, 4)
+			Direction.RIGHT:
+				fist_rect = Rect2(8, -6, 5, 4)
+		draw_rect(fist_rect, skin_color)
+		draw_rect(Rect2(fist_rect.position, Vector2(fist_rect.size.x, 1)), shadow_color)
 
 	# Debug: desenhar os 2 pontos de colisão ativos de BoxColliderDat
 	if show_debug_colliders:

@@ -30,6 +30,7 @@ def main():
         ("godot-player-movement", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/player_movement_test.gd"]),
         ("godot-room-transition", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/room_transition_test.gd"]),
         ("godot-enemy-patrol", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/enemy_patrol_test.gd"]),
+        ("godot-combat-health", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/combat_and_health_test.gd"]),
         ("godot-main", [godot, "--headless", "--path", str(ROOT / "godot"), "--quit-after", "5"]),
     ]
     for name, command in commands:
@@ -49,6 +50,8 @@ def main():
             raise RuntimeError("Teste de transição de salas não confirmou conclusão")
         if name == "godot-enemy-patrol" and "ENEMY_PATROL_OK:" not in result.stdout:
             raise RuntimeError("Teste de patrulha e visão de inimigos não confirmou conclusão")
+        if name == "godot-combat-health" and "COMBAT_AND_HEALTH_OK:" not in result.stdout:
+            raise RuntimeError("Teste de combate e vida não confirmou conclusão")
         if name == "godot-main" and "BOOT_OK:" not in result.stdout:
             raise RuntimeError("Cena principal não iniciou")
         print(name + ": PASS")
