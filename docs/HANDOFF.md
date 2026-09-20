@@ -75,6 +75,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `062290f` | 13 | Sistema de Armas, Silenciador e Balística (WeaponSystem, Bullet, 1-shot kill) |
 | `75586e0` | 14 | Portas e Transições Bidirecionais dos Interiores (Salas 129–207, PlayerInDoorDat) |
 | `5e3b34d` | 15 | Sistema de Rádio Transceptor / Codec (RadioSystem, frequências BCD, UI militar, chamadas autoreply) |
+| `HEAD` | 16 | Câmeras de Vigilância e Feixes Laser Infravermelhos (SecurityCamera, LaserSystem, Goggles) |
 
 ### Dados extraídos disponíveis
 
@@ -99,6 +100,8 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ### Estado do Godot
 
+- `SecurityCamera` (`godot/scripts/systems/security_camera.gd`): ID 6 da ROM, orientações canônicas por sala (`RoomCamTypes`), patrulha a 1 px/tick em waypoints, visada direcional com offset focal (`CameraDrawOffsets`), oclusão por obstáculos sólidos da grade 32×24, furtividade na caixa de papelão e alerta com LED piscante sem ícone '!'.
+- `LaserSystem` (`godot/scripts/systems/laser_system.gd`): ID 35 da ROM, tabelas exatas de `laserconfig.asm` (Salas 24, 25 e 72), teste de toque físico `ChkTouchLaser`, alternância dinâmica da Sala 72 (5 sequências a cada 192 ticks) e visibilidade condicionada aos Óculos Infravermelhos (`ITEM_GOGGLES`, item ID 12).
 - `RadioSystem` (`godot/scripts/systems/radio_system.gd`): frequências canônicas BCD da ROM (Big Boss 120.85/120.13, Schneider 120.79/120.26, Diane 120.33/120.91, Jennifer 120.48), sintonia BCD, envio SEND ("THIS IS SOLID SNAKE..."), banco canônico de diálogos de salas (0, 1, 4, 5, 20, 28, 29, 30, 31, 37, 50, 53, 54, 58, 67, 138), chamadas automáticas de entrada (`check_incoming_call`), autotune e 12 LEDs de sinal.
 - `RadioDialog` (`godot/scripts/systems/radio_dialog.gd`): interface visual militar autêntica MSX2 com visor numérico grande, retratos em pixel art (Snake, Big Boss, Schneider, Diane), typewriter e controle via teclado (atalhos T / F4). Congelamento total de física durante comunicação.
 - `RoomDoor` (`godot/scripts/systems/door.gd`): suporte canônico a `PlayerInDoorDat` (5 renders) e emparelhamento por `IdDoorEnter` para trânsito bidirecional perfeito entre corredores e depósitos/arsenais.
@@ -109,23 +112,23 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - Sala 150: evento de drop do silenciador ao derrotar os 4 guardas silenciadores em (36, 98).
 - `ElevatorSystem` & `ElevatorCabin`: limites e paradas dos 11 elevadores, movimentação vertical a 1 px/tick.
 - `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/` e `stage5-elevators/`.
-- Validação contínua: `python3 tools/validate.py` executa 46 testes Python + 13 suítes Godot (100% PASS).
+- Validação contínua: `python3 tools/validate.py` executa 46 testes Python + 14 suítes Godot (100% PASS).
 
 ---
 
 ## 6. Próximas opções de trabalho
 
-A Etapa 15 está **concluída e validada**. Candidatos para a próxima etapa:
+A Etapa 16 está **concluída e validada**. Candidatos para a próxima etapa:
 
-1. **Câmeras de Vigilância e Feixes Infravermelhos (Infrared Lasers / Surveillance Cameras)**:
-   - Câmeras com varredura angular e cone de visão.
-   - Feixes laser infravermelhos acionando alarme ao contato, detectáveis com Binóculos/Óculos Infravermelhos (Goggles).
+1. **Sistema de Alarme Global, Níveis de Alerta e Reforços Militares**:
+   - Estados de alerta canônicos da ROM (Normal, Alerta com sirene, Evasão com temporizador regressivo).
+   - Respawn contínuo de soldados de reforço durante o alarme.
 
-2. **Sistema de Alarme Global, Níveis de Alerta e Reforços**:
-   - Estados de alerta (Normal, Alerta, Evasão), spawn de reforços e sirene.
+2. **Boss Fights e Atores Especiais**:
+   - Shoot Gunner (Sala 132 do Prédio 1), Machine Gun Kid (Sala 145 do Prédio 2), Arnold (Sala 151).
 
-3. **Boss Fights e Atores Especiais**:
-   - Shoot Gunner (Sala 132), Machine Gun Kid (Sala 145), Arnold (Sala 151).
+3. **Sistema de Prisioneiros e Resgate**:
+   - Atores de prisioneiros (ID 47), Grey Fox, Ellen, contagem de prisioneiros e progressão de patente (Rank militar de Snake de 1 a 4 estrelas).
 
 ---
 

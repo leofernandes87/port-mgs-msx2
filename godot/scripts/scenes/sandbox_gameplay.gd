@@ -9,6 +9,8 @@ var inventory: InventoryManager = InventoryManager.new()
 var weapon_system: WeaponSystem = WeaponSystem.new()
 var radio_system: RadioSystem = RadioSystem.new()
 var radio_dialog: RadioDialog
+var cameras: Array[SecurityCamera] = []
+var laser_system: LaserSystem
 var bullets: Array[Bullet] = []
 var silencer_dropped_room_150: bool = false
 var item_boxes: Array[ItemBox] = []
@@ -142,6 +144,11 @@ func _ready() -> void:
 	elevator_cabin.visible = false
 	game_world.add_child(elevator_cabin)
 
+	# Sistema de Feixes Laser Infravermelhos (Etapa 16)
+	laser_system = LaserSystem.new()
+	game_world.add_child(laser_system)
+	laser_system.laser_triggered.connect(_on_laser_triggered)
+
 	# Instanciar Player no mundo nativo 256x192
 	player = preload("res://scenes/player.tscn").instantiate() as PlayerController
 	game_world.add_child(player)
@@ -227,8 +234,8 @@ func _apply_snapshot() -> void:
 	_spawn_room_enemies(snapshot.room_id)
 	_spawn_room_items(snapshot.room_id)
 	_spawn_room_doors(snapshot.room_id)
-	print("SANDBOX_ROOM_LOADED: %d (Inimigos: %d, Itens: %d, Portas: %d)" % [
-		snapshot.room_id, enemies.size(), item_boxes.size(), room_doors.size()
+	print("SANDBOX_ROOM_LOADED: %d (Inimigos: %d, Câmeras: %d, Itens: %d, Portas: %d)" % [
+		snapshot.room_id, enemies.size(), cameras.size(), item_boxes.size(), room_doors.size()
 	])
 	if room_display:
 		room_display.queue_redraw()
@@ -238,6 +245,11 @@ func _spawn_room_enemies(room_id: int) -> void:
 		if is_instance_valid(enemy):
 			enemy.queue_free()
 	enemies.clear()
+
+	for cam: SecurityCamera in cameras:
+		if is_instance_valid(cam):
+			cam.queue_free()
+	cameras.clear()
 
 	if not game_world:
 		return
@@ -257,10 +269,28 @@ func _spawn_room_enemies(room_id: int) -> void:
 				continue
 			var act: Dictionary = act_variant as Dictionary
 			var type_id: int = int(act.get("actor_type_id", 0))
-			if not type_id in valid_enemy_types:
+			var spawn_pos := Vector2(float(act.get("x", 0)), float(act.get("y", 0)))
+
+			if type_id == 6:
+				# Câmera de Vigilância (ID_CAMERA = 6)
+				var cam_idx: int = cameras.size()
+				var cam: SecurityCamera = SecurityCamera.new()
+				var raw_path: Array = act.get("patrol_path", [])
+				var waypoints: Array[Vector2] = []
+				for pt_variant: Variant in raw_path:
+					if pt_variant is Array and (pt_variant as Array).size() >= 2:
+						var pt: Array = pt_variant as Array
+						waypoints.append(Vector2(float(pt[1]), float(pt[0])))
+				cam.setup(room_id, cam_idx, waypoints, spawn_pos)
+				cam.show_debug_vision = show_enemy_vision
+				cam.player_detected.connect(_on_camera_detected)
+				game_world.add_child(cam)
+				cameras.append(cam)
+				print("CAMERA_SPAWNED: Câmera %d na sala %d em %s (Dir: %d)" % [cam_idx, room_id, spawn_pos, cam.facing_direction])
 				continue
 
-			var spawn_pos := Vector2(float(act.get("x", 0)), float(act.get("y", 0)))
+			if not type_id in valid_enemy_types:
+				continue
 
 			var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 			g.actor_type_id = type_id
@@ -306,6 +336,10 @@ func _spawn_room_enemies(room_id: int) -> void:
 			enemies.append(g)
 	else:
 		_spawn_room_enemies_fallback(room_id, enemy_scene)
+
+	# Configurar feixes laser da sala (Salas 24, 25, 72)
+	if laser_system:
+		laser_system.setup(room_id)
 
 func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> void:
 	if room_id == 1:
@@ -401,6 +435,8 @@ func _spawn_room_items(room_id: int) -> void:
 					b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
 				8:
 					b.item_id = InventoryManager.ITEM_SILENCER
+				12:
+					b.item_id = InventoryManager.ITEM_GOGGLES
 				13:
 					b.item_id = InventoryManager.ITEM_GAS_MASK
 				17:
@@ -685,6 +721,10 @@ func _input(event: InputEvent) -> void:
 				if is_instance_valid(enemy):
 					enemy.show_debug_vision = show_enemy_vision
 					enemy.queue_redraw()
+			for cam: SecurityCamera in cameras:
+				if is_instance_valid(cam):
+					cam.show_debug_vision = show_enemy_vision
+					cam.queue_redraw()
 		elif event.keycode == KEY_T or event.keycode == KEY_F4:
 			if radio_dialog:
 				if radio_dialog.is_active:
@@ -727,7 +767,8 @@ func _input(event: InputEvent) -> void:
 			weapon_system.add_weapon(WeaponSystem.WEAPON_HANDGUN, 30)
 			weapon_system.add_weapon(WeaponSystem.WEAPON_SMG, 30)
 			weapon_system.set_silencer(not weapon_system.has_silencer)
-			print("DEBUG_WEAPON_KIT: Kit de armas concedido! Handgun + SMG + Silenciador alternado.")
+			inventory.collect_item(InventoryManager.ITEM_GOGGLES)
+			print("DEBUG_WEAPON_KIT: Kit de armas e equipamentos concedido! Handgun + SMG + Silenciador + Goggles.")
 		elif event.keycode == KEY_R:
 			reset_player()
 
@@ -841,6 +882,19 @@ func _physics_process(_delta: float) -> void:
 				if enemy_shot != null:
 					bullets.append(enemy_shot)
 					game_world.add_child(enemy_shot)
+
+	# Atualizar câmeras de vigilância móveis (Etapa 16)
+	for cam: SecurityCamera in cameras:
+		if is_instance_valid(cam):
+			cam.show_debug_vision = show_enemy_vision
+			cam.tick(player.position, snapshot.collision if snapshot else [], false, any_alert)
+			if cam.has_seen_player or cam.alert_flashing:
+				any_alert = true
+
+	# Atualizar sistema de feixes laser infravermelhos (Etapa 16)
+	if laser_system:
+		var goggles_on: bool = (inventory.get_selected_item() == InventoryManager.ITEM_GOGGLES)
+		laser_system.tick(player.position, goggles_on, any_alert)
 
 	# Atualizar física e colisões dos projéteis balísticos (balas de Snake e de soldados)
 	var surviving_bullets: Array[Bullet] = []
@@ -1017,3 +1071,16 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 		player.queue_redraw()
 	print("ROOM_TRANSITION_OK: transição para sala %d na posição %s" % [new_room_id, entry_pos])
 	return true
+
+func _on_camera_detected(_cam: SecurityCamera) -> void:
+	print("CAMERA_ALERT: Câmera detectou Snake na sala %d!" % (snapshot.room_id if snapshot and snapshot.loaded else -1))
+	_trigger_alarm()
+
+func _on_laser_triggered() -> void:
+	print("LASER_ALERT: Snake violou feixe laser na sala %d!" % (snapshot.room_id if snapshot and snapshot.loaded else -1))
+	_trigger_alarm()
+
+func _trigger_alarm() -> void:
+	for enemy: EnemyGuard in enemies:
+		if is_instance_valid(enemy) and not enemy.is_dead and not enemy.is_alert:
+			enemy.trigger_alert()

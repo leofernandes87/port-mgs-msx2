@@ -854,8 +854,64 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
      - Validação do banco canônico de diálogos de salas críticas (ex: Sala 0 e Sala 5).
      - Validação de chamadas automáticas de entrada e autotune.
      - Validação da integração e congelamento de gameplay no `SandboxGameplay`.
-   - Integrado ao `tools/validate.py` como `godot-radio-system`.
-   - Resultado: 100% PASS (46 testes Python + 13 suítes Godot).
+## 2026-09-20 — Etapa 16 concluída: Câmeras de Vigilância e Feixes Laser Infravermelhos
+
+### O que foi feito
+1. **Sistema de Câmeras de Vigilância (`SecurityCamera`)**:
+   - Criado `godot/scripts/systems/security_camera.gd`:
+     - Identificação canônica da ROM: `ID_CAMERA = 6` (`Banks0123.asm:6409`, `Enums.asm:175`).
+     - Tabela de orientações por sala revertida de `logic/actors/camera.asm:93-121` (`RoomCamTypes` / `RoomsWithCamera`):
+       - Sala 14 (Prédio 1): 3 câmeras usando `CamDirs7` -> Direções: [3 (Direita), 2 (Esquerda), 2 (Esquerda)].
+       - Sala 21: 1 câmera usando `CamDirs6` -> [1 (Baixo)].
+       - Sala 27: 2 câmeras usando `CamDirs4` -> [0 (Cima), 3 (Direita)].
+       - Sala 28: 1 câmera usando `CamDirs5` -> [3 (Direita)].
+       - Sala 31: 2 câmeras usando `CamDirs3` -> [3 (Direita), 0 (Cima)].
+       - Salas 36, 110, 111, 115, 118, 149: orientações das tabelas `CamDirs1` e `CamDirs2`.
+     - Deslocamento de foco óptico da lente `CameraDrawOffsets` (`camera.asm:234-238`):
+       - Cima (0): Y - 12, X
+       - Baixo (1): Y + 43, X
+       - Esquerda (2): Y, X - 17
+       - Direita (3): Y, X + 16
+     - Visada e detecção com tolerância perpendicular de 8 pixels (`chkdiscover.asm:100-197`).
+     - Raycast e oclusão de visão: feixe é bloqueado por tiles sólidos da grade de colisão 32×24 da sala (`ChkViewObstacles`).
+     - Furtividade da Caixa de Papelão: Snake na caixa estática não é visto pela câmera (`chkdiscover.asm:30-48`).
+     - Alarme da câmera: congela movimentação, pisca LED em vermelho por 32 ticks (`Wait = 20h`) e aciona alarme sem exibir o ícone '!' de soldado (`AlertSignNotOnScreen = 1`).
+2. **Sistema de Feixes Laser Infravermelhos (`LaserSystem`)**:
+   - Criado `godot/scripts/systems/laser_system.gd`:
+     - Identificação canônica da ROM: `ID_LASER = 35` (`0x23` em `Enums.asm:204`).
+     - Tabelas de dados exatas de `data/laserconfig.asm`:
+       - **Sala 24**: 6 feixes estáticos (4 verticais, 2 horizontais).
+       - **Sala 25**: 5 feixes estáticos (3 verticais, 2 horizontais).
+       - **Sala 72**: 10 feixes dinâmicos móveis/alternantes com as 5 sequências de `idxLaserOnOff`.
+     - Ciclo temporal dinâmico da Sala 72: alternância de sequências a cada 192 ticks (`0xC0` ticks em `Banks0123.asm:5797`).
+     - Teste de contato físico fiel a `ChkTouchLaser` (`laserbeams.asm:11-68`):
+       - Vertical (`orientation == 0`): tolerância X < 4 e Y centrado em `(Y + 8 + length/2) < length/2`.
+       - Horizontal (`orientation == 1`): tolerância Y < 4 e X centrado em `(X + length/2) < length/2`.
+     - Supressão de feixes durante modo de alerta (`in_alert_mode`).
+3. **Mecânica dos Óculos Infravermelhos (`ITEM_GOGGLES`)**:
+   - Adicionada constante `ITEM_GOGGLES = "GOGGLES"` (Item ID 12 na ROM) em `InventoryManager`.
+   - Mapeado item 12 em `_spawn_room_items` (disponível canonicamente na Sala 139).
+   - **Visibilidade**: sem os óculos selecionados, os feixes são completamente invisíveis; com os óculos equipados, os feixes brilham em vermelho com pulso e emissores metálicos nas extremidades (`drawlaserbeams.asm:8-10`).
+4. **Integração no Sandbox (`sandbox_gameplay.gd`)**:
+   - Spawning dinâmico de `SecurityCamera` ao ler `actor_type_id: 6` dos arquivos de atores.
+   - Configuração automática de `LaserSystem` para salas 24, 25 e 72.
+   - Sinais `player_detected` e `laser_triggered` integrados para alertar soldados da sala.
+   - Tecla `B` atualizada para alternar debug visual de cones de visão de soldados e câmeras.
+   - Tecla `G` atualizada para fornecer os Óculos Infravermelhos junto ao kit de testes.
+5. **Testes e Validação Automatizada**:
+   - Criada suíte `godot/tests/cameras_and_lasers_test.gd`:
+     - Validação de direções da Sala 14 (3, 2, 2) e Sala 21 (1).
+     - Validação de patrulha a 1 px/tick ao longo de waypoints.
+     - Validação de detecção de Snake e início do ciclo de piscar.
+     - Validação de oclusão de visão por obstáculos sólidos da grade 32×24.
+     - Validação da furtividade da caixa de papelão estática.
+     - Validação de contagem e geometria das tabelas das Salas 24, 25 e 72.
+     - Validação de toque físico vertical e horizontal (`ChkTouchLaser`).
+     - Validação de visibilidade condicionada a Goggles.
+     - Validação da alternância das 5 sequências temporais da Sala 72 a cada 192 ticks.
+   - Integrado a `tools/validate.py` como `godot-cameras-and-lasers`.
+   - Resultado: 100% PASS (46 testes Python + 14 suítes Godot).
+
 
 
 
