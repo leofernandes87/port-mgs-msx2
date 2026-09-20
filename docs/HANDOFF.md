@@ -70,7 +70,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `7a8e299` | 12b | Documentação 57 atores, tipos canônicos e portas automatizadas |
 | `5215f17` | fix | Bloqueio de patrulha por colisão e correção de postura dos cães |
 | `cda3bf6` | 12c | Extração e integração das 81 salas lorry e interiores (126-207) |
-| *(a seguir)* | 12d | Sistema de elevadores e conexões verticais (salas 240-250) |
+| `000b622` | 12d | Sistema de elevadores e conexões verticais (salas 240-250) |
 
 ### Dados extraídos disponíveis
 
