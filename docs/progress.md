@@ -232,3 +232,47 @@ Objetivo concluído conforme critérios das seções 13 e 14 de `docs/HANDOFF.md
 ### Fronteira e Próximos Passos
 
 A herança de atlas entre tilesets e o comportamento da inicialização a frio estão agora empiricamente comprovados em execução física/emulada sem escrita de memória. Não avançar para Etapa 5 (física/movimento de Snake) antes da composição de deltas de portas/itens e medições por tick de colisão. Próximo escopo: deltas de portas (aberto/fechado, tipo 6 e paredes destrutíveis) e itens.
+
+## 2026-09-20 — Etapa 4C: Comprovação Empírica de Deltas de Portas (DrawDoors) e Itens na VRAM
+
+Objetivo concluído conforme planejado: modelagem analítica e validação emulada da sobreposição de portas fechadas (`DrawDoors`, ROM `0x375F` / CPU `0x775F`) e análise de itens (`DrawRoomItems`, ROM `0xBC54`), integradas ao pipeline de captura determinística no openMSX (`--mode gameplay`) e comparação com VRAM real.
+
+### Metodologia e Instrumentação
+
+- **Âncoras de instrução verificadas na ROM principal**:
+  - `DrawDoors`: ROM `0x375F`, CPU `0x775F` (assinatura `\x3a\xff\xc4\xa7\xc8\x47\x21\xd0\xc3`).
+  - Sequência de chamada em `RenderScreen`: ROM `0x2CE5`, CPU `0x6CE5` (`\xcd\xf0\x4c\xcd\xcb\x4a\xcd\xb5\x4a\xcd\x5f\x77`).
+- **Captura determinística pós-portas no openMSX (`capture.tcl`)**:
+  - Adicionado breakpoint em `0x775F` (`DrawDoors`) para registrar o retorno (`doors_return`).
+  - Sincronização com o VDP: caso o bit 0 do registro de status 2 do VDP esteja ativo (comando LMMM em andamento), aguarda o RET de `WaitVdpCmd` em `0x4EDB` para despejo da VRAM 100% estabilizada (`doors-vram.bin`) e RAM com colisões atualizadas (`doors-ram.bin`).
+- **Reconstrução analítica e comparação no `compare.py`**:
+  - Função `reconstruct_doors_overlay` sintetiza os pixels da porta a partir dos blocos gráficos da Página 1 da VRAM (`GfxDoorFront`, `GfxDoorElevator`, `GfxDoorDown`, etc.) utilizando a semântica exata de `VDP_Copy_Dot` com operação TIMP (cor 0 transparente).
+  - Verificação rigorosa: exige 100% de igualdade entre o buffer de tela resultante da emulação e a sobreposição reconstruída em Python.
+  - Verificação de contenção: garante que nenhum pixel fora da caixa delimitadora da porta fechada seja modificado.
+
+### Resultados Medidos
+
+- **6 salas analisadas**:
+  - Salas 121, 0, 1, 2: zero portas fechadas; delta de 0 pixels entre o fundo base e o pós-portas (100% idêntico, 49.152 / 49.152 pixels).
+  - Sala 240 (Elevador interior): possui Porta 2 com render type 6 (`DrawDoorDummy`), o qual executa `ret` imediatamente; delta de 0 pixels comprovado.
+  - Sala 3 (Hall do Elevador): possui Porta 2 com render type 5 (`DrawDoorElevator`), que inicia fechada (`Open == 1`).
+    - Caixa delimitadora exata: X: `[100..123]`, Y: `[0..31]` (bloco 24×32 = 768 pixels).
+    - 737 pixels modificados na VRAM Página 0, com exatamente 31 pixels preservados por transparência (cor 0). Zero pixels modificados fora da caixa delimitadora.
+    - 49.152 de 49.152 pixels coincidentes (100.00%) contra a reconstrução analítica.
+- **Regra de itens confirmada**:
+  - `AddRoomItems` (ROM Banco 4/5/6) atesta que salas de 0 a 121 são "abertas" (`cp 122; ret c`) e salas $\ge 218$ são elevadores (`cp 218; ret nc`), de modo que `ItemsInTheRoom` permanece vazio em todo o percurso inicial de infiltração.
+
+### Validação e Integração
+
+- **Testes unitários Python**: 39 testes executados com `unittest` e aprovados (adicionados `test_reconstruct_doors_overlay` e `test_compare_room_with_doors_vram`).
+- **Validador integrado (`python3 tools/validate.py`)**: código 0; 39 testes Python OK, importação headless Godot PASS, `SMOKE_OK`, `ROOM_SNAPSHOT_OK` e `BOOT_OK` aprovados.
+- **Integração Godot 4 headless**: `room_snapshot_integration.gd` testado com `room-003.json` e `room-003.png`: 49.152 pixels idênticos.
+- **Artefatos gerados**:
+  - `data/extracted/emulator-stage4c-settled/`: 55 arquivos privados.
+  - `data/extracted/stage4c-validated/`: 6 snapshots validados, 6 PNGs de fundo base, 6 PNGs pós-portas (`room-003-doors.png`), `comparison.json` e `checksums.json`.
+  - Documentação completa em `docs/reverse_engineering/stage-4c-doors-and-items.md`.
+  - ROM principal preservada e inalterada.
+
+### Fronteira e Próximos Passos
+
+A composição visual completa das salas (fundo estático por metatiles + atlas de VRAM herdado/carregado + deltas de portas fechadas e itens) está agora integralmente comprovada e validada com tolerância zero. O pipeline visual da Etapa 4 está formalmente concluído. Próximo escopo: transição para a **Etapa 5 (Medições por Tick e Modelo de Movimento/Colisão de Snake)**.

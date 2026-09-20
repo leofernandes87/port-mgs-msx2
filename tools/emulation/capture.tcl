@@ -66,10 +66,39 @@ proc room_return {room} {
 }
 
 proc settled {room} {
-    global captured capture_mode
+    global captured
     set prefix [format "room-%03d" $room]
     dump_bytes "$prefix-settled-vram.bin" VRAM 0 0x10000
-    if {$capture_mode eq "demo" && [dict size $captured] >= 4} {
+}
+
+set doors_captured [dict create]
+
+proc doors_entry {} {
+    global doors_captured
+    set room [debug read memory 49456]
+    if {[dict exists $doors_captured $room]} {return}
+    set stack [reg SP]
+    set target [expr {[debug read memory $stack] | ([debug read memory [expr {($stack + 1) & 65535}]] << 8)}]
+    debug breakpoint create -address $target -once true -command [list doors_return $room]
+}
+
+proc doors_return {room} {
+    global doors_captured
+    if {[dict exists $doors_captured $room]} {return}
+    dict set doors_captured $room true
+    if {[debug read {VDP status regs} 2] & 1} {
+        debug breakpoint create -address 0x4edb -once true -command [list doors_settled $room]
+    } else {
+        doors_settled $room
+    }
+}
+
+proc doors_settled {room} {
+    global doors_captured capture_mode
+    set prefix [format "room-%03d" $room]
+    dump_bytes "$prefix-doors-vram.bin" VRAM 0 0x10000
+    dump_bytes "$prefix-doors-ram.bin" memory 0xc000 0x4000
+    if {$capture_mode eq "demo" && [dict size $doors_captured] >= 4} {
         finish
     }
     if {$capture_mode eq "gameplay" && $room == 240} {
@@ -89,6 +118,7 @@ proc room_entry {} {
 
 debug breakpoint create -address 0x4935 -command load_tiles_entry
 debug breakpoint create -address 0x4cf0 -command room_entry
+debug breakpoint create -address 0x775f -command doors_entry
 
 # Gameplay navigation state machine (used when capture_mode is "gameplay")
 set gp_state 0

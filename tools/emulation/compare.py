@@ -60,7 +60,60 @@ def classify_atlas_inheritance(prior_vram,settled_vram,loaded_tile_ids):
             'loaded_subset_of_overwritten_or_common':all(t in overwritten or t in inherited for t in loaded_tile_ids)}
 
 
-def compare_room(package,ram,initial_vram,settled_vram,prior_vram=None):
+def vram_pixel(vram,page,x,y):
+    if not (0<=x<256 and 0<=y<256):return 0
+    byte_idx=page*0x8000+y*128+(x//2)
+    b=vram[byte_idx]
+    return (b>>4) if (x%2==0) else (b&0x0F)
+
+
+def reconstruct_doors_overlay(base_pixels,doors,vram,ram):
+    pixels=list(base_pixels);closed_doors=0
+    for door in doors:
+        persistent_state=ram[0x450+door['door_id']-1]
+        state=0 if door['render_type_id']==6 else persistent_state
+        if state==0:continue
+        closed_doors+=1
+        rtype=door['render_type_id'];dx=door['draw_x'];dy=door['draw_y']
+        if rtype==1:
+            sx,sy,nx,ny=196,160,24,32
+            for y in range(ny):
+                for x in range(nx):
+                    sp=vram_pixel(vram,1,sx+x,sy+y)
+                    if sp!=0 and 0<=dx+x<256 and 0<=dy+y<192:
+                        pixels[(dy+y)*256+(dx+x)]=sp
+        elif rtype==2:
+            sx,sy,nx,ny=224,192,32,8
+            for y in range(ny):
+                for x in range(nx):
+                    sp=vram_pixel(vram,1,sx+x,sy+y)
+                    if sp!=0 and 0<=dx+x<256 and 0<=dy+y<192:
+                        pixels[(dy+y)*256+(dx+x)]=sp
+        elif rtype==3:
+            for col in range(8):
+                cur_dy=dy+4*col;cur_dx=dx+col
+                for row in range(32):
+                    sp=vram_pixel(vram,1,224+col,160+row)
+                    if sp!=0 and 0<=cur_dx<256 and 0<=cur_dy+row<192:
+                        pixels[(cur_dy+row)*256+cur_dx]=sp
+        elif rtype==4:
+            for col in range(8):
+                cur_dy=dy+28-4*col;cur_dx=dx+col
+                for row in range(32):
+                    sp=vram_pixel(vram,1,232+col,160+row)
+                    if sp!=0 and 0<=cur_dx<256 and 0<=cur_dy+row<192:
+                        pixels[(cur_dy+row)*256+cur_dx]=sp
+        elif rtype==5:
+            sx,sy,nx,ny=196,192,24,32
+            for y in range(ny):
+                for x in range(nx):
+                    sp=vram_pixel(vram,1,sx+x,sy+y)
+                    if sp!=0 and 0<=dx+x<256 and 0<=dy+y<192:
+                        pixels[(dy+y)*256+(dx+x)]=sp
+    return pixels,closed_doors
+
+
+def compare_room(package,ram,initial_vram,settled_vram,prior_vram=None,doors_vram=None,doors_ram=None):
     if len(ram)!=16384:
         raise ValueError('Expected C000..FFFF memory capture')
     room_id=ram[0x130];gfx=ram[0x157]
@@ -101,6 +154,13 @@ def compare_room(package,ram,initial_vram,settled_vram,prior_vram=None):
             'unloaded_referenced_tiles_observed':{str(i):sorted(set(atlas[i])) for i in missing}}
     if prior_vram is not None:
         report['atlas_inheritance']=classify_atlas_inheritance(prior_vram,settled_vram,loaded)
+    if doors_vram is not None:
+        expected_doors,closed_count=reconstruct_doors_overlay(expected,doors,settled_vram,ram)
+        actual_doors=screen_pixels(doors_vram)
+        if expected_doors!=actual_doors:
+            raise ValueError('Settled doors VRAM differs from reconstructed door overlay')
+        diff_count=sum(a!=b for a,b in zip(actual,actual_doors))
+        report['doors_delta']={'closed_doors_count':closed_count,'modified_pixels_count':diff_count}
     return snapshot,report
 
 
@@ -118,15 +178,23 @@ def run(package_path,capture,output):
             raise ValueError('Capture hash/path invalid: '+name)
     schema=json.loads((ROOT/'data/schemas/room-snapshot.schema.json').read_text())
     files={};results=[]
-    for f in sorted(capture.glob('room-*-ram.bin')):
+    for f in sorted(p for p in capture.glob('room-*-ram.bin') if not p.name.endswith('-doors-ram.bin')):
         prefix=f.name[:-8]
         prior_file=capture/(prefix+'-prior-vram.bin')
         prior_vram=prior_file.read_bytes() if prior_file.exists() else None
+        doors_file=capture/(prefix+'-doors-vram.bin')
+        doors_vram=doors_file.read_bytes() if doors_file.exists() else None
+        doors_ram_file=capture/(prefix+'-doors-ram.bin')
+        doors_ram=doors_ram_file.read_bytes() if doors_ram_file.exists() else None
         snapshot,report=compare_room(package,f.read_bytes(),(capture/(prefix+'-vram.bin')).read_bytes(),
-                                     (capture/(prefix+'-settled-vram.bin')).read_bytes(),prior_vram=prior_vram)
+                                     (capture/(prefix+'-settled-vram.bin')).read_bytes(),prior_vram=prior_vram,
+                                     doors_vram=doors_vram,doors_ram=doors_ram)
         validate(snapshot,schema)
         files[prefix+'.json']=encode(snapshot)
         files[prefix+'.png']=png_indexed(256,192,snapshot['pixels'],snapshot['palette_rgb'])
+        if doors_vram is not None:
+            doors_pixels=screen_pixels(doors_vram)
+            files[prefix+'-doors.png']=png_indexed(256,192,doors_pixels,snapshot['palette_rgb'])
         results.append(report)
     if not results:raise ValueError('No captured rooms')
     result={'format_version':'1.0.0','package_sha256':hashlib.sha256(package_bytes).hexdigest(),

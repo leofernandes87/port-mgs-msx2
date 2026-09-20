@@ -28,6 +28,9 @@ def run(rom_path,output,emulator,mode='demo'):
     load_tiles=[m.start() for m in re.finditer(rb'\xcd\xc4\x42\xcd\x6a\x42\x21\x00\x60\xcd\xd1\x42\x21\x57\xc1',rom[:0x8000],re.S)]
     if load_tiles!=[0x935]:
         raise ValueError('LoadRoomTiles instruction anchor differs')
+    draw_doors=[m.start() for m in re.finditer(rb'\x3a\xff\xc4\xa7\xc8\x47\x21\xd0\xc3',rom[:0x8000],re.S)]
+    if draw_doors!=[0x375f]:
+        raise ValueError('DrawDoors instruction anchor differs')
     private=(ROOT/'data/extracted').resolve()
     if private not in output.resolve().parents or output.exists() or output.is_symlink():
         raise ValueError('Choose a new output directory under data/extracted')
@@ -48,8 +51,9 @@ def run(rom_path,output,emulator,mode='demo'):
     files={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(output.iterdir()) if p.is_file()}
     actions='keyboard matrix input only (SNSMAT); no RAM/VRAM/ROM writes' if mode=='gameplay' else 'none; natural title/demo sequence; no RAM/VRAM/ROM writes'
     manifest={'format_version':'1.0.0','emulator':version,'machine':'C-BIOS_MSX2_JP',
-              'input_sha256':digest,'capture_point':'RenderRoom return before DrawDoors and LoadRoomTiles entry',
-              'breakpoint_cpu':0x4cf0,'breakpoint_load_tiles_cpu':0x4935,'capture_mode':mode,'input_unchanged':True,'files':files,
+              'input_sha256':digest,'capture_point':'LoadRoomTiles entry, RenderRoom return, and DrawDoors return',
+              'breakpoint_cpu':0x4cf0,'breakpoint_load_tiles_cpu':0x4935,'breakpoint_draw_doors_cpu':0x775f,
+              'capture_mode':mode,'input_unchanged':True,'files':files,
               'input_actions':actions}
     (output/'manifest.json').write_bytes(encode(manifest))
     print(json.dumps({'rooms':len(list(output.glob('*-ram.bin'))),'input_unchanged':True}))

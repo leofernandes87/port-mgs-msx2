@@ -3,7 +3,7 @@ import copy
 import json
 import unittest
 from pathlib import Path
-from tools.emulation.compare import atlas_tile,screen_pixels,compose,compare_room,door_record,classify_atlas_inheritance
+from tools.emulation.compare import atlas_tile,screen_pixels,compose,compare_room,door_record,classify_atlas_inheritance,reconstruct_doors_overlay
 from tools.extractors.schema import validate
 
 
@@ -81,3 +81,36 @@ class CaptureComparisonTests(unittest.TestCase):
         snapshot,report=compare_room(p,ram,v,v,prior_vram=prior)
         self.assertIn('atlas_inheritance',report)
         self.assertIn(0,report['atlas_inheritance']['overwritten_tile_ids'])
+
+    def test_reconstruct_doors_overlay(self):
+        base=[0]*49152;door={'door_id':1,'render_type_id':5,'draw_x':100,'draw_y':0}
+        vram=bytearray(65536);ram=bytearray(16384)
+        vram[0x8000+192*128+196//2]=0xf0
+        ram[0x450]=1
+        pixels,closed=reconstruct_doors_overlay(base,[door],vram,ram)
+        self.assertEqual(closed,1)
+        self.assertEqual(pixels[0*256+100],15)
+        ram[0x450]=0
+        pixels_open,closed_open=reconstruct_doors_overlay(base,[door],vram,ram)
+        self.assertEqual(closed_open,0)
+        self.assertEqual(pixels_open,base)
+
+    def test_compare_room_with_doors_vram(self):
+        p,ram,v=self.fixture()
+        door={'door_id':1,'room_id':0,'ordinal':0,'render_type_id':5,'draw_x':100,'draw_y':0,
+              'open_logic_raw':65,'region_profile_raw':[0]*8,'destination_room_id':2}
+        p['doors']=[door];ram[0x450]=1
+        ram[0x3d0:0x3e0]=door_record(door,1)
+        v[0x8000+192*128+196//2]=0xf0
+        expected_doors,_=reconstruct_doors_overlay([0]*49152,[door],v,ram)
+        doors_v=bytearray(65536)
+        for y in range(192):
+            for x in range(0,256,2):
+                p1=expected_doors[y*256+x];p2=expected_doors[y*256+x+1]
+                doors_v[y*128+x//2]=(p1<<4)|p2
+        snapshot,report=compare_room(p,ram,v,v,doors_vram=doors_v)
+        self.assertIn('doors_delta',report)
+        self.assertEqual(report['doors_delta']['closed_doors_count'],1)
+        self.assertEqual(report['doors_delta']['modified_pixels_count'],1)
+        bad_doors=bytearray(doors_v);bad_doors[0]=0x99
+        with self.assertRaises(ValueError):compare_room(p,ram,v,v,doors_vram=bad_doors)
