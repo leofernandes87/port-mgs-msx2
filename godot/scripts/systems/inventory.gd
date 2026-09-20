@@ -17,6 +17,7 @@ const ITEM_BINOCULARS: String = "BINOCULARS"
 const ITEM_SILENCER: String = "SILENCER"       # ID 8 na ROM (SUPRESSOR)
 const ITEM_GOGGLES: String = "GOGGLES"         # ID 12 na ROM (GOGGLES / Óculos Infravermelhos)
 const ITEM_GAS_MASK: String = "GAS_MASK"       # ID 13 na ROM (GAS_MASK)
+const ITEM_BOX: String = "BOX"                 # ID 21 na ROM (CARDBOARD_BOX / Caixa de Papelão)
 const ITEM_AMMO_CRATE: String = "AMMO_CRATE"   # ID 35 na ROM (AMMO_CRATE)
 
 var items: Array[String] = []
@@ -33,6 +34,13 @@ func get_selected_item() -> String:
 	if selected_index >= 0 and selected_index < items.size():
 		return items[selected_index]
 	return ""
+
+## Retorna o nível mais alto de cartão obtido (1 a 8), ou 0 se nenhum (logic/setalert.asm:25-36)
+func get_card_level() -> int:
+	for lvl in range(8, 0, -1):
+		if has_item("CARD%d" % lvl):
+			return lvl
+	return 0
 
 func collect_item(item_id: String) -> bool:
 	if item_id == ITEM_RATION:

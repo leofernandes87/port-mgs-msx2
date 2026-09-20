@@ -77,6 +77,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `5e3b34d` | 15 | Sistema de Rádio Transceptor / Codec (RadioSystem, frequências BCD, UI militar, chamadas autoreply) |
 | `3bb9410` | 16 | Câmeras de Vigilância e Feixes Laser Infravermelhos (SecurityCamera, LaserSystem, Goggles) |
 | `1aef8a2` | fix | Sandbox: spawn seguro contra colisão no reset e toggle de vida infinita (God Mode) |
+| `PENDING` | 17 | Máquina de Estados de Alerta Global, Evasão e Reforços Militares (AlertSystem, RespawnInfo) |
 
 ### Dados extraídos disponíveis
 
@@ -89,6 +90,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `data/extracted/stage5-batch/` | **126 snapshots rooms 0–125** + PNGs + **129 room-NNN-actors.json** (salas 0-128) |
 | `data/extracted/stage5-lorries/` | **81 snapshots rooms 126–207** + PNGs + **81 room-NNN-actors.json** (salas 126-207) |
 | `data/extracted/stage5-elevators/` | **11 snapshots rooms 240–250** + PNGs + **11 room-NNN-actors.json** (sala 240 validada contra emulador) |
+| `data/extracted/respawn_info.json` | **189 salas (0-188)** extraídas da ROM (0xC445) com IDs e pontos de spawn de reforços |
 
 ### Cobertura de salas disponíveis
 
@@ -101,6 +103,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ### Estado do Godot
 
+- `AlertSystem` (`godot/scripts/systems/alert_system.gd`): máquina de estados de 3 modos (NORMAL, ALERT, EVASION), cotas de reforço baseadas no nível de cartão de Snake (`NumRespawnGuards = CardLevel + 3`), temporizador de spawn a cada 24 ticks, tabela `RespawnInfo` da ROM, temporizador regressivo de evasão de 99 ticks, reativação imediata ao ser visto e cancelamento por elevadores.
 - `SecurityCamera` (`godot/scripts/systems/security_camera.gd`): ID 6 da ROM, orientações canônicas por sala (`RoomCamTypes`), patrulha a 1 px/tick em waypoints, visada direcional com offset focal (`CameraDrawOffsets`), oclusão por obstáculos sólidos da grade 32×24, furtividade na caixa de papelão e alerta com LED piscante sem ícone '!'.
 - `LaserSystem` (`godot/scripts/systems/laser_system.gd`): ID 35 da ROM, tabelas exatas de `laserconfig.asm` (Salas 24, 25 e 72), teste de toque físico `ChkTouchLaser`, alternância dinâmica da Sala 72 (5 sequências a cada 192 ticks) e visibilidade condicionada aos Óculos Infravermelhos (`ITEM_GOGGLES`, item ID 12).
 - `RadioSystem` (`godot/scripts/systems/radio_system.gd`): frequências canônicas BCD da ROM (Big Boss 120.85/120.13, Schneider 120.79/120.26, Diane 120.33/120.91, Jennifer 120.48), sintonia BCD, envio SEND ("THIS IS SOLID SNAKE..."), banco canônico de diálogos de salas (0, 1, 4, 5, 20, 28, 29, 30, 31, 37, 50, 53, 54, 58, 67, 138), chamadas automáticas de entrada (`check_incoming_call`), autotune e 12 LEDs de sinal.
@@ -108,28 +111,27 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - `RoomDoor` (`godot/scripts/systems/door.gd`): suporte canônico a `PlayerInDoorDat` (5 renders) e emparelhamento por `IdDoorEnter` para trânsito bidirecional perfeito entre corredores e depósitos/arsenais.
 - `WeaponSystem` (`godot/scripts/systems/weapon_system.gd`): arsenal com Handgun, SMG e Grenade Launcher, contadores de munição respeitando limite de Rank 1 (50 balas) e suporte a silenciador.
 - `Bullet` (`godot/scripts/systems/bullet.gd`): balística discreta a 6 px/tick, alcance de 16 ticks (96 px), colisão com grid de tiles e letalidade de 1 tiro fatal em soldados comuns.
-- `EnemyGuard`: suporte a guardas atiradores (`ID_SHOOTER` = 13, `ID_GUARD_SILENCER` = 57) e disparo de projéteis em perseguição/alerta.
+- `EnemyGuard`: suporte a guardas atiradores (`ID_SHOOTER` = 13, `ID_GUARD_SILENCER` = 57, `ID_GUARD_REDALERT` = 11) e disparo de projéteis em perseguição/alerta.
 - Acústica do Silenciador: disparo sem silenciador dispara alerta da sala (exceto nas 55 salas seguras `ROOMS_SHOT_SECURE`); disparo com silenciador é silencioso.
 - Sala 150: evento de drop do silenciador ao derrotar os 4 guardas silenciadores em (36, 98).
 - `ElevatorSystem` & `ElevatorCabin`: limites e paradas dos 11 elevadores, movimentação vertical a 1 px/tick.
 - `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/` e `stage5-elevators/`.
-- Validação contínua: `python3 tools/validate.py` executa 46 testes Python + 14 suítes Godot (100% PASS).
+- Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 15 suítes Godot (100% PASS).
 
 ---
 
 ## 6. Próximas opções de trabalho
 
-A Etapa 16 está **concluída e validada**. Candidatos para a próxima etapa:
+A Etapa 17 está **concluída e validada**. Candidatos para a próxima etapa:
 
-1. **Sistema de Alarme Global, Níveis de Alerta e Reforços Militares**:
-   - Estados de alerta canônicos da ROM (Normal, Alerta com sirene, Evasão com temporizador regressivo).
-   - Respawn contínuo de soldados de reforço durante o alarme.
+1. **Boss Fights e Atores Especiais**:
+   - Shoot Gunner (Sala 132 do Prédio 1) ou Machine Gun Kid (Sala 145 do Prédio 2) com rotinas autênticas de combate de chefe.
 
-2. **Boss Fights e Atores Especiais**:
-   - Shoot Gunner (Sala 132 do Prédio 1), Machine Gun Kid (Sala 145 do Prédio 2), Arnold (Sala 151).
+2. **Sistema de Prisioneiros e Resgate de Reféns**:
+   - Atores de prisioneiros (ID 47), Grey Fox, Ellen, contagem e progressão de patente militar (Rank 1 a 4 estrelas).
 
-3. **Sistema de Prisioneiros e Resgate**:
-   - Atores de prisioneiros (ID 47), Grey Fox, Ellen, contagem de prisioneiros e progressão de patente (Rank militar de Snake de 1 a 4 estrelas).
+3. **Mecânica da Caixa de Papelão e Disfarces no Sandbox**:
+   - Sprites autênticos da Cardboard Box, movimentação lenta e uso de uniforme inimigo no Prédio 2.
 
 ---
 

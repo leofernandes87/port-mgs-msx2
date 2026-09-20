@@ -37,6 +37,7 @@ def main():
         ("godot-building-doors", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/building_doors_test.gd"]),
         ("godot-radio-system", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/radio_system_test.gd"]),
         ("godot-cameras-and-lasers", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/cameras_and_lasers_test.gd"]),
+        ("godot-alert-system", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/alert_system_test.gd"]),
         ("godot-main", [godot, "--headless", "--path", str(ROOT / "godot"), "--quit-after", "5"]),
     ]
     for name, command in commands:
@@ -70,6 +71,8 @@ def main():
             raise RuntimeError("Teste de rádio transceptor não confirmou conclusão")
         if name == "godot-cameras-and-lasers" and "CAMERAS_AND_LASERS_OK:" not in result.stdout:
             raise RuntimeError("Teste de câmeras e lasers não confirmou conclusão")
+        if name == "godot-alert-system" and "ALERT_SYSTEM_OK:" not in result.stdout:
+            raise RuntimeError("Teste de sistema de alerta e evasão não confirmou conclusão")
         if name == "godot-main" and "BOOT_OK:" not in result.stdout:
             raise RuntimeError("Cena principal não iniciou")
         print(name + ": PASS")

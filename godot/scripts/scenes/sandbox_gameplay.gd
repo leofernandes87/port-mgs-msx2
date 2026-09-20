@@ -22,6 +22,7 @@ var infinite_life: bool = false
 var god_mode_btn: CheckButton
 var zoom: float = 3.0
 var canvas_origin: Vector2 = Vector2.ZERO
+var alert_system: AlertSystem = AlertSystem.new()
 
 # 55 salas onde tiros sem silenciador NÃO alertam a guarnição (RoomShotSecure em logic/checkweaponalert.asm:37-40)
 const ROOMS_SHOT_SECURE: Array[int] = [
@@ -178,6 +179,9 @@ func _ready() -> void:
 	radio_dialog.radio_closed.connect(_on_radio_closed)
 	if snapshot and snapshot.loaded:
 		radio_system.check_incoming_call(snapshot.room_id)
+	# Máquina de Estados de Alerta Global e Reforços (Etapa 17)
+	alert_system.state_changed.connect(_on_alert_state_changed)
+	alert_system.reinforcement_requested.connect(_on_reinforcement_requested)
 
 	call_deferred("_post_ready_layout")
 
@@ -760,6 +764,7 @@ func reset_player() -> void:
 		_spawn_room_enemies(snapshot.room_id)
 		_spawn_room_items(snapshot.room_id)
 		_spawn_room_doors(snapshot.room_id)
+	alert_system.stop_alert()
 
 func _input(event: InputEvent) -> void:
 	if radio_dialog and radio_dialog.is_active:
@@ -770,9 +775,9 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_C:
 			show_collision = not show_collision
-			collision_btn.set_pressed_no_signal(show_collision)
-			if room_display:
-				room_display.queue_redraw()
+			if collision_btn:
+				collision_btn.set_pressed_no_signal(show_collision)
+			queue_redraw()
 		elif event.keycode == KEY_V:
 			if player:
 				player.show_debug_colliders = not player.show_debug_colliders
@@ -780,15 +785,14 @@ func _input(event: InputEvent) -> void:
 				player.queue_redraw()
 		elif event.keycode == KEY_B:
 			show_enemy_vision = not show_enemy_vision
-			vision_btn.set_pressed_no_signal(show_enemy_vision)
+			if colliders_btn:
+				colliders_btn.set_pressed_no_signal(show_enemy_vision)
 			for enemy: EnemyGuard in enemies:
 				if is_instance_valid(enemy):
 					enemy.show_debug_vision = show_enemy_vision
-					enemy.queue_redraw()
 			for cam: SecurityCamera in cameras:
 				if is_instance_valid(cam):
 					cam.show_debug_vision = show_enemy_vision
-					cam.queue_redraw()
 		elif event.keycode == KEY_T or event.keycode == KEY_F4:
 			if radio_dialog:
 				if radio_dialog.is_active:
@@ -808,9 +812,10 @@ func _input(event: InputEvent) -> void:
 						game_world.add_child(b)
 						# Acústica e Alerta de tiro (ChkAlertTrigger em logic/checkweaponalert.asm:8-30)
 						if not weapon_system.has_silencer and not snapshot.room_id in ROOMS_SHOT_SECURE:
+							alert_system.trigger_alert(false, inventory.get_card_level(), snapshot.room_id)
 							for enemy: EnemyGuard in enemies:
 								if is_instance_valid(enemy) and not enemy.is_dead:
-									enemy.trigger_alert()
+									enemy.transform_to_alert_guard()
 							print("GUNSHOT_ALERT: Disparo sem silenciador na sala %d alertou a guarnição!" % snapshot.room_id)
 						else:
 							print("GUNSHOT_SILENT: Disparo furtivo com silenciador!")
@@ -832,7 +837,8 @@ func _input(event: InputEvent) -> void:
 			weapon_system.add_weapon(WeaponSystem.WEAPON_SMG, 30)
 			weapon_system.set_silencer(not weapon_system.has_silencer)
 			inventory.collect_item(InventoryManager.ITEM_GOGGLES)
-			print("DEBUG_WEAPON_KIT: Kit de armas e equipamentos concedido! Handgun + SMG + Silenciador + Goggles.")
+			inventory.collect_item(InventoryManager.ITEM_BOX)
+			print("DEBUG_WEAPON_KIT: Kit de armas e equipamentos concedido! Handgun + SMG + Silenciador + Goggles + Caixa.")
 		elif event.keycode == KEY_I:
 			infinite_life = not infinite_life
 			if god_mode_btn:
@@ -941,34 +947,47 @@ func _physics_process(_delta: float) -> void:
 				break
 
 	# Atualizar soldados inimigos, perseguição e combate
-	var any_alert: bool = false
+	var in_box: bool = (inventory.get_selected_item() == InventoryManager.ITEM_BOX and not player.is_moving)
+	var any_enemy_sees_snake: bool = false
+	var active_guards: int = 0
 	var defeated_count: int = 0
+
 	for enemy: EnemyGuard in enemies:
 		if is_instance_valid(enemy):
 			enemy.step_tick(snapshot.collision, player.position, player.is_punching, player.current_direction, player)
-			if enemy.is_alert and not enemy.is_dead:
-				any_alert = true
 			if enemy.is_dead:
 				defeated_count += 1
-			elif not enemy.is_dead:
+			else:
+				active_guards += 1
 				# Inimigos atiradores ou em alerta tentam disparar contra Snake
 				var enemy_shot: Bullet = enemy.try_shoot(player.position)
 				if enemy_shot != null:
 					bullets.append(enemy_shot)
 					game_world.add_child(enemy_shot)
+				if not in_box and enemy.check_line_of_sight(player.position, snapshot.collision):
+					any_enemy_sees_snake = true
 
 	# Atualizar câmeras de vigilância móveis (Etapa 16)
+	var is_alert_active: bool = (alert_system.current_state == AlertSystem.AlertState.ALERT)
 	for cam: SecurityCamera in cameras:
 		if is_instance_valid(cam):
 			cam.show_debug_vision = show_enemy_vision
-			cam.tick(player.position, snapshot.collision if snapshot else [], false, any_alert)
-			if cam.has_seen_player or cam.alert_flashing:
-				any_alert = true
+			cam.tick(player.position, snapshot.collision if snapshot else [], in_box, is_alert_active)
+			if not in_box and (cam.has_seen_player or cam.alert_flashing):
+				any_enemy_sees_snake = true
 
 	# Atualizar sistema de feixes laser infravermelhos (Etapa 16)
 	if laser_system:
 		var goggles_on: bool = (inventory.get_selected_item() == InventoryManager.ITEM_GOGGLES)
-		laser_system.tick(player.position, goggles_on, any_alert)
+		laser_system.tick(player.position, goggles_on, is_alert_active)
+
+	# Se Snake for detectado durante o estado NORMAL, aciona ALERTA
+	if any_enemy_sees_snake and alert_system.current_state == AlertSystem.AlertState.NORMAL:
+		alert_system.trigger_alert(false, inventory.get_card_level(), snapshot.room_id if snapshot and snapshot.loaded else 0)
+		_trigger_alarm()
+
+	# Atualização do subsistema de alerta (respawn, transição para evasão e temporizador regressivo)
+	alert_system.tick(any_enemy_sees_snake, active_guards, snapshot.room_id if snapshot and snapshot.loaded else 0)
 
 	# Atualizar física e colisões dos projéteis balísticos (balas de Snake e de soldados)
 	var surviving_bullets: Array[Bullet] = []
@@ -1042,11 +1061,17 @@ func _physics_process(_delta: float) -> void:
 	if player.life <= 0 and not infinite_life:
 		status_label.text = "SNAKE MORREU! [Pressione R para reiniciar]"
 		status_label.modulate = Color(1.0, 0.1, 0.1)
-	elif any_alert:
-		status_label.text = "ALERTA! | ARMA: %s | VIDA: [%s] %s | ITEM: %s%s (Derrotados: %d/%d)" % [
-			weapon_str, life_bar, life_val_str, item_str, call_str, defeated_count, enemies.size()
+	elif alert_system.current_state == AlertSystem.AlertState.ALERT:
+		var alert_tag: String = "ALERTA VERMELHO! [!]" if alert_system.is_red_alert else "ALERTA! [!]"
+		status_label.text = "%s (Reforços: %d) | ARMA: %s | VIDA: [%s] %s | ITEM: %s%s (Derrotados: %d/%d)" % [
+			alert_tag, alert_system.num_respawn_guards, weapon_str, life_bar, life_val_str, item_str, call_str, defeated_count, enemies.size()
 		]
-		status_label.modulate = Color(1.0, 0.3, 0.3)
+		status_label.modulate = Color(1.0, 0.2, 0.2)
+	elif alert_system.current_state == AlertSystem.AlertState.EVASION:
+		status_label.text = "EVASÃO [%02d] | ARMA: %s | VIDA: [%s] %s | ITEM: %s%s (Derrotados: %d/%d)" % [
+			alert_system.evasion_timer, weapon_str, life_bar, life_val_str, item_str, call_str, defeated_count, enemies.size()
+		]
+		status_label.modulate = Color(1.0, 0.65, 0.1)
 	elif is_in_elevator:
 		var state_str: String = "EM MOVIMENTO..." if elevator_state == ELEVATOR_STATE_MOVING else "PARADO (CIMA/BAIXO: Mover | DIREITA: Sair)"
 		status_label.text = "ELEVADOR %d | Andar Y: %.0f | %s%s" % [
@@ -1146,17 +1171,47 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 			player.current_direction = entry_dir as PlayerController.Direction
 		player.queue_redraw()
 	print("ROOM_TRANSITION_OK: transição para sala %d na posição %s" % [new_room_id, entry_pos])
+	alert_system.on_room_transition(new_room_id)
+	if alert_system.current_state == AlertSystem.AlertState.ALERT:
+		for enemy: EnemyGuard in enemies:
+			if is_instance_valid(enemy) and not enemy.is_dead:
+				enemy.transform_to_alert_guard()
 	return true
 
 func _on_camera_detected(_cam: SecurityCamera) -> void:
 	print("CAMERA_ALERT: Câmera detectou Snake na sala %d!" % (snapshot.room_id if snapshot and snapshot.loaded else -1))
+	alert_system.trigger_alert(true, inventory.get_card_level(), snapshot.room_id if snapshot and snapshot.loaded else 0)
 	_trigger_alarm()
 
-func _on_laser_triggered() -> void:
+func _on_laser_triggered(_laser_id: int = 0) -> void:
 	print("LASER_ALERT: Snake violou feixe laser na sala %d!" % (snapshot.room_id if snapshot and snapshot.loaded else -1))
+	alert_system.trigger_alert(true, inventory.get_card_level(), snapshot.room_id if snapshot and snapshot.loaded else 0)
 	_trigger_alarm()
 
 func _trigger_alarm() -> void:
 	for enemy: EnemyGuard in enemies:
-		if is_instance_valid(enemy) and not enemy.is_dead and not enemy.is_alert:
-			enemy.trigger_alert()
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			enemy.transform_to_alert_guard()
+
+func _on_alert_state_changed(_old_state: AlertSystem.AlertState, new_state: AlertSystem.AlertState) -> void:
+	if new_state == AlertSystem.AlertState.ALERT:
+		_trigger_alarm()
+	elif new_state == AlertSystem.AlertState.NORMAL:
+		for enemy: EnemyGuard in enemies:
+			if is_instance_valid(enemy) and not enemy.is_dead:
+				enemy.reset_to_patrol()
+
+func _on_reinforcement_requested(enemy_id: int, spawn_pos: Vector2) -> void:
+	var enemy_scene: PackedScene = preload("res://scenes/enemy.tscn")
+	var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+	g.actor_type_id = enemy_id
+	g.guard_type = EnemyGuard.GuardType.FAST
+	g.speed = 1.5
+	g.state = EnemyGuard.GuardState.ALERT
+	g.is_alert = true
+	g.position = spawn_pos
+	g.show_debug_vision = show_enemy_vision
+	if enemy_id == 11:
+		g.is_shooter = true
+	game_world.add_child(g)
+	enemies.append(g)

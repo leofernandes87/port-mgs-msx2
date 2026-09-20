@@ -55,6 +55,14 @@ func _ready() -> void:
 		GuardType.FAST:
 			speed = 1.5
 
+	if actor_type_id in [10, 11]:
+		# Soldados de alerta da ROM (ID_GUARD_ALERT e ID_GUARD_REDALERT)
+		speed = 1.5
+		state = GuardState.ALERT
+		is_alert = true
+		if actor_type_id == 11:
+			is_shooter = true
+
 	if actor_type_id in [13, 57]:
 		is_shooter = true
 
@@ -368,6 +376,31 @@ func trigger_alert() -> void:
 	alert_timer = 60.0 # 60 ticks de alerta
 	state = GuardState.ALERT
 	print("GUARD_ALERT: Soldado detectou Snake na posição %s!" % position)
+
+## Transforma guarda regular em soldado de alerta (TransformAlertGuard em Banks0123.asm:6726)
+func transform_to_alert_guard() -> void:
+	if is_dead:
+		return
+	is_alert = true
+	state = GuardState.ALERT
+	speed = 1.5 # SetWalkSpeedFast
+	alert_timer = 60.0
+	queue_redraw()
+
+## Restaura soldado ao estado de patrulha pacífica
+func reset_to_patrol() -> void:
+	if is_dead:
+		return
+	is_alert = false
+	state = GuardState.PATROL
+	match guard_type:
+		GuardType.SLOW:
+			speed = 0.5
+		GuardType.MEDIUM:
+			speed = 1.0
+		GuardType.FAST:
+			speed = 1.5
+	queue_redraw()
 
 func _draw() -> void:
 	# Se derrotado, desenha silhueta caída no chão

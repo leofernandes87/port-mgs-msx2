@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:metal-gear-lab:respawn-info:1.0.0",
+  "type": "object",
+  "properties": {
+    "format_version": {
+      "const": "1.0.0"
+    },
+    "rooms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "room_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "enemy_id": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 255
+          },
+          "enemy_name": {
+            "type": "string"
+          },
+          "spawn_points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "x": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                },
+                "y": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 255
+                }
+              },
+              "required": ["x", "y"],
+              "additionalProperties": false
+            },
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "required": ["room_id", "enemy_id", "enemy_name", "spawn_points"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["format_version", "rooms"],
+  "additionalProperties": false
+}

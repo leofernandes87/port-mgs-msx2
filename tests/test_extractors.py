@@ -311,3 +311,24 @@ class ExportRoomDataTests(unittest.TestCase):
         self.assertEqual(data0['doors'][0]['door_id'], 1)
         self.assertEqual(data0['doors'][0]['destination_room_id'], 4)
 
+    def test_extract_respawn_info_synthetic(self):
+        from tools.extractors.extract_respawn_info import extract_respawn_info, RESPAWN_INFO_ROM_OFFSET, TOTAL_ROOMS
+        # Create synthetic buffer with header padding up to RESPAWN_INFO_ROM_OFFSET
+        raw = bytearray(RESPAWN_INFO_ROM_OFFSET + TOTAL_ROOMS * 3)
+        # Room 0: enemy 10, loc1=0x19 (Y=16, X=144), loc2=0xAF (Y=160, X=240)
+        raw[RESPAWN_INFO_ROM_OFFSET:RESPAWN_INFO_ROM_OFFSET + 3] = bytes([10, 0x19, 0xAF])
+        with tempfile.NamedTemporaryFile(suffix='.rom', delete=False) as tf:
+            tf.write(raw)
+            tmp_path = Path(tf.name)
+        try:
+            res = extract_respawn_info(tmp_path)
+            self.assertEqual(res['format_version'], '1.0.0')
+            self.assertEqual(len(res['rooms']), 189)
+            room0 = res['rooms'][0]
+            self.assertEqual(room0['room_id'], 0)
+            self.assertEqual(room0['enemy_id'], 10)
+            self.assertEqual(room0['enemy_name'], 'GUARD_ALERT')
+            self.assertEqual(room0['spawn_points'], [{'x': 144, 'y': 16}, {'x': 240, 'y': 160}])
+        finally:
+            tmp_path.unlink(missing_ok=True)
+

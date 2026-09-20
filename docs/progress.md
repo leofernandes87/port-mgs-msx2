@@ -933,3 +933,35 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
 3. **Validação Automatizada**:
    - Adicionada asserção no teste unitário `godot/tests/combat_and_health_test.gd` para garantir que dano é ignorado em modo `infinite_life`.
    - `python3 tools/validate.py` 100% PASS (46 testes Python + 14 suítes Godot).
+
+## 2026-09-20 — Etapa 17 concluída: Máquina de Estados de Alerta Global, Evasão e Reforços Militares
+
+### O que foi feito
+1. **Extração Neutra da Tabela de Respawn da ROM (`RespawnInfo`)**:
+   - Criado `tools/extractors/extract_respawn_info.py` que extrai 567 bytes no offset `0xC445` (Banco 6) para 189 salas (0 a 188), decodificando IDs de inimigos e pontos de entrada nas bordas.
+   - Criado schema `data/schemas/respawn-info.schema.json`.
+   - Gerado `data/extracted/respawn_info.json` (ignorado no git).
+   - Teste unitário sintético em `tests/test_extractors.py` (47 testes Python 100% PASS).
+2. **Sistema de Alerta Global (`AlertSystem` em `godot/scripts/systems/alert_system.gd`)**:
+   - Estados canônicos da ROM: `NORMAL` (0), `ALERT` (1) e `EVASION` (2).
+   - Cálculo do contingente militar fiel a `setalert.asm`: `NumRespawnGuards = CardLevel + 3` (mínimo 3 guardas sem cartões).
+   - Ciclo de temporização de respawn: convocação de soldados nas posições canônicas de borda da ROM (`loc1` e `loc2`) a cada 24 ticks, respeitando limites simultâneos na sala.
+   - Detecção de quebra de linha de visão: transição automática para `EVASION` com temporizador regressivo de 99 ticks.
+   - Reativação imediata para `ALERT` caso Snake seja reavistado durante a busca.
+   - Conclusão limpa da evasão: retorno ao estado `NORMAL` e restauração de patrulha calma.
+   - Cancelamento imediato do alarme ao entrar em elevador (salas $\ge 240$ / `0xF0h`, `Banks0123.asm:6646`).
+3. **Soldados Inimigos (`EnemyGuard` em `enemy.gd`)**:
+   - Suporte aos IDs canônicos de alerta da ROM (`ID_GUARD_ALERT = 10` e `ID_GUARD_REDALERT = 11`) com velocidade Fast ($1.5$ px/tick).
+   - Métodos de transição dinâmica `transform_to_alert_guard()` e retorno `reset_to_patrol()`.
+4. **Integração no Sandbox de Gameplay (`sandbox_gameplay.gd`)**:
+   - Instanciação dinâmica de reforços em tempo real pelas bordas ao receber o sinal `reinforcement_requested`.
+   - Conexão de gatilhos: tiros sem silenciador, detecção por câmeras (Red Alert), violação de lasers (Red Alert) e contato visual.
+   - HUD dinâmico de 3 estados com código de cores:
+     - `ALERTA! [!] (Reforços: %d)` em vermelho.
+     - `EVASÃO [%02d]` em laranja com contagem decrescente.
+     - `NORMAL` em branco padrão.
+   - Suporte à furtividade da Caixa de Papelão (`ITEM_BOX`): Snake imóvel na caixa corta a visada e força transição para Evasão.
+5. **Testes e Validação Automatizada**:
+   - Criada suíte `godot/tests/alert_system_test.gd` validando cotas de cartão, ciclo de respawn, transições Normal/Alerta/Evasão e cancelamento por elevador.
+   - Registrado `godot-alert-system` em `tools/validate.py`.
+   - Resultado: 100% PASS (47 testes Python + 15 suítes Godot).
