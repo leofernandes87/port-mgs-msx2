@@ -4,7 +4,7 @@
 # - data/elevatorrooms.asm (idxElevatorRoom, ElevatorRoom1..11)
 # - logic/elevatorroom.asm (ElevatorRoomLogic, MoveElevator, SetElevatorSpr)
 # - logic/nextroom.asm (SetDoorOrElev, SetElevatorPosY, ChkDoorDestination)
-# - Banks0123.asm (ChkCtrlElevator, ChkLimitXElevator, GetElevatorRoomDat)
+# - Banks0123.asm (ElevatorCtrl, ControlPlayerH, ChkCtrlElevator, ChkLimitXElevator)
 
 class_name ElevatorSystem
 extends RefCounted
@@ -32,9 +32,9 @@ const ELEVATOR_DATA: Dictionary = {
 		"top_limit": 40.0,      # 0x28
 		"bottom_limit": 184.0,  # 0xB8
 		"floors": [
-			{"room_id": 27, "player_y": 56.0, "elevator_y": 52.0},
-			{"room_id": 15, "player_y": 120.0, "elevator_y": 116.0},
-			{"room_id": 63, "player_y": 184.0, "elevator_y": 180.0}
+			{"room_id": 27, "player_y": 56.0, "elevator_y": 52.0},    # Andar Superior (Telhado P2)
+			{"room_id": 15, "player_y": 120.0, "elevator_y": 116.0},  # Andar Médio (P2)
+			{"room_id": 63, "player_y": 184.0, "elevator_y": 180.0}   # Andar Inferior (P2 Térreo)
 		]
 	},
 	242: {
@@ -99,7 +99,7 @@ static func is_elevator_room(room_id: int) -> bool:
 static func get_elevator_config(room_id: int) -> Dictionary:
 	return ELEVATOR_DATA.get(room_id, {})
 
-## Determina a posição inicial de Snake e da cabine ao entrar no elevador vindo de um andar
+## Determina a posição inicial de Snake e da cabine ao entrar no elevador vindo de um andar (GetElevatorPosY)
 static func get_entry_state(elevator_room_id: int, previous_room_id: int) -> Dictionary:
 	var config: Dictionary = get_elevator_config(elevator_room_id)
 	if config.is_empty():
@@ -120,13 +120,13 @@ static func get_entry_state(elevator_room_id: int, previous_room_id: int) -> Dic
 					"elevator_y": float(f.get("elevator_y", 180.0))
 				}
 
-	# Se a sala anterior não estiver na tabela, usa o andar padrão (primeiro ou inferior)
+	# Se a sala anterior não estiver na tabela, usa o andar padrão (inferior)
 	if not floors.is_empty():
-		var first_floor: Dictionary = floors[floors.size() - 1] as Dictionary
+		var last_floor: Dictionary = floors[floors.size() - 1] as Dictionary
 		return {
-			"player_pos": Vector2(PLAYER_ENTRY_X, float(first_floor.get("player_y", 184.0))),
+			"player_pos": Vector2(PLAYER_ENTRY_X, float(last_floor.get("player_y", 184.0))),
 			"player_dir": PlayerController.Direction.LEFT,
-			"elevator_y": float(first_floor.get("elevator_y", 180.0))
+			"elevator_y": float(last_floor.get("elevator_y", 180.0))
 		}
 
 	return {
@@ -135,63 +135,51 @@ static func get_entry_state(elevator_room_id: int, previous_room_id: int) -> Dic
 		"elevator_y": 180.0
 	}
 
-## Executa a movimentação da cabine e de Snake quando dentro da cabine (1 px/tick)
-static func step_movement(
+## Localiza o próximo andar na direção desejada (-1 = UP, +1 = DOWN)
+static func get_next_target_floor(
 	elevator_room_id: int,
-	player_pos: Vector2,
-	elevator_y: float,
-	input_y: int
+	current_elevator_y: float,
+	direction: int
 ) -> Dictionary:
-	var result := {
-		"player_pos": player_pos,
-		"elevator_y": elevator_y,
-		"is_moving": false,
-		"floor_reached": false,
-		"current_floor_room_id": -1
-	}
-
-	# Snake só controla o elevador se estiver dentro da cabine (PlayerX <= 120)
-	if player_pos.x > CABIN_TRIGGER_X or input_y == 0:
-		return result
-
 	var config: Dictionary = get_elevator_config(elevator_room_id)
-	if config.is_empty():
-		return result
+	if config.is_empty() or direction == 0:
+		return {"has_target": false}
 
-	var top_limit: float = float(config.get("top_limit", 40.0))
-	var bottom_limit: float = float(config.get("bottom_limit", 184.0))
-
-	var new_elev_y: float = elevator_y
-	var new_player_y: float = player_pos.y
-
-	if input_y < 0:
-		# Subir
-		if elevator_y > top_limit - 4.0:
-			new_elev_y -= ELEVATOR_SPEED
-			new_player_y -= ELEVATOR_SPEED
-			result["is_moving"] = true
-	elif input_y > 0:
-		# Descer
-		if elevator_y < bottom_limit - 4.0:
-			new_elev_y += ELEVATOR_SPEED
-			new_player_y += ELEVATOR_SPEED
-			result["is_moving"] = true
-
-	result["elevator_y"] = new_elev_y
-	result["player_pos"] = Vector2(player_pos.x, new_player_y)
-
-	# Verificar se coincide com algum andar registrado
 	var floors: Array = config.get("floors", [])
-	for f_var: Variant in floors:
-		if f_var is Dictionary:
-			var f: Dictionary = f_var as Dictionary
-			var target_elev_y: float = float(f.get("elevator_y", 0.0))
-			if absf(new_elev_y - target_elev_y) < 1.0:
-				result["floor_reached"] = true
-				result["current_floor_room_id"] = int(f.get("room_id", -1))
-				break
+	var candidate: Dictionary = {}
 
-	return result
+	if direction < 0:
+		# Subindo: procura o andar com elevator_y menor que o atual, mas mais próximo dele
+		var max_lesser_y: float = -9999.0
+		for f_var: Variant in floors:
+			if f_var is Dictionary:
+				var f: Dictionary = f_var as Dictionary
+				var ey: float = float(f.get("elevator_y", 0.0))
+				if ey < current_elevator_y - 2.0:
+					if ey > max_lesser_y:
+						max_lesser_y = ey
+						candidate = f
+	elif direction > 0:
+		# Descendo: procura o andar com elevator_y maior que o atual, mas mais próximo dele
+		var min_greater_y: float = 9999.0
+		for f_var: Variant in floors:
+			if f_var is Dictionary:
+				var f: Dictionary = f_var as Dictionary
+				var ey: float = float(f.get("elevator_y", 0.0))
+				if ey > current_elevator_y + 2.0:
+					if ey < min_greater_y:
+						min_greater_y = ey
+						candidate = f
+
+	if not candidate.is_empty():
+		return {
+			"has_target": true,
+			"target_elev_y": float(candidate.get("elevator_y", 0.0)),
+			"target_player_y": float(candidate.get("player_y", 0.0)),
+			"room_id": int(candidate.get("room_id", -1))
+		}
+
+	return {"has_target": false}
 
 ## Verifica se Snake está saindo do elevador pelo corredor direito (X >= 224)
 static func check_exit(
@@ -213,7 +201,7 @@ static func check_exit(
 	if config.is_empty():
 		return result
 
-	# Acha o andar mais próximo do elevador atual (dentro de tolerância de 4px)
+	# Acha o andar alinhado com o elevador atual (dentro de tolerância de 8px)
 	var floors: Array = config.get("floors", [])
 	var best_floor: Dictionary = {}
 	var min_dist: float = 9999.0

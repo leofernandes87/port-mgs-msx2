@@ -71,6 +71,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `5215f17` | fix | Bloqueio de patrulha por colisão e correção de postura dos cães |
 | `cda3bf6` | 12c | Extração e integração das 81 salas lorry e interiores (126-207) |
 | `000b622` | 12d | Sistema de elevadores e conexões verticais (salas 240-250) |
+| *(a seguir)* | fix | Física e trânsito canônico do elevador (ControlPlayerH/SprElevatorDat) |
 
 ### Dados extraídos disponíveis
 

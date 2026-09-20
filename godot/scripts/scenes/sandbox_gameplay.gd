@@ -18,6 +18,10 @@ var previous_room_id: int = -1
 var is_in_elevator: bool = false
 var elevator_cabin: ElevatorCabin
 var elevator_y: float = 180.0
+var elevator_target_y: float = 180.0
+var elevator_state: int = ELEVATOR_STATE_IDLE
+const ELEVATOR_STATE_IDLE: int = 0
+const ELEVATOR_STATE_MOVING: int = 1
 
 var status_label: Label
 var collision_btn: CheckButton
@@ -654,35 +658,62 @@ func _physics_process(_delta: float) -> void:
 		input_dir = Vector2i(1, 0)
 
 	if is_in_elevator:
-		# Mecânica de Elevador (salas 240 a 250)
-		# 1. Movimentação vertical da cabine quando Snake está dentro dela (PlayerX <= 120)
-		if player.position.x <= ElevatorSystem.CABIN_TRIGGER_X and input_dir.y != 0:
-			var move_res: Dictionary = ElevatorSystem.step_movement(snapshot.room_id, player.position, elevator_y, input_dir.y)
-			if bool(move_res.get("is_moving", false)):
-				elevator_y = float(move_res.get("elevator_y", elevator_y))
+		# Mecânica de Elevador fiel ao MSX2 (Banks0123.asm:8540-8556 e logic/elevatorroom.asm)
+		if elevator_state == ELEVATOR_STATE_MOVING:
+			# Cabine em trânsito vertical a 1 px/tick (GameMode = GAME_MODE_ELEVATOR)
+			# Snake fica imóvel (SetSprIdle) dentro da cabine
+			player.is_moving = false
+			var dir_y: float = -1.0 if elevator_target_y < elevator_y else 1.0
+			elevator_y += dir_y * ElevatorSystem.ELEVATOR_SPEED
+			if elevator_cabin:
+				elevator_cabin.elevator_y = elevator_y
+			# Snake é transportado pela cabine (PlayerY dec/inc junto com ElevatorY)
+			player.position.y = elevator_y + 4.0
+			player.queue_redraw()
+
+			# Checar se atingiu o andar de destino
+			if absf(elevator_y - elevator_target_y) < 0.5:
+				elevator_y = elevator_target_y
 				if elevator_cabin:
 					elevator_cabin.elevator_y = elevator_y
-				var np: Vector2 = move_res.get("player_pos", player.position) as Vector2
-				player.position.y = np.y
-				player.queue_redraw()
+				player.position.y = elevator_y + 4.0
+				elevator_state = ELEVATOR_STATE_IDLE
+				print("ELEVATOR_FLOOR_REACHED: Andar atingido (Y: %.1f)" % elevator_y)
+		else:
+			# Elevador parado no andar:
+			# 1. Se Snake estiver na cabine (PlayerX <= 120), aceita CIMA/BAIXO para acionar o elevador
+			if player.position.x <= ElevatorSystem.CABIN_TRIGGER_X and input_dir.y != 0:
+				var target_info: Dictionary = ElevatorSystem.get_next_target_floor(snapshot.room_id, elevator_y, input_dir.y)
+				if bool(target_info.get("has_target", false)):
+					elevator_target_y = float(target_info.get("target_elev_y", elevator_y))
+					elevator_state = ELEVATOR_STATE_MOVING
+					player.is_moving = false
+					player.queue_redraw()
+					return
 
-		# 2. Movimento horizontal de Snake no corredor do poço
-		var moved_elev: bool = player.step_tick(input_dir)
-		if moved_elev:
-			# Limite esquerdo da cabine (parede esquerda)
-			if player.position.x < ElevatorSystem.SHAFT_MIN_X:
-				player.position.x = ElevatorSystem.SHAFT_MIN_X
-				player.queue_redraw()
+			# 2. Caminhada de Snake na passarela do andar:
+			# No MSX2 (ControlPlayerH), a entrada vertical é filtrada (and 0Ch)!
+			# Snake NUNCA se move no eixo Y por comando de pernas no elevador.
+			var walk_dir := Vector2i(input_dir.x, 0)
+			if walk_dir.x != 0:
+				player.step_tick(walk_dir)
+				# Limite esquerdo da cabine (parede esquerda)
+				if player.position.x < ElevatorSystem.SHAFT_MIN_X:
+					player.position.x = ElevatorSystem.SHAFT_MIN_X
+					player.queue_redraw()
 
-			# Checar se Snake atinge o limite direito para sair do elevador no andar correspondente
-			var exit_res: Dictionary = ElevatorSystem.check_exit(snapshot.room_id, player.position, elevator_y)
-			if bool(exit_res.get("should_exit", false)):
-				var dest_room: int = int(exit_res.get("destination_room_id", -1))
-				var dest_pos: Vector2 = exit_res.get("entry_position", Vector2(108.0, 36.0)) as Vector2
-				var dest_dir: int = int(exit_res.get("destination_direction", PlayerController.Direction.DOWN))
-				print("ELEVATOR_EXIT: Snake saiu do elevador %d para sala %d na posição %s" % [snapshot.room_id, dest_room, dest_pos])
-				change_to_room(dest_room, dest_pos, dest_dir)
-				return
+				# Checar se Snake atinge o limite direito para sair do elevador no andar correspondente
+				var exit_res: Dictionary = ElevatorSystem.check_exit(snapshot.room_id, player.position, elevator_y)
+				if bool(exit_res.get("should_exit", false)):
+					var dest_room: int = int(exit_res.get("destination_room_id", -1))
+					var dest_pos: Vector2 = exit_res.get("entry_position", Vector2(108.0, 36.0)) as Vector2
+					var dest_dir: int = int(exit_res.get("destination_direction", PlayerController.Direction.DOWN))
+					print("ELEVATOR_EXIT: Snake saiu do elevador %d para sala %d na posição %s" % [snapshot.room_id, dest_room, dest_pos])
+					change_to_room(dest_room, dest_pos, dest_dir)
+					return
+			else:
+				player.is_moving = false
+				player.queue_redraw()
 	else:
 		var moved: bool = player.step_tick(input_dir)
 		if moved:
@@ -726,8 +757,9 @@ func _physics_process(_delta: float) -> void:
 		]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 	elif is_in_elevator:
-		status_label.text = "ELEVADOR %d | Cabine Y: %.0f | CIMA/BAIXO: Mover | DIREITA: Sair" % [
-			snapshot.room_id, elevator_y
+		var state_str: String = "EM MOVIMENTO..." if elevator_state == ELEVATOR_STATE_MOVING else "PARADO (CIMA/BAIXO: Mover | DIREITA: Sair)"
+		status_label.text = "ELEVADOR %d | Andar Y: %.0f | %s" % [
+			snapshot.room_id, elevator_y, state_str
 		]
 		status_label.modulate = Color(0.9, 0.8, 0.3)
 	elif snapshot.loaded:
@@ -779,8 +811,10 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1) -
 
 	if ElevatorSystem.is_elevator_room(new_room_id):
 		is_in_elevator = true
+		elevator_state = ELEVATOR_STATE_IDLE
 		var elev_state: Dictionary = ElevatorSystem.get_entry_state(new_room_id, old_room_id)
 		elevator_y = float(elev_state.get("elevator_y", 180.0))
+		elevator_target_y = elevator_y
 		entry_pos = elev_state.get("player_pos", Vector2(216.0, 184.0)) as Vector2
 		entry_dir = int(elev_state.get("player_dir", PlayerController.Direction.LEFT))
 		if elevator_cabin:
@@ -789,6 +823,7 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1) -
 		print("ELEVATOR_ENTER: Snake entrou no elevador %d a partir da sala %d (Y: %.1f)" % [new_room_id, old_room_id, elevator_y])
 	else:
 		is_in_elevator = false
+		elevator_state = ELEVATOR_STATE_IDLE
 		if elevator_cabin:
 			elevator_cabin.visible = false
 

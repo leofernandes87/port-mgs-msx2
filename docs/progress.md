@@ -747,3 +747,9 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
    - tools/validate.py: integrado godot-elevator com validação obrigatória.
    - Resultado: 100% PASS (46 testes Python + 10 suítes Godot).
 
+### Correção de Física e Movimentação nos Elevadores (evidência Banks0123.asm:8540-8556):
+- Movimento de caminhada estritamente horizontal no elevador: conforme a rotina original ControlPlayerH, a entrada vertical é filtrada (and 0Ch). Snake nunca anda para cima/baixo com as pernas na sala de elevador.
+- Trânsito vertical dedicado: quando Snake está na cabine e aciona CIMA/BAIXO, a cabine entra no estado ELEVATOR_STATE_MOVING e desloca-se a 1 px/tick com Snake estático (SetSprIdle), parando automaticamente ao nivelar com o próximo andar.
+- Correção visual da cabine: ampliada para as dimensões exatas de SprElevatorDat (largura 32px, altura 64px, de elevator_y-48 a elevator_y+16), com apoio de Snake sobre o piso metálico e alinhamento com as passarelas dos andares.
+- validate.py: 100% PASS (46 testes Python + 10 suítes Godot).
+

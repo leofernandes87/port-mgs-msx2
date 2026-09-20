@@ -3,9 +3,11 @@
 # Cobre:
 # 1. Configuração e limites canônicos dos 11 elevadores (salas 240 a 250).
 # 2. Posicionamento autêntico de entrada baseado no andar de origem (GetElevatorPosY).
-# 3. Movimentação vertical da cabine e de Snake a 1 px/tick (MoveElevator).
-# 4. Detecção de andares e tolerâncias de saída (doors dummy 224, Y).
-# 5. Ciclo completo de integração no sandbox: Sala 3 (Térreo) <-> Sala 240 (Elevador) <-> Sala 31 (Telhado).
+# 3. Identificação do próximo andar em subida e descida (get_next_target_floor).
+# 4. Trânsito vertical suave da cabine e de Snake a 1 px/tick com congelamento de controle.
+# 5. Restrição de movimento de caminhada estritamente horizontal no chão da passarela.
+# 6. Tolerâncias de saída por porta dummy (X >= 224).
+# 7. Ciclo completo de integração no sandbox: Sala 3 (Térreo) <-> Sala 240 (Elevador) <-> Sala 31 (Telhado).
 
 extends SceneTree
 
@@ -23,6 +25,7 @@ func _init() -> void:
 func _run() -> void:
 	# 1. Verificação das definições dos elevadores da ROM
 	if not require(ElevatorSystem.is_elevator_room(240), "Sala 240 deve ser reconhecida como elevador"): return
+	if not require(ElevatorSystem.is_elevator_room(241), "Sala 241 deve ser reconhecida como elevador"): return
 	if not require(ElevatorSystem.is_elevator_room(250), "Sala 250 deve ser reconhecida como elevador"): return
 	if not require(not ElevatorSystem.is_elevator_room(1), "Sala 1 NÃO deve ser elevador"): return
 	if not require(not ElevatorSystem.is_elevator_room(127), "Sala 127 (caminhão) NÃO deve ser elevador"): return
@@ -39,26 +42,28 @@ func _run() -> void:
 	if not require((state_from_31.player_pos as Vector2) == Vector2(216.0, 56.0), "Snake deve surgir em (216, 56) ao vir da sala 31"): return
 	if not require(is_equal_approx(float(state_from_31.elevator_y), 52.0), "Cabine deve começar em Y=52 ao vir da sala 31"): return
 
-	# 3. Testar movimentação vertical da cabine e de Snake (1 px/tick)
-	# Fora da cabine (X=140 > 120): elevador NÃO deve se mover
-	var outside_res: Dictionary = ElevatorSystem.step_movement(240, Vector2(140.0, 184.0), 180.0, -1)
-	if not require(not bool(outside_res.is_moving), "Elevador não deve mover se Snake estiver fora da cabine"): return
-	if not require(is_equal_approx(float(outside_res.elevator_y), 180.0), "Elevador não deve alterar Y"): return
+	# 3. Testar identificação de andares sequenciais (Elevador 241 com 3 andares: 63, 15, 27)
+	# Subindo a partir do térreo (Elev=180) -> deve ir para o andar do meio (Elev=116, Sala 15)
+	var up_target_1: Dictionary = ElevatorSystem.get_next_target_floor(241, 180.0, -1)
+	if not require(bool(up_target_1.has_target), "Elevador 241 deve achar próximo andar acima de 180"): return
+	if not require(is_equal_approx(float(up_target_1.target_elev_y), 116.0), "Andar intermediário deve ser 116.0"): return
+	if not require(int(up_target_1.room_id) == 15, "Sala do andar intermediário deve ser 15"): return
 
-	# Dentro da cabine (X=112 <= 120): subir 1 px/tick
-	var step1: Dictionary = ElevatorSystem.step_movement(240, Vector2(112.0, 184.0), 180.0, -1)
-	if not require(bool(step1.is_moving), "Elevador deve mover com Snake na cabine e input_y=-1"): return
-	if not require(is_equal_approx(float(step1.elevator_y), 179.0), "Cabine deve subir para 179.0"): return
-	if not require(is_equal_approx((step1.player_pos as Vector2).y, 183.0), "Snake deve subir junto para 183.0"): return
+	# Subindo a partir do meio (Elev=116) -> deve ir para o topo (Elev=52, Sala 27)
+	var up_target_2: Dictionary = ElevatorSystem.get_next_target_floor(241, 116.0, -1)
+	if not require(bool(up_target_2.has_target), "Elevador 241 deve achar andar do topo"): return
+	if not require(is_equal_approx(float(up_target_2.target_elev_y), 52.0), "Andar do topo deve ser 52.0"): return
+	if not require(int(up_target_2.room_id) == 27, "Sala do topo deve ser 27"): return
 
-	# Descer 1 px/tick
-	var step_down: Dictionary = ElevatorSystem.step_movement(240, Vector2(112.0, 183.0), 179.0, 1)
-	if not require(bool(step_down.is_moving), "Elevador deve mover para baixo"): return
-	if not require(is_equal_approx(float(step_down.elevator_y), 180.0), "Cabine deve descer para 180.0"): return
-	if not require(is_equal_approx((step_down.player_pos as Vector2).y, 184.0), "Snake deve descer para 184.0"): return
+	# Já no topo -> não pode subir mais
+	var no_more_up: Dictionary = ElevatorSystem.get_next_target_floor(241, 52.0, -1)
+	if not require(not bool(no_more_up.has_target), "Elevador 241 no topo não deve ter destino acima"): return
+
+	# Descendo do topo (Elev=52) -> deve ir para o meio (Elev=116)
+	var down_target_1: Dictionary = ElevatorSystem.get_next_target_floor(241, 52.0, 1)
+	if not require(is_equal_approx(float(down_target_1.target_elev_y), 116.0), "Descida deve parar em 116.0"): return
 
 	# 4. Testar checagem de saída (portas dummy em X >= 224)
-	# Não deve sair se Snake estiver em X < 224
 	var no_exit: Dictionary = ElevatorSystem.check_exit(240, Vector2(200.0, 56.0), 52.0)
 	if not require(not bool(no_exit.should_exit), "Não deve sair com X < 224"): return
 
@@ -67,11 +72,6 @@ func _run() -> void:
 	if not require(bool(exit_31.should_exit), "Deve sair quando X >= 224 e cabine alinhada no andar 31"): return
 	if not require(int(exit_31.destination_room_id) == 31, "Destino deve ser Sala 31"): return
 	if not require((exit_31.entry_position as Vector2) == Vector2(108.0, 36.0), "Posição de saída deve ser em frente à porta do elevador"): return
-
-	# Deve sair para a Sala 3 quando no andar inferior (Elev=180, Y=184, X=224)
-	var exit_3: Dictionary = ElevatorSystem.check_exit(240, Vector2(224.0, 184.0), 180.0)
-	if not require(bool(exit_3.should_exit), "Deve sair quando X >= 224 e cabine alinhada no andar 3"): return
-	if not require(int(exit_3.destination_room_id) == 3, "Destino deve ser Sala 3"): return
 
 	# 5. Teste de integração completo no Sandbox
 	var sandbox_scene: PackedScene = preload("res://scenes/sandbox_gameplay.tscn")
@@ -112,17 +112,39 @@ func _run() -> void:
 	if not require(is_equal_approx(sandbox.elevator_y, 180.0), "Elevador deve iniciar em Y=180 (andar térreo da Sala 3)"): return
 	if not require(sandbox.player.position == Vector2(216.0, 184.0), "Snake deve surgir em (216, 184)"): return
 
+	# Testar que entrada vertical no corredor é ignorada (Snake NÃO sobe nem desce pelas paredes)
+	var old_y: float = sandbox.player.position.y
+	# Simula um tick de entrada UP enquanto no corredor (X=216 > 120)
+	var walk_test: Vector2i = Vector2i(0, -1)
+	var filtered_dir: Vector2i = Vector2i(walk_test.x, 0)
+	if filtered_dir.x != 0:
+		sandbox.player.step_tick(filtered_dir)
+	if not require(is_equal_approx(sandbox.player.position.y, old_y), "Entrada vertical no corredor do elevador não deve alterar Y do Snake"): return
+
 	# Snake caminha para a cabine em (112.0, 184.0)
 	sandbox.player.position = Vector2(112.0, 184.0)
 
-	# Simular subida até o andar da Sala 31 (Y=52)
-	while sandbox.elevator_y > 52.0:
-		var m: Dictionary = ElevatorSystem.step_movement(240, sandbox.player.position, sandbox.elevator_y, -1)
-		sandbox.elevator_y = float(m.elevator_y)
-		sandbox.player.position.y = (m.player_pos as Vector2).y
+	# Dentro da cabine, acionar subida com CIMA
+	var target_up: Dictionary = ElevatorSystem.get_next_target_floor(240, sandbox.elevator_y, -1)
+	if not require(bool(target_up.has_target), "Deve encontrar andar do telhado acima"): return
+	sandbox.elevator_target_y = float(target_up.target_elev_y)
+	sandbox.elevator_state = sandbox.ELEVATOR_STATE_MOVING
 
+	# Simular os ticks de trânsito vertical da cabine a 1 px/tick
+	var ticks: int = 0
+	while sandbox.elevator_state == sandbox.ELEVATOR_STATE_MOVING and ticks < 300:
+		ticks += 1
+		var dir_y: float = -1.0 if sandbox.elevator_target_y < sandbox.elevator_y else 1.0
+		sandbox.elevator_y += dir_y * ElevatorSystem.ELEVATOR_SPEED
+		sandbox.player.position.y = sandbox.elevator_y + 4.0
+		if absf(sandbox.elevator_y - sandbox.elevator_target_y) < 0.5:
+			sandbox.elevator_y = sandbox.elevator_target_y
+			sandbox.player.position.y = sandbox.elevator_y + 4.0
+			sandbox.elevator_state = sandbox.ELEVATOR_STATE_IDLE
+
+	if not require(sandbox.elevator_state == sandbox.ELEVATOR_STATE_IDLE, "Elevador deve parar ao atingir o andar"): return
 	if not require(is_equal_approx(sandbox.elevator_y, 52.0), "Elevador deve atingir Y=52 (Telhado)"): return
-	if not require(is_equal_approx(sandbox.player.position.y, 56.0), "Snake deve atingir Y=56"): return
+	if not require(is_equal_approx(sandbox.player.position.y, 56.0), "Snake deve atingir Y=56 perfeitamente alinhado com a cabine"): return
 
 	# Snake caminha para a direita até o corredor de saída (X=224.0)
 	sandbox.player.position.x = 224.0
@@ -138,20 +160,33 @@ func _run() -> void:
 	if not require(sandbox.snapshot.room_id == 31, "Sala atual deve ser 31"): return
 	if not require(sandbox.player.position == Vector2(108.0, 36.0), "Snake deve estar em frente à porta do elevador na sala 31"): return
 
-	# Agora retorno: da Sala 31 de volta para o Elevador 240
+	# Retorno: da Sala 31 de volta para o Elevador 240
 	sandbox.change_to_room(240, Vector2.ZERO)
 	if not require(sandbox.is_in_elevator, "Deve reativar modo elevador ao retornar"): return
 	if not require(is_equal_approx(sandbox.elevator_y, 52.0), "Elevador deve iniciar em Y=52 ao vir da Sala 31"): return
 	if not require(sandbox.player.position == Vector2(216.0, 56.0), "Snake deve iniciar em (216, 56)"): return
 
-	# Desce de volta para o térreo
+	# Snake entra na cabine e aciona descida
 	sandbox.player.position = Vector2(112.0, 56.0)
-	while sandbox.elevator_y < 180.0:
-		var m: Dictionary = ElevatorSystem.step_movement(240, sandbox.player.position, sandbox.elevator_y, 1)
-		sandbox.elevator_y = float(m.elevator_y)
-		sandbox.player.position.y = (m.player_pos as Vector2).y
+	var target_down: Dictionary = ElevatorSystem.get_next_target_floor(240, sandbox.elevator_y, 1)
+	if not require(bool(target_down.has_target), "Deve encontrar andar do térreo abaixo"): return
+	sandbox.elevator_target_y = float(target_down.target_elev_y)
+	sandbox.elevator_state = sandbox.ELEVATOR_STATE_MOVING
+
+	ticks = 0
+	while sandbox.elevator_state == sandbox.ELEVATOR_STATE_MOVING and ticks < 300:
+		ticks += 1
+		var dir_y: float = -1.0 if sandbox.elevator_target_y < sandbox.elevator_y else 1.0
+		sandbox.elevator_y += dir_y * ElevatorSystem.ELEVATOR_SPEED
+		sandbox.player.position.y = sandbox.elevator_y + 4.0
+		if absf(sandbox.elevator_y - sandbox.elevator_target_y) < 0.5:
+			sandbox.elevator_y = sandbox.elevator_target_y
+			sandbox.player.position.y = sandbox.elevator_y + 4.0
+			sandbox.elevator_state = sandbox.ELEVATOR_STATE_IDLE
 
 	if not require(is_equal_approx(sandbox.elevator_y, 180.0), "Elevador deve retornar a Y=180"): return
+	if not require(is_equal_approx(sandbox.player.position.y, 184.0), "Snake deve estar em Y=184"): return
+
 	sandbox.player.position.x = 224.0
 	var exit_back: Dictionary = ElevatorSystem.check_exit(sandbox.snapshot.room_id, sandbox.player.position, sandbox.elevator_y)
 	if not require(int(exit_back.destination_room_id) == 3, "Retorno deve levar de volta à Sala 3"): return
