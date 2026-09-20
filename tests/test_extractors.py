@@ -12,6 +12,7 @@ from tools.extractors.codecs import (read, word, pointer, nibble, collision_bits
 from tools.extractors.extract import encode, publish
 from tools.extractors.schema import validate, validate_relations, SCHEMA
 from tools.extractors.batch_snapshots import _compose_raster, build_palette, parse_room_range, BUILDING_SCOPES
+from tools.extractors.export_room_data import export_room_data
 from tools.reverse_engineering.analyze import data_segment
 
 
@@ -246,3 +247,67 @@ class BatchSnapshotTests(unittest.TestCase):
         self.assertTrue(b123 == set(BUILDING_SCOPES['building1']) |
                         set(BUILDING_SCOPES['building2']) |
                         set(BUILDING_SCOPES['building3']))
+
+
+class ExportRoomDataTests(unittest.TestCase):
+    """Synthetic tests for export_room_data.py."""
+
+    def _make_package(self):
+        return {
+            'rooms': [
+                {'id': 0, 'status': 'decoded'},
+                {'id': 1, 'status': 'undefined'},
+            ],
+            'entities': [
+                {'room_id': 0, 'ordinal': 0, 'actor_type_id': 5, 'y': 100, 'x': 50},
+                {'room_id': 0, 'ordinal': 1, 'actor_type_id': 4, 'y': 80, 'x': 60},
+                {'room_id': 1, 'ordinal': 0, 'actor_type_id': 2, 'y': 10, 'x': 20},
+            ],
+            'items': [
+                {'room_id': 0, 'ordinal': 0, 'item_type_id': 22, 'y': 80, 'x': 112},
+            ],
+            'doors': [
+                {'room_id': 0, 'ordinal': 0, 'door_id': 1, 'render_type_id': 2,
+                 'draw_y': 32, 'draw_x': 96, 'destination_room_id': 4,
+                 'open_rule_id': 1, 'open_logic_raw': 129},
+            ],
+            'room_paths': [
+                {'room_id': 0, 'ordered_path_refs': ['path_01', 'path_02']},
+            ],
+            'paths': [
+                {'id': 'path_01', 'kind': 'points_yx', 'values': [[100, 50], [100, 150]]},
+                {'id': 'path_02', 'kind': 'look_directions_raw', 'values': [0, 1, 2]},
+            ],
+        }
+
+    def test_export_room_data_structure(self):
+        pkg = self._make_package()
+        res = export_room_data(pkg, {0, 1})
+        self.assertIn(0, res)
+        self.assertNotIn(1, res)  # room 1 is undefined, skipped
+
+        data0 = res[0]
+        self.assertEqual(data0['room_id'], 0)
+        self.assertEqual(data0['format_version'], '1.0.0')
+
+        # Check actors
+        self.assertEqual(len(data0['actors']), 2)
+        act0 = data0['actors'][0]
+        self.assertEqual(act0['actor_type_id'], 5)
+        self.assertEqual(act0['y'], 100)
+        self.assertEqual(act0['x'], 50)
+        self.assertEqual(act0['patrol_path'], [[100, 50], [100, 150]])
+
+        # Actor 1 has path of kind 'look_directions_raw', so patrol_path is empty list
+        act1 = data0['actors'][1]
+        self.assertEqual(act1['patrol_path'], [])
+
+        # Check items
+        self.assertEqual(len(data0['items']), 1)
+        self.assertEqual(data0['items'][0]['item_type_id'], 22)
+
+        # Check doors
+        self.assertEqual(len(data0['doors']), 1)
+        self.assertEqual(data0['doors'][0]['door_id'], 1)
+        self.assertEqual(data0['doors'][0]['destination_room_id'], 4)
+

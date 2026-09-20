@@ -652,6 +652,23 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
 - **Extração em lote**: 126/126 snapshots, 0 falhas, 7 cross-checks exatos
 - ROM original: não modificada; package.json é a entrada intermediária
 
+## 2026-09-20 — Etapa 12 (Em andamento): Integração dos Snapshots e Dados Reais ao Godot
+
+### Bloco 12-A concluído (commit `356ee1b`)
+- `RoomManager`: adicionado `stage5-batch/` como primeira prioridade em `load_room_snapshot()`.
+- Snapshots reais (salas 0–125) agora carregados diretamente da ROM sem emulador.
+- `godot/tests/room_snapshot_test.gd`: teste verificado de carregamento real da sala 000.
+- `validate.py`: PASS (45 Python + 9 Godot).
+
+### Bloco 12-B concluído
+- Criada ferramenta `tools/extractors/export_room_data.py`:
+  - Extrai dados leves por sala (`room-NNN-actors.json`): atores, itens e portas canônicas.
+  - Combina coordenadas YX de `entities` e waypoints ordenados de `room_paths` / `paths`.
+  - Exportadas 129 salas (0–128) para `data/extracted/stage5-batch/`.
+- Adicionada suíte de testes sintéticos `ExportRoomDataTests` em `tests/test_extractors.py`.
+- `validate.py`: PASS (46 Python + 9 Godot).
+
+
 
 
 
