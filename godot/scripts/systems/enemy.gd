@@ -27,9 +27,12 @@ var is_dead: bool = false
 var touch_damage: int = 2     # ActorTouchDamage para ID_GUARD_SLOW e MEDIUM = 2 (data/shapes.asm:36)
 
 var guard_type: GuardType = GuardType.MEDIUM
+var actor_type_id: int = 5
 var speed: float = 1.0
 var state: GuardState = GuardState.PATROL
 var current_direction: PlayerController.Direction = PlayerController.Direction.RIGHT
+var is_shooter: bool = false
+var shoot_cooldown: int = 0
 
 var waypoints: Array[Vector2] = []
 var current_waypoint_idx: int = 0
@@ -51,6 +54,9 @@ func _ready() -> void:
 			speed = 1.0
 		GuardType.FAST:
 			speed = 1.5
+
+	if actor_type_id in [13, 57]:
+		is_shooter = true
 
 func set_patrol_path(points: Array[Vector2]) -> void:
 	waypoints = points
@@ -98,6 +104,47 @@ func receive_punch() -> void:
 	else:
 		print("GUARD_HIT: Guarda atingido (%d/3) - atordoado por 64 ticks!" % punches_received)
 	queue_redraw()
+
+## Verifica colisão entre projétil e o bounding box do guarda (logic/damagetoenemy.asm:108-132)
+func check_bullet_hit(bullet_pos: Vector2) -> bool:
+	if is_dead:
+		return false
+	var diff_x: float = absf(position.x - bullet_pos.x)
+	var diff_y: float = absf(position.y - bullet_pos.y)
+	return diff_x <= 8.0 and diff_y <= 10.0
+
+## Aplica dano balístico (data/weapondamage.asm:18 / logic/damagetoenemy.asm:216)
+## No MSX2, dano de bala a soldados é 2, resultando em eliminação com 1 único tiro
+func take_bullet_hit(bullet_damage: int = 2) -> bool:
+	if is_dead:
+		return false
+	is_dead = true
+	print("GUARD_KILLED_BY_BULLET: Guarda eliminado por disparo na posição %s!" % position)
+	queue_redraw()
+	return true
+
+## Disparo inimigo para atiradores (ID 13, 57) ou guardas em alerta (logic/actors/shooter.asm e guardalert.asm)
+func try_shoot(player_pos: Vector2) -> Bullet:
+	if is_dead or stunned_timer > 0:
+		return null
+
+	if shoot_cooldown > 0:
+		shoot_cooldown -= 1
+		return null
+
+	# Dispara se for atirador nativo ou se estiver em modo de alerta perseguindo
+	if is_shooter or (state == GuardState.ALERT and is_alert):
+		shoot_cooldown = 48 # Cadência de ~48 ticks (aprox. 0.8s)
+		var b: Bullet = Bullet.new()
+		b.position = Vector2(position.x, position.y - 6.0)
+		b.direction = current_direction
+		b.speed = 4.0
+		b.ticks_remaining = 24
+		b.damage = 2
+		b.is_enemy = true
+		return b
+
+	return null
 
 func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = false, player_dir: PlayerController.Direction = PlayerController.Direction.DOWN, player: PlayerController = null) -> void:
 	if is_dead:

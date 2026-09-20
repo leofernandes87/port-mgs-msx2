@@ -14,6 +14,8 @@ const ITEM_CARD7: String = "CARD7"
 const ITEM_CARD8: String = "CARD8"
 const ITEM_RATION: String = "RATION"
 const ITEM_BINOCULARS: String = "BINOCULARS"
+const ITEM_SILENCER: String = "SILENCER"       # ID 8 na ROM (SUPRESSOR)
+const ITEM_AMMO_CRATE: String = "AMMO_CRATE"   # ID 35 na ROM (AMMO_CRATE)
 
 var items: Array[String] = []
 var selected_index: int = -1

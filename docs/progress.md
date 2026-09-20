@@ -753,3 +753,36 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
 - Correção visual da cabine: ampliada para as dimensões exatas de SprElevatorDat (largura 32px, altura 64px, de elevator_y-48 a elevator_y+16), com apoio de Snake sobre o piso metálico e alinhamento com as passarelas dos andares.
 - validate.py: 100% PASS (46 testes Python + 10 suítes Godot).
 
+## 2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística
+
+### O que foi feito
+1. **Subsistema de Armas e Munição (`WeaponSystem`)**:
+   - Criado `godot/scripts/systems/weapon_system.gd`:
+     - Constantes de armas da ROM: `WEAPON_HANDGUN` (ID 1), `WEAPON_SMG` (ID 2), `WEAPON_GRENADE_LAUNCHER` (ID 3).
+     - Limites de munição de patente Rank 1 (`MaxAmmoLv1` em `maxammo.asm:112-119`): limite de 50 balas para Pistola, 50 para SMG e 15 para Granadas.
+     - Coleta de caixas de munição (`PickAmmoCrate` em `items.asm:333-356`): adiciona +20 tiros para Handgun e +20 para SMG.
+     - Ciclo e alternância entre desarmado e armas do arsenal (`cycle_weapon`).
+2. **Balística de Projéteis (`Bullet`)**:
+   - Criado `godot/scripts/systems/bullet.gd`:
+     - Ponto de saída fiel ao MSX2: `(PlayerX, PlayerY - 14.0)` (`handgun.asm:43-48`).
+     - Velocidade constante de 6.0 px/tick na direção cardinal (`ShootDirSpeeds`).
+     - Alcance máximo de 16 ticks (`Timer = 10h`), percorrendo exatamente 96 pixels.
+     - Bloqueio e descarte imediato ao colidir com tiles sólidos da grade de colisão (`collision_grid`) ou limites de tela.
+     - Dano canônico de 2 pontos (`BulletDamage` em `weapondamage.asm:18`), eliminando soldados comuns com 1 único tiro fatal.
+3. **Mecânica Acústica do Silenciador (`InvSupressor`)**:
+   - Implementada verificação de som (`checkweaponalert.asm:8-30`):
+     - Disparo sem silenciador aciona `ChkAlertTrigger`, alertando imediatamente a guarnição, exceto nas 55 salas seguras da tabela `RoomShotSecure` (ex: Salas 5, 6, 9, 10, 20, 150...).
+     - Disparo com silenciador é 100% furtivo e silencioso.
+   - Evento canônico da Sala 150 (`Banks0123.asm:6117, 13037`): ao derrotar os 4 soldados silenciosos (`ID_GUARD_SILENCER` = 57), o Silenciador (`ITEM_SILENCER`, item ID 8) é liberado no centro da sala em (36, 98).
+4. **Soldados Atiradores e Projéteis Inimigos**:
+   - `EnemyGuard` atualizado com suporte a atiradores (`ID_SHOOTER` = 13, `ID_GUARD_SILENCER` = 57) e disparo em alerta (`ID_GUARD_ALERT` = 10).
+   - Projétil inimigo a 4.0 px/tick causando 2 de dano a Snake com 32 ticks de invulnerabilidade.
+5. **Integração no Sandbox e HUD**:
+   - Controles: `Espaço / F` para atirar/soco; `M / Z / J` para soco direto; `Q / 1 / 2` para ciclar armas; `E` para itens; `U` para ração.
+   - Mapeamento canônico de itens da ROM em `_spawn_room_items`: Handgun (1), SMG (2), Silencer (8), Ammo Crate (35), Ration (30), Cards (22-29).
+   - HUD atualizado exibindo arma selecionada, contagem de munição e indicador de silenciador.
+6. **Testes e Verificação**:
+   - Criada suíte `godot/tests/weapon_and_combat_test.gd` validando arsenal, física balística, 1-shot kill, acústica do silenciador e tiro inimigo.
+   - `tools/validate.py`: integrado `godot-weapon-combat`.
+   - Resultado: 100% PASS (46 testes Python + 11 suítes Godot).
+

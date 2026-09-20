@@ -57,6 +57,24 @@ func punch() -> bool:
 		return true
 	return false
 
+## Disparo com arma de fogo equipada (logic/weapon/handgun.asm:39-65)
+## Origem do tiro: PlayerX, PlayerY - 14 (deslocamento vertical exato da ROM)
+func fire_weapon(weapon_sys: WeaponSystem) -> Bullet:
+	if weapon_sys == null or not weapon_sys.can_fire() or life <= 0:
+		return null
+
+	if not weapon_sys.consume_ammo():
+		return null
+
+	var b: Bullet = Bullet.new()
+	b.position = Vector2(position.x, position.y - 14.0)
+	b.direction = current_direction
+	b.speed = 6.0
+	b.ticks_remaining = 16
+	b.damage = 2
+	b.is_enemy = false
+	return b
+
 func apply_damage(amount: int) -> bool:
 	if invulnerable_timer <= 0 and life > 0:
 		life = maxi(0, life - amount)

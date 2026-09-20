@@ -17,13 +17,35 @@ func _ready() -> void:
 	if collected_boxes.has(box_unique_id):
 		collected = true
 
-func step_tick(player_pos: Vector2, inventory: InventoryManager) -> bool:
+func step_tick(player_pos: Vector2, inventory: InventoryManager, weapon_system: WeaponSystem = null) -> bool:
 	if collected:
 		return false
 
 	var dist: float = position.distance_to(player_pos)
 	if dist <= 12.0:
-		if inventory.collect_item(item_id):
+		if item_id in [WeaponSystem.WEAPON_HANDGUN, WeaponSystem.WEAPON_SMG, WeaponSystem.WEAPON_GRENADE_LAUNCHER]:
+			if weapon_system != null:
+				weapon_system.add_weapon(item_id, 20)
+				collected = true
+				collected_boxes[box_unique_id] = true
+				queue_redraw()
+				return true
+		elif item_id == InventoryManager.ITEM_AMMO_CRATE:
+			if weapon_system != null:
+				weapon_system.add_ammo_crate(20, 20, 6)
+				collected = true
+				collected_boxes[box_unique_id] = true
+				queue_redraw()
+				return true
+		elif item_id == InventoryManager.ITEM_SILENCER:
+			inventory.collect_item(item_id)
+			if weapon_system != null:
+				weapon_system.set_silencer(true)
+			collected = true
+			collected_boxes[box_unique_id] = true
+			queue_redraw()
+			return true
+		elif inventory != null and inventory.collect_item(item_id):
 			collected = true
 			collected_boxes[box_unique_id] = true
 			queue_redraw()
@@ -56,6 +78,18 @@ func _draw() -> void:
 		# Cruz médica vermelha na ração
 		draw_rect(Rect2(-3, -4, 6, 2), Color("d02020"))
 		draw_rect(Rect2(-1, -6, 2, 6), Color("d02020"))
+	elif item_id in [WeaponSystem.WEAPON_HANDGUN, WeaponSystem.WEAPON_SMG]:
+		# Miniatura de arma de fogo
+		draw_rect(Rect2(-3, -4, 6, 2), Color.DARK_GRAY)
+		draw_rect(Rect2(-3, -2, 2, 3), Color.DARK_GRAY)
+	elif item_id == InventoryManager.ITEM_AMMO_CRATE:
+		# Miniatura de projétil / munição
+		draw_rect(Rect2(-2, -5, 4, 3), Color("e0c030"))
+		draw_rect(Rect2(-1, -2, 2, 3), Color("c08020"))
+	elif item_id == InventoryManager.ITEM_SILENCER:
+		# Miniatura do cilindro silenciador
+		draw_rect(Rect2(-4, -4, 8, 3), Color("303840"))
+		draw_rect(Rect2(2, -3, 2, 1), Color.LIGHT_GRAY)
 	else:
 		# Ícone de suprimento
 		draw_rect(Rect2(-2, -4, 4, 2), Color.YELLOW)

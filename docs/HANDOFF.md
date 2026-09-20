@@ -72,6 +72,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `cda3bf6` | 12c | Extração e integração das 81 salas lorry e interiores (126-207) |
 | `000b622` | 12d | Sistema de elevadores e conexões verticais (salas 240-250) |
 | `f13d908` | fix | Física e trânsito canônico do elevador (ControlPlayerH/SprElevatorDat) |
+| (pendente) | 13 | Sistema de Armas, Silenciador e Balística (WeaponSystem, Bullet, 1-shot kill) |
 
 ### Dados extraídos disponíveis
 
@@ -96,26 +97,29 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ### Estado do Godot
 
-- `ElevatorSystem` (`godot/scripts/systems/elevator_system.gd`): limites e paradas dos 11 elevadores da ROM, movimentação vertical a 1 px/tick e tolerâncias de saída.
-- `ElevatorCabin` (`godot/scripts/systems/elevator_cabin.gd`): cabine do elevador renderizada sobre o poço com estética industrial MSX2.
+- `WeaponSystem` (`godot/scripts/systems/weapon_system.gd`): arsenal com Handgun, SMG e Grenade Launcher, contadores de munição respeitando limite de Rank 1 (50 balas) e suporte a silenciador.
+- `Bullet` (`godot/scripts/systems/bullet.gd`): balística discreta a 6 px/tick, alcance de 16 ticks (96 px), colisão com grid de tiles e letalidade de 1 tiro fatal em soldados comuns.
+- `EnemyGuard`: suporte a guardas atiradores (`ID_SHOOTER` = 13, `ID_GUARD_SILENCER` = 57) e disparo de projéteis em perseguição/alerta.
+- Acústica do Silenciador: disparo sem silenciador dispara alerta da sala (exceto nas 55 salas seguras `ROOMS_SHOT_SECURE`); disparo com silenciador é silencioso.
+- Sala 150: evento de drop do silenciador ao derrotar os 4 guardas silenciadores em (36, 98).
+- `ElevatorSystem` & `ElevatorCabin`: limites e paradas dos 11 elevadores, movimentação vertical a 1 px/tick.
 - `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/` e `stage5-elevators/`.
-- `sandbox_gameplay.gd`: transições verticais operacionais (ex: Sala 3 Térreo <-> Sala 240 Elevador <-> Sala 31 Telhado).
-- Validação contínua: `python3 tools/validate.py` executa 46 testes Python + 10 suítes Godot (100% PASS).
+- Validação contínua: `python3 tools/validate.py` executa 46 testes Python + 11 suítes Godot (100% PASS).
 
 ---
 
 ## 6. Próximas opções de trabalho
 
-A Etapa 12d está **concluída**. Candidatos para a próxima etapa:
+A Etapa 13 está **concluída e validada**. Candidatos para a próxima etapa:
 
-1. **Sistema de Armas e Munição (Handgun, Silenciador, SMG)**:
-   - Disparo de projéteis por Snake e soldados atiradores (`InitShooter`, `InitGuardSilencer`), inventário de armas e contadores de munição.
+1. **Sistema de Transições Bidirecionais de Entrada/Saída dos Interiores de Edifícios (Salas 129–207)**:
+   - Portas de retorno que conectam os interiores (quartos, arsenais, depósitos) de volta aos corredores dos prédios 1, 2 e 3.
 
-2. **Sistema de Transições de Entrada/Saída dos Interiores de Edifícios (Salas 129–207)**:
-   - Portas de retorno que conectam os interiores aos corredores dos prédios.
+2. **Sistema de Rádio / Transceptor**:
+   - Frequências de Big Boss (120.85), Schneider (120.79) e outros contatos canônicos da ROM.
 
-3. **Sistema de Rádio / Transceptor**:
-   - Frequências de Big Boss (120.85), Schneider e outros contatos canônicos da ROM.
+3. **Boss Fights e Atores Especiais**:
+   - Shoot Gunner (Sala 132), Machine Gun Kid (Sala 145), Arnold (Sala 151).
 
 ---
 

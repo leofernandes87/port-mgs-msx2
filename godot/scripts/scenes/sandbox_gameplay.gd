@@ -6,6 +6,9 @@ var player: PlayerController
 var room_manager: RoomManager = RoomManager.new()
 var enemies: Array[EnemyGuard] = []
 var inventory: InventoryManager = InventoryManager.new()
+var weapon_system: WeaponSystem = WeaponSystem.new()
+var bullets: Array[Bullet] = []
+var silencer_dropped_room_150: bool = false
 var item_boxes: Array[ItemBox] = []
 var room_doors: Array[RoomDoor] = []
 var room_texture: ImageTexture
@@ -13,6 +16,14 @@ var show_collision: bool = false
 var show_enemy_vision: bool = false
 var zoom: float = 3.0
 var canvas_origin: Vector2 = Vector2.ZERO
+
+# 55 salas onde tiros sem silenciador NÃO alertam a guarnição (RoomShotSecure em logic/checkweaponalert.asm:37-40)
+const ROOMS_SHOT_SECURE: Array[int] = [
+	5, 6, 9, 10, 20, 29, 37, 50, 64, 65, 66, 67, 68, 71, 83, 102,
+	103, 110, 119, 120, 150, 193, 208, 209, 54, 55, 56, 57, 58, 59, 60, 61,
+	62, 63, 93, 94, 95, 96, 97, 98, 99, 100, 101, 111, 112, 113, 114, 115,
+	116, 118, 123, 124, 125, 220, 221
+]
 
 var previous_room_id: int = -1
 var is_in_elevator: bool = false
@@ -102,7 +113,7 @@ func _ready() -> void:
 	controls_bar.add_child(reset_btn)
 
 	var help_label := Label.new()
-	help_label.text = "· Mover: Setas/WASD · Soco: Espaço/Z/J · Item: E · Ração: U"
+	help_label.text = "· Mover: Setas/WASD · Atirar: Espaço/F · Soco: M/Z/J · Arma: Q · Kit Teste: G · Item: E · Ração: U"
 	controls_bar.add_child(help_label)
 
 	# Área central de jogo (Control que contém e centraliza o mundo do jogo)
@@ -238,6 +249,9 @@ func _spawn_room_enemies(room_id: int) -> void:
 			var spawn_pos := Vector2(float(act.get("x", 0)), float(act.get("y", 0)))
 
 			var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			g.actor_type_id = type_id
+			if type_id in [13, 57]:
+				g.is_shooter = true
 			# Mapeamento fiel das velocidades da ROM
 			if type_id in [4, 14, 24, 31, 46, 48]:
 				g.guard_type = EnemyGuard.GuardType.SLOW
@@ -365,18 +379,36 @@ func _spawn_room_items(room_id: int) -> void:
 			b.position = pos
 
 			match type_id:
-				1, 21, 30:
-					b.item_id = InventoryManager.ITEM_RATION
-				2, 22:
-					b.item_id = InventoryManager.ITEM_CARD1
-				3, 17:
-					b.item_id = InventoryManager.ITEM_BINOCULARS
-				7, 16:
-					b.item_id = InventoryManager.ITEM_CARD2
-				18:
-					b.item_id = InventoryManager.ITEM_CARD3
+				1:
+					b.item_id = WeaponSystem.WEAPON_HANDGUN
+				2:
+					b.item_id = WeaponSystem.WEAPON_SMG
+				3:
+					b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
 				8:
+					b.item_id = InventoryManager.ITEM_SILENCER
+				17:
+					b.item_id = InventoryManager.ITEM_BINOCULARS
+				21, 30:
+					b.item_id = InventoryManager.ITEM_RATION
+				22:
+					b.item_id = InventoryManager.ITEM_CARD1
+				23:
+					b.item_id = InventoryManager.ITEM_CARD2
+				24:
+					b.item_id = InventoryManager.ITEM_CARD3
+				25:
 					b.item_id = InventoryManager.ITEM_CARD4
+				26:
+					b.item_id = InventoryManager.ITEM_CARD5
+				27:
+					b.item_id = InventoryManager.ITEM_CARD6
+				28:
+					b.item_id = InventoryManager.ITEM_CARD7
+				29:
+					b.item_id = InventoryManager.ITEM_CARD8
+				35:
+					b.item_id = InventoryManager.ITEM_AMMO_CRATE
 				_:
 					b.item_id = InventoryManager.ITEM_RATION
 
@@ -607,6 +639,10 @@ func reset_player() -> void:
 		player.invulnerable_timer = 0
 		player.punch_timer = 0
 		player.queue_redraw()
+	for b: Bullet in bullets:
+		if is_instance_valid(b):
+			b.queue_free()
+	bullets.clear()
 	if snapshot:
 		_spawn_room_enemies(snapshot.room_id)
 		_spawn_room_items(snapshot.room_id)
@@ -631,7 +667,29 @@ func _input(event: InputEvent) -> void:
 				if is_instance_valid(enemy):
 					enemy.show_debug_vision = show_enemy_vision
 					enemy.queue_redraw()
-		elif event.keycode == KEY_SPACE or event.keycode == KEY_Z or event.keycode == KEY_J:
+		elif event.keycode == KEY_Q or event.keycode == KEY_1 or event.keycode == KEY_2:
+			weapon_system.cycle_weapon()
+		elif event.keycode == KEY_SPACE or event.keycode == KEY_F:
+			if player and not weapon_system.selected_weapon.is_empty():
+				if weapon_system.can_fire():
+					var b: Bullet = player.fire_weapon(weapon_system)
+					if b != null:
+						bullets.append(b)
+						game_world.add_child(b)
+						# Acústica e Alerta de tiro (ChkAlertTrigger em logic/checkweaponalert.asm:8-30)
+						if not weapon_system.has_silencer and not snapshot.room_id in ROOMS_SHOT_SECURE:
+							for enemy: EnemyGuard in enemies:
+								if is_instance_valid(enemy) and not enemy.is_dead:
+									enemy.trigger_alert()
+							print("GUNSHOT_ALERT: Disparo sem silenciador na sala %d alertou a guarnição!" % snapshot.room_id)
+						else:
+							print("GUNSHOT_SILENT: Disparo furtivo com silenciador!")
+				else:
+					print("WEAPON_NO_AMMO: Arma sem munição! (Click SFX 15h)")
+			elif player:
+				player.punch()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_M or event.keycode == KEY_Z or event.keycode == KEY_J:
 			if player:
 				player.punch()
 			get_viewport().set_input_as_handled()
@@ -639,6 +697,11 @@ func _input(event: InputEvent) -> void:
 			inventory.cycle_item()
 		elif event.keycode == KEY_U:
 			inventory.use_selected_item(player)
+		elif event.keycode == KEY_G:
+			weapon_system.add_weapon(WeaponSystem.WEAPON_HANDGUN, 30)
+			weapon_system.add_weapon(WeaponSystem.WEAPON_SMG, 30)
+			weapon_system.set_silencer(not weapon_system.has_silencer)
+			print("DEBUG_WEAPON_KIT: Kit de armas concedido! Handgun + SMG + Silenciador alternado.")
 		elif event.keycode == KEY_R:
 			reset_player()
 
@@ -719,10 +782,10 @@ func _physics_process(_delta: float) -> void:
 		if moved:
 			_check_and_handle_room_transition()
 
-	# Atualizar caixas de itens coletáveis
+	# Atualizar caixas de itens e armas coletáveis
 	for box: ItemBox in item_boxes:
 		if is_instance_valid(box) and not box.collected:
-			box.step_tick(player.position, inventory)
+			box.step_tick(player.position, inventory, weapon_system)
 
 	# Atualizar portas interativas
 	for door: RoomDoor in room_doors:
@@ -742,18 +805,76 @@ func _physics_process(_delta: float) -> void:
 				any_alert = true
 			if enemy.is_dead:
 				defeated_count += 1
+			elif not enemy.is_dead:
+				# Inimigos atiradores ou em alerta tentam disparar contra Snake
+				var enemy_shot: Bullet = enemy.try_shoot(player.position)
+				if enemy_shot != null:
+					bullets.append(enemy_shot)
+					game_world.add_child(enemy_shot)
+
+	# Atualizar física e colisões dos projéteis balísticos (balas de Snake e de soldados)
+	var surviving_bullets: Array[Bullet] = []
+	for b: Bullet in bullets:
+		if not is_instance_valid(b):
+			continue
+		var alive: bool = b.step_tick(snapshot.collision)
+		if not alive:
+			b.queue_free()
+			continue
+
+		var hit: bool = false
+		if b.is_enemy:
+			# Projétil inimigo atinge Snake (raio <= 10 px)
+			if b.position.distance_to(player.position) <= 10.0:
+				player.apply_damage(b.damage)
+				hit = true
+		else:
+			# Projétil de Snake atinge soldado inimigo
+			for enemy: EnemyGuard in enemies:
+				if is_instance_valid(enemy) and not enemy.is_dead:
+					if enemy.check_bullet_hit(b.position):
+						enemy.take_bullet_hit(b.damage)
+						hit = true
+						break
+
+		if hit:
+			b.queue_free()
+		else:
+			surviving_bullets.append(b)
+	bullets = surviving_bullets
+
+	# Evento canônico da Sala 150 (Banks0123.asm:6117, 13037):
+	# Quando os 4 guardas silenciadores (actor_type_id 57) são eliminados, o SUPRESSOR é dropado em (36, 98)
+	if snapshot.room_id == 150 and not silencer_dropped_room_150:
+		var silencer_guards_alive: int = 0
+		var silencer_guards_total: int = 0
+		for enemy: EnemyGuard in enemies:
+			if is_instance_valid(enemy) and enemy.actor_type_id == 57:
+				silencer_guards_total += 1
+				if not enemy.is_dead:
+					silencer_guards_alive += 1
+		if silencer_guards_total > 0 and silencer_guards_alive == 0:
+			silencer_dropped_room_150 = true
+			var silencer_box: ItemBox = ItemBox.new()
+			silencer_box.item_id = InventoryManager.ITEM_SILENCER
+			silencer_box.room_id = 150
+			silencer_box.position = Vector2(36.0, 98.0)
+			game_world.add_child(silencer_box)
+			item_boxes.append(silencer_box)
+			print("SILENCER_DROPPED: 4 guardas silenciadores derrotados! Silenciador liberado em (36, 98)!")
 
 	var blocks: int = maxi(0, player.life / 3)
 	var empty_blocks: int = maxi(0, (player.max_life - player.life) / 3)
 	var life_bar: String = "■".repeat(blocks) + "□".repeat(empty_blocks)
 	var item_str: String = inventory.get_status_text()
+	var weapon_str: String = weapon_system.get_status_text()
 
 	if player.life <= 0:
 		status_label.text = "SNAKE MORREU! [Pressione R para reiniciar]"
 		status_label.modulate = Color(1.0, 0.1, 0.1)
 	elif any_alert:
-		status_label.text = "ALERTA! | VIDA: [%s] %02d/%02d | ITEM: %s (Derrotados: %d/%d)" % [
-			life_bar, player.life, player.max_life, item_str, defeated_count, enemies.size()
+		status_label.text = "ALERTA! | ARMA: %s | VIDA: [%s] %02d/%02d | ITEM: %s (Derrotados: %d/%d)" % [
+			weapon_str, life_bar, player.life, player.max_life, item_str, defeated_count, enemies.size()
 		]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 	elif is_in_elevator:
@@ -763,8 +884,8 @@ func _physics_process(_delta: float) -> void:
 		]
 		status_label.modulate = Color(0.9, 0.8, 0.3)
 	elif snapshot.loaded:
-		status_label.text = "Sala %03d | VIDA: [%s] %02d/%02d | ITEM: %s" % [
-			snapshot.room_id, life_bar, player.life, player.max_life, item_str
+		status_label.text = "Sala %03d | ARMA: %s | VIDA: [%s] %02d/%02d | ITEM: %s" % [
+			snapshot.room_id, weapon_str, life_bar, player.life, player.max_life, item_str
 		]
 		status_label.modulate = Color(1.0, 1.0, 1.0)
 
@@ -808,6 +929,11 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1) -
 
 	snapshot = snap
 	_apply_snapshot()
+
+	for b: Bullet in bullets:
+		if is_instance_valid(b):
+			b.queue_free()
+	bullets.clear()
 
 	if ElevatorSystem.is_elevator_room(new_room_id):
 		is_in_elevator = true
