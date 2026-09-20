@@ -5,6 +5,9 @@ var snapshot: RoomSnapshot = RoomSnapshot.new()
 var player: PlayerController
 var room_manager: RoomManager = RoomManager.new()
 var enemies: Array[EnemyGuard] = []
+var inventory: InventoryManager = InventoryManager.new()
+var item_boxes: Array[ItemBox] = []
+var room_doors: Array[RoomDoor] = []
 var room_texture: ImageTexture
 var show_collision: bool = false
 var show_enemy_vision: bool = false
@@ -90,7 +93,7 @@ func _ready() -> void:
 	controls_bar.add_child(reset_btn)
 
 	var help_label := Label.new()
-	help_label.text = "· Mover: Setas/WASD · Soco: Espaço / Z / J"
+	help_label.text = "· Mover: Setas/WASD · Soco: Espaço/Z/J · Item: E · Ração: U"
 	controls_bar.add_child(help_label)
 
 	# Área central de jogo (Control que contém e centraliza o mundo do jogo)
@@ -183,8 +186,11 @@ func _apply_snapshot() -> void:
 	if player:
 		player.set_collision_grid(snapshot.collision)
 	_spawn_room_enemies(snapshot.room_id)
-	status_label.text = "Sala %03d · %s · Use Setas/WASD para mover Snake entre as salas" % [snapshot.room_id, snapshot.source]
-	print("SANDBOX_ROOM_LOADED: %d (Inimigos: %d)" % [snapshot.room_id, enemies.size()])
+	_spawn_room_items(snapshot.room_id)
+	_spawn_room_doors(snapshot.room_id)
+	print("SANDBOX_ROOM_LOADED: %d (Inimigos: %d, Itens: %d, Portas: %d)" % [
+		snapshot.room_id, enemies.size(), item_boxes.size(), room_doors.size()
+	])
 	if room_display:
 		room_display.queue_redraw()
 
@@ -248,6 +254,107 @@ func _spawn_room_enemies(room_id: int) -> void:
 		game_world.add_child(g1)
 		enemies.append(g1)
 
+func _spawn_room_items(room_id: int) -> void:
+	for box: ItemBox in item_boxes:
+		if is_instance_valid(box):
+			box.queue_free()
+	item_boxes.clear()
+
+	if not game_world:
+		return
+
+	# Caixas de itens autênticas da ROM por sala (data/itemsinrooms.asm:6-13, 75-86)
+	if room_id == 1:
+		# Na sala 001: caixa de Ração próxima às caixas para teste
+		var b: ItemBox = ItemBox.new()
+		b.item_id = InventoryManager.ITEM_RATION
+		b.room_id = room_id
+		b.position = Vector2(40.0, 100.0)
+		game_world.add_child(b)
+		item_boxes.append(b)
+	elif room_id == 2:
+		# Sala 002: caixa com CARD1 para permitir destrancar portas
+		var b: ItemBox = ItemBox.new()
+		b.item_id = InventoryManager.ITEM_CARD1
+		b.room_id = room_id
+		b.position = Vector2(40.0, 160.0)
+		game_world.add_child(b)
+		item_boxes.append(b)
+	elif room_id == 4:
+		# Sala 004: CARD1 canônico da ROM em (112, 80)
+		var b: ItemBox = ItemBox.new()
+		b.item_id = InventoryManager.ITEM_CARD1
+		b.room_id = room_id
+		b.position = Vector2(112.0, 80.0)
+		game_world.add_child(b)
+		item_boxes.append(b)
+	elif room_id == 5:
+		# Sala 005: BINOCULARS em (112, 64)
+		var b: ItemBox = ItemBox.new()
+		b.item_id = InventoryManager.ITEM_BINOCULARS
+		b.room_id = room_id
+		b.position = Vector2(112.0, 64.0)
+		game_world.add_child(b)
+		item_boxes.append(b)
+	elif room_id == 6:
+		# Sala 006: RATION em (96, 64)
+		var b: ItemBox = ItemBox.new()
+		b.item_id = InventoryManager.ITEM_RATION
+		b.room_id = room_id
+		b.position = Vector2(96.0, 64.0)
+		game_world.add_child(b)
+		item_boxes.append(b)
+
+func _spawn_room_doors(room_id: int) -> void:
+	for door: RoomDoor in room_doors:
+		if is_instance_valid(door):
+			door.queue_free()
+	room_doors.clear()
+
+	if not game_world:
+		return
+
+	# Portas interativas autênticas (data/doors.asm:308-320)
+	if room_id == 2:
+		# Porta oeste trancada (exige CARD1!) para acessar a sala 4
+		var d: RoomDoor = RoomDoor.new()
+		d.door_id = 1
+		d.room_id = room_id
+		d.required_card = InventoryManager.ITEM_CARD1
+		d.orientation = RoomDoor.DoorOrientation.WEST
+		d.position = Vector2(16.0, 96.0)
+		d.destination_room = 4
+		d.entry_position = Vector2(230.0, 96.0)
+		game_world.add_child(d)
+		d.inject_collision(snapshot.collision)
+		room_doors.append(d)
+	elif room_id == 4:
+		# Porta leste de retorno para a sala 2 (aberta pelo lado interno)
+		var d: RoomDoor = RoomDoor.new()
+		d.door_id = 2
+		d.room_id = room_id
+		d.required_card = ""
+		d.orientation = RoomDoor.DoorOrientation.EAST
+		d.position = Vector2(232.0, 96.0)
+		d.destination_room = 2
+		d.entry_position = Vector2(32.0, 96.0)
+		game_world.add_child(d)
+		d.inject_collision(snapshot.collision)
+		room_doors.append(d)
+	elif room_id == 3:
+		# Sala 003: Porta norte (DoorsRoom003) para o interior do prédio 1 (sala 5)
+		var d: RoomDoor = RoomDoor.new()
+		d.door_id = 3
+		d.room_id = room_id
+		d.required_card = ""
+		d.orientation = RoomDoor.DoorOrientation.NORTH
+		d.position = Vector2(120.0, 32.0)
+		d.destination_room = 5
+		d.entry_position = Vector2(128.0, 160.0)
+		game_world.add_child(d)
+		d.inject_collision(snapshot.collision)
+		room_doors.append(d)
+
 func _create_synthetic_fallback_room() -> void:
 	var pixels: Array[int] = []
 	pixels.resize(49152)
@@ -294,6 +401,8 @@ func reset_player() -> void:
 		player.queue_redraw()
 	if snapshot:
 		_spawn_room_enemies(snapshot.room_id)
+		_spawn_room_items(snapshot.room_id)
+		_spawn_room_doors(snapshot.room_id)
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
@@ -318,6 +427,10 @@ func _input(event: InputEvent) -> void:
 			if player:
 				player.punch()
 			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_E:
+			inventory.cycle_item()
+		elif event.keycode == KEY_U:
+			inventory.use_selected_item(player)
 		elif event.keycode == KEY_R:
 			reset_player()
 
@@ -340,6 +453,19 @@ func _physics_process(_delta: float) -> void:
 	if moved:
 		_check_and_handle_room_transition()
 
+	# Atualizar caixas de itens coletáveis
+	for box: ItemBox in item_boxes:
+		if is_instance_valid(box) and not box.collected:
+			box.step_tick(player.position, inventory)
+
+	# Atualizar portas interativas
+	for door: RoomDoor in room_doors:
+		if is_instance_valid(door):
+			var target_room: int = door.check_interaction(player, inventory, snapshot.collision)
+			if target_room != -1:
+				change_to_room(target_room, door.entry_position)
+				break
+
 	# Atualizar soldados inimigos, perseguição e combate
 	var any_alert: bool = false
 	var defeated_count: int = 0
@@ -354,18 +480,19 @@ func _physics_process(_delta: float) -> void:
 	var blocks: int = maxi(0, player.life / 3)
 	var empty_blocks: int = maxi(0, (player.max_life - player.life) / 3)
 	var life_bar: String = "■".repeat(blocks) + "□".repeat(empty_blocks)
+	var item_str: String = inventory.get_status_text()
 
 	if player.life <= 0:
 		status_label.text = "SNAKE MORREU! [Pressione R para reiniciar]"
 		status_label.modulate = Color(1.0, 0.1, 0.1)
 	elif any_alert:
-		status_label.text = "ALERTA! Soldados em perseguição! | VIDA: [%s] %02d/%02d (Derrotados: %d/%d)" % [
-			life_bar, player.life, player.max_life, defeated_count, enemies.size()
+		status_label.text = "ALERTA! | VIDA: [%s] %02d/%02d | ITEM: %s (Derrotados: %d/%d)" % [
+			life_bar, player.life, player.max_life, item_str, defeated_count, enemies.size()
 		]
 		status_label.modulate = Color(1.0, 0.3, 0.3)
 	elif snapshot.loaded:
-		status_label.text = "Sala %03d · %s | VIDA: [%s] %02d/%02d · Espaço: Soco" % [
-			snapshot.room_id, snapshot.source, life_bar, player.life, player.max_life
+		status_label.text = "Sala %03d | VIDA: [%s] %02d/%02d | ITEM: %s" % [
+			snapshot.room_id, life_bar, player.life, player.max_life, item_str
 		]
 		status_label.modulate = Color(1.0, 1.0, 1.0)
 

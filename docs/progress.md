@@ -500,6 +500,58 @@ Etapa 8 implementada com total fidelidade às rotinas de combate da ROM original
   - `godot-combat-health`: PASS (`COMBAT_AND_HEALTH_OK`)
   - `godot-main`: PASS (`BOOT_OK`)
 
+## 2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário
+
+Etapa 9 implementada com total fidelidade às rotinas da ROM original do MSX2 RC750. Documentação em `docs/reverse_engineering/stage-9-doors-and-inventory.md`.
+
+### Metodologia e Fundamentação da ROM
+
+- **Mapeamento de Itens por Sala (`data/itemsinrooms.asm:6-13, 75-86`)**:
+  - Posições canônicas de itens: Sala 004 (`CARD1` em $112, 80$), Sala 005 (`BINOCULARS` em $112, 64$), Sala 006 (`RATION` em $96, 64$).
+- **Sistema de Inventário e Seleção (`logic/menuequipment.asm`)**:
+  - Seleção ativa de itens e rações.
+  - Consumo de ração restaura a energia ao máximo de $24$ pontos de vida (`Life = MaxLife`).
+- **Portas Interativas e Trancas por Cartão (`logic/doors/opendoor.asm` e `data/doors.asm`)**:
+  - Portas fechadas injetam colisão física ($1$) bloqueando os tiles correspondentes da grade $32 \times 24$.
+  - Verificação de chave e alinhamento direcional (`ChkCard` / `ChkTouchDoor`): exige que o item selecionado seja idêntico ao cartão requerido (ex: `CARD1`).
+  - Ao abrir, limpa a colisão ($0$) e permite travessia para a sala de destino (`Destination room` / `logic/nextroom.asm:120-155`).
+
+### Implementação em Godot 4
+
+1. **`InventoryManager` (`inventory.gd`)**:
+   - Registro de itens coletados, ciclo via tecla `E`, uso de ração via tecla `U`.
+2. **`ItemBox` (`item_box.gd`)**:
+   - Caixa metálica cinza autêntica com identificador gráfico e coleta por proximidade ($\le 12$ px) com persistência por ID.
+3. **`RoomDoor` (`door.gd`)**:
+   - Injeção/remoção dinâmica de colisão na matriz de 768 tiles.
+   - Verificação de proximidade, direção e cartão exigido.
+   - Abertura visual com vão de passagem e acionamento de transição de sala.
+4. **Sandbox (`sandbox_gameplay.gd`)**:
+   - Spawning de portas e itens nas salas 1, 2, 3, 4, 5 e 6.
+   - Exibição do item equipado no cabeçalho do HUD: `[ITEM: CARD1]` / `[ITEM: RAÇÃO x1]`.
+
+### Validação Automatizada
+
+- **Teste Headless Godot (`godot/tests/doors_and_inventory_test.gd`)**:
+  - Valida coleta de itens e persistência.
+  - Valida ciclo de itens e cura de vida por ração.
+  - Valida bloqueio de colisão de porta fechada.
+  - Valida rejeição sem cartão e abertura com cartão correto.
+  - Valida disparo de transição ao atravessar porta aberta.
+  - Saída oficial: `DOORS_AND_INVENTORY_OK: item collection, cycle, ration healing, locked door collision, card unlock and door entry`.
+- **Suíte Integrada (`python3 tools/validate.py`)**:
+  - `python-tests`: PASS (39 testes unitários)
+  - `godot-import`: PASS
+  - `godot-smoke`: PASS (`SMOKE_OK`)
+  - `godot-room-snapshot`: PASS (`ROOM_SNAPSHOT_OK`)
+  - `godot-player-movement`: PASS (`PLAYER_MOVEMENT_OK`)
+  - `godot-room-transition`: PASS (`ROOM_TRANSITION_OK`)
+  - `godot-enemy-patrol`: PASS (`ENEMY_PATROL_OK`)
+  - `godot-combat-health`: PASS (`COMBAT_AND_HEALTH_OK`)
+  - `godot-doors-inventory`: PASS (`DOORS_AND_INVENTORY_OK`)
+  - `godot-main`: PASS (`BOOT_OK`)
+
+
 
 
 
