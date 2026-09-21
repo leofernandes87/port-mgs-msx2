@@ -89,7 +89,9 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `b27a2c5` | docs | Atualização de documentação e preparação de release |
 | `v0.1.0` | **Release** | **Primeiro Marco Oficial Consolidado (20 Etapas, 218 salas, 100% PASS)** |
 | `562699b` | 21 | Evento de Captura na Sala 8, Cela 211, Parede Oca e Restituição (CaptureSystem, ItemBag, 4 socos) |
-| `5039b04` | fix | Correção de socos na cela 211, abertura física de 24 tiles e bolsa BAG |
+| `85255a2` | fix | Correção de socos na cela 211, abertura física de 24 tiles e bolsa BAG |
+| `v0.1.1` | **Release** | **Tag do Marco da Prisão e Restituição (Etapa 21)** |
+| `6a6d1c8` | 22 | Pisos Eletrificados & Painéis de Força (ElectrifiedFloorSystem, PowerPanel, Míssil vs Painel) |
 
 
 ### Dados extraídos disponíveis
@@ -108,6 +110,8 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `data/extracted/gas_hazard.json` | **9 salas canônicas com gás tóxico** extraídas da ROM (0x4C79) com danos e temporizadores |
 | `data/extracted/missile_weapon.json` | **Constantes do Míssil Teleguiado** extraídas da ROM (velocidade 4 px/tick, 15 ticks explosão, limites por rank) |
 | `data/extracted/capture_prison.json` | **Dados canônicos do evento de captura e prisão** (Door 103 0x1EE8E, ItemBag 0xDB0D, cela 211, restituição 212) |
+| `data/extracted/electrified_floor.json` | **5 salas canônicas com piso eletrificado e painéis** extraídas da ROM (0x4C0D, dano 2 HP, delay 8 ticks) |
+
 
 ### Cobertura de salas disponíveis
 

@@ -45,6 +45,12 @@ var active_missile: RemoteMissile = null
 ## Evento de Captura na Sala 8 e Cela da Sala 211 (Etapa 21)
 var capture_system: CaptureSystem = CaptureSystem.new()
 var tilemap_layer: TileMapLayer = null
+
+## Pisos Eletrificados e Painéis de Força (Etapa 22) — logic/damageelectric.asm e logic/actors/powerswitch.asm
+var electrified_floor_system: ElectrifiedFloorSystem = ElectrifiedFloorSystem.new()
+var power_panel: PowerPanel = null
+var is_player_shocked_flash: int = 0
+
 const ROOMS_SHOT_SECURE: Array[int] = [
 	5, 6, 9, 10, 20, 29, 37, 50, 64, 65, 66, 67, 68, 71, 83, 102,
 	103, 110, 119, 120, 150, 193, 208, 209, 54, 55, 56, 57, 58, 59, 60, 61,
@@ -325,6 +331,15 @@ func _draw_room_and_collision() -> void:
 	# Névoa atmosférica sutil de gás tóxico nas salas canônicas (Etapa 19)
 	if gas_hazard_system and snapshot and gas_hazard_system.is_gas_room(snapshot.room_id):
 		room_display.draw_rect(Rect2(0, 0, 256, 192), Color(0.12, 0.40, 0.15, 0.20))
+	# Pulso elétrico sutil sobre os pisos eletrificados ativos (Etapa 22 — logic/actors/powerswitch.asm)
+	if electrified_floor_system and snapshot and electrified_floor_system.is_room_electrified(snapshot.room_id) and electrified_floor_system.is_power_on(snapshot.room_id):
+		var pulse_phase: float = (sin(Time.get_ticks_msec() / 120.0) + 1.0) * 0.5
+		var electric_color := Color(0.35, 0.70, 1.0, 0.12 + 0.18 * pulse_phase)
+		var hazard_tiles: Array[Vector2i] = electrified_floor_system.get_hazard_coords(snapshot.room_id)
+		for tile_coord: Vector2i in hazard_tiles:
+			var tile_rect := Rect2(tile_coord.x * 8.0, tile_coord.y * 8.0, 8.0, 8.0)
+			room_display.draw_rect(tile_rect, electric_color)
+
 	if show_collision and not runtime_collision.is_empty():
 		for i: int in range(768):
 			if int(runtime_collision[i]) == 1:
@@ -404,6 +419,7 @@ func _apply_snapshot() -> void:
 	_spawn_room_items(snapshot.room_id)
 	_spawn_room_doors(snapshot.room_id)
 	_spawn_room_prisoners(snapshot.room_id)
+	_spawn_room_power_panel(snapshot.room_id)
 	print("SANDBOX_ROOM_LOADED: %d (Inimigos: %d, Câmeras: %d, Itens: %d, Portas: %d, Reféns: %d)" % [
 		snapshot.room_id, enemies.size(), cameras.size(), item_boxes.size(), room_doors.size(), prisoners.size()
 	])
@@ -843,6 +859,58 @@ func _spawn_room_prisoners(room_id: int) -> void:
 			game_world.add_child(pris)
 			prisoners.append(pris)
 
+func _spawn_room_power_panel(room_id: int) -> void:
+	if is_instance_valid(power_panel):
+		power_panel.queue_free()
+		power_panel = null
+
+	electrified_floor_system.setup_room(room_id)
+	if not electrified_floor_system.is_room_electrified(room_id):
+		return
+
+	var panel_pos := Vector2.ZERO
+	var has_panel: bool = false
+
+	# 1. Tentar ler do JSON de atores se houver ator 44 (ID_POWER_SWITCH = 0x2C)
+	var actors_data: Dictionary = room_manager.load_room_actors(room_id)
+	var actors_list: Array = actors_data.get("actors", [])
+	for a_entry: Variant in actors_list:
+		if a_entry is Dictionary and int(a_entry.get("actor_type_id", -1)) == 44:
+			panel_pos = Vector2(float(a_entry.get("x", 0.0)), float(a_entry.get("y", 0.0)))
+			has_panel = true
+			break
+
+	# 2. Fallback para coordenadas canônicas desmontadas da ROM MSX2 RC750
+	if not has_panel:
+		match room_id:
+			37:
+				panel_pos = Vector2(100.0, 16.0)
+				has_panel = true
+			110:
+				panel_pos = Vector2(68.0, 16.0)
+				has_panel = true
+			116:
+				panel_pos = Vector2(32.0, 16.0)
+				has_panel = true
+			16:
+				panel_pos = Vector2(36.0, 112.0)
+				has_panel = true
+			40:
+				panel_pos = Vector2(68.0, 112.0)
+				has_panel = true
+
+	if has_panel:
+		var is_destroyed: bool = not electrified_floor_system.is_power_on(room_id)
+		power_panel = PowerPanel.new()
+		power_panel.setup(room_id, panel_pos, is_destroyed)
+		power_panel.panel_destroyed.connect(func(rid: int) -> void:
+			electrified_floor_system.set_power(rid, false)
+			print("POWER_PANEL_DESTROYED: Painel de força da Sala %d destruído! Piso elétrico desativado." % rid)
+			if room_display:
+				room_display.queue_redraw()
+		)
+		game_world.add_child(power_panel)
+
 func show_dialog_message(speaker: String, text: String, duration_seconds: float = 6.0) -> void:
 	if dialog_banner_label:
 		dialog_banner_label.text = "[ %s ]\n\"%s\"" % [speaker, text]
@@ -1010,6 +1078,10 @@ func reset_game_state() -> void:
 		shot_gunner.queue_free()
 		shot_gunner = null
 
+	if is_instance_valid(power_panel):
+		power_panel.queue_free()
+		power_panel = null
+
 	# 2. Reset absoluto dos subsistemas
 	inventory.reset()
 	weapon_system.reset()
@@ -1019,6 +1091,8 @@ func reset_game_state() -> void:
 		gas_hazard_system.reset()
 	if capture_system:
 		capture_system.reset_state()
+	if electrified_floor_system:
+		electrified_floor_system.reset_state()
 	ItemBox.collected_boxes.clear()
 
 	# 3. Reset de variáveis de ambiente e flags de sala
@@ -1312,6 +1386,13 @@ func _physics_process(_delta: float) -> void:
 						shot_gunner.apply_bullet_hit()
 					active_missile.explode()
 
+		# Colisão do míssil com o painel de força (Etapa 22 — logic/damagetoenemy.asm)
+		if is_instance_valid(active_missile) and active_missile.state == RemoteMissile.MissileState.FLIGHT:
+			if is_instance_valid(power_panel) and not power_panel.is_destroyed:
+				if active_missile.check_actor_hit(power_panel.position, 12.0):
+					power_panel.take_hit("MISSILE", active_missile.damage)
+					active_missile.explode()
+
 		if not missile_alive:
 			active_missile.queue_free()
 			active_missile = null
@@ -1474,6 +1555,22 @@ func _physics_process(_delta: float) -> void:
 	if gas_hazard_system and snapshot:
 		gas_hazard_system.tick(snapshot.room_id, player, inventory)
 
+	# Atualizar sistema de pisos eletrificados e choque elétrico (Etapa 22 — logic/damageelectric.asm)
+	if electrified_floor_system and snapshot and not is_in_elevator:
+		var shock_damage: int = electrified_floor_system.check_player_hazard(player.position, snapshot.room_id)
+		if shock_damage > 0:
+			player.apply_damage(shock_damage)
+			is_player_shocked_flash = 4
+			print("ELECTRIC_SHOCK: Snake eletrocutado! Dano: %d, Vida: %d/%d" % [shock_damage, player.life, player.max_life])
+		if is_player_shocked_flash > 0:
+			is_player_shocked_flash -= 1
+			player.modulate = Color(0.35, 0.70, 1.0) if (is_player_shocked_flash % 2 == 0) else Color(1.0, 1.0, 1.0)
+		else:
+			player.modulate = Color(1.0, 1.0, 1.0)
+
+	if is_instance_valid(power_panel):
+		power_panel.tick()
+
 	# Se Snake for detectado durante o estado NORMAL, aciona ALERTA
 	if any_enemy_sees_snake and alert_system.current_state == AlertSystem.AlertState.NORMAL:
 		alert_system.trigger_alert(false, inventory.get_card_level(), snapshot.room_id if snapshot and snapshot.loaded else 0)
@@ -1506,6 +1603,13 @@ func _physics_process(_delta: float) -> void:
 						enemy.take_bullet_hit(b.damage)
 						hit = true
 						break
+
+		# Projétil atinge o painel de força (blindado contra armas de fogo)
+		if not hit and is_instance_valid(power_panel) and not power_panel.is_destroyed:
+			if power_panel.collides_with_point(b.position, 8.0):
+				power_panel.take_hit("BULLET", 0)
+				hit = true
+
 
 		if hit:
 			b.queue_free()
@@ -1636,6 +1740,11 @@ func _physics_process(_delta: float) -> void:
 				gas_tag = " [DEPÓSITO: RECUPERE SUA BOLSA]"
 			else:
 				gas_tag = " [DEPÓSITO: EQUIPAMENTOS RECUPERADOS]"
+		elif electrified_floor_system and electrified_floor_system.is_room_electrified(snapshot.room_id):
+			if electrified_floor_system.is_power_on(snapshot.room_id):
+				gas_tag = " [PISO ELETRIFICADO: ATIVO]"
+			else:
+				gas_tag = " [PAINEL DE FORÇA DESTRUÍDO]"
 
 		status_label.text = "Sala %03d%s | %s | %s | VIDA: [%s] %s | %s" % [
 			snapshot.room_id, gas_tag, rank_str, weapon_str, life_bar, life_val_str, item_str
@@ -1643,12 +1752,15 @@ func _physics_process(_delta: float) -> void:
 		if gas_tag != "":
 			if "GÁS TÓXICO" in gas_tag:
 				status_label.modulate = Color(0.9, 0.4, 0.2)
-			elif "MÁSCARA" in gas_tag:
+			elif "MÁSCARA" in gas_tag or "DESTRUÍDO" in gas_tag:
 				status_label.modulate = Color(0.4, 0.95, 0.4)
+			elif "PISO ELETRIFICADO" in gas_tag:
+				status_label.modulate = Color(0.35, 0.70, 1.0)
 			elif "CELA" in gas_tag or "DEPÓSITO" in gas_tag:
 				status_label.modulate = Color(0.9, 0.8, 0.3)
 		else:
 			status_label.modulate = Color(1.0, 1.0, 1.0)
+
 
 func _check_and_handle_room_transition() -> void:
 	if not player or not snapshot:

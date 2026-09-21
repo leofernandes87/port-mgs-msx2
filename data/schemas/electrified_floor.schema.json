@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:metal-gear-lab:electrified-floor:1.0.0",
+  "type": "object",
+  "required": [
+    "format_version",
+    "description",
+    "source",
+    "damage_per_shock",
+    "shock_delay_ticks",
+    "sfx_id",
+    "rooms",
+    "total_electrified_rooms"
+  ],
+  "properties": {
+    "format_version": { "const": "1.0.0" },
+    "description": { "type": "string" },
+    "source": { "type": "string" },
+    "damage_per_shock": { "type": "integer", "minimum": 1 },
+    "shock_delay_ticks": { "type": "integer", "minimum": 1 },
+    "sfx_id": { "type": "integer" },
+    "total_electrified_rooms": { "type": "integer", "minimum": 1 },
+    "rooms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "room_id",
+          "name",
+          "hazard_tile_ids",
+          "power_panel",
+          "hazard_tiles_count",
+          "hazard_tile_coords"
+        ],
+        "properties": {
+          "room_id": { "type": "integer", "minimum": 0, "maximum": 255 },
+          "name": { "type": "string" },
+          "hazard_tile_ids": {
+            "type": "array",
+            "items": { "type": "integer" },
+            "minItems": 1
+          },
+          "hazard_tiles_count": { "type": "integer", "minimum": 0 },
+          "hazard_tile_coords": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": { "type": "integer" },
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "power_panel": {
+            "type": "object",
+            "required": [
+              "has_switch",
+              "actor_type_id",
+              "x",
+              "y",
+              "hp",
+              "vulnerable_to",
+              "immune_to"
+            ],
+            "properties": {
+              "has_switch": { "type": "boolean" },
+              "actor_type_id": { "type": "integer" },
+              "x": { "type": "integer" },
+              "y": { "type": "integer" },
+              "hp": { "type": "integer" },
+              "vulnerable_to": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "immune_to": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

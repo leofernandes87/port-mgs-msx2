@@ -1632,6 +1632,62 @@ Correção das interações físicas e transições de tela na prisão (Salas 21
 4. **Menus Modais**:
    - Inicialização explícita de `weapon_menu`, `item_menu` e `pause_menu` com `visible = false` no sandbox para evitar bloqueio involuntário de inputs.
 
+## 2026-09-21 — Etapa 22: Pisos Eletrificados & Painéis de Força
+
+Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/damageelectric.asm`, `logic/actors/powerswitch.asm`, `logic/damagetoenemy.asm`, `data/actorsinrooms.asm` e rotina `ChkElectricFloor` verificada no offset `0x4C0D` da ROM).
+
+### 1. Evidências da ROM MSX2
+- **Rotina `ChkElectricFloor` (Offset `0x4C0D` a `0x4C50`)**:
+  - Assinatura binária verificada: `3A 30 C1 FE 10 01 61 60 28 15 FE 25 28 11 FE 6E 28 0D FE 28 01 46 45 28 06 FE 74 01 41 40 C0`.
+  - Salas e tiles canônicos:
+    1. **Sala 16**: Tiles `0x60` (96) e `0x61` (97) — corredor do soldado e interruptor de alarme.
+    2. **Sala 37**: Tiles `0x60` (96) e `0x61` (97) — piso eletrificado clássico com painel de força em $(100, 16)$.
+    3. **Sala 110**: Tiles `0x60` (96) e `0x61` (97) — piso eletrificado com portas e painel de força em $(68, 16)$.
+    4. **Sala 40**: Tiles `0x45` (69) e `0x46` (70) — piso eletrificado do telhado do Edifício 1 com painel em $(68, 112)$.
+    5. **Sala 116**: Tiles `0x40` (64) e `0x41` (65) — piso eletrificado no subsolo antes do Metal Gear com painel em $(32, 16)$.
+- **Cadência de Choque e Dano (`logic/damageelectric.asm:51-63`)**:
+  - `DamageDelayTimer = 8` frames/ticks.
+  - Dano de **2 HP** por ciclo de choque (`DecrementLife_2`).
+  - SFX `0x18` (24).
+  - Checagem por `GetTilePlayer`: verifica os dois pés (`PlayerX - 4` e `PlayerX + 4` em `PlayerY`).
+- **Painel de Força (`ID_POWER_SWITCH = 0x2C` / ID 44)**:
+  - Vida: **2 HP** (`idxActorLife[43] = 2`).
+  - Imunidade Balística: Pistola e SMG causam dano nulo (`BulletDamage[43] = 0xFF` / imune).
+  - Vulnerabilidade Crítica: Míssil Teleguiado causa **5 HP** (`MissileDamage[43] = 5`), destruindo o painel instantaneamente com explosão.
+  - Ao ser destruído: `PowerSwitchOn = 0`, gráfico muda para painel queimado/destruído, colisão desativada e piso cessa todo o choque imediatamente.
+
+### 2. Extração Reproduzível e Contratos Neutros
+- **Extrator Python**: Criado `tools/extractors/extract_electrified_floor_data.py` (leitura estrita somente leitura da ROM RC750 e de `package.json`).
+- **Esquema JSON**: Criado `data/schemas/electrified_floor.schema.json`.
+- **Exportação Validada**: Gerado `data/extracted/electrified_floor.json` com coordenadas exatas de todos os tiles eletrificados de cada sala.
+- **Teste Unitário Python**: `test_extract_electrified_floor_data_synthetic` adicionado em `tests/test_extractors.py` (total de 49 testes Python PASS).
+
+### 3. Implementação no Motor Godot 4
+- **`ElectrifiedFloorSystem` (`godot/scripts/systems/electrified_floor_system.gd`)**:
+  - Gerenciamento com tipagem estática dos estados de choque, mapa de tiles por sala, temporizador de 8 ticks e cálculo fiel a `GetTilePlayer`.
+  - Controle de estado do disjuntor `is_power_on` e emissão de sinais `player_shocked` e `power_changed`.
+- **`PowerPanel` (`godot/scripts/systems/power_panel.gd`)**:
+  - Painel de força desenhado proceduralmente: carcaça blindada com parafusos, placa amarela de perigo com raio preto e LED indicador piscante.
+  - Estado destruído com marcas de queimadura, orifício de impacto e fios rompidos.
+  - Absorção de projéteis comuns e destruição por impacto de míssil.
+- **`sandbox_gameplay.gd`**:
+  - Instanciação de `PowerPanel` nas posições canônicas ao carregar as salas.
+  - Pulso visual elétrico sutil nos tiles eletrificados enquanto o painel estiver ativo.
+  - Colisão física do `active_missile` com o `power_panel`, desativando a corrente imediatamente.
+  - Absorção de balas disparadas contra a blindagem do painel.
+  - Aplicação de 2 HP de dano a cada 8 ticks e piscamento azul elétrico em Snake ao pisar no circuito ativo.
+  - Atualização do HUD contextual (`[PISO ELETRIFICADO: ATIVO]` / `[PAINEL DE FORÇA DESTRUÍDO]`).
+  - Reset limpo no Game Over e renascimento.
+
+### 4. Validação e Qualidade
+- **Suíte de Testes Godot (`godot/tests/electrified_floor_test.gd`)**:
+  - 52 asserções cobrindo todas as 5 salas, detecção de tiles de perigo e áreas seguras, cadência exata de 8 ticks de delay, imunidade a balas, 1-hit kill por míssil, desativação imediata do choque e simulação completa de ponta a ponta na Sala 37.
+- **Suíte Unificada (`python3 tools/validate.py`)**:
+  - 49 testes Python PASS.
+  - 21 suítes de testes Godot 4 headless PASS.
+  - **Resultado**: **100% PASS (Zero falhas, código de saída 0)**.
+
+
 
 
 

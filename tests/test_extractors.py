@@ -355,3 +355,52 @@ class ExportRoomDataTests(unittest.TestCase):
         finally:
             tmp_path.unlink(missing_ok=True)
 
+    def test_extract_electrified_floor_data_synthetic(self):
+        from tools.extractors.extract_electrified_floor_data import (
+            extract_electrified_floor_data,
+            CHK_ELECTRIC_FLOOR_ROM_OFFSET,
+            CHK_ELECTRIC_FLOOR_SIGNATURE,
+        )
+        raw = bytearray(CHK_ELECTRIC_FLOOR_ROM_OFFSET + len(CHK_ELECTRIC_FLOOR_SIGNATURE) + 10)
+        raw[CHK_ELECTRIC_FLOOR_ROM_OFFSET : CHK_ELECTRIC_FLOOR_ROM_OFFSET + len(CHK_ELECTRIC_FLOOR_SIGNATURE)] = (
+            CHK_ELECTRIC_FLOOR_SIGNATURE
+        )
+
+        synthetic_pkg = {
+            "rooms": [
+                {"id": i, "expanded_tiles": [0x60 if (i == 37 and idx == 100) else 0 for idx in range(768)]}
+                for i in range(120)
+            ]
+        }
+
+        with tempfile.NamedTemporaryFile(suffix=".rom", delete=False) as tf, tempfile.NamedTemporaryFile(
+            suffix=".json", mode="w", delete=False, encoding="utf-8"
+        ) as pf:
+            tf.write(raw)
+            tmp_rom_path = Path(tf.name)
+            json.dump(synthetic_pkg, pf)
+            tmp_pkg_path = Path(pf.name)
+
+        try:
+            res = extract_electrified_floor_data(tmp_rom_path, tmp_pkg_path)
+            self.assertEqual(res["format_version"], "1.0.0")
+            self.assertEqual(res["damage_per_shock"], 2)
+            self.assertEqual(res["shock_delay_ticks"], 8)
+            self.assertEqual(res["sfx_id"], 24)
+            self.assertEqual(res["total_electrified_rooms"], 5)
+
+            # Check room 37
+            r37 = next(r for r in res["rooms"] if r["room_id"] == 37)
+            self.assertEqual(r37["hazard_tile_ids"], [96, 97])
+            self.assertEqual(r37["power_panel"]["x"], 100)
+            self.assertEqual(r37["power_panel"]["y"], 16)
+            self.assertEqual(r37["power_panel"]["hp"], 2)
+            self.assertIn("MISSILE", r37["power_panel"]["vulnerable_to"])
+            self.assertIn("HANDGUN", r37["power_panel"]["immune_to"])
+            self.assertEqual(r37["hazard_tiles_count"], 1)
+            self.assertEqual(r37["hazard_tile_coords"], [[100 % 32, 100 // 32]])
+        finally:
+            tmp_rom_path.unlink(missing_ok=True)
+            tmp_pkg_path.unlink(missing_ok=True)
+
+
