@@ -1,4 +1,4 @@
-# Transferência — Handoff Atualizado 2026-09-20
+# Transferência — Handoff Atualizado 2026-09-21
 
 > **Regra de continuidade**: atualizar este arquivo a cada commit, antes de avançar
 > para o próximo bloco de trabalho. Assim, qualquer nova sessão retoma exatamente
@@ -49,7 +49,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ---
 
-## 5. Estado atual do projeto (HEAD pós-Etapa 12d)
+## 5. Estado atual do projeto (Tag v0.1.0 — 20 Etapas Concluídas)
 
 ### Etapas concluídas e commitadas
 
@@ -86,6 +86,8 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `d3c8b64` | 19 | Perigo Ambiental de Gás Tóxico e Máscara de Gás (GasHazardSystem, GasCloud, 9 salas canônicas) |
 | `8cc41f5` | 20 | Míssil Teleguiado / Remote-Controlled Missile (RemoteMissile, WeaponSystem, esterçamento e dano 5 HP) |
 | `d7048f1` | fix | Transição contínua vertical de elevadores multi-telas (Salas 241 <-> 242, RoomConnections) |
+| `b27a2c5` | docs | Atualização de documentação e preparação de release |
+| `v0.1.0` | **Release** | **Primeiro Marco Oficial Consolidado (20 Etapas, 218 salas, 100% PASS)** |
 
 ### Dados extraídos disponíveis
 
@@ -136,22 +138,23 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - Sistema de Portas & Desobstrução de Vãos (`door.gd`): suporte a `clearance_tile_indices` para eliminação de blocos de colisão flutuantes em vãos abertos, triggers laterais (WEST/EAST) alinhados ao chão, saída limpa de caminhões (`LORRY_EXIT`) e bloqueio rigoroso de saídas de borda por portas trancadas (ex: Sala 7 -> Sala 11 requer CARD4).
 - Inicialização Canônica na Sala 121: `sandbox_gameplay.tscn` configurada como cena principal em `project.godot`; Snake inicia na Sala 121 em terra firme/cais navegável após a infiltração nas coordenadas `(128.0, 80.0)` com direção `UP` e `CIGARETTES` equipados.
 - Game Over Punitivo MSX2 & Reset Absoluto de Estado: morte com vida zerada bloqueia imediatamente ações do jogador (`is_dead`, `can_control = false`), limpa totalmente inventário, armas, cartões, rank e alerta, recarregando a cena de forma segura na Sala 121 com vida total e controles liberados.
-- Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 18 suítes Godot (100% PASS).
+- Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 19 suítes Godot (100% PASS).
 
 ---
 
 ## 6. Próximas opções de trabalho
 
-Etapas anteriores concluídas e validadas. Candidatos para a próxima etapa:
+Marco `v0.1.0` atingido com 20 etapas concluídas e validadas. Candidatos para a próxima etapa do projeto:
 
-1. **Boss Fight Canônica 2: Machine Gun Kid (Sala 145 / Subsolo do Prédio 1)**:
+1. **Obstáculos Especiais e Armadilhas (Pisos Eletrificados & Pitfalls)**:
+   - Painéis de força (`ID_SWITCH`) destruíveis por Míssil Teleguiado para desligar a alta-voltagem dos pisos (ex: Salas 8, 20).
+   - Alçapões dinâmicos que se abrem sob os passos de Snake (`ID_PITFALL`, `pitfall.asm`).
+
+2. **Boss Fight Canônica 2: Machine Gun Kid (Sala 145 / Subsolo do Prédio 1)**:
    - Segundo chefe do jogo (`ID_MACH_GUN_KID = 34` na ROM), movimentação e rajadas contínuas de metralhadora com dano pesado e resgate de refém.
 
-2. **Mecânica da Caixa de Papelão e Disfarces no Sandbox**:
-   - Sprites autênticos da Cardboard Box, movimentação lenta e uso de uniforme inimigo no Prédio 2.
-
-3. **Obstáculos Especiais e Armadilhas (Pitfalls, Chão Eletrificado, Sala de Gás)**:
-   - Alçapões que abrem sob os pés de Snake (`ID_PITFALL`), pisos eletrificados desativados por controle remoto e consumo de oxigênio/dano por gás na ausência de Máscara de Gás (já coletável na Sala 138).
+3. **Mecânica da Caixa de Papelão e Disfarces no Sandbox**:
+   - Sprites autênticos da Cardboard Box (`ITEM_BOX`), movimentação lenta e uso de uniforme inimigo (`ITEM_UNIFORM`) no Prédio 2.
 
 ---
 

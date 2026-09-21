@@ -1486,6 +1486,81 @@ Correção canônica baseada na tabela de conexões `RoomConnections` da ROM (`d
 - Atualizada a suíte `godot/tests/elevator_test.gd` para validar a identificação de transições de shafts multi-telas e simular o ciclo completo de descida contínua da Sala 242 (Y=180, Sala 39) até a Sala 241 (Y=52, Sala 27).
 - **Resultado**: `python3 tools/validate.py` $\to$ **100% PASS (47 testes Python + 19 suítes Godot, código de saída 0)**.
 
+## 2026-09-21 — Release v0.1.0: Primeiro Marco Oficial do Laboratório Metal Gear MSX2
+
+Tag anotada Git: `v0.1.0`
+
+Primeiro marco consolidado do laboratório de engenharia reversa do Metal Gear original MSX2 (Konami 1987, RC750) e sua reimplementação fiel e modular no Godot 4. Total de 20 etapas de engenharia reversa concluídas, validadas e cobertas por testes automatizados com 100% PASS.
+
+### 1. Resumo dos Pilares Técnicos Entregues na v0.1.0
+
+1. **Extração Reproduzível e Decodificação de Salas da ROM**:
+   - 218 salas reais extraídas e reconstruídas (`rc750-verified/package.json` e snapshots individuais):
+     - Prédio 1 (salas 0–15)
+     - Prédio 2 (salas 16–63)
+     - Prédio 3 (salas 64–125)
+     - Caminhões e Interiores (salas 126–207, incluindo 78 salas de itens/arsenais)
+     - Elevadores (salas 240–250)
+   - Layouts autênticos de $256 \times 192$ px ($8 \times 6$ metatiles compostos por matrizes $4 \times 4$ de tiles $8 \times 8$).
+   - Matrizes de colisão de 768 tiles ($32 \times 24$) decodificadas diretamente das tabelas da ROM.
+
+2. **Física e Locomoção de Solid Snake**:
+   - Sistema de colisão discreto com bounding box autêntica (`BoxColliderDat`).
+   - Velocidade fiel de 2 pixels por tick ($60\text{ fps}$ simulados).
+   - Inicialização canônica da infiltração na Sala 121 (posicionado no cais em $(128.0, 80.0)$ com cigarros no inventário).
+   - Game Over punitivo autêntico MSX2 com bloqueio imediato de controle e reset completo de estado.
+
+3. **Inimigos, Furtividade e IA Militar**:
+   - Tipos de soldados com velocidades canônicas (`SLOW`, `MEDIUM`, `FAST`).
+   - Rotas de patrulha e waypoints autênticos (`Paths` da ROM).
+   - Linha de visão com tolerâncias axiais exatas ($|PlayerX - EnemyX| \le 8$ px na vertical, $|PlayerY - EnemyY| \le 6$ px na horizontal, alcance de 160 px com bloqueio por tiles sólidos).
+   - Câmeras de segurança direcionais com varredura e oclusão de visão.
+   - Feixes laser infravermelhos dinâmicos com alternância temporal e visibilidade via Óculos Infravermelhos (`ITEM_GOGGLES`).
+   - Máquina de estados de Alerta Global militar com 3 fases (NORMAL, ALERT, EVASION), cotas de reforço (`RespawnInfo`) e temporizador de fuga.
+
+4. **Combate, Arsenal e Míssil Teleguiado**:
+   - Socos de 3 golpes com atordoamento temporizado (64 ticks).
+   - Balística discreta a 6 px/tick (Handgun, SMG, Grenade Launcher) e mecânica de silenciador acústico.
+   - Míssil Teleguiado (`Remote-Controlled Missile`): controle direcional em tempo real nas 4 direções, velocidade de 4 px/tick, congelamento da locomoção de Snake durante o voo, colisão contra tiles/bordas, animação de explosão de 15 ticks e dano massivo de 5 HP.
+   - Boss Fight autêntica contra Shoot Gunner (Sala 57) com máquina de estados, rolagem invulnerável, tiros em leque e abrigo tático.
+
+5. **Interiores, Portas e Elevadores**:
+   - Sistema de portas com cartões 1 a 8, trânsito bidirecional suave entre corredores e depósitos (`PlayerInDoorDat`).
+   - Desobstrução automática de blocos de colisão em vãos abertos e bloqueio estrito de saídas de borda por portas trancadas.
+   - Sistema de elevadores com 11 salas e transição contínua vertical entre shafts multi-telas (Salas 241 $\leftrightarrow$ 242).
+
+6. **Comunicações e Perigos Ambientais**:
+   - Rádio Transceptor militar com frequências BCD autênticas da ROM (Big Boss, Schneider, Diane, Jennifer), retratos em pixel art, diálogos canônicos e chamadas automáticas de entrada.
+   - Sistema de Patentes Militares (Ranks ★1 a ★4) com cotas de resgate de reféns, limites progressivos de vida/munição e catálogo de 23 diálogos da ROM.
+   - Perigo ambiental de Gás Tóxico ativo nas 9 salas canônicas da ROM com dano rítmico a cada 16 ticks e imunidade total com Máscara de Gás equipada (`ITEM_GAS_MASK`).
+
+### 2. Validação e Qualidade
+
+- **Suíte Completa (`python3 tools/validate.py`)**:
+  - **47 testes Python** (extratores, engenharia reversa, emulação, validação estrutural).
+  - **19 suítes de testes Godot 4 headless**:
+    1. `godot-import`
+    2. `godot-smoke`
+    3. `godot-room-snapshot`
+    4. `godot-player-movement`
+    5. `godot-room-transition`
+    6. `godot-main`
+    7. `godot-enemy-patrol`
+    8. `godot-combat-system`
+    9. `godot-door-system`
+    10. `godot-lorry-interior`
+    11. `godot-elevator`
+    12. `godot-weapon-system`
+    13. `godot-radio-system`
+    14. `godot-security-cameras`
+    15. `godot-laser-system`
+    16. `godot-alert-system`
+    17. `godot-boss-shotgunner`
+    18. `godot-gas-hazard`
+    19. `godot-remote-missile`
+  - **Resultado**: **100% PASS (Zero falhas, código de saída 0)**.
+
+
 
 
 
