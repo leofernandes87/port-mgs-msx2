@@ -284,6 +284,7 @@ func _give_debug_arsenal() -> void:
 	weapon_system.add_weapon(WeaponSystem.WEAPON_HANDGUN, 50)
 	weapon_system.add_weapon(WeaponSystem.WEAPON_SMG, 50)
 	weapon_system.add_weapon(WeaponSystem.WEAPON_GRENADE_LAUNCHER, 15)
+	weapon_system.add_weapon(WeaponSystem.WEAPON_MISSILE, 10)
 	weapon_system.has_silencer = true
 	inventory.collect_item(InventoryManager.ITEM_SILENCER)
 	inventory.collect_item(InventoryManager.ITEM_CARD1)
