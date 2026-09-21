@@ -42,6 +42,7 @@ def main():
         ("godot-rank-and-prisoners", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/rank_and_prisoners_test.gd"]),
         ("godot-gas-hazard", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/gas_hazard_test.gd"]),
         ("godot-remote-missile", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/remote_missile_test.gd"]),
+        ("godot-capture-prison", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/capture_prison_test.gd"]),
         ("godot-main", [godot, "--headless", "--path", str(ROOT / "godot"), "--quit-after", "5"]),
     ]
     for name, command in commands:
@@ -85,6 +86,8 @@ def main():
             raise RuntimeError("Teste de perigo de gás e máscara não confirmou conclusão")
         if name == "godot-remote-missile" and "REMOTE_MISSILE_OK:" not in result.stdout:
             raise RuntimeError("Teste de míssil teleguiado não confirmou conclusão")
+        if name == "godot-capture-prison" and "CAPTURE_PRISON_OK:" not in result.stdout:
+            raise RuntimeError("Teste de captura e prisão não confirmou conclusão")
         if name == "godot-main" and "BOOT_OK:" not in result.stdout:
             raise RuntimeError("Cena principal não iniciou")
         print(name + ": PASS")

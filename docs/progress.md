@@ -1560,6 +1560,60 @@ Primeiro marco consolidado do laboratório de engenharia reversa do Metal Gear o
     19. `godot-remote-missile`
   - **Resultado**: **100% PASS (Zero falhas, código de saída 0)**.
 
+## 2026-09-21 — Etapa 21: Evento de Captura na Sala 8, Cela 211, Parede Oca e Restituição de Inventário
+
+Entregue com base na engenharia reversa da ROM MSX2 RC750 (`logic/common.asm:26-47`, `logic/capturescene.asm:87-118`, `logic/doors/opendoor.asm:300-320`, `logic/doors/erasedoor.asm:380-384`, `logic/items.asm:120-124, 295-325`, `data/itemsinrooms.asm:155` e `data/doors.asm:728`).
+
+### 1. Evidências da ROM MSX2
+- **Gatilho de Emboscada e Captura na Sala 8 (`logic/common.asm:26-47`)**:
+  - ROM offset `0x1EE8E` e rotinas de lógica comum verificam `Room == 8` e $X \in [192, 208]$ (`0xC0` a `0xD0`) com `EquipBagTaken == 0`.
+  - Dispara a transição para `GAME_MODE_CAPTURED = 0x0B`.
+- **Confisco de Equipamentos e Spawn na Cela (`logic/capturescene.asm:87-118`)**:
+  - Salva estado do inventário e zera itens e armas ativos (`EquipRemoved = 1`, `SelectedWeapon = 0`, `SelectedItem = 0`).
+  - Desativa o alerta ativo e transporta Snake para as coordenadas internas da cela: $(128.0, 80.0)$ (`0x80, 0x50`), direcionado para cima.
+  - Input estritamente restringido ao movimento e soco básico (`PlayerControlMod = 1`), impedindo disparo de armas de fogo e abertura de menus.
+- **Parede Oca e Mecânica de Quebra por Socos (`logic/doors/opendoor.asm:300-320`)**:
+  - Porta/parede ID 103 (`0x67`), render type 14 (`0x0E`), coordenadas de desenho $(32, 32)$.
+  - Área de impacto: $X \in [32, 58]\text{ px}$, $Y \in [64, 80]\text{ px}$ (colunas de tiles 4–5, linhas 8–11).
+  - Contador de resistência: 4 socos direcionados contra a parede esquerda (`Direction.LEFT`).
+  - Ao 4º acerto: parede oca se quebra (`EraseWallPrison2`), desobstruindo a colisão de 8 tiles (`runtime_collision = 0`) e substituindo os tiles para liberar o caminho de fuga.
+- **Restituição de Equipamentos via Bolsa (`data/itemsinrooms.asm:155`, `logic/items.asm:120-124, 295-325`)**:
+  - Objeto `BAG` (ID 34 / `0x22`, ROM offset `0xDB0D`) instanciado na sala adjacente (Sala 212) em $(136.0, 64.0)$.
+  - Ao colidir com a bolsa, todos os itens, armas e contadores de munição confiscados são integralmente restaurados a partir do vetor de backup.
+  - `is_captured` é desmarcado e controles completos são restabelecidos.
+
+### 2. Extração Reproduzível e Contratos Neutros
+- **Extrator Python**: Criado `tools/extractors/extract_capture_prison_data.py` (leitura estrita somente leitura da ROM RC750).
+- **Esquema JSON**: Criado `data/schemas/capture_prison.schema.json`.
+- **Exportação Validada**: Gerado `data/extracted/capture_prison.json`.
+- **Snapshots das Salas 211 e 212**: Gerados `room-211.json`, `room-211-actors.json`, `room-212.json` e `room-212-actors.json` em `data/extracted/stage5-item-rooms/`.
+
+### 3. Implementação no Motor Godot 4
+- **`CaptureSystem` (`godot/scripts/systems/capture_system.gd`)**:
+  - Gerenciador com tipagem estática, controle de flags (`is_captured`, `capture_occurred`, `equip_bag_taken`, `wall_broken`), vetores de backup (`backup_items`, `backup_owned_weapons`, `backup_ammo`, `backup_has_silencer`), detecção de socos contra a parede oca (4 acertos) e sinais reativos.
+- **`InventoryManager` (`godot/scripts/systems/inventory.gd`)**:
+  - Adicionada constante `ITEM_BAG = "BAG"`.
+- **`ItemBox` (`godot/scripts/systems/item_box.gd`)**:
+  - Suporte à coleta da bolsa de equipamentos e rendering procedural autêntico em pixel art de saco militar amarrado.
+- **`RoomManager` (`godot/scripts/systems/room_manager.gd`)**:
+  - Conexões bidirecionais entre a cela da Sala 211 (saída LEFT) e a sala adjacente 212 (saída RIGHT).
+- **`sandbox_gameplay.gd`**:
+  - Monitoramento contínuo da emboscada na Sala 8 ($X \in [192, 208]$).
+  - Execução de backup e spawn na cela da Sala 211 em $(128.0, 80.0)$.
+  - Supressão de armas e menus durante a prisão, mantendo apenas locomoção e socos.
+  - Detecção de 4 socos na parede oca, alteração de tiles no `TileMapLayer` / `room_texture`, zeramento de colisão e passagem aberta.
+  - Restituição total dos equipamentos ao tocar na bolsa na Sala 212.
+  - Reset limpo de estado no Game Over e reinício.
+
+### 4. Validação e Qualidade
+- **Suíte de Testes Godot (`godot/tests/capture_prison_test.gd`)**:
+  - 83 asserções headless cobrindo gatilho de limites da Sala 8, backup e confisco, restrição de input a socos, detecção precisa de 4 acertos, remoção de colisão de 8 tiles, conexões de sala e restituição da bolsa.
+- **Suíte Unificada (`python3 tools/validate.py`)**:
+  - 48 testes Python PASS (incluindo `test_extract_capture_prison_data_synthetic`).
+  - 20 suítes de testes Godot 4 headless PASS.
+  - **Resultado**: **100% PASS (Zero falhas, código de saída 0)**.
+
+
 
 
 

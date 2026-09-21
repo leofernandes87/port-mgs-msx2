@@ -42,10 +42,9 @@ var gas_clouds: Array[GasCloud] = []
 ## Míssil Teleguiado por Controle Remoto (Etapa 20) — logic/weapon/missile.asm
 var active_missile: RemoteMissile = null
 
-
-
-
-# 55 salas onde tiros sem silenciador NÃO alertam a guarnição (RoomShotSecure em logic/checkweaponalert.asm:37-40)
+## Evento de Captura na Sala 8 e Cela da Sala 211 (Etapa 21)
+var capture_system: CaptureSystem = CaptureSystem.new()
+var tilemap_layer: TileMapLayer = null
 const ROOMS_SHOT_SECURE: Array[int] = [
 	5, 6, 9, 10, 20, 29, 37, 50, 64, 65, 66, 67, 68, 71, 83, 102,
 	103, 110, 119, 120, 150, 193, 208, 209, 54, 55, 56, 57, 58, 59, 60, 61,
@@ -368,6 +367,13 @@ func _load_initial_room() -> void:
 func _apply_snapshot() -> void:
 	room_texture = ImageTexture.create_from_image(snapshot.make_image())
 	runtime_collision = Array(snapshot.collision)
+	if snapshot.room_id == CaptureSystem.ROOM_PRISON and capture_system.wall_broken:
+		for tile_coord: Vector2i in CaptureSystem.WALL_TILES:
+			var idx: int = tile_coord.y * 32 + tile_coord.x
+			if idx >= 0 and idx < runtime_collision.size():
+				runtime_collision[idx] = 0
+			if tilemap_layer != null:
+				tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
 	if player:
 		player.set_collision_grid(runtime_collision)
 	_spawn_room_enemies(snapshot.room_id)
@@ -981,6 +987,8 @@ func reset_game_state() -> void:
 	alert_system.reset()
 	if gas_hazard_system:
 		gas_hazard_system.reset()
+	if capture_system:
+		capture_system.reset_state()
 	ItemBox.collected_boxes.clear()
 
 	# 3. Reset de variáveis de ambiente e flags de sala
@@ -1112,6 +1120,10 @@ func _input(event: InputEvent) -> void:
 	# 4. Menu de Armas: Tecla Q ou pressionar Shift
 	if event is InputEventKey:
 		if event.pressed and not event.echo and (event.keycode == KEY_Q or event.keycode == KEY_SHIFT):
+			if capture_system.is_captured:
+				print("CAPTURE_RESTRICTION: Armas confiscadas na cela! Apenas soco básico permitido.")
+				get_viewport().set_input_as_handled()
+				return
 			if weapon_menu:
 				weapon_menu.open_menu(weapon_system)
 				get_viewport().set_input_as_handled()
@@ -1120,6 +1132,10 @@ func _input(event: InputEvent) -> void:
 	# 5. Menu de Itens: Tecla E ou pressionar Ctrl / Alt
 	if event is InputEventKey:
 		if event.pressed and not event.echo and (event.keycode == KEY_E or event.keycode == KEY_CTRL or event.keycode == KEY_ALT):
+			if capture_system.is_captured:
+				print("CAPTURE_RESTRICTION: Itens confiscados na cela! Apenas soco básico permitido.")
+				get_viewport().set_input_as_handled()
+				return
 			if item_menu:
 				item_menu.open_menu(inventory)
 				get_viewport().set_input_as_handled()
@@ -1143,7 +1159,12 @@ func _input(event: InputEvent) -> void:
 			is_fire_action = true
 
 	if is_fire_action:
-		if player and not weapon_system.selected_weapon.is_empty():
+		if capture_system.is_captured:
+			if player:
+				player.punch()
+			get_viewport().set_input_as_handled()
+			return
+		elif player and not weapon_system.selected_weapon.is_empty():
 			if weapon_system.selected_weapon == WeaponSystem.WEAPON_MISSILE:
 				if is_instance_valid(active_missile):
 					print("MISSILE_BUSY: Míssil teleguiado já em voo!")
@@ -1338,10 +1359,22 @@ func _physics_process(_delta: float) -> void:
 		if moved:
 			_check_and_handle_room_transition()
 
+	# Checar evento de captura na Sala 8 (logic/common.asm:26-47)
+	if snapshot and snapshot.room_id == CaptureSystem.ROOM_CAPTURE and capture_system.check_capture_trigger(snapshot.room_id, player.position):
+		_trigger_capture_event()
+		return
+
+	# Checar socos contra a parede oca na Cela da Sala 211 (logic/doors/opendoor.asm:300-320)
+	if snapshot and snapshot.room_id == CaptureSystem.ROOM_PRISON and not capture_system.wall_broken:
+		if player.is_punching and player.punch_timer == 8:
+			if capture_system.check_wall_punch(player.position, player.current_direction, player.punch_timer):
+				if capture_system.wall_broken:
+					break_prison_wall()
+
 	# Atualizar caixas de itens e armas coletáveis
 	for box: ItemBox in item_boxes:
 		if is_instance_valid(box) and not box.collected:
-			box.step_tick(player.position, inventory, weapon_system)
+			box.step_tick(player.position, inventory, weapon_system, capture_system)
 
 	# Atualizar portas interativas
 	for door: RoomDoor in room_doors:
@@ -1843,3 +1876,50 @@ func _on_missile_exploded(pos: Vector2) -> void:
 			if is_instance_valid(enemy) and not enemy.is_dead:
 				enemy.transform_to_alert_guard()
 		print("MISSILE_ALERT: Explosão na sala %d alertou a guarnição!" % snapshot.room_id)
+
+# ---------------------------------------------------------------------------
+# Handlers do Evento de Captura na Sala 8 e Cela da Sala 211 (Etapa 21)
+# ---------------------------------------------------------------------------
+
+func _trigger_capture_event() -> void:
+	capture_system.execute_capture(inventory, weapon_system)
+	change_to_room(CaptureSystem.ROOM_PRISON, CaptureSystem.SPAWN_PRISON, PlayerController.Direction.UP)
+	if status_label:
+		status_label.text = "[EMBOSCADA! CAPTURADO!]"
+	print("CAPTURE_SPAWN: Snake transportado para a cela da Sala 211 sem armas nem itens.")
+
+func break_prison_wall() -> void:
+	capture_system.wall_broken = true
+	# 1. Limpa a colisão dos tiles da parede na grade runtime_collision
+	for tile_coord: Vector2i in CaptureSystem.WALL_TILES:
+		var idx: int = tile_coord.y * 32 + tile_coord.x
+		if idx >= 0 and idx < runtime_collision.size():
+			runtime_collision[idx] = 0
+		if tilemap_layer != null:
+			tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
+
+	if player != null:
+		player.set_collision_grid(runtime_collision)
+
+	# 2. Atualiza a textura da sala abrindo o buraco de passagem
+	if room_texture != null:
+		var img: Image = room_texture.get_image()
+		var floor_col: Color = img.get_pixel(64, 80)
+		for py in range(64, 96):
+			for px in range(32, 48):
+				img.set_pixel(px, py, floor_col)
+		room_texture.update(img)
+
+	if room_display != null:
+		room_display.queue_redraw()
+
+	if status_label != null:
+		status_label.text = "[PAREDE QUEBRADA - FUGA ABERTA!]"
+	print("PRISON_WALL_BROKEN: Parede oca destruída após 4 acertos! Caminho de fuga aberto.")
+
+func _on_equipment_restored() -> void:
+	if status_label != null:
+		status_label.text = "[EQUIPAMENTO RECUPERADO!]"
+	if room_display != null:
+		room_display.queue_redraw()
+	print("EQUIPMENT_RESTORED: Solid Snake recuperou todas as suas armas e itens da bolsa!")

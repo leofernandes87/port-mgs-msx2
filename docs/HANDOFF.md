@@ -88,6 +88,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `d7048f1` | fix | Transição contínua vertical de elevadores multi-telas (Salas 241 <-> 242, RoomConnections) |
 | `b27a2c5` | docs | Atualização de documentação e preparação de release |
 | `v0.1.0` | **Release** | **Primeiro Marco Oficial Consolidado (20 Etapas, 218 salas, 100% PASS)** |
+| `a_commitar` | 21 | Evento de Captura na Sala 8, Cela 211, Parede Oca e Restituição (CaptureSystem, ItemBag, 4 socos) |
 
 ### Dados extraídos disponíveis
 
@@ -100,9 +101,11 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `data/extracted/stage5-batch/` | **126 snapshots rooms 0–125** + PNGs + **129 room-NNN-actors.json** (salas 0-128) |
 | `data/extracted/stage5-lorries/` | **81 snapshots rooms 126–207** + PNGs + **81 room-NNN-actors.json** (salas 126-207) |
 | `data/extracted/stage5-elevators/` | **11 snapshots rooms 240–250** + PNGs + **11 room-NNN-actors.json** (sala 240 validada contra emulador) |
+| `data/extracted/stage5-item-rooms/` | Snapshots das salas de itens e celas (incluindo salas 211 e 212 da prisão) |
 | `data/extracted/respawn_info.json` | **189 salas (0-188)** extraídas da ROM (0xC445) com IDs e pontos de spawn de reforços |
 | `data/extracted/gas_hazard.json` | **9 salas canônicas com gás tóxico** extraídas da ROM (0x4C79) com danos e temporizadores |
 | `data/extracted/missile_weapon.json` | **Constantes do Míssil Teleguiado** extraídas da ROM (velocidade 4 px/tick, 15 ticks explosão, limites por rank) |
+| `data/extracted/capture_prison.json` | **Dados canônicos do evento de captura e prisão** (Door 103 0x1EE8E, ItemBag 0xDB0D, cela 211, restituição 212) |
 
 ### Cobertura de salas disponíveis
 
@@ -110,11 +113,13 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - Prédio 2 (salas 16–63): **48 snapshots** com atores, portas e colisão reais
 - Prédio 3 (salas 64–125): **62 snapshots** com atores, portas e colisão reais
 - Caminhões e Interiores (salas 126–207): **81 snapshots** reais com atores e portas (sala 155 indefinida na ROM)
+- Cela e Prisão (salas 211 e 212): **2 snapshots** reais com quebra de parede e bolsa de equipamentos
 - Elevadores (salas 240–250): **11 snapshots** com atores, portas dummy e colisão reais
-- Total de salas reais com background, colisão e atores: **218 salas** (0 a 207 e 240 a 250)!
+- Total de salas reais com background, colisão e atores: **220 salas** (0 a 207, 211, 212 e 240 a 250)!
 
 ### Estado do Godot
 
+- `CaptureSystem` (`godot/scripts/systems/capture_system.gd`): gerenciamento do ciclo canônico de captura e prisão da Sala 8 (`logic/common.asm:26-47`). Detecta emboscada em $X \in [192, 208]$, confisca e salva itens/armas/munição em vetores de backup, força transição para as coordenadas internas da cela na Sala 211 (`(128.0, 80.0)`), restringe ações do jogador exclusivamente ao soco básico, contabiliza 4 socos na parede oca para abrir fuga rumo à Sala 212, e restaura integralmente o inventário ao tocar na bolsa de equipamentos (`ITEM_BAG`).
 - `RemoteMissile` (`godot/scripts/systems/remote_missile.gd`): míssil teleguiado com controle em tempo real nas 4 direções (`steer`), velocidade canônica de 4 px/tick (`MissileIniSpeed`), teste de colisão contra matriz de tiles 32×24, limites de tela (`ChkShotBoundaries`), animação de explosão de 15 ticks (`0x0F`), dano de 5 HP instantâneo em guardas e chefes, supressão total da movimentação do Snake enquanto o míssil estiver ativo (`Banks0123.asm:8468`), e recarga de +5 mísseis por caixa de munição.
 - `GasHazardSystem` (`godot/scripts/systems/gas_hazard_system.gd`): gerenciamento de perigo de gás tóxico e proteção por máscara de gás (`ITEM_GAS_MASK`), 9 salas canônicas da ROM (`GasRooms`: 29, 94, 96, 97, 98, 100, 101, 112, 114), dano contínuo de 2 HP a cada 16 ticks (`0x10`) desprotegido, 100% de anulação quando equipada e sinais de dano/proteção.
 - `GasCloud` (`godot/scripts/systems/gas_cloud.gd`): ator de nuvem de gás (ID_GAS = 8, `gas.asm`), ciclo visual de 32 ticks visíveis e intervalo oculto aleatório, avanço a cada 8 ticks e cores MSX autênticas.
@@ -134,11 +139,11 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - Acústica do Silenciador: disparo sem silenciador dispara alerta da sala (exceto nas 55 salas seguras `ROOMS_SHOT_SECURE`); disparo com silenciador é silencioso.
 - Sala 150: evento de drop do silenciador ao derrotar os 4 guardas silenciadores em (36, 98).
 - `ElevatorSystem` & `ElevatorCabin`: limites e paradas dos 11 elevadores, movimentação vertical a 1 px/tick.
-- `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/`, `stage5-elevators/` e `stage5-item-rooms/` (78 salas de item 129 a 207 extraídas e conectadas).
+- `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/`, `stage5-elevators/` e `stage5-item-rooms/` (incluindo salas de itens e celas da prisão).
 - Sistema de Portas & Desobstrução de Vãos (`door.gd`): suporte a `clearance_tile_indices` para eliminação de blocos de colisão flutuantes em vãos abertos, triggers laterais (WEST/EAST) alinhados ao chão, saída limpa de caminhões (`LORRY_EXIT`) e bloqueio rigoroso de saídas de borda por portas trancadas (ex: Sala 7 -> Sala 11 requer CARD4).
 - Inicialização Canônica na Sala 121: `sandbox_gameplay.tscn` configurada como cena principal em `project.godot`; Snake inicia na Sala 121 em terra firme/cais navegável após a infiltração nas coordenadas `(128.0, 80.0)` com direção `UP` e `CIGARETTES` equipados.
 - Game Over Punitivo MSX2 & Reset Absoluto de Estado: morte com vida zerada bloqueia imediatamente ações do jogador (`is_dead`, `can_control = false`), limpa totalmente inventário, armas, cartões, rank e alerta, recarregando a cena de forma segura na Sala 121 com vida total e controles liberados.
-- Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 19 suítes Godot (100% PASS).
+- Validação contínua: `python3 tools/validate.py` executa 48 testes Python + 20 suítes Godot (100% PASS).
 
 ---
 

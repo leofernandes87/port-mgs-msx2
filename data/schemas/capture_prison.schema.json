@@ -1,0 +1,64 @@
+{
+  "type": "object",
+  "required": [
+    "format_version",
+    "capture_trigger",
+    "prison_cell",
+    "hollow_wall",
+    "restitution_bag"
+  ],
+  "properties": {
+    "format_version": { "type": "string" },
+    "description": { "type": "string" },
+    "source": { "type": "string" },
+    "capture_trigger": {
+      "type": "object",
+      "required": ["room_id", "min_x", "max_x"],
+      "properties": {
+        "room_id": { "type": "integer" },
+        "min_x": { "type": "integer" },
+        "max_x": { "type": "integer" }
+      }
+    },
+    "prison_cell": {
+      "type": "object",
+      "required": ["room_id", "canonical_rom_room_id", "spawn_x", "spawn_y", "spawn_direction"],
+      "properties": {
+        "room_id": { "type": "integer" },
+        "canonical_rom_room_id": { "type": "integer" },
+        "spawn_x": { "type": "integer" },
+        "spawn_y": { "type": "integer" },
+        "spawn_direction": { "type": "string" }
+      }
+    },
+    "hollow_wall": {
+      "type": "object",
+      "required": ["hits_required", "trigger_x_min", "trigger_x_max", "trigger_y_min", "trigger_y_max", "wall_tiles"],
+      "properties": {
+        "hits_required": { "type": "integer" },
+        "trigger_x_min": { "type": "integer" },
+        "trigger_x_max": { "type": "integer" },
+        "trigger_y_min": { "type": "integer" },
+        "trigger_y_max": { "type": "integer" },
+        "wall_tiles": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "restitution_bag": {
+      "type": "object",
+      "required": ["room_id", "item_id", "x", "y"],
+      "properties": {
+        "room_id": { "type": "integer" },
+        "item_id": { "type": "string" },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" }
+      }
+    }
+  },
+  "additionalProperties": false
+}

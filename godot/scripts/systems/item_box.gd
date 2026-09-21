@@ -17,7 +17,7 @@ func _ready() -> void:
 	if collected_boxes.has(box_unique_id):
 		collected = true
 
-func step_tick(player_pos: Vector2, inventory: InventoryManager, weapon_system: WeaponSystem = null) -> bool:
+func step_tick(player_pos: Vector2, inventory: InventoryManager, weapon_system: WeaponSystem = null, capture_system: CaptureSystem = null) -> bool:
 	if collected:
 		return false
 
@@ -47,6 +47,13 @@ func step_tick(player_pos: Vector2, inventory: InventoryManager, weapon_system: 
 			inventory.collect_item(item_id)
 			if weapon_system != null:
 				weapon_system.set_silencer(true)
+			collected = true
+			collected_boxes[box_unique_id] = true
+			queue_redraw()
+			return true
+		elif item_id == InventoryManager.ITEM_BAG or item_id == "BAG":
+			if capture_system != null:
+				capture_system.restore_equipment(inventory, weapon_system)
 			collected = true
 			collected_boxes[box_unique_id] = true
 			queue_redraw()
@@ -101,6 +108,11 @@ func _draw() -> void:
 		draw_rect(Rect2(-2, -5, 4, 7), Color("e03020"))
 		draw_rect(Rect2(-1, -6, 2, 2), Color.WHITE)
 		draw_rect(Rect2(-4, 0, 8, 2), Color("303840"))
+	elif item_id == InventoryManager.ITEM_BAG or item_id == "BAG":
+		# Bolsa militar de equipamentos (saco cinza/azulado amarrado no topo)
+		draw_rect(Rect2(-5, -4, 10, 9), Color("404858"))
+		draw_rect(Rect2(-4, -6, 8, 3), Color("586878"))
+		draw_rect(Rect2(-2, -7, 4, 2), Color("c8a030"))
 	else:
 		# Ícone de suprimento
 		draw_rect(Rect2(-2, -4, 4, 2), Color.YELLOW)

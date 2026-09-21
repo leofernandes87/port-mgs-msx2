@@ -332,3 +332,26 @@ class ExportRoomDataTests(unittest.TestCase):
         finally:
             tmp_path.unlink(missing_ok=True)
 
+    def test_extract_capture_prison_data_synthetic(self):
+        from tools.extractors.extract_capture_prison_data import (
+            extract_capture_prison_data, DOOR_165_ROM_OFFSET, ITEM_BAG_ROM_OFFSET
+        )
+        raw = bytearray(DOOR_165_ROM_OFFSET + 10)
+        raw[DOOR_165_ROM_OFFSET:DOOR_165_ROM_OFFSET + 5] = bytes([0x67, 0x0E, 0x20, 0x20, 0xA4])
+        raw[ITEM_BAG_ROM_OFFSET:ITEM_BAG_ROM_OFFSET + 4] = bytes([0x22, 0x20, 0x88, 0xFF])
+        with tempfile.NamedTemporaryFile(suffix='.rom', delete=False) as tf:
+            tf.write(raw)
+            tmp_path = Path(tf.name)
+        try:
+            res = extract_capture_prison_data(tmp_path)
+            self.assertEqual(res['format_version'], '1.0.0')
+            self.assertEqual(res['capture_trigger']['room_id'], 8)
+            self.assertEqual(res['capture_trigger']['min_x'], 192)
+            self.assertEqual(res['capture_trigger']['max_x'], 208)
+            self.assertEqual(res['prison_cell']['room_id'], 211)
+            self.assertEqual(res['hollow_wall']['hits_required'], 4)
+            self.assertEqual(res['restitution_bag']['room_id'], 212)
+            self.assertEqual(res['restitution_bag']['item_id'], 'BAG')
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
