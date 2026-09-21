@@ -1687,10 +1687,7 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - 21 suítes de testes Godot 4 headless PASS.
   - **Resultado**: **100% PASS (Zero falhas, código de saída 0)**.
 
-
-
-
-
-
-
-
+### 5. Ajustes e Correções Adicionais (v0.1.2)
+- **Correção da UI (Menus Modais)**: Resolvido o problema em que o Godot interceptava e consumia os cliques do mouse nos menus modais (Pause, Armas, Itens e Rádio), impedindo que os botões (como o "Receber Arsenal") funcionassem via mouse.
+- **Melhoria no Arsenal de Debug**: O míssil teleguiado (`WEAPON_MISSILE`) não estava incluído no kit de armas concedido pelo botão "Receber Arsenal Completo (Kit)" do Menu de Pause, o que impedia testes rápidos em salas eletrificadas. O míssil foi adicionado com 10 munições.
+- **Versionamento Semântico**: Tag `v0.1.2` gerada e aplicada ao repositório marcando essas resoluções.
