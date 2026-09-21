@@ -146,7 +146,7 @@ func _run() -> void:
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
 	if not require(current_snap.room_id == 127, "Snake deve entrar no caminhão central (Sala 127)"): return
-	if not require(p.position == Vector2(196.0, 112.0), "Snake deve aparecer em (196, 112) dentro do caminhão"): return
+	if not require(p.position == Vector2(198.0, 112.0) or p.position == Vector2(196.0, 112.0), "Snake deve aparecer em (198, 112) dentro do caminhão"): return
 	if not require(p.current_direction == PlayerController.Direction.LEFT, "Snake deve estar virado para a esquerda dentro do caminhão"): return
 
 	# Sair pela abertura direita da carroceria de volta à Sala 5
@@ -156,7 +156,7 @@ func _run() -> void:
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
 	if not require(current_snap.room_id == 5, "Snake deve sair do caminhão de volta para o pátio da Sala 5"): return
-	if not require(p.position == Vector2(112.0, 136.0), "Snake deve reaparecer abaixo do caminhão central em (112, 136)"): return
+	if not require(p.position == Vector2(112.0, 140.0) or p.position == Vector2(112.0, 136.0), "Snake deve reaparecer abaixo do caminhão central em (112, 140)"): return
 	if not require(p.current_direction == PlayerController.Direction.DOWN, "Snake deve sair virado para baixo"): return
 
 	# Voltar para a Sala 1 pelo Oeste

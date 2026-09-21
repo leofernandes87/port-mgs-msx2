@@ -78,6 +78,10 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `3bb9410` | 16 | Câmeras de Vigilância e Feixes Laser Infravermelhos (SecurityCamera, LaserSystem, Goggles) |
 | `1aef8a2` | fix | Sandbox: spawn seguro contra colisão no reset e toggle de vida infinita (God Mode) |
 | `a43f6f7` | 17 | Máquina de Estados de Alerta Global, Evasão e Reforços Militares (AlertSystem, RespawnInfo) |
+| `pendente` | 18 | Boss Fight Canônica: Shoot Gunner na Sala 57 (ShotGunner, balística expansiva, HP 20) |
+| `pendente` | UI/Ctrl | Controles Modernos (WASD, J/Z tiro, K/X soco, Q/Shift armas, E/Ctrl itens, R/Tab rádio, Pause ESC) e fix colisão |
+| `pendente` | Doors | Triggers canônicos DoorOpenEnterDat (32px), remoção de caixas em portas abertas e bloqueio da Sala 204 (limbo) |
+| `pendente` | 19 | Sistema de Prisioneiros, Reféns e Patente Militar (RankSystem, Prisoner, Ranks ★1 a ★4, Grey Fox e Ellen) |
 
 ### Dados extraídos disponíveis
 
@@ -103,35 +107,39 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ### Estado do Godot
 
+- `RankSystem` (`godot/scripts/systems/rank_system.gd`): gerenciamento de patentes militares (Class / Ranks ★1 a ★4), cotas de 4 reféns por estrela, limites progressivos de vida (24, 32, 40, 48 HP), limites progressivos de munição (Handgun/SMG 50 a 300, Grenade Launcher 15 a 90) e rações (3 a 12), cura total na promoção e penalidade `DowngradeRank` por baixa de refém.
+- `Prisoner` (`godot/scripts/systems/prisoner.gd`): entidade autêntica de refém com renderização procedural fiel à paleta MSX2 (amarrado vs libertado/agradecendo), tipos canônicos (ID 49 Comum, 50 Ellen Madnar, 51 Grey Fox, 52 Pettrovich Madnar, 55 Falso Madnar), catálogo completo de 23 diálogos da ROM, banner de diálogo e detecção de tiros/socos.
+- `ShotGunner` (`godot/scripts/systems/shot_gunner.gd`): primeiro chefe autêntico do jogo (`ID_SHOT_GUNNER = 33`, Sala 57), máquina de 3 estados (INTRO, ROLAGEM, TIRO), HP inicial de 20 (`idxActorLife[32]`), invulnerabilidade durante rolagem a 4 px/tick, disparo de escopeta a cada 16 ticks ao parar, verificação de abrigo atrás das caixas e derrota limpa (`ShotGunnerStat bit0 = 1`).
+- `ShotGunnerBullet` (`godot/scripts/systems/shot_gunner_bullet.gd`): projétil de escopeta `ID_SGUNNER_SHOT` (43) com velocidade orientada a Snake, expansão em 4 frames de animação e colisão progressiva de shape, infligindo 8 pontos de dano.
 - `AlertSystem` (`godot/scripts/systems/alert_system.gd`): máquina de estados de 3 modos (NORMAL, ALERT, EVASION), cotas de reforço baseadas no nível de cartão de Snake (`NumRespawnGuards = CardLevel + 3`), temporizador de spawn a cada 24 ticks, tabela `RespawnInfo` da ROM, temporizador regressivo de evasão de 99 ticks, reativação imediata ao ser visto e cancelamento por elevadores.
 - `SecurityCamera` (`godot/scripts/systems/security_camera.gd`): ID 6 da ROM, orientações canônicas por sala (`RoomCamTypes`), patrulha a 1 px/tick em waypoints, visada direcional com offset focal (`CameraDrawOffsets`), oclusão por obstáculos sólidos da grade 32×24, furtividade na caixa de papelão e alerta com LED piscante sem ícone '!'.
 - `LaserSystem` (`godot/scripts/systems/laser_system.gd`): ID 35 da ROM, tabelas exatas de `laserconfig.asm` (Salas 24, 25 e 72), teste de toque físico `ChkTouchLaser`, alternância dinâmica da Sala 72 (5 sequências a cada 192 ticks) e visibilidade condicionada aos Óculos Infravermelhos (`ITEM_GOGGLES`, item ID 12).
 - `RadioSystem` (`godot/scripts/systems/radio_system.gd`): frequências canônicas BCD da ROM (Big Boss 120.85/120.13, Schneider 120.79/120.26, Diane 120.33/120.91, Jennifer 120.48), sintonia BCD, envio SEND ("THIS IS SOLID SNAKE..."), banco canônico de diálogos de salas (0, 1, 4, 5, 20, 28, 29, 30, 31, 37, 50, 53, 54, 58, 67, 138), chamadas automáticas de entrada (`check_incoming_call`), autotune e 12 LEDs de sinal.
 - `RadioDialog` (`godot/scripts/systems/radio_dialog.gd`): interface visual militar autêntica MSX2 com visor numérico grande, retratos em pixel art (Snake, Big Boss, Schneider, Diane), typewriter e controle via teclado (atalhos T / F4). Congelamento total de física durante comunicação.
 - `RoomDoor` (`godot/scripts/systems/door.gd`): suporte canônico a `PlayerInDoorDat` (5 renders) e emparelhamento por `IdDoorEnter` para trânsito bidirecional perfeito entre corredores e depósitos/arsenais.
-- `WeaponSystem` (`godot/scripts/systems/weapon_system.gd`): arsenal com Handgun, SMG e Grenade Launcher, contadores de munição respeitando limite de Rank 1 (50 balas) e suporte a silenciador.
+- `WeaponSystem` (`godot/scripts/systems/weapon_system.gd`): arsenal com Handgun, SMG e Grenade Launcher, contadores de munição respeitando limite de Rank 1 a 4 e suporte a silenciador.
 - `Bullet` (`godot/scripts/systems/bullet.gd`): balística discreta a 6 px/tick, alcance de 16 ticks (96 px), colisão com grid de tiles e letalidade de 1 tiro fatal em soldados comuns.
 - `EnemyGuard`: suporte a guardas atiradores (`ID_SHOOTER` = 13, `ID_GUARD_SILENCER` = 57, `ID_GUARD_REDALERT` = 11) e disparo de projéteis em perseguição/alerta.
 - Acústica do Silenciador: disparo sem silenciador dispara alerta da sala (exceto nas 55 salas seguras `ROOMS_SHOT_SECURE`); disparo com silenciador é silencioso.
 - Sala 150: evento de drop do silenciador ao derrotar os 4 guardas silenciadores em (36, 98).
 - `ElevatorSystem` & `ElevatorCabin`: limites e paradas dos 11 elevadores, movimentação vertical a 1 px/tick.
 - `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/` e `stage5-elevators/`.
-- Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 15 suítes Godot (100% PASS).
+- Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 17 suítes Godot (100% PASS).
 
 ---
 
 ## 6. Próximas opções de trabalho
 
-A Etapa 17 está **concluída e validada**. Candidatos para a próxima etapa:
+A Etapa 19 está **concluída e validada**. Candidatos para a próxima etapa:
 
-1. **Boss Fights e Atores Especiais**:
-   - Shoot Gunner (Sala 132 do Prédio 1) ou Machine Gun Kid (Sala 145 do Prédio 2) com rotinas autênticas de combate de chefe.
+1. **Boss Fight Canônica 2: Machine Gun Kid (Sala 145 / Subsolo do Prédio 1)**:
+   - Segundo chefe do jogo (`ID_MACH_GUN_KID = 34` na ROM), movimentação e rajadas contínuas de metralhadora com dano pesado e resgate de refém.
 
-2. **Sistema de Prisioneiros e Resgate de Reféns**:
-   - Atores de prisioneiros (ID 47), Grey Fox, Ellen, contagem e progressão de patente militar (Rank 1 a 4 estrelas).
-
-3. **Mecânica da Caixa de Papelão e Disfarces no Sandbox**:
+2. **Mecânica da Caixa de Papelão e Disfarces no Sandbox**:
    - Sprites autênticos da Cardboard Box, movimentação lenta e uso de uniforme inimigo no Prédio 2.
+
+3. **Obstáculos Especiais e Armadilhas (Pitfalls, Chão Eletrificado, Sala de Gás)**:
+   - Alçapões que abrem sob os pés de Snake (`ID_PITFALL`), pisos eletrificados desativados por controle remoto e consumo de oxigênio/dano por gás na ausência de Máscara de Gás.
 
 ---
 

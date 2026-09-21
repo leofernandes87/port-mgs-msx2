@@ -965,3 +965,251 @@ Etapa 10 implementada com total fidelidade às rotinas da ROM original do MSX2 R
    - Criada suíte `godot/tests/alert_system_test.gd` validando cotas de cartão, ciclo de respawn, transições Normal/Alerta/Evasão e cancelamento por elevador.
    - Registrado `godot-alert-system` em `tools/validate.py`.
    - Resultado: 100% PASS (47 testes Python + 15 suítes Godot).
+
+## 2026-09-20 — Etapa 18 concluída: Boss Fight Canônica — Shoot Gunner (Sala 57)
+
+### O que foi feito
+1. **Engenharia Reversa e Evidências da ROM**:
+   - Localização canônica comprovada: **Sala 57** do Prédio 2 (`ActorsRoom057` em `data/actorsinrooms.asm:370-372`, `dw 9038h` $\rightarrow$ spawn em $X=144, Y=56$). A premissa histórica de Sala 132 foi corrigida com base nas tabelas da ROM.
+   - Constantes e IDs identificados: `ID_SHOT_GUNNER = 0x21` (33) e `ID_SGUNNER_SHOT = 0x2B` (43).
+   - Pontos de vida e balística: `idxActorLife[32] = 0x14` (20 HP) e `BulletDamage[32] = 2` por projétil de pistola $\rightarrow$ **10 tiros de pistola** para derrotar o chefe.
+   - Máquina de 3 estados de `logic/actors/shotgunner.asm`:
+     - **INTRO**: Delay de 2 ticks (`IntroDelay`) e discurso unskippable Texto 61 (*"I'M SHOOT GUNNER! NOBODY HAS EVER BEEN ABLE TO ESCAPE FROM HERE."*).
+     - **ROLAGEM (ROLL)**: Deslocamento lateral a $\pm 4.0$ px/tick em direção ao jogador por até 11 ticks (`Wait = 0x0B`) ou colisão contra parede sólida da grade 32×24 (`ChkTileCollision`). `COLLISION_CFG = 0` (invulnerável a balas durante a rolagem).
+     - **DISPARO (SHOOT)**: Repouso por 45 ticks (`Wait = 0x2D`), `COLLISION_CFG = 3` (vulnerável a tiros). Disparo de escopeta a cada 16 ticks (`(ANIM_CNT & 0x0F) == 0`), pausando fogo se Snake estiver abrigado atrás das caixas ($Y \ge 166$ e $X \ge 170$).
+   - Balística expansiva da escopeta (`ShotGunnerShot`): projétil orientado a Snake com 4 fases de animação visual e colisão (wait 0-6, 7-13, 14-20, 21+ com expansão de raio e colisor). Dano de 8 pontos de vida ao atingir Snake.
+   - Derrota canônica: gravação de flag `ShotGunnerStat bit0 = 1` e restauração da música de área (`SetAreaMusic`). Sem drop direto de item.
+   - Sala 57 confirmada em `ROOMS_SHOT_SECURE` (`RoomShotSecure`): disparos sem silenciador não acionam alarme geral de reforços militares.
+
+2. **Implementação em Godot 4**:
+   - `godot/scripts/systems/shot_gunner.gd`: Classe `ShotGunner` encapsulando estados, colisão lateral, contadores e renderização autoral procedural.
+   - `godot/scripts/systems/shot_gunner_bullet.gd`: Classe `ShotGunnerBullet` com balística fiel a `CalShootSpeed` (2.0 px/tick), 4 frames de expansão, limite de vida de 96 ticks, detecção de impacto e dano a Snake.
+   - `godot/scripts/scenes/sandbox_gameplay.gd`:
+     - Detecção e instanciação do chefe ao entrar na Sala 57 (`actor_type_id == 33`).
+     - Preservação da tecla **`F`** (e `Espaço`) para disparar a arma/soco.
+     - Botão explícito `"Chefe Sala 57 (P)"` e atalho de teclado **`P`** para teleporte à Sala 57, calibrando Snake com atributos do Prédio 2 (Rank 2: 24 HP, Handgun com 50 balas).
+     - Correção do zoom: `boss_dialog_label` movido para overlay flutuante dentro de `viewport_area`, impedindo que textos de múltiplas linhas deformem a barra de controles e mantenham o zoom 3× estável e idêntico a todas as salas.
+     - Limpeza rigorosa de projéteis (`shot_gunner_bullets`) em transição de salas (`change_to_room`) e reinício (`reset_player`).
+     - Cadência justa de combate: invulnerabilidade estendida para 45 ticks (0.75s) ao ser atingido por tiro de escopeta, permitindo reação tática e abrigo atrás das caixas.
+     - Indicador dinâmico de `BOSS FIGHT!` no HUD exibindo fase do chefe (INTRO, ROLAGEM, TIRO) e barra de vida visual em blocos `[■■■■■■■■■■]`.
+
+3. **Testes e Validação Automatizada**:
+   - Criada suíte headless `godot/tests/shot_gunner_test.gd` com 15 asserções (HP inicial, dano de bala, morte em 10 tiros, ciclo Intro $\rightarrow$ Roll, bloqueio por colisão em parede, cadência de tiro a cada 16 ticks e invulnerabilidade durante rolagem). Token `BOSS_SHOOT_GUNNER_OK`.
+   - Registrada suíte `godot-boss-shoot-gunner` em `tools/validate.py`.
+   - Documentação completa em `docs/reverse_engineering/stage-18-shoot-gunner.md`.
+   - `python3 tools/validate.py`: 100% PASS (47 testes Python + 16 suítes Godot).
+
+## 2026-09-20 — Comandos Modernos, Menus Modais (Armas, Itens, Pause) e Correção de Renderização de Colisão
+
+### O que foi feito
+1. **Mapeamento de Controles Modernos**:
+   - **Movimentação**: Teclas de Direção (Setas) ou `W`, `A`, `S`, `D`.
+   - **Atirar / Socar**: Teclas `J` ou `Z` (ou Clique Esquerdo do Mouse). Dispara arma selecionada ou desfere soco se desarmado.
+   - **Soco Dedicado**: Teclas `K` ou `X`. Permite desferir soco corporal mesmo com arma de fogo equipada no slot.
+   - **Menu de Armas**: Tecla `Q` ou segurar `Shift`.
+   - **Menu de Itens / Equipamentos**: Tecla `E` ou segurar `Ctrl` / `Alt`.
+   - **Rádio Transceptor / Codec**: Tecla `R` ou `Tab` (mantidos `T` e `F4` para compatibilidade com suítes de teste).
+   - **Pausa / Menu de Configurações**: Tecla `ESC` ou botão discreto `PAUSE [ESC]` no topo da tela.
+   - Mantidos atalhos rápidos de debug: `C` para alternar colisão, `V` para visão dos guardas, `B` para hitboxes e `U` para acionar item ativo.
+
+2. **Menus Modais Militares Estilo MSX2**:
+   - **Menu de Armas (`WeaponMenu` em `godot/scripts/systems/weapon_menu.gd`)**:
+     - Painel modal militar temático escuro com bordas e destaques no estilo MSX2.
+     - Grade navegável via setas/WASD ou mouse, exibindo todas as armas adquiridas com quantidades de munição e identificação clara do equipamento atualmente equipado.
+     - Suporte a seleção com `Enter`, `Espaço`, `J`, `Z` ou clique do mouse, além de desequipar (selecionar [DESARMADO]).
+   - **Menu de Itens (`ItemMenu` em `godot/scripts/systems/item_menu.gd`)**:
+     - Painel modal militar temático escuro para seleção rápida de cartões (1 a 8), Binóculos, Óculos Infravermelhos, Máscara de Gás, Silenciador, Caixa de Papelão, etc.
+     - Navegação completa por teclado/mouse e opção de desequipar (`[NENHUM ITEM]`).
+   - **Menu de Pausa e Opções (`PauseMenu` em `godot/scripts/systems/pause_menu.gd`)**:
+     - Pausa completa da física e lógica de jogo.
+     - Opções interativas:
+       - **Continuar Jogo**: Retoma o gameplay.
+       - **Invencibilidade / God Mode**: Alterna proteção contra dano instantaneamente.
+       - **Receber Kit de Armas**: Adiciona Handgun, SMG, Silenciador, Goggles e Caixa.
+       - **Exibir Colisão**: Liga/desliga visualização dos collision boxes do mapa.
+       - **Exibir Visão dos Inimigos**: Liga/desliga arcos e linhas de visão de patrulhas e câmeras.
+       - **Exibir Hitbox de Combate**: Liga/desliga hitboxes de soco e projéteis.
+       - **Reiniciar Sala Atual**: Reposiciona Snake no ponto de entrada seguro da sala.
+       - **Guia de Controles**: Exibição completa de todos os atalhos mapeados.
+
+3. **Limpeza do HUD Superior e Correção de Bugs**:
+   - Barra de botões congestionada do topo foi removida e substituída por um design limpo e imersivo com apenas o status de missão e o botão discreto `PAUSE [ESC]`.
+   - Removido o botão de teleporte direto para o boss.
+   - **Correção da Colisão no Mapa**: A alternância do modo de colisão chamava o redesenho apenas do nó raiz, impedindo a atualização na tela atual até a troca de sala. Corrigido para chamar diretamente `room_display.queue_redraw()`, refletindo os collision boxes na tela instantaneamente.
+   - **Correção da Balística do Boss Shoot Gunner**: Projéteis de escopeta agora contam com efeito de spray de chumbo em 4 fases expansivas e limpeza imediata de partículas residuais na transição de salas ou derrota.
+   - **Estabilidade Horizontal do Layout e Indicador CALL**: Corrigido o bug que fazia a tela tremer/balançar horizontalmente a cada 15 frames quando o rádio recebia chamada. A string dinâmica com espaços variáveis foi removida do `status_label` e substituída por um `call_badge` dedicado e estático (`" CALL [R] "`), animado exclusivamente por modulação de cor (`Color`), aliado a `clip_text = true` e `text_overrun_behavior` no `status_label`. Isso garante largura estritamente invariável no container e estabilidade perfeita do viewport.
+
+4. **Validação Automatizada**:
+   - `python3 tools/validate.py`: 100% PASS (47 testes Python + 16 suítes Godot).
+
+## 2026-09-21 — Correção Canônica das Passagens de Portas e Eliminação do Limbo (Sala 204)
+
+### O que foi feito
+1. **Identificação e Resolução da "Caixinha Retangular com 'I'"**:
+   - **Causa**: O método `RoomDoor._draw()` desenhava uma caixa de 16×8 pixels com traço cinza central mesmo com a porta aberta (`is_open = true`), parecendo um botão ou plaqueta flutuante `[ I ]` no vão aberto.
+   - **Correção Fiel à ROM (`drawdoors.asm: DrawDoors2`)**: No MSX2, portas abertas **nunca são desenhadas** (`jr z, DrawDoors3`), revelando naturalmente o vão do cenário do metatile. O `_draw()` agora retorna imediatamente se `is_open == true`, eliminando para sempre a caixinha flutuante.
+   - Quando fechada, a folha metálica foi ampliada para cobrir integralmente os 32 pixels de largura da passagem (RenderType 1 e 2) ou 32 pixels de altura (RenderType 3 e 4).
+
+2. **Triggers Retangulares Fidedignos (`DoorOpenEnterDat`)**:
+   - Substituída a antiga checagem pontual circular (`dist <= 14.0`) pela tabela canônica `DoorOpenEnterDat` da ROM (`external/MetalGear/data/doors.asm:15-35`):
+     - **RenderType 1 (Norte)**: Trigger de entrada de 32 px de largura por 20 px de altura (`Rect2(drawX, drawY + 12, 32, 20)`).
+     - **RenderType 2 (Sul)**: Trigger de entrada de 32 px de largura por 16 px de altura (`Rect2(drawX, drawY - 4, 32, 16)`).
+     - **RenderType 3/4 (Oeste/Leste)**: Trigger de entrada de 20 px de largura por 32 px de altura.
+   - Snake não é mais obrigado a passar por um pixel exato: qualquer travessia pelo vão de 32 pixels ativa a transição de sala de maneira fluida.
+
+3. **Eliminação do Limbo (Sala 204) e Portas Fantasmas da ROM**:
+   - **Descoberta no Disassembly (`external/MetalGear/logic/doors/enterdoor.asm:66-71`)**:
+     - No MSX2 original, a ROM contém filtros explícitos no Z80:
+       - `cp 40h ; Hidden door at room 6 (?!) Connected to room 204 -> jr z, ChkNextDoor`
+       - `cp 6Ch ; Hidden door at room 5 (?!) Connected to room 204 -> jr z, ChkNextDoor`
+     - A Sala 204 é composta 100% por metatile 1 (paredes pretas sólidas), sem saídas — o "limbo". No jogo original, essas portas serviam apenas como marcadores de retorno ao sair de caminhões em movimento e nunca deviam ser transicionadas a pé por Snake.
+   - **Filtro Aplicado no Carregador (`sandbox_gameplay.gd`)**:
+     - Excluídas portas conectadas à Sala 204 (`dest_room == 204`), IDs bloqueados da ROM (`d_id in [64, 108]`), portas dummy (`r_type == 6`) e portas que apontam para a própria sala (`dest_room == room_id`, reservadas para demolição interna com C4).
+   - Na Sala 6 (Área dos Cães), o número de portas foi reduzido das 3 anteriores para as 2 legítimas (Sala 129 e Sala 7), impedindo qualquer transição para paredes sólidas.
+
+4. **Remoção do Mock Obsoleto entre Sala 2 e Sala 4**:
+   - **Causa da Anomalia**: Nas linhas 677–703 de `sandbox_gameplay.gd`, havia um mock sintético hardcoded da Etapa 9 que inseria uma porta oeste forçada na Sala 2 e uma porta leste forçada na Sala 4. Esse mock desenhava um leitor de cartão e uma porta falsa diretamente colada sobre uma parede sólida do corredor.
+   - **Correção Fiel à ROM**: As Salas 2 e 4 não possuem portas na ROM e nem sequer são vizinhas geográficas diretas (`RoomConnections` conecta a Sala 0 com a Sala 4 pelo leste, e a Sala 2 com a Sala 6 pelo leste). O bloco hardcoded foi removido, permitindo que ambas as salas carreguem 100% via dados canônicos da ROM, transitando exclusivamente por bordas de tela conforme o mapa original.
+
+5. **Validação Automatizada**:
+   - `python3 tools/validate.py`: 100% PASS (47 testes Python + 16 suítes Godot).
+
+## 2026-09-21 — Eliminação de Triggers Radiais Espúrios, Arquitetura de Caminhões Móveis (Moving Lorries) e Pareamento Universal
+
+### O que foi feito
+1. **Identificação e Eliminação da "Caixa Invisível fora do Vão"**:
+   - **Causa Raiz**: No método `RoomDoor.check_interaction()`, existia uma verificação de fallback de distância euclidiana `or position.distance_to(player.position) <= 20.0` mesmo quando a porta já estava aberta. Como o `position` da porta em caminhões e paredes corresponde ao canto superior esquerdo da estrutura gráfica (`draw_x = 208, draw_y = 64`), qualquer aproximação de Snake no canto superior direito do caminhão (parede sólida bem acima do vão da caçamba) disparava acidentalmente a transição antes ou fora do vão.
+   - **Correção**: A verificação esférica foi completamente extirpada para portas abertas. A transição agora exige estritamente que Snake esteja dentro do retângulo do vão físico (`enter_box.has_point(player.position)`) e caminhando na direção da saída/passagem (`player.current_direction == expected_dir`).
+   - **Vão Físico da Traseira do Caminhão**: Ajustado para cobrir exatamente as linhas de colisão 11 a 15 (`Rect2(204.0, 88.0, 24.0, 36.0)`), alinhando pixel a pixel com a abertura traseira desenhada no cenário.
+
+2. **Engenharia Reversa dos Caminhões Móveis da ROM (`external/MetalGear/logic/lorry.asm`)**:
+   - **Descoberta no Disassembly Z80**:
+     - No MSX2, existem 6 interiores de caminhões que realizam deslocamento/fast travel (`MovingLorries: db 199, 217, 219, 213, 215, 173`).
+     - Ao entrar nesses caminhões, a ROM aciona `ChkLorryMov`, definindo `GAME_MODE_LORRY`, tremendo a tela e exibindo a mensagem: `"I goofed. The lorry started to move"` (Texto 91).
+     - Quando o caminhão para, a porta de saída do interior (ex: Porta 117 na Sala 199) aponta para um pátio diferente (ex: Sala 5).
+     - Nos pátios externos (Salas 5 e 9), existem portas gêmeas no mesmo local do caminhão comentadas na dissassembly como: `; Fake door used to locate the player when he exits a moving lorry` (portas 117, 133, 146, 152).
+     - Essas portas nos pátios servem **exclusivamente como âncoras de pareamento de spawn** para quando Snake desce do caminhão móvel. Elas nunca devem ser gatilhos de entrada pelo pátio.
+   - **Implementação**:
+     - Marcadas portas de retorno com `is_entry_disabled = true` nas salas 5 e 9. O jogador não é mais "sugado" para caminhões móveis sem contexto a partir do pátio externo.
+     - Detecção canônica de deslocamento de caminhão móvel com feedback `MOVING_LORRY`.
+
+3. **Universalização do Pareamento Canônico de Portas (`IdDoorEnter` e `PlayerInDoorDat`)**:
+   - Eliminados os hardcodes antigos manuais das salas 5, 126, 127 e 128 em `sandbox_gameplay.gd`.
+   - Todas as 250 salas agora carregam portas e caminhões de forma unificada através dos metadados extraídos da ROM (`stage5-batch` e `stage5-lorries`).
+   - Ao transicionar por qualquer porta ou caminhão, o pareamento `IdDoorEnter` consulta a tabela canônica da ROM (`logic/nextroom.asm:457-480`), posicionando Snake com perfeição:
+     - Render 1 (Norte / Descendo da traseira no pátio): `Vector2(drawX + 12.0, drawY + 40.0)`, direção `DOWN`.
+     - Render 4 (Leste / Interior do caminhão): `Vector2(drawX - 10.0, drawY + 48.0)`, direção `LEFT`.
+   - Resolvido o spawn errôneo em `(24.0, 64.0)` na Sala 5: Snake agora surge descendo perfeitamente da traseira aberta em `(48.0, 108.0)` virado para baixo.
+
+4. **Validação Automatizada**:
+   - `python3 tools/validate.py`: **100% PASS (47 testes unitários Python + 16 suítes Godot)**.
+
+## 2026-09-21 — Etapa 19: Sistema de Prisioneiros, Reféns e Patente Militar (Ranks ★1 a ★4)
+
+Implementação do sistema central de progressão de *Metal Gear* (MSX2 RC750), conectando resgate de prisioneiros, diálogos táticos canônicos da trama, crescimento de atributos de Snake e penalidade por baixas de reféns.
+
+### Fundamentação da ROM e Engenharia Reversa
+
+- **Atores de Prisioneiros (`external/MetalGear/logic/actors/prisoner.asm` e `data/actorsinrooms.asm`)**:
+  - `ID_PRISONER = 49 (0x31)`: Prisioneiro comum amarrado presente em 19 salas do complexo.
+  - `ID_ELLEN = 50 (0x32)`: Ellen Madnar (Sala 167 em `128, 96`).
+  - `ID_GREY_FOX = 51 (0x33)`: Agente Grey Fox (Sala 164 em `128, 96`).
+  - `ID_MADNAR = 52 (0x34)`: Dr. Pettrovich Madnar (Sala 182 em `128, 96`).
+  - `ID_FAKE_MADNAR = 55 (0x37)`: Falso Dr. Madnar (Impostor na Sala 189 em `128, 96`).
+  - Catálogo autêntico de 23 diálogos da ROM preservado integralmente (`PRISONER_TEXTS` de `logic/actors/prisoner.asm:267-286`).
+
+- **Mecânica de Resgate e Interação**:
+  - Resgate por aproximação/contato de Snake desarmado (`check_touch` com raio de $12\text{ px}$).
+  - Banner de diálogo inferior estilo Text Window do MSX2 com fundo escuro e tipografia retrô, exibindo o texto do refém e auto-fechando após 6 segundos ou nova interação.
+  - O refém libertado assume sprite de braços soltos e agradecimento.
+  - Reféns resgatados são persistidos em `rescued_rooms` e não voltam a aparecer amarrados.
+
+- **Patente Militar e Escalonamento de Atributos (`Banks0123.asm:9574-9679` e `logic/maxammo.asm`)**:
+  - Promoção: a cada $4$ reféns resgatados, Snake ganha uma nova estrela de patente (Class / Rank ★1 $\to$ ★2 $\to$ ★3 $\to$ ★4).
+  - Vida máxima escalonada:
+    - Rank ★1: $24$ HP
+    - Rank ★2: $32$ HP
+    - Rank ★3: $40$ HP
+    - Rank ★4: $48$ HP
+    - Na promoção de rank, a vida de Snake é totalmente restaurada (`full_heal`), conforme o comportamento da ROM.
+  - Capacidade máxima de munição (`logic/maxammo.asm:112-147`):
+    - Handgun / SMG: Rank 1: $50$ | Rank 2: $100$ | Rank 3: $200$ | Rank 4: $300$
+    - Grenade Launcher: Rank 1: $15$ | Rank 2: $30$ | Rank 3: $60$ | Rank 4: $90$
+  - Capacidade máxima de rações (`logic/maxammo.asm:20-35`):
+    - Rank 1: $3$ | Rank 2: $6$ | Rank 3: $9$ | Rank 4: $12$
+  - Visualização de estrelas de patente no HUD de status: `[★☆☆☆]` a `[★★★★]`.
+
+- **Penalidade de Morte de Refém (`DowngradeRank` em `Banks0123.asm:9581-9625`)**:
+  - Se Snake disparar com arma de fogo ou socar um refém, o prisioneiro é eliminado.
+  - Snake sofre rebaixamento imediato de patente (`current_rank -= 1`, mínimo Rank 1), perdendo $1$ estrela, recalculando a vida máxima e podando a munição excedente.
+
+### Implementação em Godot 4
+
+1. **`RankSystem` (`godot/scripts/systems/rank_system.gd`)**:
+   - Controle de patente (1 a 4), contador de reféns para o próximo rank, total resgatado, registro de salas libertadas.
+   - Sinais `rank_changed`, `prisoner_rescued` e `prisoner_killed`.
+   - Métodos `register_rescue()`, `downgrade_rank()`, `register_kill()`.
+2. **`Prisoner` (`godot/scripts/systems/prisoner.gd`)**:
+   - Entidade autêntica com renderização procedural dos sprites MSX2 (amarrado vs libertado/agradecendo, variantes de cor para Ellen, Grey Fox e Dr. Madnar).
+   - Suporte a detecção de tiro de projéteis e soco com consequências de eliminação.
+3. **Integração no Gameplay (`godot/scripts/scenes/sandbox_gameplay.gd`)**:
+   - `_spawn_room_prisoners()` integrado ao ciclo `_apply_snapshot()`.
+   - Instanciação de reféns a partir dos arquivos extraídos de atores da ROM (`stage5-lorries/room-NNN-actors.json`).
+   - Detecção de colisão física de balas de Snake contra reféns.
+   - Banner de texto retrô para diálogos de resgate.
+   - Status bar no HUD exibindo as estrelas de classe (`CLASS: ★☆☆☆`).
+4. **Atualizações de Capacidades Dinâmicas**:
+   - `WeaponSystem.update_rank_capacities(rank)`.
+   - `InventoryManager.update_rank_capacities(rank)`.
+   - `PlayerController.set_rank_life(new_max_life, full_heal)`.
+5. **Suíte de Testes Automatizada (`godot/tests/rank_and_prisoners_test.gd`)**:
+   - 10 cenários e 65 asserções cobrindo atributos iniciais, progressão sequencial até Rank 4, cura automática, expansão de munição e rações, resgates canônicos de Grey Fox e Ellen Madnar, persistência de sala e punição por *DowngradeRank*.
+6. **Validação**:
+   - `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.
+
+## 2026-09-21 — Ajustes de Usabilidade: Coleta Canônica de Itens sobre Móveis (AABB 20px) e Resolução 720p com Janela Redimensionável
+
+1. **Alcance Canônico de Coleta de Itens (`ItemBox`)**:
+   - **Causa Raiz**: O método `step_tick` utilizava uma distância radial restrita (`dist <= 12.0`). Quando uma caixa de suprimentos estava localizada sobre móveis com colisão sólida (mesas, prateleiras, balcões, como o Card 1 na Sala 4), os colliders de Snake barravam a aproximação a cerca de 16 a 18 pixels do centro da caixa, tornando o item inalcançável.
+   - **Engenharia Reversa (`external/MetalGear/logic/items.asm:60-98` - `ChkTakeItem`)**:
+     - No MSX2, a ROM realiza teste AABB retangular independente em X e Y:
+       - Raio horizontal X: $C = 20\text{ pixels}$ (`0x14`).
+       - Raio vertical Y: $16\text{ a }20\text{ pixels}$.
+   - **Correção**: Implementada verificação de proximidade canônica `dx <= 20.0 and dy <= 20.0` em `item_box.gd`. Ao encostar na borda sólida de qualquer mesa ou móvel, Snake alcança e coleta o item imediatamente.
+   - **Validação**: Caso de teste adicionado em `doors_and_inventory_test.gd` comprovando coleta a 18px de distância de mesa sólida.
+
+2. **Resolução de Janela 720p e Redimensionamento Livre (Resizable)**:
+   - Resolução base atualizada de $960 \times 540$ para **$1280 \times 720$** em `project.godot`.
+   - Ativado `window/size/resizable=true` permitindo esticar ou maximizar a janela livremente.
+   - O algoritmo `_update_world_transform()` eleva a escala inteira padrão do jogo de $2\times$ ($512 \times 384$) para **$3\times$ ($768 \times 576$)**, deixando os gráficos e textos muito mais nítidos e confortáveis.
+   - Adicionado atalho de alternância de tela cheia via teclado com **F11** e **Alt + Enter**.
+   - Validação da suíte: **100% PASS** via `tools/validate.py`.
+
+## 2026-09-21 — Correção Integral do Sistema de Cartões, Trancas de Portas e Injeção de Colisão Física
+
+Diagnóstico aprofundado e correção completa do comportamento de portas trancadas por cartão no Prédio 1, restaurando a fidelidade à ROM do MSX2 RC750 (`logic/doors/opendoor.asm`, `enterdoor.asm`, `data/doors.asm`).
+
+### 1. Causas Raiz Identificadas e Corrigidas
+
+1. **Perda de Injeção de Colisão por Tipagem (`PackedByteArray` vs `Array`)**:
+   - **Causa Raiz**: O campo `RoomSnapshot.collision` é tipado como `PackedByteArray`. Em GDScript 4, `PackedByteArray` é um tipo de valor com semântica *copy-on-write*. Ao invocar `inject_collision(collision_grid: Array)`, o Godot realizava conversão por valor (gerando uma cópia temporária e descartável). O grid estático do snapshot e a referência em `PlayerController.collision_grid` permaneciam completamente inalterados com os valores `0` (livre) dos vãos de porta do cenário, permitindo que Snake atravessasse portas fechadas como se fossem ar.
+   - **Correção**: `SandboxGameplay` agora instancia e gerencia um `runtime_collision: Array` mutável por referência a partir de `snapshot.collision`. Portas injetam fisicamente `1` nas suas coordenadas de bloqueio e limpam para `0` quando abertas, sincronizando instantaneamente a colisão do jogador, tiros e inimigos.
+   - Adicionada verificação preventiva em `door.gd`: se `collision_tile_indices` estiver vazio no momento da injeção, `_calculate_collision_tiles()` é invocado antes de iterar.
+
+2. **Portas Trancadas por Cartão Iniciavam Abertas (`is_open = true`)**:
+   - **Causa Raiz**: A condição de spawn em `sandbox_gameplay.gd` verificava `(raw_logic & 0x80) != 0 or rule_id in [1, 10, 11] or dest_room in lorry_rooms...`. Embora correta para caminhões e elevadores, regras de cartão (regras 2 a 9: CARD1 a CARD8) não tinham prioridade estrita, permitindo que certas portas com flags no bit 7 nascessem com `is_open = true`.
+   - **Correção**: Regra explícita aplicada: se `rule_id >= 2 and rule_id <= 9`, a porta **SEMPRE** nasce fechada (`d.is_open = false`), sem exceções.
+
+3. **Validação Rigorosa de Cartão em `check_interaction()`**:
+   - **Causa Raiz**: Em `door.gd`, a condição anterior `if required_card.is_empty() or inventory.get_selected_item() == required_card:` abria a porta automaticamente para qualquer regra onde `required_card` estivesse vazio.
+   - **Correção**: Apenas portas com o cartão correto selecionado (`inventory.get_selected_item() == required_card`) podem ser abertas. Portas sem cartão só podem ser abertas se sua regra canônica for neutra/automática (`open_rule_id in [1, 10, 11]`).
+
+4. **Retângulo de Entrada de Portas no Eixo Leste (`DoorOrientation.EAST`)**:
+   - Corrigido o `get_enter_trigger_rect()` para que portas de edifícios na parede leste (`render_type_id == 4`) utilizem sua posição real (`Rect2(position.x - 4.0, position.y - 8.0, 24.0, 32.0)`), restringindo o retângulo `Rect2(204.0, 88.0, 24.0, 36.0)` estritamente a interiores de caminhão móvel (`LORRY_EXIT`).
+
+### 2. Validação Automatizada
+
+- **Suíte de Testes Expandida (`godot/tests/doors_and_inventory_test.gd`)**:
+  - Adicionado teste de integração em `SandboxGameplay` comprovando que Snake sem cartão é fisicamente barrado pela colisão da porta fechada da Sala 8, não transiciona para a Sala 138, e só consegue abrir e avançar quando seleciona `CARD1` no inventário.
+- **Validação Global**:
+  - `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.

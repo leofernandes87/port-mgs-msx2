@@ -19,8 +19,7 @@ var ammo: Dictionary = {
 	WEAPON_GRENADE_LAUNCHER: 0,
 }
 
-# Limites de munição para Rank 1 (Class 0 na ROM - MaxAmmoLv1 em maxammo.asm:112-119)
-# HAND_GUN: 50h = 50 balas, SMG: 50h = 50 balas, GRENADE: 15h = 15 granadas
+# Limites de munição dinâmicos baseados no Rank (Class 0 a 3 na ROM - maxammo.asm:112-147)
 var max_ammo: Dictionary = {
 	WEAPON_HANDGUN: 50,
 	WEAPON_SMG: 50,
@@ -29,6 +28,35 @@ var max_ammo: Dictionary = {
 
 # Supressor de ruído (InvSupressor em logic/items.asm:188)
 var has_silencer: bool = false
+
+func update_rank_capacities(rank: int) -> void:
+	match rank:
+		1:
+			max_ammo[WEAPON_HANDGUN] = 50
+			max_ammo[WEAPON_SMG] = 50
+			max_ammo[WEAPON_GRENADE_LAUNCHER] = 15
+		2:
+			max_ammo[WEAPON_HANDGUN] = 100
+			max_ammo[WEAPON_SMG] = 100
+			max_ammo[WEAPON_GRENADE_LAUNCHER] = 30
+		3:
+			max_ammo[WEAPON_HANDGUN] = 200
+			max_ammo[WEAPON_SMG] = 200
+			max_ammo[WEAPON_GRENADE_LAUNCHER] = 60
+		4:
+			max_ammo[WEAPON_HANDGUN] = 300
+			max_ammo[WEAPON_SMG] = 300
+			max_ammo[WEAPON_GRENADE_LAUNCHER] = 90
+		_:
+			max_ammo[WEAPON_HANDGUN] = 50
+			max_ammo[WEAPON_SMG] = 50
+			max_ammo[WEAPON_GRENADE_LAUNCHER] = 15
+
+	# Ajusta munição atual se exceder o novo limite (em caso de rebaixamento de rank)
+	for w_id: String in ammo.keys():
+		var cap: int = int(max_ammo.get(w_id, 50))
+		if ammo[w_id] > cap:
+			ammo[w_id] = cap
 
 func has_weapon(weapon_id: String) -> bool:
 	return owned_weapons.has(weapon_id)
@@ -64,6 +92,9 @@ func add_weapon(weapon_id: String, initial_ammo: int = 0) -> bool:
 		return true
 
 	return false
+
+func add_ammo(weapon_id: String, count: int) -> bool:
+	return add_weapon(weapon_id, count)
 
 ## Coleta de caixa de munição (PickAmmoCrate em logic/items.asm:333-356)
 ## Concede +20 balas de pistola, +20 de SMG e +6 granadas respeitando os limites da patente

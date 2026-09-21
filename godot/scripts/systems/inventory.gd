@@ -23,7 +23,18 @@ const ITEM_AMMO_CRATE: String = "AMMO_CRATE"   # ID 35 na ROM (AMMO_CRATE)
 var items: Array[String] = []
 var selected_index: int = -1
 var rations_count: int = 0
-var max_rations: int = 3 # Rank 1: limite de 3 rações
+var max_rations: int = 3 # Limite dinâmico de rações baseado no Rank (maxammo.asm:20-35)
+
+func update_rank_capacities(rank: int) -> void:
+	match rank:
+		1: max_rations = 3
+		2: max_rations = 6
+		3: max_rations = 9
+		4: max_rations = 12
+		_: max_rations = 3
+
+	if rations_count > max_rations:
+		rations_count = max_rations
 
 func has_item(item_id: String) -> bool:
 	if item_id == ITEM_RATION:

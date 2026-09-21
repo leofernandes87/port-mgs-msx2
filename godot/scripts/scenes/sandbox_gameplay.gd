@@ -15,6 +15,7 @@ var bullets: Array[Bullet] = []
 var silencer_dropped_room_150: bool = false
 var item_boxes: Array[ItemBox] = []
 var room_doors: Array[RoomDoor] = []
+var runtime_collision: Array = []
 var room_texture: ImageTexture
 var show_collision: bool = false
 var show_enemy_vision: bool = false
@@ -23,6 +24,14 @@ var god_mode_btn: CheckButton
 var zoom: float = 3.0
 var canvas_origin: Vector2 = Vector2.ZERO
 var alert_system: AlertSystem = AlertSystem.new()
+var rank_system: RankSystem = RankSystem.new()
+var prisoners: Array[Prisoner] = []
+var dialog_banner_label: Label = null
+
+## Boss Shoot Gunner (Etapa 18) — ID_SHOT_GUNNER = 0x21 (33), Sala 57
+var shot_gunner: ShotGunner = null
+var shot_gunner_bullets: Array[ShotGunnerBullet] = []
+var boss_dialog_label: Label = null
 
 # 55 salas onde tiros sem silenciador NÃO alertam a guarnição (RoomShotSecure em logic/checkweaponalert.asm:37-40)
 const ROOMS_SHOT_SECURE: Array[int] = [
@@ -42,9 +51,11 @@ const ELEVATOR_STATE_IDLE: int = 0
 const ELEVATOR_STATE_MOVING: int = 1
 
 var status_label: Label
-var collision_btn: CheckButton
-var colliders_btn: CheckButton
-var vision_btn: CheckButton
+var call_badge: Label
+
+var weapon_menu: WeaponMenu
+var item_menu: ItemMenu
+var pause_menu: PauseMenu
 
 # Posição inicial padrão (Sala 1: centro do corredor livre da entrada)
 const DEFAULT_SPAWN_X: float = 128.0
@@ -62,79 +73,38 @@ func _ready() -> void:
 	column.add_theme_constant_override("separation", 6)
 	margin.add_child(column)
 
-	# Linha 1: Título e Status de Vida/Alerta
+	# Linha 1: Título, Status de Vida/Alerta e Botão de Pause
 	var header_bar := HBoxContainer.new()
+	header_bar.add_theme_constant_override("separation", 12)
 	column.add_child(header_bar)
 
 	var title := Label.new()
-	title.text = "Metal Gear MSX2 · Sandbox"
+	title.text = "Metal Gear MSX2"
+	title.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
 	header_bar.add_child(title)
+
+	call_badge = Label.new()
+	call_badge.text = " CALL [R] "
+	call_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	call_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	call_badge.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25))
+	call_badge.modulate = Color(0.0, 0.0, 0.0, 0.0)  # Inicia invisível sem afetar layout
+	header_bar.add_child(call_badge)
 
 	status_label = Label.new()
 	status_label.text = "Carregando..."
 	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	status_label.clip_text = true
+	status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	status_label.custom_minimum_size = Vector2(80, 0)
 	header_bar.add_child(status_label)
 
-	# Linha 2: Controles e Atalhos (HFlowContainer evita qualquer corte na direita)
-	var controls_bar := HFlowContainer.new()
-	controls_bar.add_theme_constant_override("h_separation", 10)
-	controls_bar.add_theme_constant_override("v_separation", 4)
-	column.add_child(controls_bar)
-
-	collision_btn = CheckButton.new()
-	collision_btn.text = "Colisão (C)"
-	collision_btn.focus_mode = Control.FOCUS_NONE
-	collision_btn.toggled.connect(func(v: bool) -> void: 
-		show_collision = v
-		if room_display:
-			room_display.queue_redraw()
-	)
-	controls_bar.add_child(collision_btn)
-
-	colliders_btn = CheckButton.new()
-	colliders_btn.text = "Pontos Snake (V)"
-	colliders_btn.focus_mode = Control.FOCUS_NONE
-	colliders_btn.toggled.connect(func(v: bool) -> void: 
-		if player:
-			player.show_debug_colliders = v
-			player.queue_redraw()
-	)
-	controls_bar.add_child(colliders_btn)
-
-	vision_btn = CheckButton.new()
-	vision_btn.text = "Visão Inimigos (B)"
-	vision_btn.focus_mode = Control.FOCUS_NONE
-	vision_btn.toggled.connect(func(v: bool) -> void:
-		show_enemy_vision = v
-		for enemy: EnemyGuard in enemies:
-			enemy.show_debug_vision = v
-			enemy.queue_redraw()
-	)
-	controls_bar.add_child(vision_btn)
-
-	god_mode_btn = CheckButton.new()
-	god_mode_btn.text = "Vida Infinita (I)"
-	god_mode_btn.focus_mode = Control.FOCUS_NONE
-	god_mode_btn.toggled.connect(func(v: bool) -> void:
-		infinite_life = v
-		if player:
-			player.infinite_life = v
-			if v:
-				player.life = player.max_life
-				player.queue_redraw()
-	)
-	controls_bar.add_child(god_mode_btn)
-
-	var reset_btn := Button.new()
-	reset_btn.text = "Reiniciar (R)"
-	reset_btn.focus_mode = Control.FOCUS_NONE
-	reset_btn.pressed.connect(reset_player)
-	controls_bar.add_child(reset_btn)
-
-	var help_label := Label.new()
-	help_label.text = "· Mover: Setas/WASD · Atirar: Espaço/F · Soco: M/Z/J · Arma: Q · Kit: G · Item: E · Ração: U · Vida Inf: I · Reset: R"
-	controls_bar.add_child(help_label)
+	var pause_btn := Button.new()
+	pause_btn.text = "PAUSE [ESC]"
+	pause_btn.focus_mode = Control.FOCUS_NONE
+	pause_btn.pressed.connect(_toggle_pause_menu)
+	header_bar.add_child(pause_btn)
 
 	# Área central de jogo (Control que contém e centraliza o mundo do jogo)
 	viewport_area = Control.new()
@@ -145,6 +115,29 @@ func _ready() -> void:
 	viewport_area.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	viewport_area.resized.connect(_on_viewport_resized)
 	column.add_child(viewport_area)
+
+	# Overlay flutuante de diálogo do boss (dentro de viewport_area, preservando a altura e o zoom 100%)
+	boss_dialog_label = Label.new()
+	boss_dialog_label.visible = false
+	boss_dialog_label.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	boss_dialog_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boss_dialog_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.2))
+	boss_dialog_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.9))
+	boss_dialog_label.add_theme_constant_override("shadow_offset_x", 1)
+	boss_dialog_label.add_theme_constant_override("shadow_offset_y", 1)
+	viewport_area.add_child(boss_dialog_label)
+
+	# Banner inferior de diálogos e mensagens de reféns (MSX2 Text Window)
+	dialog_banner_label = Label.new()
+	dialog_banner_label.visible = false
+	dialog_banner_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	dialog_banner_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dialog_banner_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dialog_banner_label.add_theme_color_override("font_color", Color(1.0, 1.0, 1.0))
+	dialog_banner_label.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 0.95))
+	dialog_banner_label.add_theme_constant_override("shadow_offset_x", 1)
+	dialog_banner_label.add_theme_constant_override("shadow_offset_y", 1)
+	viewport_area.add_child(dialog_banner_label)
 
 	# Nó container 2D escalado (mundo nativo 256x192)
 	game_world = Node2D.new()
@@ -183,7 +176,91 @@ func _ready() -> void:
 	alert_system.state_changed.connect(_on_alert_state_changed)
 	alert_system.reinforcement_requested.connect(_on_reinforcement_requested)
 
+	# Menus modais MSX2
+	weapon_menu = WeaponMenu.new()
+	weapon_menu.weapon_selected.connect(_on_weapon_menu_selected)
+	add_child(weapon_menu)
+
+	item_menu = ItemMenu.new()
+	item_menu.item_selected.connect(_on_item_menu_selected)
+	add_child(item_menu)
+
+	pause_menu = PauseMenu.new()
+	pause_menu.god_mode_toggled.connect(func(v: bool) -> void:
+		infinite_life = v
+		if player:
+			player.infinite_life = v
+			if v:
+				player.life = player.max_life
+				player.queue_redraw()
+	)
+	pause_menu.collision_toggled.connect(func(v: bool) -> void:
+		show_collision = v
+		if room_display:
+			room_display.queue_redraw()
+	)
+	pause_menu.enemy_vision_toggled.connect(func(v: bool) -> void:
+		show_enemy_vision = v
+		for enemy: EnemyGuard in enemies:
+			if is_instance_valid(enemy):
+				enemy.show_debug_vision = v
+				enemy.queue_redraw()
+		for cam: SecurityCamera in cameras:
+			if is_instance_valid(cam):
+				cam.show_debug_vision = v
+	)
+	pause_menu.colliders_toggled.connect(func(v: bool) -> void:
+		if player:
+			player.show_debug_colliders = v
+			player.queue_redraw()
+	)
+	pause_menu.give_arsenal_requested.connect(_give_debug_arsenal)
+	pause_menu.reset_room_requested.connect(reset_player)
+	add_child(pause_menu)
+
 	call_deferred("_post_ready_layout")
+
+func _on_weapon_menu_selected(w_name: String) -> void:
+	if player:
+		player.queue_redraw()
+	print("WEAPON_MENU: Arma selecionada: %s" % (w_name if not w_name.is_empty() else "[DESARMADO]"))
+
+func _on_item_menu_selected(i_name: String) -> void:
+	if player:
+		player.queue_redraw()
+	print("ITEM_MENU: Item selecionado: %s" % (i_name if not i_name.is_empty() else "[NENHUM]"))
+
+func _toggle_pause_menu() -> void:
+	if pause_menu:
+		if pause_menu.visible:
+			pause_menu.close_menu()
+		else:
+			if weapon_menu and weapon_menu.visible:
+				weapon_menu.close_menu()
+			if item_menu and item_menu.visible:
+				item_menu.close_menu()
+			if radio_dialog and radio_dialog.is_active:
+				radio_dialog.close_radio()
+			pause_menu.open_menu(infinite_life, show_collision, show_enemy_vision, player.show_debug_colliders if player else false)
+
+func _give_debug_arsenal() -> void:
+	weapon_system.add_weapon(WeaponSystem.WEAPON_HANDGUN, 50)
+	weapon_system.add_weapon(WeaponSystem.WEAPON_SMG, 50)
+	weapon_system.add_weapon(WeaponSystem.WEAPON_GRENADE_LAUNCHER, 15)
+	weapon_system.has_silencer = true
+	inventory.collect_item(InventoryManager.ITEM_SILENCER)
+	inventory.collect_item(InventoryManager.ITEM_CARD1)
+	inventory.collect_item(InventoryManager.ITEM_CARD2)
+	inventory.collect_item(InventoryManager.ITEM_GOGGLES)
+	inventory.collect_item(InventoryManager.ITEM_BOX)
+	inventory.collect_item(InventoryManager.ITEM_RATION)
+	inventory.collect_item(InventoryManager.ITEM_RATION)
+	inventory.collect_item(InventoryManager.ITEM_RATION)
+	if player:
+		player.max_life = 24
+		player.life = 24
+		player.queue_redraw()
+	print("DEBUG_ARSENAL: Arsenal e equipamentos completos concedidos!")
 
 func _on_radio_closed() -> void:
 	if player:
@@ -214,9 +291,9 @@ func _update_world_transform(area_size: Vector2) -> void:
 func _draw_room_and_collision() -> void:
 	if room_texture:
 		room_display.draw_texture(room_texture, Vector2.ZERO)
-	if show_collision and snapshot.loaded:
+	if show_collision and not runtime_collision.is_empty():
 		for i: int in range(768):
-			if int(snapshot.collision[i]) == 1:
+			if int(runtime_collision[i]) == 1:
 				var cell := Vector2(i % 32, i / 32) * 8.0
 				room_display.draw_rect(Rect2(cell, Vector2(8, 8)), Color(1.0, 0.2, 0.1, 0.35))
 				room_display.draw_rect(Rect2(cell, Vector2(8, 8)), Color(1.0, 0.2, 0.1, 0.8), false, 1.0)
@@ -256,13 +333,15 @@ func _load_initial_room() -> void:
 
 func _apply_snapshot() -> void:
 	room_texture = ImageTexture.create_from_image(snapshot.make_image())
+	runtime_collision = Array(snapshot.collision)
 	if player:
-		player.set_collision_grid(snapshot.collision)
+		player.set_collision_grid(runtime_collision)
 	_spawn_room_enemies(snapshot.room_id)
 	_spawn_room_items(snapshot.room_id)
 	_spawn_room_doors(snapshot.room_id)
-	print("SANDBOX_ROOM_LOADED: %d (Inimigos: %d, Câmeras: %d, Itens: %d, Portas: %d)" % [
-		snapshot.room_id, enemies.size(), cameras.size(), item_boxes.size(), room_doors.size()
+	_spawn_room_prisoners(snapshot.room_id)
+	print("SANDBOX_ROOM_LOADED: %d (Inimigos: %d, Câmeras: %d, Itens: %d, Portas: %d, Reféns: %d)" % [
+		snapshot.room_id, enemies.size(), cameras.size(), item_boxes.size(), room_doors.size(), prisoners.size()
 	])
 	if room_display:
 		room_display.queue_redraw()
@@ -277,6 +356,17 @@ func _spawn_room_enemies(room_id: int) -> void:
 		if is_instance_valid(cam):
 			cam.queue_free()
 	cameras.clear()
+
+	# Limpa boss anterior ao trocar de sala
+	if is_instance_valid(shot_gunner):
+		shot_gunner.queue_free()
+		shot_gunner = null
+	for sgb: ShotGunnerBullet in shot_gunner_bullets:
+		if is_instance_valid(sgb):
+			sgb.queue_free()
+	shot_gunner_bullets.clear()
+	if boss_dialog_label:
+		boss_dialog_label.visible = false
 
 	if not game_world:
 		return
@@ -314,6 +404,19 @@ func _spawn_room_enemies(room_id: int) -> void:
 				game_world.add_child(cam)
 				cameras.append(cam)
 				print("CAMERA_SPAWNED: Câmera %d na sala %d em %s (Dir: %d)" % [cam_idx, room_id, spawn_pos, cam.facing_direction])
+				continue
+
+			# Boss Shoot Gunner — ID_SHOT_GUNNER = 0x21 = 33 (Etapa 18)
+			if type_id == 33:
+				var sg: ShotGunner = ShotGunner.new()
+				var player_initial: Vector2 = player.position if player else Vector2(128.0, 96.0)
+				sg.setup(spawn_pos, runtime_collision, player_initial)
+				sg.boss_shot_fired.connect(_on_boss_shot_fired)
+				sg.boss_defeated.connect(_on_boss_defeated)
+				sg.intro_dialog.connect(_on_boss_intro_dialog)
+				game_world.add_child(sg)
+				shot_gunner = sg
+				print("BOSS_SPAWNED: Shoot Gunner na sala %d em %s (HP: %d)" % [room_id, spawn_pos, sg.boss_hp])
 				continue
 
 			if not type_id in valid_enemy_types:
@@ -520,156 +623,150 @@ func _spawn_room_doors(room_id: int) -> void:
 	if not game_world:
 		return
 
-	# Portas interativas autênticas (data/doors.asm:308-320, 634-638)
-	if room_id == 5:
-		# Sala 005: Pátio dos 3 caminhões (DoorsRoom005 em data/doors.asm:311-316)
-		# Caminhão 1 (Esquerda) -> leva à Sala 126
-		var d1: RoomDoor = RoomDoor.new()
-		d1.door_id = 101 # 0x65
-		d1.room_id = room_id
-		d1.is_lorry = true
-		d1.orientation = RoomDoor.DoorOrientation.LORRY_ENTER
-		d1.position = Vector2(36.0, 68.0)
-		d1.trigger_rect = Rect2(32.0, 80.0, 32.0, 16.0)
-		d1.destination_room = 126
-		d1.entry_position = Vector2(196.0, 112.0)
-		d1.destination_direction = PlayerController.Direction.LEFT
-		game_world.add_child(d1)
-		room_doors.append(d1)
+	# Portas canônicas carregadas de stage5-batch ou stage5-lorries
+	var room_data: Dictionary = room_manager.load_room_actors(room_id)
+	var doors_data: Array = room_data.get("doors", [])
+	for door_var: Variant in doors_data:
+		if not door_var is Dictionary:
+			continue
+		var d_info: Dictionary = door_var as Dictionary
+		var d_id: int = int(d_info.get("door_id", 0))
+		var r_type: int = int(d_info.get("render_type_id", 1))
+		var dest_room: int = int(d_info.get("destination_room_id", -1))
+		var rule_id: int = int(d_info.get("open_rule_id", 1))
+		var dx: float = float(d_info.get("draw_x", 0))
+		var dy: float = float(d_info.get("draw_y", 0))
 
-		# Caminhão 2 (Meio) -> leva à Sala 127
-		var d2: RoomDoor = RoomDoor.new()
-		d2.door_id = 109 # 0x6D
-		d2.room_id = room_id
-		d2.is_lorry = true
-		d2.orientation = RoomDoor.DoorOrientation.LORRY_ENTER
-		d2.position = Vector2(100.0, 100.0)
-		d2.trigger_rect = Rect2(96.0, 112.0, 32.0, 16.0)
-		d2.destination_room = 127
-		d2.entry_position = Vector2(196.0, 112.0)
-		d2.destination_direction = PlayerController.Direction.LEFT
-		game_world.add_child(d2)
-		room_doors.append(d2)
+		# Exclusão canônica da ROM (logic/doors/enterdoor.asm:66-84):
+		# - Portas sem destino (dest_room == -1)
+		# - Portas dummy / invisíveis (r_type == 6)
+		# - Destino à própria sala (paredes internas rachadas sem transição)
+		# - Destino à Sala 204 (o limbo: tela 100% de parede sólida)
+		# - Portas bloqueadas explicitamente na ROM (Door ID 64 na Sala 6 dos cães e Door ID 108 na Sala 5)
+		# - Portas de paredes de explosivos ainda não detonadas (r_type > 6)
+		if dest_room == -1 or dest_room == room_id or dest_room == 204 or d_id in [64, 108] or r_type >= 6:
+			continue
 
-		# Caminhão 3 (Direita) -> leva à Sala 128
-		var d3: RoomDoor = RoomDoor.new()
-		d3.door_id = 113 # 0x71
-		d3.room_id = room_id
-		d3.is_lorry = true
-		d3.orientation = RoomDoor.DoorOrientation.LORRY_ENTER
-		d3.position = Vector2(164.0, 68.0)
-		d3.trigger_rect = Rect2(160.0, 80.0, 32.0, 16.0)
-		d3.destination_room = 128
-		d3.entry_position = Vector2(196.0, 112.0)
-		d3.destination_direction = PlayerController.Direction.LEFT
-		game_world.add_child(d3)
-		room_doors.append(d3)
-
-	elif room_id in [126, 127, 128]:
-		# Saída da traseira de dentro do caminhão de volta ao pátio da Sala 5 (DoorsRoom126-128 em data/doors.asm:634-638)
-		var exit_d: RoomDoor = RoomDoor.new()
-		exit_d.room_id = room_id
-		exit_d.is_lorry = true
-		exit_d.orientation = RoomDoor.DoorOrientation.LORRY_EXIT
-		exit_d.position = Vector2(208.0, 96.0)
-		exit_d.trigger_rect = Rect2(204.0, 92.0, 24.0, 36.0)
-		exit_d.destination_room = 5
-		exit_d.destination_direction = PlayerController.Direction.DOWN
-
-		if room_id == 126:
-			exit_d.door_id = 101
-			exit_d.entry_position = Vector2(48.0, 104.0)
-		elif room_id == 127:
-			exit_d.door_id = 109
-			exit_d.entry_position = Vector2(112.0, 136.0)
-		elif room_id == 128:
-			exit_d.door_id = 113
-			exit_d.entry_position = Vector2(176.0, 104.0)
-
-		game_world.add_child(exit_d)
-		room_doors.append(exit_d)
-
-	elif room_id == 2:
-		# Porta oeste trancada (exige CARD1!) para acessar a sala 4
 		var d: RoomDoor = RoomDoor.new()
-		d.door_id = 1
+		d.door_id = d_id
 		d.room_id = room_id
-		d.required_card = InventoryManager.ITEM_CARD1
-		d.orientation = RoomDoor.DoorOrientation.WEST
-		d.position = Vector2(16.0, 96.0)
-		d.destination_room = 4
-		d.entry_position = Vector2(230.0, 96.0)
+		d.render_type_id = r_type
+		d.open_rule_id = rule_id
+		d.position = Vector2(dx, dy)
+		d.destination_room = dest_room
+
+		# Portas de retorno de caminhões em movimento nos pátios (data/doors.asm:314, 335-337).
+		# Nos pátios 5 e 9, as portas 117, 133, 146, 152 servem unicamente como âncoras de retorno
+		# (para onde Snake é descarregado ao sair do caminhão móvel). Não devem permitir entrada a partir do pátio.
+		if room_id in [5, 9] and d_id in [117, 133, 146, 152]:
+			d.is_entry_disabled = true
+
+		match r_type:
+			1, 5:
+				d.orientation = RoomDoor.DoorOrientation.NORTH
+				d.entry_position = Vector2(dx + 12.0, dy + 40.0)
+				d.destination_direction = PlayerController.Direction.DOWN
+			2:
+				d.orientation = RoomDoor.DoorOrientation.SOUTH
+				d.entry_position = Vector2(dx + 16.0, dy - 8.0)
+				d.destination_direction = PlayerController.Direction.UP
+			3:
+				d.orientation = RoomDoor.DoorOrientation.WEST
+				d.entry_position = Vector2(dx + 16.0, dy + 48.0)
+				d.destination_direction = PlayerController.Direction.RIGHT
+			4:
+				d.orientation = RoomDoor.DoorOrientation.EAST
+				d.entry_position = Vector2(dx - 10.0, dy + 48.0)
+				d.destination_direction = PlayerController.Direction.LEFT
+			_:
+				d.orientation = RoomDoor.DoorOrientation.NORTH
+				d.entry_position = Vector2(dx + 12.0, dy + 40.0)
+				d.destination_direction = PlayerController.Direction.DOWN
+
+		d.required_card = RoomDoor.get_card_for_rule(rule_id)
+
+		var lorry_rooms: Array[int] = [126, 127, 128, 130, 131, 132, 135, 173, 199, 213, 214, 215, 216, 217, 218, 219]
+		if room_id in lorry_rooms or dest_room in lorry_rooms:
+			d.is_lorry = true
+			if room_id in lorry_rooms:
+				d.orientation = RoomDoor.DoorOrientation.LORRY_EXIT
+
+		# Portas que exigem cartão (regras 2 a 9: CARD1 a CARD8) NUNCA iniciam abertas
+		if rule_id >= 2 and rule_id <= 9:
+			d.is_open = false
+		else:
+			var raw_logic: int = int(d_info.get("open_logic_raw", 0))
+			if (raw_logic & 0x80) != 0 or rule_id in [1, 10, 11] or dest_room in lorry_rooms or room_id in lorry_rooms:
+				d.is_open = true
+
 		game_world.add_child(d)
-		d.inject_collision(snapshot.collision)
+		d.inject_collision(runtime_collision)
 		room_doors.append(d)
-	elif room_id == 4:
-		# Porta leste de retorno para a sala 2 (aberta pelo lado interno)
-		var d: RoomDoor = RoomDoor.new()
-		d.door_id = 2
-		d.room_id = room_id
-		d.required_card = ""
-		d.orientation = RoomDoor.DoorOrientation.EAST
-		d.position = Vector2(232.0, 96.0)
-		d.destination_room = 2
-		d.entry_position = Vector2(32.0, 96.0)
-		game_world.add_child(d)
-		d.inject_collision(snapshot.collision)
-		room_doors.append(d)
-	else:
-		# Portas canônicas carregadas de stage5-batch/room-NNN-actors.json
-		var room_data: Dictionary = room_manager.load_room_actors(room_id)
-		var doors_data: Array = room_data.get("doors", [])
-		for door_var: Variant in doors_data:
-			if not door_var is Dictionary:
-				continue
-			var d_info: Dictionary = door_var as Dictionary
-			var d_id: int = int(d_info.get("door_id", 0))
-			var r_type: int = int(d_info.get("render_type_id", 1))
-			var dest_room: int = int(d_info.get("destination_room_id", -1))
-			var rule_id: int = int(d_info.get("open_rule_id", 1))
-			var dx: float = float(d_info.get("draw_x", 0))
-			var dy: float = float(d_info.get("draw_y", 0))
 
-			# Portas dummy/invisíveis ou sem destino
-			if r_type == 6 or dest_room == -1:
-				continue
+func _spawn_room_prisoners(room_id: int) -> void:
+	for p: Prisoner in prisoners:
+		if is_instance_valid(p):
+			p.queue_free()
+	prisoners.clear()
 
-			var d: RoomDoor = RoomDoor.new()
-			d.door_id = d_id
-			d.room_id = room_id
-			d.render_type_id = r_type
-			d.open_rule_id = rule_id
-			d.position = Vector2(dx, dy)
-			d.destination_room = dest_room
+	if not game_world:
+		return
 
-			match r_type:
-				1, 5:
-					d.orientation = RoomDoor.DoorOrientation.NORTH
-					d.entry_position = Vector2(dx + 8.0, 160.0)
-					d.destination_direction = PlayerController.Direction.DOWN
-				2:
-					d.orientation = RoomDoor.DoorOrientation.SOUTH
-					d.entry_position = Vector2(dx + 8.0, 32.0)
-					d.destination_direction = PlayerController.Direction.UP
-				3:
-					d.orientation = RoomDoor.DoorOrientation.WEST
-					d.entry_position = Vector2(230.0, dy)
-					d.destination_direction = PlayerController.Direction.RIGHT
-				4:
-					d.orientation = RoomDoor.DoorOrientation.EAST
-					d.entry_position = Vector2(24.0, dy)
-					d.destination_direction = PlayerController.Direction.LEFT
-				_:
-					d.orientation = RoomDoor.DoorOrientation.NORTH
-					d.entry_position = Vector2(dx + 8.0, 160.0)
-					d.destination_direction = PlayerController.Direction.DOWN
+	var room_data: Dictionary = room_manager.load_room_actors(room_id)
+	var actors_data: Array = room_data.get("actors", [])
+	for act_var: Variant in actors_data:
+		if not act_var is Dictionary:
+			continue
+		var act: Dictionary = act_var as Dictionary
+		var tid: int = int(act.get("actor_type_id", 0))
+		if tid in [Prisoner.TYPE_PRISONER, Prisoner.TYPE_ELLEN, Prisoner.TYPE_GREY_FOX, Prisoner.TYPE_MADNAR, Prisoner.TYPE_FAKE_MADNAR]:
+			var px: float = float(act.get("x", 128))
+			var py: float = float(act.get("y", 96))
+			var pris: Prisoner = Prisoner.new()
+			pris.room_id = room_id
+			pris.actor_type_id = tid
+			pris.position = Vector2(px, py)
+			if rank_system.is_room_rescued(room_id):
+				pris.is_rescued = true
 
-			d.required_card = RoomDoor.get_card_for_rule(rule_id)
+			pris.rescued.connect(func(p_node: Prisoner):
+				var ranked_up: bool = rank_system.register_rescue(p_node.room_id, p_node.prisoner_name, p_node.message_text)
+				if ranked_up:
+					player.set_rank_life(rank_system.get_max_life(), true)
+					weapon_system.update_rank_capacities(rank_system.current_rank)
+					inventory.update_rank_capacities(rank_system.current_rank)
+					show_dialog_message("PROMOÇÃO MILITAR!", "Solid Snake promovido para Rank ★%d (%s)!" % [
+						rank_system.current_rank, rank_system.get_rank_stars()
+					], 5.0)
+				else:
+					show_dialog_message(p_node.prisoner_name, p_node.message_text, 6.0)
+			)
 
-			game_world.add_child(d)
-			if snapshot and snapshot.loaded:
-				d.inject_collision(snapshot.collision)
-			room_doors.append(d)
+			pris.killed.connect(func(p_node: Prisoner):
+				rank_system.register_kill(p_node.room_id, p_node.is_vital)
+				player.set_rank_life(rank_system.get_max_life(), false)
+				weapon_system.update_rank_capacities(rank_system.current_rank)
+				inventory.update_rank_capacities(rank_system.current_rank)
+				if p_node.is_vital:
+					show_dialog_message("MISSÃO FALHOU!", "%s FOI MORTO! Big Boss: 'Snake! O que você fez?!'" % p_node.prisoner_name, 6.0)
+				else:
+					show_dialog_message("PUNIÇÃO DE PATENTE!", "Refém eliminado! Snake rebaixado para Rank ★%d (%s)!" % [
+						rank_system.current_rank, rank_system.get_rank_stars()
+					], 5.0)
+			)
+
+			game_world.add_child(pris)
+			prisoners.append(pris)
+
+func show_dialog_message(speaker: String, text: String, duration_seconds: float = 6.0) -> void:
+	if dialog_banner_label:
+		dialog_banner_label.text = "[ %s ]\n\"%s\"" % [speaker, text]
+		dialog_banner_label.visible = true
+		var timer := get_tree().create_timer(duration_seconds)
+		timer.timeout.connect(func():
+			if is_instance_valid(dialog_banner_label):
+				dialog_banner_label.visible = false
+		)
 
 func _create_synthetic_fallback_room() -> void:
 	var pixels: Array[int] = []
@@ -760,6 +857,10 @@ func reset_player() -> void:
 		if is_instance_valid(b):
 			b.queue_free()
 	bullets.clear()
+	for sgb: ShotGunnerBullet in shot_gunner_bullets:
+		if is_instance_valid(sgb):
+			sgb.queue_free()
+	shot_gunner_bullets.clear()
 	if snapshot:
 		_spawn_room_enemies(snapshot.room_id)
 		_spawn_room_items(snapshot.room_id)
@@ -767,33 +868,48 @@ func reset_player() -> void:
 	alert_system.stop_alert()
 
 func _input(event: InputEvent) -> void:
+	# 1. Repasse para menus modais abertos
 	if radio_dialog and radio_dialog.is_active:
 		if radio_dialog.handle_input(event):
 			get_viewport().set_input_as_handled()
 			return
 
+	if weapon_menu and weapon_menu.visible:
+		if weapon_menu.handle_input(event):
+			get_viewport().set_input_as_handled()
+			return
+
+	if item_menu and item_menu.visible:
+		if item_menu.handle_input(event):
+			get_viewport().set_input_as_handled()
+			return
+
+	if pause_menu and pause_menu.visible:
+		if pause_menu.handle_input(event):
+			get_viewport().set_input_as_handled()
+			return
+
+	# 2. Tela Cheia: Tecla F11 ou Alt+Enter
 	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_C:
-			show_collision = not show_collision
-			if collision_btn:
-				collision_btn.set_pressed_no_signal(show_collision)
-			queue_redraw()
-		elif event.keycode == KEY_V:
-			if player:
-				player.show_debug_colliders = not player.show_debug_colliders
-				colliders_btn.set_pressed_no_signal(player.show_debug_colliders)
-				player.queue_redraw()
-		elif event.keycode == KEY_B:
-			show_enemy_vision = not show_enemy_vision
-			if colliders_btn:
-				colliders_btn.set_pressed_no_signal(show_enemy_vision)
-			for enemy: EnemyGuard in enemies:
-				if is_instance_valid(enemy):
-					enemy.show_debug_vision = show_enemy_vision
-			for cam: SecurityCamera in cameras:
-				if is_instance_valid(cam):
-					cam.show_debug_vision = show_enemy_vision
-		elif event.keycode == KEY_T or event.keycode == KEY_F4:
+		if event.keycode == KEY_F11 or (event.keycode == KEY_ENTER and event.alt_pressed):
+			var current_mode: DisplayServer.WindowMode = DisplayServer.window_get_mode()
+			if current_mode == DisplayServer.WINDOW_MODE_FULLSCREEN or current_mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			else:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+			get_viewport().set_input_as_handled()
+			return
+
+	# 3. Tecla ESC: Alternar Tela de Pause / Opções
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			_toggle_pause_menu()
+			get_viewport().set_input_as_handled()
+			return
+
+	# 3. Rádio Transceptor: Tecla R ou Tab (e T / F4 para compatibilidade)
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode in [KEY_R, KEY_TAB, KEY_T, KEY_F4]:
 			if radio_dialog:
 				if radio_dialog.is_active:
 					radio_dialog.close_radio()
@@ -801,63 +917,103 @@ func _input(event: InputEvent) -> void:
 					radio_dialog.open_radio(radio_system, snapshot.room_id, radio_system.has_incoming_call)
 				get_viewport().set_input_as_handled()
 				return
-		elif event.keycode == KEY_Q or event.keycode == KEY_1 or event.keycode == KEY_2:
-			weapon_system.cycle_weapon()
-		elif event.keycode == KEY_SPACE or event.keycode == KEY_F:
-			if player and not weapon_system.selected_weapon.is_empty():
-				if weapon_system.can_fire():
-					var b: Bullet = player.fire_weapon(weapon_system)
-					if b != null:
-						bullets.append(b)
-						game_world.add_child(b)
-						# Acústica e Alerta de tiro (ChkAlertTrigger em logic/checkweaponalert.asm:8-30)
-						if not weapon_system.has_silencer and not snapshot.room_id in ROOMS_SHOT_SECURE:
-							alert_system.trigger_alert(false, inventory.get_card_level(), snapshot.room_id)
-							for enemy: EnemyGuard in enemies:
-								if is_instance_valid(enemy) and not enemy.is_dead:
-									enemy.transform_to_alert_guard()
-							print("GUNSHOT_ALERT: Disparo sem silenciador na sala %d alertou a guarnição!" % snapshot.room_id)
-						else:
-							print("GUNSHOT_SILENT: Disparo furtivo com silenciador!")
-				else:
-					print("WEAPON_NO_AMMO: Arma sem munição! (Click SFX 15h)")
-			elif player:
-				player.punch()
-			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_M or event.keycode == KEY_Z or event.keycode == KEY_J:
+
+	# 4. Menu de Armas: Tecla Q ou pressionar Shift
+	if event is InputEventKey:
+		if event.pressed and not event.echo and (event.keycode == KEY_Q or event.keycode == KEY_SHIFT):
+			if weapon_menu:
+				weapon_menu.open_menu(weapon_system)
+				get_viewport().set_input_as_handled()
+				return
+
+	# 5. Menu de Itens: Tecla E ou pressionar Ctrl / Alt
+	if event is InputEventKey:
+		if event.pressed and not event.echo and (event.keycode == KEY_E or event.keycode == KEY_CTRL or event.keycode == KEY_ALT):
+			if item_menu:
+				item_menu.open_menu(inventory)
+				get_viewport().set_input_as_handled()
+				return
+
+	# 6. Soco dedicado (com arma equipada): Tecla K ou X
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_K or event.keycode == KEY_X:
 			if player:
 				player.punch()
+				print("PUNCH_DEDICATED: Soco corpo a corpo com arma equipada!")
 			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_E:
-			inventory.cycle_item()
-		elif event.keycode == KEY_U:
-			inventory.use_selected_item(player)
-		elif event.keycode == KEY_G:
-			weapon_system.add_weapon(WeaponSystem.WEAPON_HANDGUN, 30)
-			weapon_system.add_weapon(WeaponSystem.WEAPON_SMG, 30)
-			weapon_system.set_silencer(not weapon_system.has_silencer)
-			inventory.collect_item(InventoryManager.ITEM_GOGGLES)
-			inventory.collect_item(InventoryManager.ITEM_BOX)
-			print("DEBUG_WEAPON_KIT: Kit de armas e equipamentos concedido! Handgun + SMG + Silenciador + Goggles + Caixa.")
+			return
+
+	# 7. Atirar / Socar: Tecla J ou Z (ou Espaço / F) ou Clique Esquerdo do Mouse
+	var is_fire_action: bool = false
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+		is_fire_action = true
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode in [KEY_J, KEY_Z, KEY_SPACE, KEY_F]:
+			is_fire_action = true
+
+	if is_fire_action:
+		if player and not weapon_system.selected_weapon.is_empty():
+			if weapon_system.can_fire():
+				var b: Bullet = player.fire_weapon(weapon_system)
+				if b != null:
+					bullets.append(b)
+					game_world.add_child(b)
+					if not weapon_system.has_silencer and not snapshot.room_id in ROOMS_SHOT_SECURE:
+						alert_system.trigger_alert(false, inventory.get_card_level(), snapshot.room_id)
+						for enemy: EnemyGuard in enemies:
+							if is_instance_valid(enemy) and not enemy.is_dead:
+								enemy.transform_to_alert_guard()
+						print("GUNSHOT_ALERT: Disparo sem silenciador na sala %d alertou a guarnição!" % snapshot.room_id)
+					else:
+						print("GUNSHOT_SILENT: Disparo furtivo com silenciador!")
+			else:
+				print("WEAPON_NO_AMMO: Arma sem munição! (Click SFX 15h)")
+		elif player:
+			player.punch()
+		get_viewport().set_input_as_handled()
+		return
+
+	# 8. Atalhos de Debug rápidos opcionais no teclado
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_C:
+			show_collision = not show_collision
+			if room_display:
+				room_display.queue_redraw()
+			print("COLLISION_TOGGLE: Colisão %s" % ("LIGADA" if show_collision else "DESLIGADA"))
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_V:
+			if player:
+				player.show_debug_colliders = not player.show_debug_colliders
+				player.queue_redraw()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_B:
+			show_enemy_vision = not show_enemy_vision
+			for enemy: EnemyGuard in enemies:
+				if is_instance_valid(enemy):
+					enemy.show_debug_vision = show_enemy_vision
+			for cam: SecurityCamera in cameras:
+				if is_instance_valid(cam):
+					cam.show_debug_vision = show_enemy_vision
+			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_I:
 			infinite_life = not infinite_life
-			if god_mode_btn:
-				god_mode_btn.set_pressed_no_signal(infinite_life)
 			if player:
 				player.infinite_life = infinite_life
 				if infinite_life:
 					player.life = player.max_life
 					player.queue_redraw()
 			print("GOD_MODE: Vida infinita %s" % ("LIGADA" if infinite_life else "DESLIGADA"))
-		elif event.keycode == KEY_R:
-			reset_player()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_U:
+			inventory.use_selected_item(player)
+			get_viewport().set_input_as_handled()
 
 func _physics_process(_delta: float) -> void:
 	if not player:
 		return
 
-	# Pausa movimentação e combate de todos os atores enquanto o rádio estiver ativo
-	if radio_dialog and radio_dialog.is_active:
+	# Pausa física e lógica de todos os atores enquanto qualquer modal estiver aberto
+	if (radio_dialog and radio_dialog.is_active) or (weapon_menu and weapon_menu.visible) or (item_menu and item_menu.visible) or (pause_menu and pause_menu.visible):
 		return
 
 	# Leitura de entrada com prioridade de eixos autêntica MSX
@@ -941,10 +1097,21 @@ func _physics_process(_delta: float) -> void:
 	# Atualizar portas interativas
 	for door: RoomDoor in room_doors:
 		if is_instance_valid(door):
-			var target_room: int = door.check_interaction(player, inventory, snapshot.collision)
+			var target_room: int = door.check_interaction(player, inventory, runtime_collision)
 			if target_room != -1:
 				change_to_room(target_room, door.entry_position, door.destination_direction, door.door_id)
 				break
+
+	# Atualizar prisioneiros / reféns (resgate por toque desarmado ou dano por soco/tiro)
+	for pris: Prisoner in prisoners:
+		if is_instance_valid(pris) and not pris.is_dead:
+			pris.check_touch(player.position, player.is_punching)
+			for b: Bullet in bullets:
+				if is_instance_valid(b) and not b.is_enemy:
+					if pris.position.distance_to(b.position) <= 12.0:
+						pris.apply_bullet_hit()
+						b.queue_free()
+						break
 
 	# Atualizar soldados inimigos, perseguição e combate
 	var in_box: bool = (inventory.get_selected_item() == InventoryManager.ITEM_BOX and not player.is_moving)
@@ -954,7 +1121,7 @@ func _physics_process(_delta: float) -> void:
 
 	for enemy: EnemyGuard in enemies:
 		if is_instance_valid(enemy):
-			enemy.step_tick(snapshot.collision, player.position, player.is_punching, player.current_direction, player)
+			enemy.step_tick(runtime_collision, player.position, player.is_punching, player.current_direction, player)
 			if enemy.is_dead:
 				defeated_count += 1
 			else:
@@ -964,7 +1131,7 @@ func _physics_process(_delta: float) -> void:
 				if enemy_shot != null:
 					bullets.append(enemy_shot)
 					game_world.add_child(enemy_shot)
-				if not in_box and enemy.check_line_of_sight(player.position, snapshot.collision):
+				if not in_box and enemy.check_line_of_sight(player.position, runtime_collision):
 					any_enemy_sees_snake = true
 
 	# Atualizar câmeras de vigilância móveis (Etapa 16)
@@ -972,7 +1139,7 @@ func _physics_process(_delta: float) -> void:
 	for cam: SecurityCamera in cameras:
 		if is_instance_valid(cam):
 			cam.show_debug_vision = show_enemy_vision
-			cam.tick(player.position, snapshot.collision if snapshot else [], in_box, is_alert_active)
+			cam.tick(player.position, runtime_collision, in_box, is_alert_active)
 			if not in_box and (cam.has_seen_player or cam.alert_flashing):
 				any_enemy_sees_snake = true
 
@@ -994,7 +1161,7 @@ func _physics_process(_delta: float) -> void:
 	for b: Bullet in bullets:
 		if not is_instance_valid(b):
 			continue
-		var alive: bool = b.step_tick(snapshot.collision)
+		var alive: bool = b.step_tick(runtime_collision)
 		if not alive:
 			b.queue_free()
 			continue
@@ -1019,6 +1186,32 @@ func _physics_process(_delta: float) -> void:
 		else:
 			surviving_bullets.append(b)
 	bullets = surviving_bullets
+
+	# -----------------------------------------------------------------------
+	# Tick do Boss Shoot Gunner (Etapa 18)
+	# -----------------------------------------------------------------------
+	if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
+		shot_gunner.step_tick(player.position, runtime_collision)
+		shot_gunner.queue_redraw()
+
+	# Tick dos projéteis do boss — colisão com player já tratada por sinal hit_player
+	var surviving_boss_bullets: Array[ShotGunnerBullet] = []
+	for sgb: ShotGunnerBullet in shot_gunner_bullets:
+		if is_instance_valid(sgb) and sgb.is_active:
+			sgb.step_tick(player.position, runtime_collision)
+			sgb.queue_redraw()
+			surviving_boss_bullets.append(sgb)
+	shot_gunner_bullets = surviving_boss_bullets
+
+	# Colisão de balas do player com o boss
+	var surviving_bullets2: Array[Bullet] = []
+	for b: Bullet in bullets:
+		if is_instance_valid(b):
+			if _check_boss_bullet_collision(b):
+				b.queue_free()
+			else:
+				surviving_bullets2.append(b)
+	bullets = surviving_bullets2
 
 	# Evento canônico da Sala 150 (Banks0123.asm:6117, 13037):
 	# Quando os 4 guardas silenciadores (actor_type_id 57) são eliminados, o SUPRESSOR é dropado em (36, 98)
@@ -1045,42 +1238,64 @@ func _physics_process(_delta: float) -> void:
 	var life_bar: String = "■".repeat(blocks) + "□".repeat(empty_blocks)
 	var item_str: String = inventory.get_status_text()
 	var weapon_str: String = weapon_system.get_status_text()
+	var rank_str: String = rank_system.get_rank_stars() if rank_system else "★☆☆☆"
+
+	# Atualizar indicador visual de chamada recebida (CALL) de forma estável
+	if call_badge:
+		if radio_system.has_incoming_call:
+			var flash: bool = (Engine.get_physics_frames() % 30 < 15)
+			# Alterna entre vermelho intenso e amarelo de alerta mantendo alfa 1.0 (sem oscilar largura)
+			call_badge.modulate = Color(1.0, 0.2, 0.2, 1.0) if flash else Color(1.0, 0.85, 0.1, 0.9)
+		else:
+			call_badge.modulate = Color(0.0, 0.0, 0.0, 0.0)
 
 	if radio_dialog and radio_dialog.is_active:
-		status_label.text = "TRANSCEIVER CODEC ATIVO | Sintonize com A/D | Transmita com W | T/F4 para sair"
+		status_label.text = "TRANSCEIVER CODEC ATIVO | Sintonize: A/D | Enviar: W | R/Tab sair"
 		status_label.modulate = Color("50e080")
 		return
 
-	var call_str: String = ""
-	if radio_system.has_incoming_call:
-		var flash: bool = (Engine.get_physics_frames() % 30 < 15)
-		call_str = " | [CALL! Pressione T]" if flash else " | [      Pressione T]"
+	var life_val_str: String = "INF" if infinite_life else "%02d/%02d" % [player.life, player.max_life]
 
-	var life_val_str: String = "INF (GOD MODE)" if infinite_life else "%02d/%02d" % [player.life, player.max_life]
+	# String de HP do boss (Etapa 18)
+	var boss_hp_str: String = ""
+	if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
+		var hp_blocks: String = "■".repeat(shot_gunner.boss_hp / 2) + "□".repeat((ShotGunner.BOSS_HP - shot_gunner.boss_hp) / 2)
+		var phase_name: String = ["INTRO", "ROLAGEM", "TIRO"][int(shot_gunner.state)]
+		boss_hp_str = " | BOSS [%s] HP:%02d %s" % [phase_name, shot_gunner.boss_hp, hp_blocks]
 
 	if player.life <= 0 and not infinite_life:
+		for sgb: ShotGunnerBullet in shot_gunner_bullets:
+			if is_instance_valid(sgb):
+				sgb.queue_free()
+		shot_gunner_bullets.clear()
 		status_label.text = "SNAKE MORREU! [Pressione R para reiniciar]"
 		status_label.modulate = Color(1.0, 0.1, 0.1)
+	elif is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
+		# Modo Boss Fight — destaque vermelho com HP do boss
+		status_label.text = "BOSS! | %s | %s | VIDA: [%s] %s | %s%s" % [
+			rank_str, weapon_str, life_bar, life_val_str, item_str, boss_hp_str
+		]
+		status_label.modulate = Color(1.0, 0.3, 0.0)
 	elif alert_system.current_state == AlertSystem.AlertState.ALERT:
-		var alert_tag: String = "ALERTA VERMELHO! [!]" if alert_system.is_red_alert else "ALERTA! [!]"
-		status_label.text = "%s (Reforços: %d) | ARMA: %s | VIDA: [%s] %s | ITEM: %s%s (Derrotados: %d/%d)" % [
-			alert_tag, alert_system.num_respawn_guards, weapon_str, life_bar, life_val_str, item_str, call_str, defeated_count, enemies.size()
+		var alert_tag: String = "ALERTA VERMELHO!" if alert_system.is_red_alert else "ALERTA!"
+		status_label.text = "%s (Ref:%d) | %s | %s | VIDA: [%s] %s | %s (%d/%d)" % [
+			alert_tag, alert_system.num_respawn_guards, rank_str, weapon_str, life_bar, life_val_str, item_str, defeated_count, enemies.size()
 		]
 		status_label.modulate = Color(1.0, 0.2, 0.2)
 	elif alert_system.current_state == AlertSystem.AlertState.EVASION:
-		status_label.text = "EVASÃO [%02d] | ARMA: %s | VIDA: [%s] %s | ITEM: %s%s (Derrotados: %d/%d)" % [
-			alert_system.evasion_timer, weapon_str, life_bar, life_val_str, item_str, call_str, defeated_count, enemies.size()
+		status_label.text = "EVASÃO [%02d] | %s | %s | VIDA: [%s] %s | %s (%d/%d)" % [
+			alert_system.evasion_timer, rank_str, weapon_str, life_bar, life_val_str, item_str, defeated_count, enemies.size()
 		]
 		status_label.modulate = Color(1.0, 0.65, 0.1)
 	elif is_in_elevator:
-		var state_str: String = "EM MOVIMENTO..." if elevator_state == ELEVATOR_STATE_MOVING else "PARADO (CIMA/BAIXO: Mover | DIREITA: Sair)"
-		status_label.text = "ELEVADOR %d | Andar Y: %.0f | %s%s" % [
-			snapshot.room_id, elevator_y, state_str, call_str
+		var state_str: String = "MOVENDO..." if elevator_state == ELEVATOR_STATE_MOVING else "PARADO"
+		status_label.text = "ELEVADOR %d | Y: %.0f | %s" % [
+			snapshot.room_id, elevator_y, state_str
 		]
 		status_label.modulate = Color(0.9, 0.8, 0.3)
 	elif snapshot.loaded:
-		status_label.text = "Sala %03d | ARMA: %s | VIDA: [%s] %s | ITEM: %s%s" % [
-			snapshot.room_id, weapon_str, life_bar, life_val_str, item_str, call_str
+		status_label.text = "Sala %03d | %s | %s | VIDA: [%s] %s | %s" % [
+			snapshot.room_id, rank_str, weapon_str, life_bar, life_val_str, item_str
 		]
 		status_label.modulate = Color(1.0, 1.0, 1.0)
 
@@ -1131,6 +1346,11 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 			b.queue_free()
 	bullets.clear()
 
+	for sgb: ShotGunnerBullet in shot_gunner_bullets:
+		if is_instance_valid(sgb):
+			sgb.queue_free()
+	shot_gunner_bullets.clear()
+
 	if ElevatorSystem.is_elevator_room(new_room_id):
 		is_in_elevator = true
 		elevator_state = ELEVATOR_STATE_IDLE
@@ -1156,14 +1376,18 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 				if is_instance_valid(d) and d.door_id == from_door_id:
 					matched_door = d
 					break
-			if matched_door != null and not matched_door.is_lorry:
+			if matched_door != null:
 				var spawn_info: Dictionary = RoomDoor.get_door_spawn(matched_door.position, matched_door.render_type_id)
 				entry_pos = spawn_info.get("pos", entry_pos) as Vector2
 				entry_dir = int(spawn_info.get("dir", entry_dir))
-				matched_door.open_door(snapshot.collision)
+				matched_door.open_door(runtime_collision)
 				print("DOOR_PAIR_MATCHED: Porta %d na sala %d (Render %d) -> Spawn em %s, Dir %d" % [
 					from_door_id, new_room_id, matched_door.render_type_id, entry_pos, entry_dir
 				])
+
+		# Detecção de caminhão em movimento (Moving Lorry: logic/lorry.asm:23)
+		if new_room_id in [199, 217, 219, 213, 215, 173]:
+			print("MOVING_LORRY: Caminhão em deslocamento! (ROM: 'I goofed. The lorry started to move')")
 
 	if player:
 		player.set_grid_position(entry_pos.x, entry_pos.y)
@@ -1215,3 +1439,65 @@ func _on_reinforcement_requested(enemy_id: int, spawn_pos: Vector2) -> void:
 		g.is_shooter = true
 	game_world.add_child(g)
 	enemies.append(g)
+
+# ---------------------------------------------------------------------------
+# Handlers do Boss Shoot Gunner (Etapa 18)
+# ---------------------------------------------------------------------------
+
+func _on_boss_intro_dialog(text: String) -> void:
+	if boss_dialog_label:
+		boss_dialog_label.text = "[ " + text.replace("\n", " ") + " ]"
+		boss_dialog_label.visible = true
+	print("BOSS_DIALOG: %s" % text)
+
+func _on_boss_shot_fired(origin: Vector2, target: Vector2) -> void:
+	# Garante que nenhum tiro residual anterior permaneça ativo na sala
+	for old_sgb: ShotGunnerBullet in shot_gunner_bullets:
+		if is_instance_valid(old_sgb):
+			old_sgb.queue_free()
+	shot_gunner_bullets.clear()
+
+	var sgb: ShotGunnerBullet = ShotGunnerBullet.new()
+	sgb.setup(origin, target, runtime_collision)
+	sgb.hit_player.connect(_on_boss_bullet_hit_player)
+	sgb.bullet_destroyed.connect(func() -> void:
+		shot_gunner_bullets.erase(sgb)
+		if is_instance_valid(sgb):
+			sgb.queue_free()
+	)
+	game_world.add_child(sgb)
+	shot_gunner_bullets.append(sgb)
+	print("BOSS_SHOT: Disparo de escopeta (spray de chumbo) em direção a Snake!")
+
+func _on_boss_bullet_hit_player(damage: int) -> void:
+	if player:
+		var damaged: bool = player.apply_damage(damage)
+		if damaged:
+			player.invulnerable_timer = 45  # Invulnerabilidade de 45 ticks (0.75s) para dar tempo de esquiva/reação
+		print("BOSS_HIT_PLAYER: Snake atingido pelo tiro do Shoot Gunner! Dano: %d" % damage)
+
+func _on_boss_defeated() -> void:
+	# Limpa qualquer projétil do boss imediatamente na vitória
+	for sgb: ShotGunnerBullet in shot_gunner_bullets:
+		if is_instance_valid(sgb):
+			sgb.queue_free()
+	shot_gunner_bullets.clear()
+	if boss_dialog_label:
+		boss_dialog_label.text = "[ SHOOT GUNNER DERROTADO! ]"
+		boss_dialog_label.visible = true
+	print("BOSS_DEFEATED: Shoot Gunner eliminado! (ShotGunnerStat bit0 = 1)")
+
+## Verifica colisão de balas do player com o boss Shoot Gunner
+## Chamado dentro do loop de bullets em _physics_process
+func _check_boss_bullet_collision(b: Bullet) -> bool:
+	if not is_instance_valid(shot_gunner) or shot_gunner.is_dead:
+		return false
+	if b.is_enemy:
+		return false
+	if b.position.distance_to(shot_gunner.position) <= 10.0:
+		var killed: bool = shot_gunner.apply_bullet_hit()
+		shot_gunner.queue_redraw()
+		if killed:
+			print("BOSS_KILLED: Bala final atingiu Shoot Gunner!")
+		return true
+	return false

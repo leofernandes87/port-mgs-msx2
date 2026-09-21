@@ -39,6 +39,12 @@ var punch_timer: int = 0 # 8 ticks de duração do soco (Banks0123.asm:8949)
 var is_punching: bool = false
 var infinite_life: bool = false # Modo de teste (God Mode)
 
+func set_rank_life(new_max_life: int, full_heal: bool = true) -> void:
+	max_life = new_max_life
+	if full_heal or life > max_life:
+		life = max_life
+	queue_redraw()
+
 func _ready() -> void:
 	z_index = 10
 

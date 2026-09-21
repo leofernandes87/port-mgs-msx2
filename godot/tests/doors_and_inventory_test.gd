@@ -57,10 +57,23 @@ func _run() -> void:
 	if not require(not touched and not box.collected, "ItemBox longe não deve ser coletada"): return
 	if not require(not inv.has_item("CARD2"), "CARD2 não deve estar no inventário antes da coleta"): return
 
-	# Snake toca na caixa (distância 5 px <= 12 px)
+	# Snake toca na caixa (distância 5 px)
 	touched = box.step_tick(Vector2(105.0, 100.0), inv)
 	if not require(touched and box.collected, "ItemBox deve ser coletada ao contato com Snake"): return
 	if not require(inv.has_item("CARD2"), "CARD2 deve estar no inventário após a coleta"): return
+
+	# 2b. Teste de item sobre mesa ou obstáculo com colisão sólida (distância de 18 px ao encostar na borda)
+	var table_box: ItemBox = ItemBox.new()
+	table_box.item_id = "CARD3"
+	table_box.room_id = 100
+	table_box.position = Vector2(112.0, 80.0) # Caixa no centro da mesa
+	root.add_child(table_box)
+	await process_frame
+
+	# Snake encostado na face inferior da mesa sólida em Y = 98.0 (18 px de distância do centro da caixa)
+	var table_touched: bool = table_box.step_tick(Vector2(112.0, 98.0), inv)
+	if not require(table_touched and table_box.collected, "ItemBox em cima de mesa com colisão deve ser coletada ao encostar na borda"): return
+	if not require(inv.has_item("CARD3"), "CARD3 na mesa deve ser adicionado ao inventário"): return
 
 	# 3. Teste de RoomDoor, Trancas e Injeção de Colisão
 	var door: RoomDoor = RoomDoor.new()
@@ -230,6 +243,40 @@ func _run() -> void:
 
 	door_c4.queue_free()
 	dummy_player.queue_free()
+	await process_frame
+
+	# 7. Teste de bloqueio físico no SandboxGameplay contra portas trancadas por cartão
+	var sandbox = load("res://scenes/sandbox_gameplay.tscn").instantiate()
+	root.add_child(sandbox)
+	await process_frame
+	await process_frame
+
+	# Carregar Sala 8 (Porta 1 trancada com CARD1)
+	sandbox.change_to_room(8, Vector2(128.0, 128.0))
+	var s8_door: RoomDoor = null
+	for d: RoomDoor in sandbox.room_doors:
+		if d.door_id == 1:
+			s8_door = d
+			break
+	if not require(s8_door != null and not s8_door.is_open and s8_door.required_card == "CARD1", "Porta 1 da Sala 8 deve nascer fechada e exigir CARD1"): return
+
+	# Posicionar Snake logo abaixo da porta e tentar avançar para cima sem cartão
+	sandbox.player.position = Vector2(s8_door.position.x + 16.0, s8_door.position.y + 36.0)
+	for step in range(20):
+		sandbox.player.step_tick(Vector2i.UP)
+		sandbox.call("_physics_process", 1.0 / 60.0)
+	if not require(not s8_door.is_open, "Porta 1 NÃO deve abrir sem CARD1"): return
+	if not require(sandbox.snapshot.room_id == 8, "Snake NÃO deve transicionar para Sala 138 sem CARD1"): return
+	if not require(sandbox.player.position.y >= s8_door.position.y + 24.0, "Colisão da porta trancada deve bloquear Snake fisicamente"): return
+
+	# Snake equipa CARD1 e toca na porta
+	sandbox.inventory.collect_item(InventoryManager.ITEM_CARD1)
+	sandbox.inventory.select_item("CARD1")
+	sandbox.player.current_direction = PlayerController.Direction.UP
+	sandbox.call("_physics_process", 1.0 / 60.0)
+	if not require(s8_door.is_open, "Porta 1 deve abrir com CARD1 equipado"): return
+
+	sandbox.queue_free()
 	await process_frame
 
 	print("DOORS_AND_INVENTORY_OK: item collection, cycle, ration healing, locked door collision, card unlock, lorry doors enter/exit, and canonical truck items")

@@ -21,8 +21,13 @@ func step_tick(player_pos: Vector2, inventory: InventoryManager, weapon_system: 
 	if collected:
 		return false
 
-	var dist: float = position.distance_to(player_pos)
-	if dist <= 12.0:
+	# Detecção canônica da ROM (ChkTakeItem em logic/items.asm:60-98)
+	# Raio horizontal C = 20px (0x14) e vertical Radius Y = 16-20px a partir do centro da caixa.
+	# Permite que Snake colete itens posicionados sobre mesas, escrivaninhas ou armários
+	# apenas encostando na face do obstáculo sólido com sua caixa de colisão.
+	var dx: float = absf(position.x - player_pos.x)
+	var dy: float = absf(position.y - player_pos.y)
+	if dx <= 20.0 and dy <= 20.0:
 		if item_id in [WeaponSystem.WEAPON_HANDGUN, WeaponSystem.WEAPON_SMG, WeaponSystem.WEAPON_GRENADE_LAUNCHER]:
 			if weapon_system != null:
 				weapon_system.add_weapon(item_id, 20)

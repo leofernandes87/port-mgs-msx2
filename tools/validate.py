@@ -38,6 +38,8 @@ def main():
         ("godot-radio-system", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/radio_system_test.gd"]),
         ("godot-cameras-and-lasers", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/cameras_and_lasers_test.gd"]),
         ("godot-alert-system", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/alert_system_test.gd"]),
+        ("godot-boss-shoot-gunner", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/shot_gunner_test.gd"]),
+        ("godot-rank-and-prisoners", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/rank_and_prisoners_test.gd"]),
         ("godot-main", [godot, "--headless", "--path", str(ROOT / "godot"), "--quit-after", "5"]),
     ]
     for name, command in commands:
@@ -73,6 +75,10 @@ def main():
             raise RuntimeError("Teste de câmeras e lasers não confirmou conclusão")
         if name == "godot-alert-system" and "ALERT_SYSTEM_OK:" not in result.stdout:
             raise RuntimeError("Teste de sistema de alerta e evasão não confirmou conclusão")
+        if name == "godot-boss-shoot-gunner" and "BOSS_SHOOT_GUNNER_OK:" not in result.stdout:
+            raise RuntimeError("Teste do Boss Shoot Gunner não confirmou conclusão")
+        if name == "godot-rank-and-prisoners" and "RANK_AND_PRISONERS_OK:" not in result.stdout:
+            raise RuntimeError("Teste de prisioneiros e patente militar não confirmou conclusão")
         if name == "godot-main" and "BOOT_OK:" not in result.stdout:
             raise RuntimeError("Cena principal não iniciou")
         print(name + ": PASS")
