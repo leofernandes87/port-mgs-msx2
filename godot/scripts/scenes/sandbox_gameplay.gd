@@ -1375,16 +1375,16 @@ func _physics_process(_delta: float) -> void:
 		var missile_alive: bool = active_missile.step_tick(runtime_collision)
 
 		# Colisão do míssil com soldados inimigos (Etapa 20)
-		if is_instance_valid(active_missile) and active_missile.state == RemoteMissile.MissileState.FLIGHT:
+		if is_instance_valid(active_missile) and (active_missile.state == RemoteMissile.MissileState.FLIGHT or active_missile.state == RemoteMissile.MissileState.EXPLODING):
 			for enemy: EnemyGuard in enemies:
 				if is_instance_valid(enemy) and not enemy.is_dead:
-					if active_missile.check_actor_hit(enemy.position, 12.0):
+					if active_missile.check_actor_hit(enemy.position, 16.0):
 						enemy.take_bullet_hit(active_missile.damage)
 						active_missile.explode()
 						break
 
 		# Colisão do míssil com o chefe Shoot Gunner
-		if is_instance_valid(active_missile) and active_missile.state == RemoteMissile.MissileState.FLIGHT:
+		if is_instance_valid(active_missile) and (active_missile.state == RemoteMissile.MissileState.FLIGHT or active_missile.state == RemoteMissile.MissileState.EXPLODING):
 			if is_instance_valid(shot_gunner) and not shot_gunner.is_dead and shot_gunner.state == ShotGunner.SGunnerState.SHOOT:
 				if active_missile.check_actor_hit(shot_gunner.position, 16.0):
 					for _i in range(3):
@@ -1392,9 +1392,9 @@ func _physics_process(_delta: float) -> void:
 					active_missile.explode()
 
 		# Colisão do míssil com o painel de força (Etapa 22 — logic/damagetoenemy.asm)
-		if is_instance_valid(active_missile) and active_missile.state == RemoteMissile.MissileState.FLIGHT:
+		if is_instance_valid(active_missile) and (active_missile.state == RemoteMissile.MissileState.FLIGHT or active_missile.state == RemoteMissile.MissileState.EXPLODING):
 			if is_instance_valid(power_panel) and not power_panel.is_destroyed:
-				if active_missile.check_actor_hit(power_panel.position, 12.0):
+				if active_missile.check_actor_hit(power_panel.position, 16.0):
 					power_panel.take_hit("MISSILE", active_missile.damage)
 					active_missile.explode()
 

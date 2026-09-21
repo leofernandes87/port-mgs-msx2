@@ -125,9 +125,10 @@ func explode() -> void:
 	print("MISSILE_EXPLODE: Míssil detonou em %s!" % position)
 	queue_redraw()
 
-## Verifica colisão por raio contra alvos móveis ou estáticos (soldados, chefes, caixas de força)
-func check_actor_hit(target_pos: Vector2, hit_radius: float = 12.0) -> bool:
-	if state != MissileState.FLIGHT:
+func check_actor_hit(target_pos: Vector2, hit_radius: float = 16.0) -> bool:
+	if state == MissileState.FINISHED:
+		return false
+	if state == MissileState.EXPLODING and explosion_timer != EXPLOSION_DURATION:
 		return false
 	return position.distance_to(target_pos) <= hit_radius
 
