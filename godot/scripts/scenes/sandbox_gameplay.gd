@@ -1278,6 +1278,18 @@ func _physics_process(_delta: float) -> void:
 			player.position.y = elevator_y + 4.0
 			player.queue_redraw()
 
+			# Checar se atingiu a borda de saída da sala para outro elevador do mesmo shaft
+			if dir_y < 0.0 and elevator_y <= ElevatorSystem.EXIT_UP_Y:
+				var next_up_room: int = ElevatorSystem.get_connected_elevator_room(snapshot.room_id, -1)
+				if next_up_room != -1:
+					_transition_elevator_room(next_up_room, -1)
+					return
+			elif dir_y > 0.0 and elevator_y >= ElevatorSystem.EXIT_DOWN_Y:
+				var next_down_room: int = ElevatorSystem.get_connected_elevator_room(snapshot.room_id, 1)
+				if next_down_room != -1:
+					_transition_elevator_room(next_down_room, 1)
+					return
+
 			# Checar se atingiu o andar de destino
 			if absf(elevator_y - elevator_target_y) < 0.5:
 				elevator_y = elevator_target_y
@@ -1285,7 +1297,7 @@ func _physics_process(_delta: float) -> void:
 					elevator_cabin.elevator_y = elevator_y
 				player.position.y = elevator_y + 4.0
 				elevator_state = ELEVATOR_STATE_IDLE
-				print("ELEVATOR_FLOOR_REACHED: Andar atingido (Y: %.1f)" % elevator_y)
+				print("ELEVATOR_FLOOR_REACHED: Andar atingido na sala %d (Y: %.1f)" % [snapshot.room_id, elevator_y])
 		else:
 			# Elevador parado no andar:
 			# 1. Se Snake estiver na cabine (PlayerX <= 120), aceita CIMA/BAIXO para acionar o elevador
@@ -1685,6 +1697,44 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 			if is_instance_valid(enemy) and not enemy.is_dead:
 				enemy.transform_to_alert_guard()
 	return true
+
+## Transição contínua entre salas de um mesmo poço de elevador multi-telas (ROM: logic/nextroom.asm:64-98 SetNextRoomElev)
+func _transition_elevator_room(next_room_id: int, move_dir_y: int) -> void:
+	var old_room_id: int = snapshot.room_id if snapshot and snapshot.loaded else -1
+	var snap: RoomSnapshot = room_manager.load_room_snapshot(next_room_id)
+	if snap == null:
+		print("ELEVATOR_TRANSITION_FAIL: snapshot para sala %d não encontrado localmente" % next_room_id)
+		return
+
+	snapshot = snap
+	_apply_snapshot()
+	radio_system.check_incoming_call(next_room_id)
+
+	if move_dir_y < 0:
+		# Entrou por baixo (subindo): inicia em Y = ENTRY_UP_Y (208.0)
+		elevator_y = ElevatorSystem.ENTRY_UP_Y
+	else:
+		# Entrou por cima (descendo): inicia em Y = ENTRY_DOWN_Y (24.0)
+		elevator_y = ElevatorSystem.ENTRY_DOWN_Y
+
+	player.position.y = elevator_y + 4.0
+	if elevator_cabin:
+		elevator_cabin.elevator_y = elevator_y
+		elevator_cabin.visible = true
+
+	var target_info: Dictionary = ElevatorSystem.get_entry_moving_target(next_room_id, move_dir_y)
+	if bool(target_info.get("has_target", false)):
+		elevator_target_y = float(target_info.get("target_elev_y", elevator_y))
+	else:
+		elevator_target_y = elevator_y
+
+	is_in_elevator = true
+	elevator_state = ELEVATOR_STATE_MOVING
+	player.is_moving = false
+	player.queue_redraw()
+	print("ELEVATOR_ROOM_TRANSITION: Elevador transitou da sala %d para %d (Y: %.1f, Alvo: %.1f)" % [
+		old_room_id, next_room_id, elevator_y, elevator_target_y
+	])
 
 func _on_camera_detected(_cam: SecurityCamera) -> void:
 	print("CAMERA_ALERT: Câmera detectou Snake na sala %d!" % (snapshot.room_id if snapshot and snapshot.loaded else -1))

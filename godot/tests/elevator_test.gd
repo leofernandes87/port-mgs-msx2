@@ -55,11 +55,34 @@ func _run() -> void:
 	if not require(is_equal_approx(float(up_target_2.target_elev_y), 52.0), "Andar do topo deve ser 52.0"): return
 	if not require(int(up_target_2.room_id) == 27, "Sala do topo deve ser 27"): return
 
-	# Já no topo -> não pode subir mais
-	var no_more_up: Dictionary = ElevatorSystem.get_next_target_floor(241, 52.0, -1)
-	if not require(not bool(no_more_up.has_target), "Elevador 241 no topo não deve ter destino acima"): return
+	# Subindo a partir do andar 27 (Elev=52) em 241 -> shaft continua para a Sala 242
+	var up_to_242: Dictionary = ElevatorSystem.get_next_target_floor(241, 52.0, -1)
+	if not require(bool(up_to_242.has_target), "Elevador 241 deve permitir subir para a Sala 242"): return
+	if not require(bool(up_to_242.is_screen_transition), "Deve indicar transição de tela"): return
+	if not require(int(up_to_242.next_room_id) == 242, "Próxima sala deve ser 242"): return
 
-	# Descendo do topo (Elev=52) -> deve ir para o meio (Elev=116)
+	# No Elevador 242:
+	# Descendo a partir da Sala 39 (Elev=180) -> shaft continua para a Sala 241
+	var down_to_241: Dictionary = ElevatorSystem.get_next_target_floor(242, 180.0, 1)
+	if not require(bool(down_to_241.has_target), "Elevador 242 deve permitir descer para a Sala 241"): return
+	if not require(bool(down_to_241.is_screen_transition), "Deve indicar transição de tela para baixo"): return
+	if not require(int(down_to_241.next_room_id) == 241, "Próxima sala deve ser 241"): return
+
+	# No topo absoluto do shaft (Elevador 242, Rooftop Sala 53 em Y=116) -> não pode subir mais
+	var no_more_up: Dictionary = ElevatorSystem.get_next_target_floor(242, 116.0, -1)
+	if not require(not bool(no_more_up.has_target), "Elevador 242 no topo absoluto (Rooftop) não deve ter destino acima"): return
+
+	# No fundo absoluto do shaft (Elevador 241, Térreo Sala 63 em Y=180) -> não pode descer mais
+	var no_more_down: Dictionary = ElevatorSystem.get_next_target_floor(241, 180.0, 1)
+	if not require(not bool(no_more_down.has_target), "Elevador 241 no fundo absoluto não deve ter destino abaixo"): return
+
+	# Testar get_entry_moving_target
+	var entry_down_241: Dictionary = ElevatorSystem.get_entry_moving_target(241, 1)
+	if not require(is_equal_approx(float(entry_down_241.target_elev_y), 52.0), "Ao entrar descendo em 241, primeiro alvo é Y=52 (Sala 27)"): return
+	var entry_up_242: Dictionary = ElevatorSystem.get_entry_moving_target(242, -1)
+	if not require(is_equal_approx(float(entry_up_242.target_elev_y), 180.0), "Ao entrar subindo em 242, primeiro alvo é Y=180 (Sala 39)"): return
+
+	# Descendo do topo de 241 (Elev=52) -> deve ir para o meio (Elev=116)
 	var down_target_1: Dictionary = ElevatorSystem.get_next_target_floor(241, 52.0, 1)
 	if not require(is_equal_approx(float(down_target_1.target_elev_y), 116.0), "Descida deve parar em 116.0"): return
 
@@ -194,5 +217,38 @@ func _run() -> void:
 	sandbox.change_to_room(3, exit_back.entry_position as Vector2, int(exit_back.destination_direction))
 	if not require(sandbox.snapshot.room_id == 3, "Sala final deve ser 3"): return
 
-	print("ELEVATOR_OK: 11 elevadores configurados, movimentação vertical a 1 px/tick, tolerâncias de andares e ciclo bidirecional Sala 3 <-> Sala 240 <-> Sala 31")
+	# 6. Teste de transição multi-telas de shafts: Sala 242 -> Sala 241 (descida contínua)
+	sandbox.change_to_room(242, Vector2.ZERO)
+	sandbox.elevator_y = 180.0
+	sandbox.player.position = Vector2(112.0, 184.0)
+
+	var target_242_down: Dictionary = ElevatorSystem.get_next_target_floor(242, 180.0, 1)
+	if not require(bool(target_242_down.has_target) and bool(target_242_down.is_screen_transition), "Sala 242 deve ter transição para baixo"): return
+	sandbox.elevator_target_y = float(target_242_down.target_elev_y)
+	sandbox.elevator_state = sandbox.ELEVATOR_STATE_MOVING
+
+	# Simula o avanço do elevador até cruzar a borda inferior (208.0) e transitar para 241
+	ticks = 0
+	while sandbox.elevator_state == sandbox.ELEVATOR_STATE_MOVING and ticks < 300:
+		ticks += 1
+		var dir_y: float = -1.0 if sandbox.elevator_target_y < sandbox.elevator_y else 1.0
+		sandbox.elevator_y += dir_y * ElevatorSystem.ELEVATOR_SPEED
+		sandbox.player.position.y = sandbox.elevator_y + 4.0
+
+		if dir_y > 0.0 and sandbox.elevator_y >= ElevatorSystem.EXIT_DOWN_Y:
+			var next_down: int = ElevatorSystem.get_connected_elevator_room(sandbox.snapshot.room_id, 1)
+			if next_down != -1:
+				sandbox._transition_elevator_room(next_down, 1)
+				continue
+
+		if absf(sandbox.elevator_y - sandbox.elevator_target_y) < 0.5:
+			sandbox.elevator_y = sandbox.elevator_target_y
+			sandbox.player.position.y = sandbox.elevator_y + 4.0
+			sandbox.elevator_state = sandbox.ELEVATOR_STATE_IDLE
+
+	if not require(sandbox.snapshot.room_id == 241, "Elevador deve ter transitado para a Sala 241"): return
+	if not require(is_equal_approx(sandbox.elevator_y, 52.0), "Elevador deve ter parado no primeiro andar de 241 (Y=52.0, Sala 27)"): return
+	if not require(is_equal_approx(sandbox.player.position.y, 56.0), "Snake deve estar alinhado em Y=56.0"): return
+
+	print("ELEVATOR_OK: 11 elevadores configurados, movimentação vertical a 1 px/tick, tolerâncias de andares, transição multi-telas 242 <-> 241 e ciclo bidirecional Sala 3 <-> Sala 240 <-> Sala 31")
 	quit(0)

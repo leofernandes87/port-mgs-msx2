@@ -1458,5 +1458,34 @@ Entregue com base na engenharia reversa da ROM MSX2 RC750 (`logic/weapon/missile
 - Registrado `godot-remote-missile` em `tools/validate.py`.
 - **Resultado da Validação**: `python3 tools/validate.py` $\to$ **100% PASS (47 testes Python + 19 suítes Godot, 64 asserções de míssil, código de saída 0)**.
 
+## 2026-09-21 — Fix: Transição Contínua Vertical de Shafts de Elevadores Multi-Telas (Salas 241 <-> 242)
+
+Correção canônica baseada na tabela de conexões `RoomConnections` da ROM (`data/roomsconnections.asm:152-162`) e lógica de troca de sala de elevador `SetNextRoomElev` (`logic/nextroom.asm:64-98`, `Banks0123.asm:889-925`).
+
+### 1. Evidências da ROM MSX2
+- **Shafts de Elevadores Multi-Telas**:
+  - Os poços de elevadores que atravessam mais de 3 andares são divididos em múltiplas telas verticais conectadas:
+    - **Prédio 1 (Poço Leste)**: Sala 241 (inferior: salas 63, 15, 27) $\leftrightarrow$ Sala 242 (superior: sala 39 e sala 53/Rooftop "R").
+    - **Prédio 2 (Poço Oeste)**: Sala 243 (inferior: 95, 72, 81) $\leftrightarrow$ Sala 244 (superior: 88).
+    - **Prédio 2 (Poço Leste)**: Sala 245 (inferior: 207, 206, 205) $\leftrightarrow$ Sala 246 (superior: 154).
+    - **Prédio 3 (Poço Subterrâneo Longo)**: Salas 247 $\leftrightarrow$ 248 $\leftrightarrow$ 249 $\leftrightarrow$ 250.
+- **Transição de Tela Vertical (`MoveElevator` e `SetNextRoomElev`)**:
+  - Ao subir e cruzar $Y \le 24$ (`0x18`), o elevador sai pelo topo da tela e entra na sala superior em $Y = 208$ (`0xD0`), continuando a subida até o próximo andar.
+  - Ao descer e cruzar $Y \ge 208$ (`0xD0`), o elevador sai pelo fundo da tela e entra na sala inferior em $Y = 24$ (`0x18`), continuando a descida até o próximo andar.
+
+### 2. Implementação no Godot 4
+- **`ElevatorSystem` (`godot/scripts/systems/elevator_system.gd`)**:
+  - Adicionadas constantes de transição `EXIT_UP_Y = 24.0`, `EXIT_DOWN_Y = 208.0`, `ENTRY_UP_Y = 208.0`, `ENTRY_DOWN_Y = 24.0`.
+  - Tabela `ELEVATOR_CONNECTIONS` e métodos `get_connected_elevator_room` e `get_entry_moving_target`.
+  - `get_next_target_floor`: quando não há mais andares na sala atual na direção comandada, detecta a continuação do shaft e define o alvo de transição de tela.
+- **`sandbox_gameplay.gd`**:
+  - `_physics_process()`: monitora cruzamento das bordas de tela durante `ELEVATOR_STATE_MOVING` e invoca `_transition_elevator_room()`.
+  - `_transition_elevator_room()`: carrega o snapshot da nova sala de elevador, posiciona a cabine e Snake na coordenada canônica de entrada (`ENTRY_UP_Y` ou `ENTRY_DOWN_Y`) e mantém o trânsito contínuo até o andar de destino da nova tela.
+
+### 3. Validação
+- Atualizada a suíte `godot/tests/elevator_test.gd` para validar a identificação de transições de shafts multi-telas e simular o ciclo completo de descida contínua da Sala 242 (Y=180, Sala 39) até a Sala 241 (Y=52, Sala 27).
+- **Resultado**: `python3 tools/validate.py` $\to$ **100% PASS (47 testes Python + 19 suítes Godot, código de saída 0)**.
+
+
 
 

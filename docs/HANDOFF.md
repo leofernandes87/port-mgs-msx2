@@ -85,6 +85,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `d185e76` | Combat | Game Over punitivo clássico MSX2 com bloqueio imediato de inputs e reset absoluto de estado |
 | `d3c8b64` | 19 | Perigo Ambiental de Gás Tóxico e Máscara de Gás (GasHazardSystem, GasCloud, 9 salas canônicas) |
 | `8cc41f5` | 20 | Míssil Teleguiado / Remote-Controlled Missile (RemoteMissile, WeaponSystem, esterçamento e dano 5 HP) |
+| `81bf96e` | fix | Transição contínua vertical de elevadores multi-telas (Salas 241 <-> 242, RoomConnections) |
 
 ### Dados extraídos disponíveis
 
