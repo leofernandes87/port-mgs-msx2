@@ -1417,4 +1417,42 @@ Diagnóstico profundo baseado no mapa canônico do jogador, auditoria bidirecion
 - Registrado `godot-gas-hazard` no orquestrador `tools/validate.py`.
 - **Resultado da Validação**: `python3 tools/validate.py` $\to$ **100% PASS (47 testes Python + 18 suítes Godot, código de saída 0)**.
 
+## 2026-09-21 — Etapa 20: Arma Canônica Míssil Teleguiado (Remote-Controlled Missile — WEAPON_MISSILE)
+
+Entregue com base na engenharia reversa da ROM MSX2 RC750 (`logic/weapon/missile.asm`, `logic/weapons/remotemissile.asm`, `Banks0123.asm:8468`, `logic/maxammo.asm:24-27`, `logic/damagetoenemy.asm:58-61`). Relatório técnico: [reverse_engineering/stage-20-rc-missile.md](reverse_engineering/stage-20-rc-missile.md).
+
+### 1. Evidências da ROM MSX2
+- **Velocidade e Curvatura (`MissileIniSpeed`)**:
+  - ROM offset `0x48DE`: tabela `FC 00 04 00 00 FC 00 04` mapeia deslocamento de 4 px/tick nas 4 direções cardeais (cima, baixo, esquerda, direita).
+- **Supressão do Movimento de Snake (`NormalCtrl` em `Banks0123.asm:8468-8470`)**:
+  - Ao disparar o míssil (`PlayerShotsList == 7`), o loop de controle de Snake congela sua locomoção e redireciona os comandos do d-pad em tempo real para o míssil.
+- **Limites de Tela e Colisão (`ChkShotBoundaries` em `weaponuse.asm:365-375`)**:
+  - Limites de coordenadas $X \in [9, 248]$ e $Y \in [0, 184]$; impacto contra tiles sólidos de colisão ou bordas detona o míssil.
+- **Dano e Explosão Média (`MissileDamage` e `damagetoenemy.asm:58-61`)**:
+  - Inflige 5 HP de dano a qualquer ator atingido no raio de impacto.
+  - Temporizador de detonação com explosão de tamanho médio com duração exata de 15 ticks (`0x0F`).
+- **Capacidade por Rank (`MaxAmmoLv1..4` em `maxammo.asm:24-27`)**:
+  - ROM offset `0x51D6`: 5 mísseis no Rank 1 (★), 10 no Rank 2 (★★), 15 no Rank 3 (★★★), 20 no Rank 4 (★★★★).
+
+### 2. Extração Reproduzível e Contratos Neutros
+- **Extrator Python**: Criado `tools/extractors/extract_missile_data.py` (somente leitura na ROM RC750).
+- **Esquema JSON**: Criado `data/schemas/missile_weapon.schema.json`.
+- **Exportação Validada**: Gerado `data/extracted/missile_weapon.json`.
+
+### 3. Implementação no Motor Godot 4
+- **`RemoteMissile` (`godot/scripts/systems/remote_missile.gd`)**:
+  - Entidade completa de míssil teleguiado com controle direcional de 4 sentidos, avanço a 4 px/tick, teste de colisão contra matriz de tiles 32×24, limites canônicos de tela, animação de explosão MSX2 e emissão de sinais `missile_exploded` e `missile_destroyed`.
+- **`WeaponSystem` & `RankSystem`**:
+  - Adicionada constante `WEAPON_MISSILE = 4` / `"MISSILE"`, regras de capacidade por rank (5, 10, 15, 20) e recarga via `add_ammo_crate` (+5 unidades).
+- **`ItemBox` (`godot/scripts/systems/item_box.gd`)**:
+  - Suporte ao item tipo 7 (`MISSILE`), entregando 5 unidades e desbloqueando a arma no inventário bélico.
+- **`sandbox_gameplay.gd`**:
+  - Gerenciamento de disparo com consumo de 1 míssil, bloqueio de múltiplos mísseis simultâneos, redirecionamento dos inputs direcionais para `active_missile.steer(dir)`, congelamento dos passos de Snake enquanto o míssil voa, detecção de dano em guardas e chefes (`take_bullet_hit(5)`), alerta sonoro na detonação e descarte limpo no reset.
+
+### 4. Validação e Testes Automatizados
+- Criada a suíte `godot/tests/remote_missile_test.gd` com 55 asserções cobrindo setup, velocidade, esterçamento nas 4 direções, impacto com paredes/bordas, temporização de 15 ticks de explosão, eliminação de guardas com 5 HP de dano e limites de munição por patente.
+- Registrado `godot-remote-missile` em `tools/validate.py`.
+- **Resultado da Validação**: `python3 tools/validate.py` $\to$ **100% PASS (47 testes Python + 19 suítes Godot, código de saída 0)**.
+
+
 

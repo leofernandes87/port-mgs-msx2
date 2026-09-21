@@ -8,6 +8,7 @@ const WEAPON_NONE: String = ""
 const WEAPON_HANDGUN: String = "HANDGUN"                 # ID 1 na ROM (HAND_GUN)
 const WEAPON_SMG: String = "SMG"                         # ID 2 na ROM (SUB_MACHINE_GUN)
 const WEAPON_GRENADE_LAUNCHER: String = "GRENADE_LAUNCHER" # ID 3 na ROM (GRENADE_LAUNCHER)
+const WEAPON_MISSILE: String = "MISSILE"                 # ID 7 na ROM (MISSILE / RC Missile)
 
 var owned_weapons: Array[String] = []
 var selected_weapon: String = WEAPON_NONE
@@ -17,6 +18,7 @@ var ammo: Dictionary = {
 	WEAPON_HANDGUN: 0,
 	WEAPON_SMG: 0,
 	WEAPON_GRENADE_LAUNCHER: 0,
+	WEAPON_MISSILE: 0,
 }
 
 # Limites de munição dinâmicos baseados no Rank (Class 0 a 3 na ROM - maxammo.asm:112-147)
@@ -24,6 +26,7 @@ var max_ammo: Dictionary = {
 	WEAPON_HANDGUN: 50,
 	WEAPON_SMG: 50,
 	WEAPON_GRENADE_LAUNCHER: 15,
+	WEAPON_MISSILE: 5,
 }
 
 # Supressor de ruído (InvSupressor em logic/items.asm:188)
@@ -35,22 +38,27 @@ func update_rank_capacities(rank: int) -> void:
 			max_ammo[WEAPON_HANDGUN] = 50
 			max_ammo[WEAPON_SMG] = 50
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 15
+			max_ammo[WEAPON_MISSILE] = 5
 		2:
 			max_ammo[WEAPON_HANDGUN] = 100
 			max_ammo[WEAPON_SMG] = 100
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 30
+			max_ammo[WEAPON_MISSILE] = 10
 		3:
 			max_ammo[WEAPON_HANDGUN] = 200
 			max_ammo[WEAPON_SMG] = 200
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 60
+			max_ammo[WEAPON_MISSILE] = 15
 		4:
 			max_ammo[WEAPON_HANDGUN] = 300
 			max_ammo[WEAPON_SMG] = 300
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 90
+			max_ammo[WEAPON_MISSILE] = 20
 		_:
 			max_ammo[WEAPON_HANDGUN] = 50
 			max_ammo[WEAPON_SMG] = 50
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 15
+			max_ammo[WEAPON_MISSILE] = 5
 
 	# Ajusta munição atual se exceder o novo limite (em caso de rebaixamento de rank)
 	for w_id: String in ammo.keys():
@@ -62,7 +70,7 @@ func has_weapon(weapon_id: String) -> bool:
 	return owned_weapons.has(weapon_id)
 
 func add_weapon(weapon_id: String, initial_ammo: int = 0) -> bool:
-	if not weapon_id in [WEAPON_HANDGUN, WEAPON_SMG, WEAPON_GRENADE_LAUNCHER]:
+	if not weapon_id in [WEAPON_HANDGUN, WEAPON_SMG, WEAPON_GRENADE_LAUNCHER, WEAPON_MISSILE]:
 		return false
 
 	var is_first: bool = owned_weapons.is_empty()
@@ -98,7 +106,7 @@ func add_ammo(weapon_id: String, count: int) -> bool:
 
 ## Coleta de caixa de munição (PickAmmoCrate em logic/items.asm:333-356)
 ## Concede +20 balas de pistola, +20 de SMG e +6 granadas respeitando os limites da patente
-func add_ammo_crate(amount_handgun: int = 20, amount_smg: int = 20, amount_grenade: int = 6) -> void:
+func add_ammo_crate(amount_handgun: int = 20, amount_smg: int = 20, amount_grenade: int = 6, amount_missile: int = 5) -> void:
 	if owned_weapons.has(WEAPON_HANDGUN):
 		var cap_hg: int = int(max_ammo.get(WEAPON_HANDGUN, 50))
 		ammo[WEAPON_HANDGUN] = mini(cap_hg, int(ammo.get(WEAPON_HANDGUN, 0)) + amount_handgun)
@@ -110,6 +118,10 @@ func add_ammo_crate(amount_handgun: int = 20, amount_smg: int = 20, amount_grena
 	if owned_weapons.has(WEAPON_GRENADE_LAUNCHER):
 		var cap_gr: int = int(max_ammo.get(WEAPON_GRENADE_LAUNCHER, 15))
 		ammo[WEAPON_GRENADE_LAUNCHER] = mini(cap_gr, int(ammo.get(WEAPON_GRENADE_LAUNCHER, 0)) + amount_grenade)
+
+	if owned_weapons.has(WEAPON_MISSILE):
+		var cap_ms: int = int(max_ammo.get(WEAPON_MISSILE, 5))
+		ammo[WEAPON_MISSILE] = mini(cap_ms, int(ammo.get(WEAPON_MISSILE, 0)) + amount_missile)
 
 	print("AMMO_CRATE_COLLECTED: Armas recarregadas! Handgun: %d/%d, SMG: %d/%d" % [
 		ammo.get(WEAPON_HANDGUN, 0), max_ammo.get(WEAPON_HANDGUN, 50),
@@ -165,9 +177,11 @@ func reset() -> void:
 	ammo[WEAPON_HANDGUN] = 0
 	ammo[WEAPON_SMG] = 0
 	ammo[WEAPON_GRENADE_LAUNCHER] = 0
+	ammo[WEAPON_MISSILE] = 0
 	max_ammo[WEAPON_HANDGUN] = 50
 	max_ammo[WEAPON_SMG] = 50
 	max_ammo[WEAPON_GRENADE_LAUNCHER] = 15
+	max_ammo[WEAPON_MISSILE] = 5
 	has_silencer = false
 	print("WEAPON_RESET: Arsenal e munições reiniciados ao padrão.")
 

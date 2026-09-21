@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MetalGearRC750MissileWeapon",
+  "description": "Especificação da arma Remote-Controlled Missile (RC Missile) do Metal Gear MSX2 RC750",
+  "type": "object",
+  "required": [
+    "format_version",
+    "weapon_id",
+    "name",
+    "speed_pixels_per_tick",
+    "max_active_missiles",
+    "damage",
+    "explosion_duration_ticks",
+    "boundaries",
+    "ammo_capacity_per_rank"
+  ],
+  "properties": {
+    "format_version": { "type": "string" },
+    "weapon_id": { "type": "integer", "const": 7 },
+    "name": { "type": "string", "const": "MISSILE" },
+    "label": { "type": "string" },
+    "description": { "type": "string" },
+    "source": { "type": "string" },
+    "rom_offsets": {
+      "type": "object",
+      "properties": {
+        "speed_table": { "type": "string" },
+        "max_ammo_table": { "type": "string" }
+      }
+    },
+    "directional_speeds": {
+      "type": "object",
+      "properties": {
+        "UP": { "type": "object" },
+        "DOWN": { "type": "object" },
+        "LEFT": { "type": "object" },
+        "RIGHT": { "type": "object" }
+      }
+    },
+    "speed_pixels_per_tick": { "type": "integer", "const": 4 },
+    "max_active_missiles": { "type": "integer", "const": 1 },
+    "damage": { "type": "integer", "const": 5 },
+    "explosion_duration_ticks": { "type": "integer", "const": 15 },
+    "boundaries": {
+      "type": "object",
+      "required": ["min_x", "max_x", "min_y", "max_y"],
+      "properties": {
+        "min_x": { "type": "integer" },
+        "max_x": { "type": "integer" },
+        "min_y": { "type": "integer" },
+        "max_y": { "type": "integer" }
+      }
+    },
+    "ammo_capacity_per_rank": {
+      "type": "object",
+      "required": ["rank_1", "rank_2", "rank_3", "rank_4"],
+      "properties": {
+        "rank_1": { "type": "integer", "const": 5 },
+        "rank_2": { "type": "integer", "const": 10 },
+        "rank_3": { "type": "integer", "const": 15 },
+        "rank_4": { "type": "integer", "const": 20 }
+      }
+    },
+    "primary_pickup_location": {
+      "type": "object",
+      "properties": {
+        "room_id": { "type": "integer" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "initial_units": { "type": "integer" }
+      }
+    }
+  }
+}

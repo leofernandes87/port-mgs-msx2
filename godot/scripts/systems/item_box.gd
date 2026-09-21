@@ -28,9 +28,10 @@ func step_tick(player_pos: Vector2, inventory: InventoryManager, weapon_system: 
 	var dx: float = absf(position.x - player_pos.x)
 	var dy: float = absf(position.y - player_pos.y)
 	if dx <= 20.0 and dy <= 20.0:
-		if item_id in [WeaponSystem.WEAPON_HANDGUN, WeaponSystem.WEAPON_SMG, WeaponSystem.WEAPON_GRENADE_LAUNCHER]:
+		if item_id in [WeaponSystem.WEAPON_HANDGUN, WeaponSystem.WEAPON_SMG, WeaponSystem.WEAPON_GRENADE_LAUNCHER, WeaponSystem.WEAPON_MISSILE]:
 			if weapon_system != null:
-				weapon_system.add_weapon(item_id, 20)
+				var init_ammo: int = 5 if item_id == WeaponSystem.WEAPON_MISSILE else 20
+				weapon_system.add_weapon(item_id, init_ammo)
 				collected = true
 				collected_boxes[box_unique_id] = true
 				queue_redraw()

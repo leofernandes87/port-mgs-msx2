@@ -84,6 +84,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `4981fcc` | Spawn | Posicionamento de Snake em terra firme transitável no cais da Sala 121 (128.0, 80.0) |
 | `d185e76` | Combat | Game Over punitivo clássico MSX2 com bloqueio imediato de inputs e reset absoluto de estado |
 | `d3c8b64` | 19 | Perigo Ambiental de Gás Tóxico e Máscara de Gás (GasHazardSystem, GasCloud, 9 salas canônicas) |
+| `bf2b8ad` | 20 | Míssil Teleguiado / Remote-Controlled Missile (RemoteMissile, WeaponSystem, esterçamento e dano 5 HP) |
 
 ### Dados extraídos disponíveis
 
@@ -98,6 +99,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `data/extracted/stage5-elevators/` | **11 snapshots rooms 240–250** + PNGs + **11 room-NNN-actors.json** (sala 240 validada contra emulador) |
 | `data/extracted/respawn_info.json` | **189 salas (0-188)** extraídas da ROM (0xC445) com IDs e pontos de spawn de reforços |
 | `data/extracted/gas_hazard.json` | **9 salas canônicas com gás tóxico** extraídas da ROM (0x4C79) com danos e temporizadores |
+| `data/extracted/missile_weapon.json` | **Constantes do Míssil Teleguiado** extraídas da ROM (velocidade 4 px/tick, 15 ticks explosão, limites por rank) |
 
 ### Cobertura de salas disponíveis
 
@@ -110,6 +112,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ### Estado do Godot
 
+- `RemoteMissile` (`godot/scripts/systems/remote_missile.gd`): míssil teleguiado com controle em tempo real nas 4 direções (`steer`), velocidade canônica de 4 px/tick (`MissileIniSpeed`), teste de colisão contra matriz de tiles 32×24, limites de tela (`ChkShotBoundaries`), animação de explosão de 15 ticks (`0x0F`), dano de 5 HP instantâneo em guardas e chefes, supressão total da movimentação do Snake enquanto o míssil estiver ativo (`Banks0123.asm:8468`), e recarga de +5 mísseis por caixa de munição.
 - `GasHazardSystem` (`godot/scripts/systems/gas_hazard_system.gd`): gerenciamento de perigo de gás tóxico e proteção por máscara de gás (`ITEM_GAS_MASK`), 9 salas canônicas da ROM (`GasRooms`: 29, 94, 96, 97, 98, 100, 101, 112, 114), dano contínuo de 2 HP a cada 16 ticks (`0x10`) desprotegido, 100% de anulação quando equipada e sinais de dano/proteção.
 - `GasCloud` (`godot/scripts/systems/gas_cloud.gd`): ator de nuvem de gás (ID_GAS = 8, `gas.asm`), ciclo visual de 32 ticks visíveis e intervalo oculto aleatório, avanço a cada 8 ticks e cores MSX autênticas.
 - `RankSystem` (`godot/scripts/systems/rank_system.gd`): gerenciamento de patentes militares (Class / Ranks ★1 a ★4), cotas de 4 reféns por estrela, limites progressivos de vida (24, 32, 40, 48 HP), limites progressivos de munição (Handgun/SMG 50 a 300, Grenade Launcher 15 a 90) e rações (3 a 12), cura total na promoção e penalidade `DowngradeRank` por baixa de refém.

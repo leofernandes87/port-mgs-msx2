@@ -39,6 +39,10 @@ var boss_dialog_label: Label = null
 var gas_hazard_system: GasHazardSystem = GasHazardSystem.new()
 var gas_clouds: Array[GasCloud] = []
 
+## Míssil Teleguiado por Controle Remoto (Etapa 20) — logic/weapon/missile.asm
+var active_missile: RemoteMissile = null
+
+
 
 
 # 55 salas onde tiros sem silenciador NÃO alertam a guarnição (RoomShotSecure em logic/checkweaponalert.asm:37-40)
@@ -606,6 +610,8 @@ func _spawn_room_items(room_id: int) -> void:
 					b.item_id = WeaponSystem.WEAPON_SMG
 				3:
 					b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
+				7:
+					b.item_id = WeaponSystem.WEAPON_MISSILE
 				8:
 					b.item_id = InventoryManager.ITEM_SILENCER
 				12:
@@ -960,6 +966,10 @@ func reset_game_state() -> void:
 			gc.queue_free()
 	gas_clouds.clear()
 
+	if is_instance_valid(active_missile):
+		active_missile.queue_free()
+		active_missile = null
+
 	if is_instance_valid(shot_gunner):
 		shot_gunner.queue_free()
 		shot_gunner = null
@@ -1134,7 +1144,20 @@ func _input(event: InputEvent) -> void:
 
 	if is_fire_action:
 		if player and not weapon_system.selected_weapon.is_empty():
-			if weapon_system.can_fire():
+			if weapon_system.selected_weapon == WeaponSystem.WEAPON_MISSILE:
+				if is_instance_valid(active_missile):
+					print("MISSILE_BUSY: Míssil teleguiado já em voo!")
+				elif weapon_system.can_fire():
+					weapon_system.consume_ammo()
+					var m: RemoteMissile = RemoteMissile.new()
+					m.setup(player.position, player.current_direction)
+					m.missile_exploded.connect(_on_missile_exploded)
+					game_world.add_child(m)
+					active_missile = m
+					print("MISSILE_LAUNCHED: Míssil teleguiado disparado em %s! Controle transferido." % player.position)
+				else:
+					print("WEAPON_NO_AMMO: Sem mísseis!")
+			elif weapon_system.can_fire():
 				var b: Bullet = player.fire_weapon(weapon_system)
 				if b != null:
 					bullets.append(b)
@@ -1212,7 +1235,36 @@ func _physics_process(_delta: float) -> void:
 	elif Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
 		input_dir = Vector2i(1, 0)
 
-	if is_in_elevator:
+	# Se um míssil teleguiado estiver ativo, o controle direcional é transferido exclusivamente para ele (Banks0123.asm:8468)
+	if is_instance_valid(active_missile):
+		if input_dir != Vector2i.ZERO:
+			active_missile.steer(input_dir)
+		player.is_moving = false
+		player.queue_redraw()
+
+		var missile_alive: bool = active_missile.step_tick(runtime_collision)
+
+		# Colisão do míssil com soldados inimigos (Etapa 20)
+		if is_instance_valid(active_missile) and active_missile.state == RemoteMissile.MissileState.FLIGHT:
+			for enemy: EnemyGuard in enemies:
+				if is_instance_valid(enemy) and not enemy.is_dead:
+					if active_missile.check_actor_hit(enemy.position, 12.0):
+						enemy.take_bullet_hit(active_missile.damage)
+						active_missile.explode()
+						break
+
+		# Colisão do míssil com o chefe Shoot Gunner
+		if is_instance_valid(active_missile) and active_missile.state == RemoteMissile.MissileState.FLIGHT:
+			if is_instance_valid(shot_gunner) and not shot_gunner.is_dead and shot_gunner.state == ShotGunner.SGunnerState.SHOOT:
+				if active_missile.check_actor_hit(shot_gunner.position, 16.0):
+					for _i in range(3):
+						shot_gunner.apply_bullet_hit()
+					active_missile.explode()
+
+		if not missile_alive:
+			active_missile.queue_free()
+			active_missile = null
+	elif is_in_elevator:
 		# Mecânica de Elevador fiel ao MSX2 (Banks0123.asm:8540-8556 e logic/elevatorroom.asm)
 		if elevator_state == ELEVATOR_STATE_MOVING:
 			# Cabine em trânsito vertical a 1 px/tick (GameMode = GAME_MODE_ELEVATOR)
@@ -1733,3 +1785,11 @@ func _check_boss_bullet_collision(b: Bullet) -> bool:
 			print("BOSS_KILLED: Bala final atingiu Shoot Gunner!")
 		return true
 	return false
+
+func _on_missile_exploded(pos: Vector2) -> void:
+	if snapshot and not snapshot.room_id in ROOMS_SHOT_SECURE:
+		alert_system.trigger_alert(false, inventory.get_card_level(), snapshot.room_id)
+		for enemy: EnemyGuard in enemies:
+			if is_instance_valid(enemy) and not enemy.is_dead:
+				enemy.transform_to_alert_guard()
+		print("MISSILE_ALERT: Explosão na sala %d alertou a guarnição!" % snapshot.room_id)

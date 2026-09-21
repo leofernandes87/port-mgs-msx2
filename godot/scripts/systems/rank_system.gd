@@ -41,6 +41,13 @@ func get_max_ammo(weapon_id: String) -> int:
 				3: return 60
 				4: return 90
 				_: return 15
+		"MISSILE":
+			match current_rank:
+				1: return 5
+				2: return 10
+				3: return 15
+				4: return 20
+				_: return 5
 		_:
 			return 50
 
