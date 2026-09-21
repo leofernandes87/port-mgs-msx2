@@ -78,10 +78,12 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `3bb9410` | 16 | Câmeras de Vigilância e Feixes Laser Infravermelhos (SecurityCamera, LaserSystem, Goggles) |
 | `1aef8a2` | fix | Sandbox: spawn seguro contra colisão no reset e toggle de vida infinita (God Mode) |
 | `a43f6f7` | 17 | Máquina de Estados de Alerta Global, Evasão e Reforços Militares (AlertSystem, RespawnInfo) |
-| `pendente` | 18 | Boss Fight Canônica: Shoot Gunner na Sala 57 (ShotGunner, balística expansiva, HP 20) |
-| `pendente` | UI/Ctrl | Controles Modernos (WASD, J/Z tiro, K/X soco, Q/Shift armas, E/Ctrl itens, R/Tab rádio, Pause ESC) e fix colisão |
-| `pendente` | Doors | Triggers canônicos DoorOpenEnterDat (32px), remoção de caixas em portas abertas e bloqueio da Sala 204 (limbo) |
-| `pendente` | 19 | Sistema de Prisioneiros, Reféns e Patente Militar (RankSystem, Prisoner, Ranks ★1 a ★4, Grey Fox e Ellen) |
+| `c3c0803` | 18 | Boss Shoot Gunner, Patentes e Reféns, Menus de Inventário/Armas, Controles Modernos e Ajustes de Portas |
+| `6572503` | Doors | Desobstrução de vãos de portas, eliminação de blocos flutuantes e extração de item rooms 129-207 |
+| `2fda07a` | Init | Inicialização canônica na Sala 121 (infiltração na água MSX2) |
+| `4981fcc` | Spawn | Posicionamento de Snake em terra firme transitável no cais da Sala 121 (128.0, 80.0) |
+| `d185e76` | Combat | Game Over punitivo clássico MSX2 com bloqueio imediato de inputs e reset absoluto de estado |
+| `pendente` | 19 | Perigo Ambiental de Gás Tóxico e Máscara de Gás (GasHazardSystem, GasCloud, 9 salas canônicas) |
 
 ### Dados extraídos disponíveis
 
@@ -95,6 +97,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `data/extracted/stage5-lorries/` | **81 snapshots rooms 126–207** + PNGs + **81 room-NNN-actors.json** (salas 126-207) |
 | `data/extracted/stage5-elevators/` | **11 snapshots rooms 240–250** + PNGs + **11 room-NNN-actors.json** (sala 240 validada contra emulador) |
 | `data/extracted/respawn_info.json` | **189 salas (0-188)** extraídas da ROM (0xC445) com IDs e pontos de spawn de reforços |
+| `data/extracted/gas_hazard.json` | **9 salas canônicas com gás tóxico** extraídas da ROM (0x4C79) com danos e temporizadores |
 
 ### Cobertura de salas disponíveis
 
@@ -107,6 +110,8 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 
 ### Estado do Godot
 
+- `GasHazardSystem` (`godot/scripts/systems/gas_hazard_system.gd`): gerenciamento de perigo de gás tóxico e proteção por máscara de gás (`ITEM_GAS_MASK`), 9 salas canônicas da ROM (`GasRooms`: 29, 94, 96, 97, 98, 100, 101, 112, 114), dano contínuo de 2 HP a cada 16 ticks (`0x10`) desprotegido, 100% de anulação quando equipada e sinais de dano/proteção.
+- `GasCloud` (`godot/scripts/systems/gas_cloud.gd`): ator de nuvem de gás (ID_GAS = 8, `gas.asm`), ciclo visual de 32 ticks visíveis e intervalo oculto aleatório, avanço a cada 8 ticks e cores MSX autênticas.
 - `RankSystem` (`godot/scripts/systems/rank_system.gd`): gerenciamento de patentes militares (Class / Ranks ★1 a ★4), cotas de 4 reféns por estrela, limites progressivos de vida (24, 32, 40, 48 HP), limites progressivos de munição (Handgun/SMG 50 a 300, Grenade Launcher 15 a 90) e rações (3 a 12), cura total na promoção e penalidade `DowngradeRank` por baixa de refém.
 - `Prisoner` (`godot/scripts/systems/prisoner.gd`): entidade autêntica de refém com renderização procedural fiel à paleta MSX2 (amarrado vs libertado/agradecendo), tipos canônicos (ID 49 Comum, 50 Ellen Madnar, 51 Grey Fox, 52 Pettrovich Madnar, 55 Falso Madnar), catálogo completo de 23 diálogos da ROM, banner de diálogo e detecção de tiros/socos.
 - `ShotGunner` (`godot/scripts/systems/shot_gunner.gd`): primeiro chefe autêntico do jogo (`ID_SHOT_GUNNER = 33`, Sala 57), máquina de 3 estados (INTRO, ROLAGEM, TIRO), HP inicial de 20 (`idxActorLife[32]`), invulnerabilidade durante rolagem a 4 px/tick, disparo de escopeta a cada 16 ticks ao parar, verificação de abrigo atrás das caixas e derrota limpa (`ShotGunnerStat bit0 = 1`).
@@ -127,7 +132,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - Sistema de Portas & Desobstrução de Vãos (`door.gd`): suporte a `clearance_tile_indices` para eliminação de blocos de colisão flutuantes em vãos abertos, triggers laterais (WEST/EAST) alinhados ao chão, saída limpa de caminhões (`LORRY_EXIT`) e bloqueio rigoroso de saídas de borda por portas trancadas (ex: Sala 7 -> Sala 11 requer CARD4).
 - Inicialização Canônica na Sala 121: `sandbox_gameplay.tscn` configurada como cena principal em `project.godot`; Snake inicia na Sala 121 em terra firme/cais navegável após a infiltração nas coordenadas `(128.0, 80.0)` com direção `UP` e `CIGARETTES` equipados.
 - Game Over Punitivo MSX2 & Reset Absoluto de Estado: morte com vida zerada bloqueia imediatamente ações do jogador (`is_dead`, `can_control = false`), limpa totalmente inventário, armas, cartões, rank e alerta, recarregando a cena de forma segura na Sala 121 com vida total e controles liberados.
-- Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 17 suítes Godot (100% PASS).
+- Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 18 suítes Godot (100% PASS).
 
 ---
 

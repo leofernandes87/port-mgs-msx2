@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:metal-gear-lab:gas-hazard:1.0.0",
+  "type": "object",
+  "properties": {
+    "format_version": {
+      "const": "1.0.0"
+    },
+    "description": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "damage_interval_ticks": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "damage_per_interval": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "protection_item": {
+      "type": "string"
+    },
+    "gas_mask_location": {
+      "type": "object",
+      "properties": {
+        "room_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "x": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "y": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      },
+      "required": ["room_id", "x", "y"],
+      "additionalProperties": false
+    },
+    "gas_rooms": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 255
+      },
+      "minItems": 1
+    },
+    "total_rooms": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "required": [
+    "format_version",
+    "description",
+    "source",
+    "damage_interval_ticks",
+    "damage_per_interval",
+    "protection_item",
+    "gas_mask_location",
+    "gas_rooms",
+    "total_rooms"
+  ],
+  "additionalProperties": false
+}

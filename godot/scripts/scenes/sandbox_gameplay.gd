@@ -35,6 +35,11 @@ var shot_gunner: ShotGunner = null
 var shot_gunner_bullets: Array[ShotGunnerBullet] = []
 var boss_dialog_label: Label = null
 
+## Perigo de Gás Tóxico (Etapa 19) — logic/damagegas.asm e logic/actors/gas.asm
+var gas_hazard_system: GasHazardSystem = GasHazardSystem.new()
+var gas_clouds: Array[GasCloud] = []
+
+
 
 # 55 salas onde tiros sem silenciador NÃO alertam a guarnição (RoomShotSecure em logic/checkweaponalert.asm:37-40)
 const ROOMS_SHOT_SECURE: Array[int] = [
@@ -311,6 +316,9 @@ func _update_world_transform(area_size: Vector2) -> void:
 func _draw_room_and_collision() -> void:
 	if room_texture:
 		room_display.draw_texture(room_texture, Vector2.ZERO)
+	# Névoa atmosférica sutil de gás tóxico nas salas canônicas (Etapa 19)
+	if gas_hazard_system and snapshot and gas_hazard_system.is_gas_room(snapshot.room_id):
+		room_display.draw_rect(Rect2(0, 0, 256, 192), Color(0.12, 0.40, 0.15, 0.20))
 	if show_collision and not runtime_collision.is_empty():
 		for i: int in range(768):
 			if int(runtime_collision[i]) == 1:
@@ -379,6 +387,11 @@ func _spawn_room_enemies(room_id: int) -> void:
 			cam.queue_free()
 	cameras.clear()
 
+	for gc: GasCloud in gas_clouds:
+		if is_instance_valid(gc):
+			gc.queue_free()
+	gas_clouds.clear()
+
 	# Limpa boss anterior ao trocar de sala
 	if is_instance_valid(shot_gunner):
 		shot_gunner.queue_free()
@@ -426,6 +439,14 @@ func _spawn_room_enemies(room_id: int) -> void:
 				game_world.add_child(cam)
 				cameras.append(cam)
 				print("CAMERA_SPAWNED: Câmera %d na sala %d em %s (Dir: %d)" % [cam_idx, room_id, spawn_pos, cam.facing_direction])
+				continue
+
+			# Nuvem de Gás Tóxico — ID_GAS = 8 (logic/actors/gas.asm)
+			if type_id == 8:
+				var gc: GasCloud = GasCloud.new(randf() > 0.5)
+				gc.position = spawn_pos
+				game_world.add_child(gc)
+				gas_clouds.append(gc)
 				continue
 
 			# Boss Shoot Gunner — ID_SHOT_GUNNER = 0x21 = 33 (Etapa 18)
@@ -934,6 +955,11 @@ func reset_game_state() -> void:
 			pris.queue_free()
 	prisoners.clear()
 
+	for gc: GasCloud in gas_clouds:
+		if is_instance_valid(gc):
+			gc.queue_free()
+	gas_clouds.clear()
+
 	if is_instance_valid(shot_gunner):
 		shot_gunner.queue_free()
 		shot_gunner = null
@@ -943,6 +969,9 @@ func reset_game_state() -> void:
 	weapon_system.reset()
 	rank_system.reset()
 	alert_system.reset()
+	if gas_hazard_system:
+		gas_hazard_system.reset()
+	ItemBox.collected_boxes.clear()
 
 	# 3. Reset de variáveis de ambiente e flags de sala
 	silencer_dropped_room_150 = false
@@ -1307,6 +1336,15 @@ func _physics_process(_delta: float) -> void:
 		var goggles_on: bool = (inventory.get_selected_item() == InventoryManager.ITEM_GOGGLES)
 		laser_system.tick(player.position, goggles_on, is_alert_active)
 
+	# Atualizar nuvens visuais de gás (Etapa 19)
+	for gc: GasCloud in gas_clouds:
+		if is_instance_valid(gc):
+			gc.step_tick()
+
+	# Atualizar sistema de perigo de gás tóxico (Etapa 19 — logic/damagegas.asm)
+	if gas_hazard_system and snapshot:
+		gas_hazard_system.tick(snapshot.room_id, player, inventory)
+
 	# Se Snake for detectado durante o estado NORMAL, aciona ALERTA
 	if any_enemy_sees_snake and alert_system.current_state == AlertSystem.AlertState.NORMAL:
 		alert_system.trigger_alert(false, inventory.get_card_level(), snapshot.room_id if snapshot and snapshot.loaded else 0)
@@ -1453,10 +1491,19 @@ func _physics_process(_delta: float) -> void:
 		]
 		status_label.modulate = Color(0.9, 0.8, 0.3)
 	elif snapshot.loaded:
-		status_label.text = "Sala %03d | %s | %s | VIDA: [%s] %s | %s" % [
-			snapshot.room_id, rank_str, weapon_str, life_bar, life_val_str, item_str
+		var gas_tag: String = ""
+		if gas_hazard_system and gas_hazard_system.is_gas_room(snapshot.room_id):
+			if gas_hazard_system.is_player_protected(inventory):
+				gas_tag = " [MÁSCARA ATIVA]"
+			else:
+				gas_tag = " [GÁS TÓXICO!]"
+		status_label.text = "Sala %03d%s | %s | %s | VIDA: [%s] %s | %s" % [
+			snapshot.room_id, gas_tag, rank_str, weapon_str, life_bar, life_val_str, item_str
 		]
-		status_label.modulate = Color(1.0, 1.0, 1.0)
+		if gas_tag != "":
+			status_label.modulate = Color(0.4, 0.95, 0.4) if gas_hazard_system.is_player_protected(inventory) else Color(0.9, 0.4, 0.2)
+		else:
+			status_label.modulate = Color(1.0, 1.0, 1.0)
 
 func _check_and_handle_room_transition() -> void:
 	if not player or not snapshot:

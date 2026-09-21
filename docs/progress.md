@@ -1368,3 +1368,53 @@ Diagnóstico profundo baseado no mapa canônico do jogador, auditoria bidirecion
   - **Seção 8**: Teste de integração de Game Over no Sandbox com pré-coleta de cartões, armas e alerta ativo $\to$ comprovação de inventário esvaziado, cartões removidos, alerta NORMAL, vida em 24 HP, spawn em (128, 80) e controles desobstruídos.
 - `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.
 
+## 2026-09-21 — Extração e Implementação da Mecânica de Gas Mask e Salas de Gás Tóxico (Etapa 19)
+
+### 1. Engenharia Reversa da ROM MSX2 RC750
+- **Identificação e Evidências da Lógica de Dano por Gás (`logic/damagegas.asm`)**:
+  - Offset na ROM: `0x4C79` (19.577 bytes, Banco 2).
+  - Tabela canônica de salas com gás (`GasRooms` em `damagegas.asm:53`):
+    - 9 salas: `[29, 94, 96, 97, 98, 100, 101, 112, 114]`.
+  - Mecânica de Dano e Intervalo (`damagegas.asm:34-45`):
+    - Temporizador `DamageDelayTimer`: configurado para `0x10` (16 ticks, ~0.26s a 60 ticks/s).
+    - Quantidade de dano: drena 2 HP a cada 16 ticks (`sub 2`).
+  - Verificação de Proteção (`ChkGasMask` em `damagegas.asm:24-33`):
+    - Compara `SelectedItem == SELECTED_GAS_MASK` (ID 5 na ROM, correspondente a `ITEM_GAS_MASK` / ID 13 no inventário Godot).
+    - Se a máscara estiver ativamente selecionada/equipada: o dano é 100% anulado (`jr nz, .noDamage`). Se estiver apenas na mochila mas não selecionada, Snake sofre asfixia/dano normalmente.
+- **Atores de Nuvem de Gás (`logic/actors/gas.asm`)**:
+  - Ator `ID_GAS = 8` (19 instâncias distribuídas pelas 9 salas com gás).
+  - Ciclo visual: 32 ticks de fase visível (`0x20`), seguido por intervalo aleatório oculto (`20..60` ticks).
+  - Alternância de animação a cada 8 ticks com paleta MSX autêntica (tons verdes 2 e 4Dh).
+
+### 2. Extração Reproduzível e Contrato Neutro
+- **Extrator Python**: Criado `tools/extractors/extract_gas_hazard.py` (leitura em modo somente leitura da ROM original MSX2 RC750 e disassembly de referência).
+- **Esquema JSON**: Criado `data/schemas/gas_hazard.schema.json`.
+- **Exportação Validada**: Gerado `data/extracted/gas_hazard.json` contendo as 9 salas, constantes de tick/dano e identificadores de itens.
+- **Relatório Técnico**: Criado `docs/reverse_engineering/stage-19-gas-hazard.md`.
+
+### 3. Implementação no Motor Godot 4
+- **`GasHazardSystem` (`godot/scripts/systems/gas_hazard_system.gd`)**:
+  - Classe neutra que gerencia checagem de salas com gás, status de proteção (`is_player_protected`), aplicação de dano contínuo (2 HP a cada 16 ticks) e emissão de sinais (`gas_damage_taken`, `gas_protection_status_changed`).
+- **`GasCloud` (`godot/scripts/systems/gas_cloud.gd`)**:
+  - Ator `Node2D` animado para renderizar nuvens de gás verdes dinâmicas conforme `logic/actors/gas.asm`.
+- **Integração no Sandbox de Gameplay (`godot/scripts/scenes/sandbox_gameplay.gd`)**:
+  - `_spawn_room_enemies(room_id)`: instancia nós `GasCloud` dinamicamente quando `actor_type_id == 8`.
+  - `_draw_room_and_collision()`: desenha uma névoa atmosférica verde sutil (`Color(0.12, 0.40, 0.15, 0.20)`) sobre as salas de gás canônicas.
+  - `_physics_process()`: avança o ciclo das nuvens de gás e executa `gas_hazard_system.tick(room_id, player, inventory)`.
+  - HUD / `status_label`: exibe indicador em tempo real `[GÁS TÓXICO!]` (em tom alaranjado/vermelho) ou `[MÁSCARA ATIVA]` (em tom verde protetor).
+  - `reset_game_state()`: limpa instâncias de `GasCloud`, reseta `GasHazardSystem` e executa `ItemBox.collected_boxes.clear()`.
+
+### 4. Validação e Testes Automatizados
+- Criada a suíte `godot/tests/gas_hazard_test.gd` com 8 testes cobrindo:
+  - Detecção das 9 salas canônicas e rejeição em salas seguras.
+  - Inexistência de dano fora de salas com gás.
+  - Aplicação exata de 2 HP de dano ao entrar desprotegido.
+  - Intervalo rigoroso de 16 ticks entre aplicações sucessivas de dano.
+  - Imunidade total (0 dano) com `ITEM_GAS_MASK` selecionado/equipado.
+  - Falha de proteção caso a máscara esteja no inventário mas não selecionada.
+  - Ciclo de estados e quadros de animação do ator `GasCloud`.
+  - Morte por asfixia ao zerar a vida, emitindo `player_died`.
+- Registrado `godot-gas-hazard` no orquestrador `tools/validate.py`.
+- **Resultado da Validação**: `python3 tools/validate.py` $\to$ **100% PASS (47 testes Python + 18 suítes Godot, código de saída 0)**.
+
+
