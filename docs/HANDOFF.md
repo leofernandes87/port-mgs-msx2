@@ -125,7 +125,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - `ElevatorSystem` & `ElevatorCabin`: limites e paradas dos 11 elevadores, movimentação vertical a 1 px/tick.
 - `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/`, `stage5-elevators/` e `stage5-item-rooms/` (78 salas de item 129 a 207 extraídas e conectadas).
 - Sistema de Portas & Desobstrução de Vãos (`door.gd`): suporte a `clearance_tile_indices` para eliminação de blocos de colisão flutuantes em vãos abertos, triggers laterais (WEST/EAST) alinhados ao chão, saída limpa de caminhões (`LORRY_EXIT`) e bloqueio rigoroso de saídas de borda por portas trancadas (ex: Sala 7 -> Sala 11 requer CARD4).
-- Inicialização Canônica na Sala 121: `sandbox_gameplay.tscn` configurada como cena principal em `project.godot`; Snake inicia na Sala 121 (infiltração na água) nas coordenadas canônicas da ROM `(192.0, 184.0)` com direção `UP` e `CIGARETTES` equipados.
+- Inicialização Canônica na Sala 121: `sandbox_gameplay.tscn` configurada como cena principal em `project.godot`; Snake inicia na Sala 121 em terra firme/cais navegável após a infiltração nas coordenadas `(128.0, 80.0)` com direção `UP` e `CIGARETTES` equipados.
 - Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 17 suítes Godot (100% PASS).
 
 ---

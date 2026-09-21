@@ -57,10 +57,10 @@ var weapon_menu: WeaponMenu
 var item_menu: ItemMenu
 var pause_menu: PauseMenu
 
-# Posição inicial oficial da ROM original MSX2 RC750 (Sala 121 / Introdução: PlayerXdec = 0xC000, PlayerYdec = 0xB800)
+# Posição inicial oficial na Sala 121 em terra firme (após introdução: X = 128.0, Y = 80.0)
 const INITIAL_ROOM_ID: int = 121
-const DEFAULT_SPAWN_X: float = 192.0 # 0xC0
-const DEFAULT_SPAWN_Y: float = 184.0 # 0xB8
+const DEFAULT_SPAWN_X: float = 128.0
+const DEFAULT_SPAWN_Y: float = 80.0
 
 func _ready() -> void:
 	print("BOOT_OK: cena principal pronta")
@@ -824,7 +824,7 @@ func _get_safe_spawn_position() -> Vector2:
 		pref_pos = Vector2(216.0, elevator_y + 4.0)
 		return pref_pos
 	elif snapshot and snapshot.room_id == 121:
-		pref_pos = Vector2(192.0, 184.0)
+		pref_pos = Vector2(128.0, 80.0)
 		return pref_pos
 	elif snapshot and snapshot.room_id == 0:
 		pref_pos = Vector2(128.0, 100.0)

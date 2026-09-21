@@ -66,7 +66,7 @@ func _run() -> void:
 	var p: PlayerController = sandbox.get("player") as PlayerController
 	var current_snap: RoomSnapshot = sandbox.get("snapshot") as RoomSnapshot
 	if not require(current_snap.room_id == 121, "Cena deve iniciar na Sala 121 (infiltração na água)"): return
-	if not require(p.position == Vector2(192.0, 184.0), "Snake deve nascer em (192, 184) na Sala 121 conforme a ROM"): return
+	if not require(p.position == Vector2(128.0, 80.0), "Snake deve nascer em (128, 80) na Sala 121 em terra firme"): return
 
 	# Transição Sala 121 -> Sala 0 (avançando ao Norte pela água)
 	p.set_grid_position(128.0, 18.0)

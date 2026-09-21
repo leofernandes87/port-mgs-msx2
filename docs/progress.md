@@ -1316,3 +1316,21 @@ Diagnóstico profundo baseado no mapa canônico do jogador, auditoria bidirecion
 ### 2. Validação Automatizada
 - Atualizado `godot/tests/room_transition_test.gd` para validar o ciclo natural de transições: início na Sala 121 em `(192.0, 184.0)` $\to$ avanço ao Norte para Sala 0 $\to$ avanço ao Norte para Sala 1 $\to$ Sala 2 $\to$ Sala 3.
 - `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.
+
+## 2026-09-21 — Correção de Spawn: Posicionamento em Terra Firme na Sala 121
+
+### 1. Diagnóstico do Terreno e Grade de Colisão
+- **Problema**: O spawn na coordenada de animação da água `(192.0, 184.0)` deixava o jogador preso atrás da cerca sólida de caixas/grades (`ty = 12..15`, `Y = 96..127`), que bloqueia toda a extensão horizontal da tela (32 tiles de largura).
+- **Mapeamento da Área Caminhável (`room-121.json`)**:
+  - `Y = 96..127`: Grade intransponível sólida.
+  - `Y = 128..191`: Área aquática de infiltração.
+  - `Y = 48..95`, colunas `tx = 10..19` ($X = 80..159$): Terra firme / cais desobstruído com passagem livre em direção ao Norte para a Sala 0.
+- **Ajuste Realizado**:
+  - Em `sandbox_gameplay.gd`:
+    - Atualizadas as constantes: `DEFAULT_SPAWN_X = 128.0`, `DEFAULT_SPAWN_Y = 80.0`.
+    - Ajustado `_get_safe_spawn_position()` para retornar `Vector2(128.0, 80.0)` na Sala 121.
+    - Snake nasce diretamente em solo firme navegável, com controle livre e caminho limpo ao Norte rumo à Sala 0.
+
+### 2. Validação Automatizada
+- Atualizada asserção em `godot/tests/room_transition_test.gd` para `Vector2(128.0, 80.0)`.
+- `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.
