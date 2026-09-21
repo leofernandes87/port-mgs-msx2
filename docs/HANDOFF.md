@@ -83,7 +83,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `2fda07a` | Init | Inicialização canônica na Sala 121 (infiltração na água MSX2) |
 | `4981fcc` | Spawn | Posicionamento de Snake em terra firme transitável no cais da Sala 121 (128.0, 80.0) |
 | `d185e76` | Combat | Game Over punitivo clássico MSX2 com bloqueio imediato de inputs e reset absoluto de estado |
-| `pendente` | 19 | Perigo Ambiental de Gás Tóxico e Máscara de Gás (GasHazardSystem, GasCloud, 9 salas canônicas) |
+| `d3c8b64` | 19 | Perigo Ambiental de Gás Tóxico e Máscara de Gás (GasHazardSystem, GasCloud, 9 salas canônicas) |
 
 ### Dados extraídos disponíveis
 
