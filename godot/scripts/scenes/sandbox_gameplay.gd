@@ -1174,24 +1174,28 @@ func _input(event: InputEvent) -> void:
 	# 1. Repasse para menus modais abertos
 
 	if radio_dialog and radio_dialog.is_active:
-		if radio_dialog.handle_input(event):
+		radio_dialog.handle_input(event)
+		if not event is InputEventMouse:
 			get_viewport().set_input_as_handled()
-			return
+		return
 
 	if weapon_menu and weapon_menu.visible:
-		if weapon_menu.handle_input(event):
+		weapon_menu.handle_input(event)
+		if not event is InputEventMouse:
 			get_viewport().set_input_as_handled()
-			return
+		return
 
 	if item_menu and item_menu.visible:
-		if item_menu.handle_input(event):
+		item_menu.handle_input(event)
+		if not event is InputEventMouse:
 			get_viewport().set_input_as_handled()
-			return
+		return
 
 	if pause_menu and pause_menu.visible:
-		if pause_menu.handle_input(event):
+		pause_menu.handle_input(event)
+		if not event is InputEventMouse:
 			get_viewport().set_input_as_handled()
-			return
+		return
 
 	# 2. Tela Cheia: Tecla F11 ou Alt+Enter
 	if event is InputEventKey and event.pressed and not event.echo:
