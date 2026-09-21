@@ -88,7 +88,7 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `d7048f1` | fix | Transição contínua vertical de elevadores multi-telas (Salas 241 <-> 242, RoomConnections) |
 | `b27a2c5` | docs | Atualização de documentação e preparação de release |
 | `v0.1.0` | **Release** | **Primeiro Marco Oficial Consolidado (20 Etapas, 218 salas, 100% PASS)** |
-| `a_commitar` | 21 | Evento de Captura na Sala 8, Cela 211, Parede Oca e Restituição (CaptureSystem, ItemBag, 4 socos) |
+| `562699b` | 21 | Evento de Captura na Sala 8, Cela 211, Parede Oca e Restituição (CaptureSystem, ItemBag, 4 socos) |
 
 ### Dados extraídos disponíveis
 
