@@ -1450,9 +1450,13 @@ Entregue com base na engenharia reversa da ROM MSX2 RC750 (`logic/weapon/missile
   - Gerenciamento de disparo com consumo de 1 míssil, bloqueio de múltiplos mísseis simultâneos, redirecionamento dos inputs direcionais para `active_missile.steer(dir)`, congelamento dos passos de Snake enquanto o míssil voa, detecção de dano em guardas e chefes (`take_bullet_hit(5)`), alerta sonoro na detonação e descarte limpo no reset.
 
 ### 4. Validação e Testes Automatizados
-- Criada a suíte `godot/tests/remote_missile_test.gd` com 55 asserções cobrindo setup, velocidade, esterçamento nas 4 direções, impacto com paredes/bordas, temporização de 15 ticks de explosão, eliminação de guardas com 5 HP de dano e limites de munição por patente.
+- Localização canônica verificada na ROM (`data/itemsinrooms.asm`):
+  - **Sala 147**: `ItemMissile` (ID 7) em `(72, 32)` — acessível via Porta 30 da Sala 28 (requer `CARD2`).
+  - **Sala 163**: `ItemMissile2` (ID 7) em `(72, 32)` — acessível via Porta 46 da Sala 51 (requer `CARD4`).
+- `ItemBox`: adicionada iconografia militar dedicada para o míssil teleguiado (corpo vermelho, ogiva branca e aletas estabilizadoras escuras).
+- Expandida a suíte `godot/tests/remote_missile_test.gd` para 64 asserções cobrindo setup, velocidade, esterçamento nas 4 direções, impacto com paredes/bordas, temporização de 15 ticks de explosão, eliminação de guardas com 5 HP de dano, limites de munição por patente e extração/coleta na Sala 147.
 - Registrado `godot-remote-missile` em `tools/validate.py`.
-- **Resultado da Validação**: `python3 tools/validate.py` $\to$ **100% PASS (47 testes Python + 19 suítes Godot, código de saída 0)**.
+- **Resultado da Validação**: `python3 tools/validate.py` $\to$ **100% PASS (47 testes Python + 19 suítes Godot, 64 asserções de míssil, código de saída 0)**.
 
 
 

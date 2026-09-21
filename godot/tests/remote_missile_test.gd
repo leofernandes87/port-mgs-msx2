@@ -31,6 +31,7 @@ func _run_all() -> void:
 	_test_weapon_system_capacities_and_ammo()
 	_test_rank_system_integration()
 	_test_ammo_crate_refill()
+	_test_canonical_room_147_and_collection()
 
 ## Teste 1: Configuração inicial, velocidade 4 px/tick e offsets da ROM
 func _test_missile_setup_and_properties() -> void:
@@ -183,3 +184,36 @@ func _test_ammo_crate_refill() -> void:
 	ws.update_rank_capacities(2) # Capacidade = 10
 	ws.add_ammo_crate()
 	_assert(ws.ammo[WeaponSystem.WEAPON_MISSILE] == 7, "Caixa de munição recarrega +5 mísseis (2 + 5 = 7)")
+
+## Teste 10: Localização canônica na Sala 147 e coleta de ItemBox
+func _test_canonical_room_147_and_collection() -> void:
+	var rm: RoomManager = RoomManager.new()
+	var room_data: Dictionary = rm.load_room_actors(147)
+	_assert(not room_data.is_empty(), "Sala 147 carregada pelo RoomManager")
+	var items: Array = room_data.get("items", [])
+	_assert(items.size() == 1, "Sala 147 possui exatamente 1 item canônico")
+	var item_info: Dictionary = items[0] as Dictionary
+	_assert(int(item_info.get("item_type_id", 0)) == 7, "Item da Sala 147 é MISSILE (tipo 7)")
+	_assert(int(item_info.get("x", 0)) == 72 and int(item_info.get("y", 0)) == 32, "Posição canônica na Sala 147 é (72, 32)")
+
+	# Coleta da ItemBox na Sala 147
+	ItemBox.collected_boxes.erase("147_MISSILE_72_32")
+	var inv: InventoryManager = InventoryManager.new()
+	var ws: WeaponSystem = WeaponSystem.new()
+	var box: ItemBox = ItemBox.new()
+	box.room_id = 147
+	box.item_id = WeaponSystem.WEAPON_MISSILE
+	box.position = Vector2(72.0, 32.0)
+
+	# Snake longe (distância 50px)
+	var touched_far: bool = box.step_tick(Vector2(20.0, 32.0), inv, ws)
+	_assert(not touched_far and not box.collected, "ItemBox não coletada quando longe")
+	_assert(not ws.has_weapon(WeaponSystem.WEAPON_MISSILE), "Snake não possui míssil antes de tocar na caixa")
+
+	# Snake aproxima (distância 10px)
+	var touched_near: bool = box.step_tick(Vector2(70.0, 32.0), inv, ws)
+	_assert(touched_near and box.collected, "ItemBox do míssil coletada ao aproximar")
+	_assert(ws.has_weapon(WeaponSystem.WEAPON_MISSILE), "Snake adquire WEAPON_MISSILE")
+	_assert(ws.ammo[WeaponSystem.WEAPON_MISSILE] == 5, "Munição inicial adquirida é 5")
+
+	box.free()

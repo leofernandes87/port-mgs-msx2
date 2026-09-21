@@ -96,6 +96,11 @@ func _draw() -> void:
 		# Miniatura do cilindro silenciador
 		draw_rect(Rect2(-4, -4, 8, 3), Color("303840"))
 		draw_rect(Rect2(2, -3, 2, 1), Color.LIGHT_GRAY)
+	elif item_id == WeaponSystem.WEAPON_MISSILE:
+		# Miniatura de míssil teleguiado (corpo vermelho, ogiva branca e aletas escuras)
+		draw_rect(Rect2(-2, -5, 4, 7), Color("e03020"))
+		draw_rect(Rect2(-1, -6, 2, 2), Color.WHITE)
+		draw_rect(Rect2(-4, 0, 8, 2), Color("303840"))
 	else:
 		# Ícone de suprimento
 		draw_rect(Rect2(-2, -4, 4, 2), Color.YELLOW)
