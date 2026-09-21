@@ -1296,3 +1296,23 @@ Diagnóstico profundo baseado no mapa canônico do jogador, auditoria bidirecion
   - **Seção 9**: Porta 128 (Sala 32 $\leftrightarrow$ Sala 153) — teste bidirecional completo, verificação de vão limpo e eliminação comprovada do bloco flutuante em `ty=11, tx=26`.
   - **Seção 10**: Caminhão 128 (Sala 5 $\leftrightarrow$ Sala 128) — entrada, coleta e saída limpa com desobstrução das colunas 28..31.
 - `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.
+
+## 2026-09-21 — Inicialização Canônica na Sala 121 (MSX2 Intro Spawn) e Execução Direta
+
+### 1. Inicialização Fiel à ROM Original MSX2 RC750
+- **Evidência da ROM (`Banks0123.asm:11786-11817`)**:
+  - `ld a, 121`: Primeira sala do jogo (`Room = 121`).
+  - `ld (PlayerXdec), hl` com `H = 0xC0` ($192.0$) e `ld (PlayerYdec), hl` com `HL = 0xB800` ($184.0$): Posição inicial de spawn de Snake na água de infiltração.
+  - `SELECTED_CIGARETTES`: Cigarros adicionados ao inventário inicial (`CigarsTaken = 1`).
+  - Direção inicial: Norte (`UP`), nadando para cima em direção à Sala 0.
+- **Configuração no Godot**:
+  - Em `sandbox_gameplay.gd`:
+    - Definidas constantes `INITIAL_ROOM_ID = 121`, `DEFAULT_SPAWN_X = 192.0`, `DEFAULT_SPAWN_Y = 184.0`.
+    - `_load_initial_room()` instancia a Sala 121 por padrão e equipa `CIGARETTES` via `InventoryManager`.
+    - `_get_safe_spawn_position()` e `reset_player()` posicionam Snake em `(192.0, 184.0)` com direção `UP`.
+  - Em `project.godot`:
+    - `run/main_scene="res://scenes/sandbox_gameplay.tscn"`: Ao rodar o jogo (F5 / Play), instancia diretamente o mapa do jogo na Sala 121 com Snake pronto para jogar.
+
+### 2. Validação Automatizada
+- Atualizado `godot/tests/room_transition_test.gd` para validar o ciclo natural de transições: início na Sala 121 em `(192.0, 184.0)` $\to$ avanço ao Norte para Sala 0 $\to$ avanço ao Norte para Sala 1 $\to$ Sala 2 $\to$ Sala 3.
+- `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.

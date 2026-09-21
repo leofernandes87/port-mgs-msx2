@@ -57,11 +57,13 @@ var weapon_menu: WeaponMenu
 var item_menu: ItemMenu
 var pause_menu: PauseMenu
 
-# Posição inicial padrão (Sala 1: centro do corredor livre da entrada)
-const DEFAULT_SPAWN_X: float = 128.0
-const DEFAULT_SPAWN_Y: float = 104.0
+# Posição inicial oficial da ROM original MSX2 RC750 (Sala 121 / Introdução: PlayerXdec = 0xC000, PlayerYdec = 0xB800)
+const INITIAL_ROOM_ID: int = 121
+const DEFAULT_SPAWN_X: float = 192.0 # 0xC0
+const DEFAULT_SPAWN_Y: float = 184.0 # 0xB8
 
 func _ready() -> void:
+	print("BOOT_OK: cena principal pronta")
 	# Montar interface
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -321,11 +323,13 @@ func _load_initial_room() -> void:
 				_apply_snapshot()
 				return
 
-	# Tentar carregar Sala 1 do Prédio 1 (entrada com caixas)
-	var initial_snap := room_manager.load_room_snapshot(1)
+	# Carregar sala inicial oficial da ROM original (Sala 121: introdução na água)
+	var initial_snap := room_manager.load_room_snapshot(INITIAL_ROOM_ID)
 	if initial_snap != null:
 		snapshot = initial_snap
 		_apply_snapshot()
+		if not inventory.has_item(InventoryManager.ITEM_CIGARETTES):
+			inventory.collect_item(InventoryManager.ITEM_CIGARETTES)
 		return
 
 	# Fallback sintético limpo caso nenhuma extração esteja presente
@@ -819,8 +823,13 @@ func _get_safe_spawn_position() -> Vector2:
 	if is_in_elevator and elevator_cabin:
 		pref_pos = Vector2(216.0, elevator_y + 4.0)
 		return pref_pos
+	elif snapshot and snapshot.room_id == 121:
+		pref_pos = Vector2(192.0, 184.0)
+		return pref_pos
 	elif snapshot and snapshot.room_id == 0:
 		pref_pos = Vector2(128.0, 100.0)
+	elif snapshot and snapshot.room_id == 1:
+		pref_pos = Vector2(128.0, 104.0)
 
 	if _is_position_safe(pref_pos):
 		return pref_pos

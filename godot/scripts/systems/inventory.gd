@@ -19,6 +19,7 @@ const ITEM_GOGGLES: String = "GOGGLES"         # ID 12 na ROM (GOGGLES / Óculos
 const ITEM_GAS_MASK: String = "GAS_MASK"       # ID 13 na ROM (GAS_MASK)
 const ITEM_BOX: String = "BOX"                 # ID 21 na ROM (CARDBOARD_BOX / Caixa de Papelão)
 const ITEM_AMMO_CRATE: String = "AMMO_CRATE"   # ID 35 na ROM (AMMO_CRATE)
+const ITEM_CIGARETTES: String = "CIGARETTES"   # Equipamento inicial do Snake (Banks0123.asm:11775)
 
 var items: Array[String] = []
 var selected_index: int = -1

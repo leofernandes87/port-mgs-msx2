@@ -15,7 +15,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 [application]
 
 config/name="MSX2 Reimplementation Lab"
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/sandbox_gameplay.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [display]

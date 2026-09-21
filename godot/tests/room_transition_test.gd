@@ -65,7 +65,26 @@ func _run() -> void:
 
 	var p: PlayerController = sandbox.get("player") as PlayerController
 	var current_snap: RoomSnapshot = sandbox.get("snapshot") as RoomSnapshot
-	if not require(current_snap.room_id == 1, "Cena deve iniciar na Sala 1"): return
+	if not require(current_snap.room_id == 121, "Cena deve iniciar na Sala 121 (infiltração na água)"): return
+	if not require(p.position == Vector2(192.0, 184.0), "Snake deve nascer em (192, 184) na Sala 121 conforme a ROM"): return
+
+	# Transição Sala 121 -> Sala 0 (avançando ao Norte pela água)
+	p.set_grid_position(128.0, 18.0)
+	p.step_tick(Vector2i(0, -1))
+	p.step_tick(Vector2i(0, -1))
+	sandbox.call("_check_and_handle_room_transition")
+
+	current_snap = sandbox.get("snapshot") as RoomSnapshot
+	if not require(current_snap.room_id == 0, "Transição UP da Sala 121 deve carregar Sala 0"): return
+
+	# Transição Sala 0 -> Sala 1 (avançando ao Norte)
+	p.set_grid_position(128.0, 18.0)
+	p.step_tick(Vector2i(0, -1))
+	p.step_tick(Vector2i(0, -1))
+	sandbox.call("_check_and_handle_room_transition")
+
+	current_snap = sandbox.get("snapshot") as RoomSnapshot
+	if not require(current_snap.room_id == 1, "Transição UP da Sala 0 deve carregar Sala 1"): return
 
 	# Transição Sala 1 -> Sala 2 (avançando ao Norte)
 	# Na Sala 1, columns 12..19 são livres na borda norte
