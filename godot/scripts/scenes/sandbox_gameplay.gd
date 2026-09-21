@@ -27,11 +27,14 @@ var alert_system: AlertSystem = AlertSystem.new()
 var rank_system: RankSystem = RankSystem.new()
 var prisoners: Array[Prisoner] = []
 var dialog_banner_label: Label = null
+var is_game_over: bool = false
+var game_over_banner: Label = null
 
 ## Boss Shoot Gunner (Etapa 18) — ID_SHOT_GUNNER = 0x21 (33), Sala 57
 var shot_gunner: ShotGunner = null
 var shot_gunner_bullets: Array[ShotGunnerBullet] = []
 var boss_dialog_label: Label = null
+
 
 # 55 salas onde tiros sem silenciador NÃO alertam a guarnição (RoomShotSecure em logic/checkweaponalert.asm:37-40)
 const ROOMS_SHOT_SECURE: Array[int] = [
@@ -141,6 +144,19 @@ func _ready() -> void:
 	dialog_banner_label.add_theme_constant_override("shadow_offset_y", 1)
 	viewport_area.add_child(dialog_banner_label)
 
+	# Banner central de GAME OVER (MSX2 Style)
+	game_over_banner = Label.new()
+	game_over_banner.visible = false
+	game_over_banner.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	game_over_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	game_over_banner.text = "G A M E   O V E R\n\n[ REINICIANDO MISSÃO... ]"
+	game_over_banner.add_theme_color_override("font_color", Color(1.0, 0.2, 0.2))
+	game_over_banner.add_theme_color_override("font_shadow_color", Color(0.0, 0.0, 0.0, 1.0))
+	game_over_banner.add_theme_constant_override("shadow_offset_x", 2)
+	game_over_banner.add_theme_constant_override("shadow_offset_y", 2)
+	game_over_banner.z_index = 100
+	viewport_area.add_child(game_over_banner)
+
 	# Nó container 2D escalado (mundo nativo 256x192)
 	game_world = Node2D.new()
 	viewport_area.add_child(game_world)
@@ -163,10 +179,12 @@ func _ready() -> void:
 	# Instanciar Player no mundo nativo 256x192
 	player = preload("res://scenes/player.tscn").instantiate() as PlayerController
 	game_world.add_child(player)
+	player.player_died.connect(_on_player_died)
 
 	# Carregar sala inicial (tenta caminho real exportado, ou fallback sintético)
 	_load_initial_room()
 	reset_player()
+
 
 	# Sistema de Rádio Transceptor (Etapa 15)
 	radio_dialog = RadioDialog.new()
@@ -852,6 +870,7 @@ func _get_safe_spawn_position() -> Vector2:
 
 func reset_player() -> void:
 	if player:
+		player.revive()
 		var spawn_pos: Vector2 = _get_safe_spawn_position()
 		player.set_grid_position(spawn_pos.x, spawn_pos.y)
 		player.current_direction = PlayerController.Direction.UP
@@ -860,6 +879,7 @@ func reset_player() -> void:
 		player.invulnerable_timer = 0
 		player.punch_timer = 0
 		player.infinite_life = infinite_life
+		player.can_control = true
 		player.queue_redraw()
 		print("RESET_PLAYER: Snake reiniciado na posição segura %s (Vida Inf: %s)" % [spawn_pos, infinite_life])
 	for b: Bullet in bullets:
@@ -876,8 +896,131 @@ func reset_player() -> void:
 		_spawn_room_doors(snapshot.room_id)
 	alert_system.stop_alert()
 
+## Reseta e limpa absolutamente todas as variáveis de estado, inventário e atores (evita vazamento de memória)
+func reset_game_state() -> void:
+	# 1. Limpar e liberar projéteis e entidades dinâmicas
+	for b: Bullet in bullets:
+		if is_instance_valid(b):
+			b.queue_free()
+	bullets.clear()
+
+	for sgb: ShotGunnerBullet in shot_gunner_bullets:
+		if is_instance_valid(sgb):
+			sgb.queue_free()
+	shot_gunner_bullets.clear()
+
+	for enemy: EnemyGuard in enemies:
+		if is_instance_valid(enemy):
+			enemy.queue_free()
+	enemies.clear()
+
+	for cam: SecurityCamera in cameras:
+		if is_instance_valid(cam):
+			cam.queue_free()
+	cameras.clear()
+
+	for box: ItemBox in item_boxes:
+		if is_instance_valid(box):
+			box.queue_free()
+	item_boxes.clear()
+
+	for door: RoomDoor in room_doors:
+		if is_instance_valid(door):
+			door.queue_free()
+	room_doors.clear()
+
+	for pris: Prisoner in prisoners:
+		if is_instance_valid(pris):
+			pris.queue_free()
+	prisoners.clear()
+
+	if is_instance_valid(shot_gunner):
+		shot_gunner.queue_free()
+		shot_gunner = null
+
+	# 2. Reset absoluto dos subsistemas
+	inventory.reset()
+	weapon_system.reset()
+	rank_system.reset()
+	alert_system.reset()
+
+	# 3. Reset de variáveis de ambiente e flags de sala
+	silencer_dropped_room_150 = false
+	is_in_elevator = false
+	elevator_state = ELEVATOR_STATE_IDLE
+	if elevator_cabin:
+		elevator_cabin.visible = false
+	previous_room_id = -1
+
+	# 4. Fechar menus e ocultar mensagens modais
+	if weapon_menu:
+		weapon_menu.visible = false
+	if item_menu:
+		item_menu.visible = false
+	if pause_menu:
+		pause_menu.visible = false
+	if radio_dialog and radio_dialog.is_active:
+		radio_dialog.close_radio()
+	if dialog_banner_label:
+		dialog_banner_label.visible = false
+	if boss_dialog_label:
+		boss_dialog_label.visible = false
+
+	print("GAME_STATE_RESET: Estado global limpo com sucesso.")
+
+func _on_player_died() -> void:
+	trigger_game_over(false)
+
+func trigger_game_over(instant: bool = false) -> void:
+	if is_game_over:
+		return
+	is_game_over = true
+
+	if player and not player.is_dead:
+		player.die()
+
+	if game_over_banner:
+		game_over_banner.visible = true
+
+	print("GAME_OVER: Snake eliminado! Bloqueio de inputs ativo. Aguardando reset.")
+
+	if instant or not is_inside_tree():
+		_execute_game_restart()
+	else:
+		var timer := get_tree().create_timer(1.2)
+		timer.timeout.connect(_execute_game_restart)
+
+func _execute_game_restart() -> void:
+	is_game_over = false
+	if game_over_banner:
+		game_over_banner.visible = false
+
+	# 1. Reset absoluto do estado (inventário, cartões, armas, alerta, rank, entidades)
+	reset_game_state()
+
+	# 2. Recarregamento seguro da cena
+	if get_tree() and get_tree().current_scene == self:
+		print("GAME_RESTART: Recarregando cena sandbox_gameplay.tscn...")
+		get_tree().reload_current_scene()
+	else:
+		# Em ambiente de teste / instâncias manuais sem SceneTree root = self:
+		print("GAME_RESTART: Reinicializando Sala 121 in-place...")
+		var snap := room_manager.load_room_snapshot(INITIAL_ROOM_ID)
+		if snap != null:
+			snapshot = snap
+			_apply_snapshot()
+			if not inventory.has_item(InventoryManager.ITEM_CIGARETTES):
+				inventory.collect_item(InventoryManager.ITEM_CIGARETTES)
+		else:
+			_create_synthetic_fallback_room()
+		reset_player()
+
 func _input(event: InputEvent) -> void:
+	if player and (player.is_dead or not player.can_control or is_game_over):
+		return
+
 	# 1. Repasse para menus modais abertos
+
 	if radio_dialog and radio_dialog.is_active:
 		if radio_dialog.handle_input(event):
 			get_viewport().set_input_as_handled()
@@ -1019,6 +1162,10 @@ func _input(event: InputEvent) -> void:
 
 func _physics_process(_delta: float) -> void:
 	if not player:
+		return
+
+	# Bloqueio de física e ações durante Game Over / morte de Snake
+	if player.is_dead or not player.can_control or is_game_over:
 		return
 
 	# Pausa física e lógica de todos os atores enquanto qualquer modal estiver aberto
@@ -1275,12 +1422,12 @@ func _physics_process(_delta: float) -> void:
 		var phase_name: String = ["INTRO", "ROLAGEM", "TIRO"][int(shot_gunner.state)]
 		boss_hp_str = " | BOSS [%s] HP:%02d %s" % [phase_name, shot_gunner.boss_hp, hp_blocks]
 
-	if player.life <= 0 and not infinite_life:
+	if (player.is_dead or player.life <= 0) and not infinite_life:
 		for sgb: ShotGunnerBullet in shot_gunner_bullets:
 			if is_instance_valid(sgb):
 				sgb.queue_free()
 		shot_gunner_bullets.clear()
-		status_label.text = "SNAKE MORREU! [Pressione R para reiniciar]"
+		status_label.text = "G A M E   O V E R  |  SNAKE FOI ELIMINADO!  |  [REINICIANDO...]"
 		status_label.modulate = Color(1.0, 0.1, 0.1)
 	elif is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
 		# Modo Boss Fight — destaque vermelho com HP do boss

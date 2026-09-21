@@ -96,3 +96,12 @@ func register_kill(room_id: int, is_vital: bool = false) -> bool:
 	prisoner_killed.emit(room_id, is_vital)
 	return downgrade_rank()
 
+func reset() -> void:
+	current_rank = MIN_RANK
+	rescued_count = 0
+	total_rescued = 0
+	rescued_rooms.clear()
+	rank_changed.emit(current_rank)
+	print("RANK_RESET: Patente reiniciada para Rank ★1 (%s)." % get_rank_stars())
+
+

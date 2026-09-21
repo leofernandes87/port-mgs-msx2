@@ -22,6 +22,8 @@ const COLLIDER_OFFSETS = {
 	Direction.RIGHT: [Vector2i(7, -4), Vector2i(7, 3)],
 }
 
+signal player_died
+
 var current_direction: Direction = Direction.DOWN
 var is_moving: bool = false
 var anim_wait_cnt: int = 0
@@ -39,11 +41,43 @@ var punch_timer: int = 0 # 8 ticks de duração do soco (Banks0123.asm:8949)
 var is_punching: bool = false
 var infinite_life: bool = false # Modo de teste (God Mode)
 
+# Estado de Morte e Bloqueio de Controles (Game Over punitivo clássico)
+var is_dead: bool = false
+var can_control: bool = true
+
 func set_rank_life(new_max_life: int, full_heal: bool = true) -> void:
 	max_life = new_max_life
 	if full_heal or life > max_life:
 		life = max_life
 	queue_redraw()
+
+func die() -> void:
+	if is_dead:
+		return
+	is_dead = true
+	can_control = false
+	is_moving = false
+	is_punching = false
+	punch_timer = 0
+	anim_wait_cnt = 0
+	frame_num = 0
+	queue_redraw()
+	player_died.emit()
+	print("PLAYER_DEATH: Snake foi eliminado! Game Over iniciado.")
+
+func revive() -> void:
+	is_dead = false
+	can_control = true
+	life = max_life
+	invulnerable_timer = 0
+	punch_timer = 0
+	is_punching = false
+	is_moving = false
+	anim_wait_cnt = 0
+	frame_num = 0
+	current_direction = Direction.UP
+	queue_redraw()
+	print("PLAYER_REVIVE: Snake revivido e controles liberados (Vida: %d/%d)" % [life, max_life])
 
 func _ready() -> void:
 	z_index = 10
@@ -56,7 +90,9 @@ func set_grid_position(px: float, py: float) -> void:
 	queue_redraw()
 
 func punch() -> bool:
-	if punch_timer <= 0 and life > 0:
+	if is_dead or not can_control or life <= 0:
+		return false
+	if punch_timer <= 0:
 		punch_timer = 8
 		is_punching = true
 		is_moving = false
@@ -67,7 +103,7 @@ func punch() -> bool:
 ## Disparo com arma de fogo equipada (logic/weapon/handgun.asm:39-65)
 ## Origem do tiro: PlayerX, PlayerY - 14 (deslocamento vertical exato da ROM)
 func fire_weapon(weapon_sys: WeaponSystem) -> Bullet:
-	if weapon_sys == null or not weapon_sys.can_fire() or life <= 0:
+	if is_dead or not can_control or life <= 0 or weapon_sys == null or not weapon_sys.can_fire():
 		return null
 
 	if not weapon_sys.consume_ammo():
@@ -83,6 +119,8 @@ func fire_weapon(weapon_sys: WeaponSystem) -> Bullet:
 	return b
 
 func apply_damage(amount: int) -> bool:
+	if is_dead:
+		return false
 	if infinite_life:
 		life = max_life
 		return false
@@ -90,10 +128,16 @@ func apply_damage(amount: int) -> bool:
 		life = maxi(0, life - amount)
 		invulnerable_timer = 32
 		queue_redraw()
+		if life <= 0:
+			die()
 		return true
 	return false
 
 func step_tick(input_dir: Vector2i) -> bool:
+	if is_dead or not can_control:
+		is_moving = false
+		return false
+
 	if invulnerable_timer > 0:
 		invulnerable_timer -= 1
 
@@ -179,6 +223,17 @@ func is_colliding_at(target_pos: Vector2, dir: Direction) -> bool:
 	return false
 
 func _draw() -> void:
+	if is_dead:
+		# Snake caído / abatido no solo (MSX Game Over)
+		var dead_body := Rect2(-10, -3, 20, 6)
+		var shadow_col := Color("283818")
+		var skin_col := Color("d89870")
+		var dead_bandana := Color("802020")
+		draw_rect(dead_body, shadow_col)
+		draw_rect(Rect2(-10, -5, 6, 4), skin_col)
+		draw_rect(Rect2(-10, -5, 6, 2), dead_bandana)
+		return
+
 	# Efeito de piscar durante o período de invulnerabilidade (32 ticks)
 	if invulnerable_timer > 0 and (invulnerable_timer % 4) < 2:
 		return

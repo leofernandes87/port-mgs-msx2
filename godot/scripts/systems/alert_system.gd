@@ -128,6 +128,23 @@ func stop_alert() -> void:
 	alert_cleared.emit()
 	print("ALERT_SYSTEM: Alerta encerrado. Estado NORMAL restaurado.")
 
+## Reseta incondicionalmente o sistema de alerta para o modo furtivo/NORMAL
+func reset() -> void:
+	var old_state: AlertState = current_state
+	current_state = AlertState.NORMAL
+	is_red_alert = false
+	current_room_id = 0
+	room_alert_origin = 0
+	num_respawn_guards = 0
+	respawn_timer = 0
+	evasion_timer = 0
+	spawn_point_index = 0
+	if old_state != AlertState.NORMAL:
+		state_changed.emit(old_state, current_state)
+	alert_cleared.emit()
+	print("ALERT_RESET: Sistema de alerta resetado para modo furtivo/NORMAL.")
+
+
 ## Atualização de lógica a cada tick de física
 func tick(has_vision_on_snake: bool, current_active_guards: int, room_id: int) -> void:
 	current_room_id = room_id

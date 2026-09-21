@@ -158,3 +158,16 @@ func get_status_text() -> String:
 	var count: int = int(ammo.get(selected_weapon, 0))
 	var sil_tag: String = " (SIL)" if has_silencer else ""
 	return "[%s x%02d%s]" % [selected_weapon, count, sil_tag]
+
+func reset() -> void:
+	owned_weapons.clear()
+	selected_weapon = WEAPON_NONE
+	ammo[WEAPON_HANDGUN] = 0
+	ammo[WEAPON_SMG] = 0
+	ammo[WEAPON_GRENADE_LAUNCHER] = 0
+	max_ammo[WEAPON_HANDGUN] = 50
+	max_ammo[WEAPON_SMG] = 50
+	max_ammo[WEAPON_GRENADE_LAUNCHER] = 15
+	has_silencer = false
+	print("WEAPON_RESET: Arsenal e munições reiniciados ao padrão.")
+

@@ -1334,3 +1334,37 @@ Diagnóstico profundo baseado no mapa canônico do jogador, auditoria bidirecion
 ### 2. Validação Automatizada
 - Atualizada asserção em `godot/tests/room_transition_test.gd` para `Vector2(128.0, 80.0)`.
 - `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.
+
+## 2026-09-21 — Mecânica Punitiva Clássica de Morte (Game Over MSX2) e Reset Total de Estado
+
+### 1. Ciclo de Morte do Jogador e Bloqueio Imediato de Ações
+- **Gatilho de Morte (`player.gd`)**:
+  - Implementado `signal player_died` e flags `is_dead: bool` e `can_control: bool`.
+  - Ao sofrer dano fatal em `apply_damage(amount)` que reduza `life <= 0`, a rotina `die()` é imediatamente acionada.
+  - Bloqueio imediato de entradas e ações: Snake não se move (`step_tick`), não soca (`punch`), não dispara armas (`fire_weapon`), não utiliza itens e não abre menus enquanto morto.
+  - Desenho dedicado de derrota em `_draw()`: renderiza Snake caído e abatido no solo (corpo e bandana escurecidos).
+- **Restauração (`revive()`)**:
+  - Restaura `is_dead = false`, `can_control = true`, `life = max_life` (24 HP), zera timers de invulnerabilidade e soco, restabelece a direção para `UP` e limpa as pernas para pose padrão.
+
+### 2. Reset Absoluto de Estado e Prevenção de Vazamento de Memória
+- **Limpeza dos Subsistemas**:
+  - `InventoryManager.reset()`: esvazia a lista `items = []`, remove todos os cartões de acesso coletados (`CARD1`..`CARD8`) e zera as rações.
+  - `WeaponSystem.reset()`: limpa `owned_weapons = []`, redefine a seleção para `[DESARMADO]`, zera munições e remove o silenciador.
+  - `AlertSystem.reset()`: força retorno incondicional para `NORMAL` (modo furtivo), zera cotas de reforço, zera timers de evasão e emite `alert_cleared`.
+  - `RankSystem.reset()`: reinicia a patente militar para `Rank ★1`, zera contadores de resgate e esvazia o registro de reféns resgatados.
+- **Limpeza no Gerenciador Global (`sandbox_gameplay.gd`)**:
+  - Implementada a rotina `reset_game_state()`: libera e limpa todos os nós dinâmicos da sala (`bullets`, `enemies`, `cameras`, `item_boxes`, `room_doors`, `prisoners`, `shot_gunner`, `shot_gunner_bullets`), fecha modais/rádio e zera flags de elevador e drops.
+
+### 3. Recarregamento Seguro na Sala 121 e Restauração de Controles
+- **Banner de Game Over**: Exibe aviso central estilizado MSX2 `G A M E   O V E R | [ REINICIANDO MISSÃO... ]` e atualiza o HUD para destaque em vermelho.
+- **Reinício Seguro**:
+  - Em execução principal no SceneTree: executa `get_tree().reload_current_scene()` de forma segura após atraso dramático.
+  - Em testes automatizados / instâncias isoladas: reinicia a cena in-place recarregando a Sala 121 e invocando `reset_player()`.
+  - Equipamento inicial padrão: Snake recebe apenas `CIGARETTES` via inventário e surge em terra firme no cais `(128.0, 80.0)` com vida total (24 HP) e controles totalmente liberados (sem risco de softlock).
+
+### 4. Validação Automatizada
+- Expandido `godot/tests/combat_and_health_test.gd`:
+  - **Seção 7**: Teste de dano letal, emissão de `player_died`, bloqueio total de movimento/soco/tiro e restauração com `revive()`.
+  - **Seção 8**: Teste de integração de Game Over no Sandbox com pré-coleta de cartões, armas e alerta ativo $\to$ comprovação de inventário esvaziado, cartões removidos, alerta NORMAL, vida em 24 HP, spawn em (128, 80) e controles desobstruídos.
+- `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.
+

@@ -130,5 +130,90 @@ func _run() -> void:
 	if not require(not took_damage and player.life == player.max_life, "Em modo infinite_life, Snake não deve sofrer dano"): return
 	player.infinite_life = false
 
-	print("COMBAT_AND_HEALTH_OK: punch 8-ticks, 4-direction impact boxes, 64-tick stun, 3-punch kill, touch damage, 32-tick invulnerability and infinite life mode")
+	# 7. Teste de Morte do Jogador e Bloqueio Imediato de Inputs (Game Over)
+	player.life = 10
+	player.invulnerable_timer = 0
+	var player_died_emitted: Array[bool] = [false]
+	player.player_died.connect(func() -> void: player_died_emitted[0] = true)
+
+	# Aplica dano fatal (10 dano em 10 HP restante)
+	var lethal_hit: bool = player.apply_damage(10)
+	if not require(lethal_hit and player.life == 0, "Dano letal deve reduzir a vida a 0"): return
+	if not require(player.is_dead, "Snake deve estar com is_dead = true após dano letal"): return
+	if not require(not player.can_control, "Controles de Snake devem ser imediatamente bloqueados (can_control = false)"): return
+	if not require(player_died_emitted[0], "Sinal player_died deve ser emitido ao zerar a vida"): return
+
+	# Ações bloqueadas enquanto morto
+	var moved_while_dead: bool = player.step_tick(Vector2i(1, 0))
+	if not require(not moved_while_dead, "Snake morto não deve conseguir se mover"): return
+	var punched_while_dead: bool = player.punch()
+	if not require(not punched_while_dead, "Snake morto não deve conseguir socar"): return
+
+	var test_weapon_sys := WeaponSystem.new()
+	test_weapon_sys.owned_weapons = ["HANDGUN"]
+	test_weapon_sys.selected_weapon = "HANDGUN"
+	test_weapon_sys.ammo["HANDGUN"] = 10
+	var bullet_while_dead: Bullet = player.fire_weapon(test_weapon_sys)
+	if not require(bullet_while_dead == null, "Snake morto não deve conseguir atirar"): return
+
+	# Restauração manual com revive()
+	player.revive()
+	if not require(not player.is_dead and player.can_control, "revive() deve restaurar is_dead = false e can_control = true"): return
+	if not require(player.life == player.max_life and player.life == 24, "revive() deve restaurar a vida ao valor máximo (24 HP)"): return
+	var moved_after_revive: bool = player.step_tick(Vector2i(1, 0))
+	if not require(moved_after_revive, "Snake revivido deve se mover normalmente"): return
+
+	# 8. Teste de Integração: Fluxo de Game Over Punitivo e Reset Absoluto no Sandbox
+	var packed_sandbox: PackedScene = load("res://scenes/sandbox_gameplay.tscn") as PackedScene
+	if not require(packed_sandbox != null, "Falha ao carregar sandbox_gameplay.tscn"): return
+	var sandbox: Control = packed_sandbox.instantiate() as Control
+	root.add_child(sandbox)
+	await process_frame
+	await process_frame
+
+	var sb_player: PlayerController = sandbox.get("player") as PlayerController
+	var sb_inventory: InventoryManager = sandbox.get("inventory") as InventoryManager
+	var sb_weapons: WeaponSystem = sandbox.get("weapon_system") as WeaponSystem
+	var sb_alert: AlertSystem = sandbox.get("alert_system") as AlertSystem
+
+	# Simular progresso prévio na partida: coletar itens, armas e acionar alerta
+	sb_inventory.collect_item("CARD1")
+	sb_inventory.collect_item("CARD4")
+	sb_inventory.collect_item(InventoryManager.ITEM_RATION)
+	sb_weapons.add_weapon(WeaponSystem.WEAPON_HANDGUN, 30)
+	sb_weapons.select_weapon(WeaponSystem.WEAPON_HANDGUN)
+	sb_alert.trigger_alert(true, 4, 1)
+
+	if not require(sb_inventory.has_item("CARD4"), "Sandbox deve conter CARD4 antes da morte"): return
+	if not require(sb_weapons.owned_weapons.has("HANDGUN"), "Sandbox deve conter HANDGUN antes da morte"): return
+	if not require(sb_alert.current_state == AlertSystem.AlertState.ALERT, "Alerta deve estar ativo antes da morte"): return
+
+	# Provocar dano fatal no jogador da sandbox
+	sb_player.apply_damage(sb_player.life)
+	if not require(sb_player.is_dead and not sb_player.can_control, "Snake da sandbox deve estar morto e sem controles"): return
+	if not require(bool(sandbox.get("is_game_over")), "is_game_over deve ser verdadeiro"): return
+
+	# Executa a rotina de reset completo e recarregamento seguro da Sala 121
+	sandbox.call("_execute_game_restart")
+
+	# Validar o reset absoluto de estado
+	if not require(not sb_inventory.has_item("CARD1") and not sb_inventory.has_item("CARD4"), "Todos os cartões devem ter sido removidos"): return
+	if not require(not sb_inventory.has_item(InventoryManager.ITEM_RATION), "Rações devem ter sido removidas"): return
+	if not require(sb_inventory.has_item(InventoryManager.ITEM_CIGARETTES), "CIGARETTES devem estar presentes como equipamento inicial"): return
+	if not require(sb_weapons.owned_weapons.is_empty(), "Arsenal de armas deve ter sido totalmente esvaziado"): return
+	if not require(sb_alert.current_state == AlertSystem.AlertState.NORMAL, "Sistema de alerta deve voltar a NORMAL/furtivo"): return
+
+	# Validar recarregamento seguro na Sala 121 em terra firme
+	var sb_snap: RoomSnapshot = sandbox.get("snapshot") as RoomSnapshot
+	if not require(sb_snap.room_id == 121, "Jogo deve ser reiniciado na Sala 121"): return
+	if not require(sb_player.position == Vector2(128.0, 80.0), "Snake deve surgir em terra firme (128, 80) na Sala 121"): return
+	if not require(sb_player.life == 24 and sb_player.life == sb_player.max_life, "Vida de Snake deve ser restaurada a 24 HP"): return
+	if not require(not sb_player.is_dead and sb_player.can_control, "Controles de Snake devem ser liberados no reinício"): return
+
+	# Validar movimentação normal após o reset (sem softlock)
+	var can_walk_after_game_over: bool = sb_player.step_tick(Vector2i(0, -1))
+	if not require(can_walk_after_game_over, "Snake deve andar normalmente após o reinício da Sala 121"): return
+
+	print("COMBAT_AND_HEALTH_OK: punch 8-ticks, 4-dir impact, 64-tick stun, 3-punch kill, touch damage, 32-tick invuln, god mode, death trigger, input lock, full state reset and safe room 121 reload")
 	quit(0)
+

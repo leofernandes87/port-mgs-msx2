@@ -114,3 +114,11 @@ func get_status_text() -> String:
 	if cur == ITEM_RATION:
 		return "[RAÇÃO x%d]" % rations_count
 	return "[%s]" % cur
+
+func reset() -> void:
+	items.clear()
+	selected_index = -1
+	rations_count = 0
+	max_rations = 3
+	print("INVENTORY_RESET: Inventário limpo e cartões removidos.")
+
