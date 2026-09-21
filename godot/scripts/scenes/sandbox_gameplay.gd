@@ -206,14 +206,17 @@ func _ready() -> void:
 
 	# Menus modais MSX2
 	weapon_menu = WeaponMenu.new()
+	weapon_menu.visible = false
 	weapon_menu.weapon_selected.connect(_on_weapon_menu_selected)
 	add_child(weapon_menu)
 
 	item_menu = ItemMenu.new()
+	item_menu.visible = false
 	item_menu.item_selected.connect(_on_item_menu_selected)
 	add_child(item_menu)
 
 	pause_menu = PauseMenu.new()
+	pause_menu.visible = false
 	pause_menu.god_mode_toggled.connect(func(v: bool) -> void:
 		infinite_life = v
 		if player:
@@ -374,6 +377,27 @@ func _apply_snapshot() -> void:
 				runtime_collision[idx] = 0
 			if tilemap_layer != null:
 				tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
+		if room_texture != null:
+			var img: Image = room_texture.get_image()
+			var floor_col: Color = img.get_pixel(64, 80)
+			for py in range(64, 96):
+				for px in range(0, 48):
+					img.set_pixel(px, py, floor_col)
+			room_texture.update(img)
+	elif snapshot.room_id == CaptureSystem.ROOM_ADJACENT and capture_system.wall_broken:
+		for tile_coord: Vector2i in CaptureSystem.ADJACENT_WALL_TILES:
+			var idx: int = tile_coord.y * 32 + tile_coord.x
+			if idx >= 0 and idx < runtime_collision.size():
+				runtime_collision[idx] = 0
+			if tilemap_layer != null:
+				tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
+		if room_texture != null:
+			var img: Image = room_texture.get_image()
+			var floor_col: Color = img.get_pixel(192, 80)
+			for py in range(64, 96):
+				for px in range(208, 256):
+					img.set_pixel(px, py, floor_col)
+			room_texture.update(img)
 	if player:
 		player.set_collision_grid(runtime_collision)
 	_spawn_room_enemies(snapshot.room_id)
@@ -602,52 +626,58 @@ func _spawn_room_items(room_id: int) -> void:
 			if not item_variant is Dictionary:
 				continue
 			var item_dict: Dictionary = item_variant as Dictionary
-			var type_id: int = int(item_dict.get("item_type_id", 0))
+			var raw_item_id: String = str(item_dict.get("item_id", ""))
+			var type_id: int = int(item_dict.get("item_type_id", item_dict.get("type_id", 0)))
 			var pos := Vector2(float(item_dict.get("x", 0)), float(item_dict.get("y", 0)))
 
 			var b: ItemBox = ItemBox.new()
 			b.room_id = room_id
 			b.position = pos
 
-			match type_id:
-				1:
-					b.item_id = WeaponSystem.WEAPON_HANDGUN
-				2:
-					b.item_id = WeaponSystem.WEAPON_SMG
-				3:
-					b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
-				7:
-					b.item_id = WeaponSystem.WEAPON_MISSILE
-				8:
-					b.item_id = InventoryManager.ITEM_SILENCER
-				12:
-					b.item_id = InventoryManager.ITEM_GOGGLES
-				13:
-					b.item_id = InventoryManager.ITEM_GAS_MASK
-				17:
-					b.item_id = InventoryManager.ITEM_BINOCULARS
-				21, 30:
-					b.item_id = InventoryManager.ITEM_RATION
-				22:
-					b.item_id = InventoryManager.ITEM_CARD1
-				23:
-					b.item_id = InventoryManager.ITEM_CARD2
-				24:
-					b.item_id = InventoryManager.ITEM_CARD3
-				25:
-					b.item_id = InventoryManager.ITEM_CARD4
-				26:
-					b.item_id = InventoryManager.ITEM_CARD5
-				27:
-					b.item_id = InventoryManager.ITEM_CARD6
-				28:
-					b.item_id = InventoryManager.ITEM_CARD7
-				29:
-					b.item_id = InventoryManager.ITEM_CARD8
-				35:
-					b.item_id = InventoryManager.ITEM_AMMO_CRATE
-				_:
-					b.item_id = InventoryManager.ITEM_RATION
+			if not raw_item_id.is_empty():
+				b.item_id = raw_item_id
+			else:
+				match type_id:
+					1:
+						b.item_id = WeaponSystem.WEAPON_HANDGUN
+					2:
+						b.item_id = WeaponSystem.WEAPON_SMG
+					3:
+						b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
+					7:
+						b.item_id = WeaponSystem.WEAPON_MISSILE
+					8:
+						b.item_id = InventoryManager.ITEM_SILENCER
+					12:
+						b.item_id = InventoryManager.ITEM_GOGGLES
+					13:
+						b.item_id = InventoryManager.ITEM_GAS_MASK
+					17:
+						b.item_id = InventoryManager.ITEM_BINOCULARS
+					21, 30:
+						b.item_id = InventoryManager.ITEM_RATION
+					22:
+						b.item_id = InventoryManager.ITEM_CARD1
+					23:
+						b.item_id = InventoryManager.ITEM_CARD2
+					24:
+						b.item_id = InventoryManager.ITEM_CARD3
+					25:
+						b.item_id = InventoryManager.ITEM_CARD4
+					26:
+						b.item_id = InventoryManager.ITEM_CARD5
+					27:
+						b.item_id = InventoryManager.ITEM_CARD6
+					28:
+						b.item_id = InventoryManager.ITEM_CARD7
+					29:
+						b.item_id = InventoryManager.ITEM_CARD8
+					34:
+						b.item_id = InventoryManager.ITEM_BAG
+					35:
+						b.item_id = InventoryManager.ITEM_AMMO_CRATE
+					_:
+						b.item_id = InventoryManager.ITEM_RATION
 
 			game_world.add_child(b)
 			item_boxes.append(b)
@@ -1366,10 +1396,12 @@ func _physics_process(_delta: float) -> void:
 
 	# Checar socos contra a parede oca na Cela da Sala 211 (logic/doors/opendoor.asm:300-320)
 	if snapshot and snapshot.room_id == CaptureSystem.ROOM_PRISON and not capture_system.wall_broken:
-		if player.is_punching and player.punch_timer == 8:
-			if capture_system.check_wall_punch(player.position, player.current_direction, player.punch_timer):
-				if capture_system.wall_broken:
-					break_prison_wall()
+		var hit: bool = capture_system.check_wall_punch(player.position, player.current_direction, player.is_punching, player.punch_timer)
+		if hit:
+			if capture_system.wall_broken:
+				break_prison_wall()
+			elif status_label != null:
+				status_label.text = "[PAREDE OCA! ACERTO %d/4]" % capture_system.wall_hit_counter
 
 	# Atualizar caixas de itens e armas coletáveis
 	for box: ItemBox in item_boxes:
@@ -1594,11 +1626,27 @@ func _physics_process(_delta: float) -> void:
 				gas_tag = " [MÁSCARA ATIVA]"
 			else:
 				gas_tag = " [GÁS TÓXICO!]"
+		elif snapshot.room_id == CaptureSystem.ROOM_PRISON:
+			if not capture_system.wall_broken:
+				gas_tag = " [CELA: SOQUE A PAREDE ESQUERDA (%d/4)]" % capture_system.wall_hit_counter
+			else:
+				gas_tag = " [CELA: PAREDE QUEBRADA - FUGA ABERTA]"
+		elif snapshot.room_id == CaptureSystem.ROOM_ADJACENT:
+			if not capture_system.equip_bag_taken:
+				gas_tag = " [DEPÓSITO: RECUPERE SUA BOLSA]"
+			else:
+				gas_tag = " [DEPÓSITO: EQUIPAMENTOS RECUPERADOS]"
+
 		status_label.text = "Sala %03d%s | %s | %s | VIDA: [%s] %s | %s" % [
 			snapshot.room_id, gas_tag, rank_str, weapon_str, life_bar, life_val_str, item_str
 		]
 		if gas_tag != "":
-			status_label.modulate = Color(0.4, 0.95, 0.4) if gas_hazard_system.is_player_protected(inventory) else Color(0.9, 0.4, 0.2)
+			if "GÁS TÓXICO" in gas_tag:
+				status_label.modulate = Color(0.9, 0.4, 0.2)
+			elif "MÁSCARA" in gas_tag:
+				status_label.modulate = Color(0.4, 0.95, 0.4)
+			elif "CELA" in gas_tag or "DEPÓSITO" in gas_tag:
+				status_label.modulate = Color(0.9, 0.8, 0.3)
 		else:
 			status_label.modulate = Color(1.0, 1.0, 1.0)
 
@@ -1906,7 +1954,7 @@ func break_prison_wall() -> void:
 		var img: Image = room_texture.get_image()
 		var floor_col: Color = img.get_pixel(64, 80)
 		for py in range(64, 96):
-			for px in range(32, 48):
+			for px in range(0, 48):
 				img.set_pixel(px, py, floor_col)
 		room_texture.update(img)
 

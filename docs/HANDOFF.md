@@ -89,6 +89,8 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 | `b27a2c5` | docs | Atualização de documentação e preparação de release |
 | `v0.1.0` | **Release** | **Primeiro Marco Oficial Consolidado (20 Etapas, 218 salas, 100% PASS)** |
 | `562699b` | 21 | Evento de Captura na Sala 8, Cela 211, Parede Oca e Restituição (CaptureSystem, ItemBag, 4 socos) |
+| `5039b04` | fix | Correção de socos na cela 211, abertura física de 24 tiles e bolsa BAG |
+
 
 ### Dados extraídos disponíveis
 

@@ -1607,11 +1607,31 @@ Entregue com base na engenharia reversa da ROM MSX2 RC750 (`logic/common.asm:26-
 
 ### 4. Validação e Qualidade
 - **Suíte de Testes Godot (`godot/tests/capture_prison_test.gd`)**:
-  - 83 asserções headless cobrindo gatilho de limites da Sala 8, backup e confisco, restrição de input a socos, detecção precisa de 4 acertos, remoção de colisão de 8 tiles, conexões de sala e restituição da bolsa.
+  - 123 asserções headless cobrindo gatilho de limites da Sala 8, backup e confisco, restrição de input a socos, detecção precisa de 4 acertos (sem falso multi-hit), desobstrução de 24 tiles (6x4) na cela 211 e sala 212, transição bidirecional livre e restituição da bolsa.
 - **Suíte Unificada (`python3 tools/validate.py`)**:
   - 48 testes Python PASS (incluindo `test_extract_capture_prison_data_synthetic`).
   - 20 suítes de testes Godot 4 headless PASS.
   - **Resultado**: **100% PASS (Zero falhas, código de saída 0)**.
+
+## 2026-09-21 — Correção: Mecânica de Soco na Cela 211, Abertura Física da Passagem e Coleta da Bolsa
+
+Correção das interações físicas e transições de tela na prisão (Salas 211 e 212):
+
+1. **Correção do Registro de Soco na Parede Oca**:
+   - Diagnosticado que `player.step_tick()` decrementava `punch_timer` de 8 para 7 antes da checagem em `_physics_process()`, impedindo que `punch_timer == 8` fosse verdadeiro no tick de contato.
+   - Implementada flag de estado `wall_punch_active` em `CaptureSystem` e checagem baseada em `player.is_punching`. O primeiro contato físico válido registra o acerto e impede repetição espúria dentro da janela do mesmo soco.
+
+2. **Desobstrução Total da Passagem para a Sala 212**:
+   - A parede esquerda da Sala 211 possuía 4 colunas sólidas de tiles ($X \in [0, 32]$ px) não limpas pela quebra inicial, impedindo Snake de alcançar a borda da tela ($X < 12.0$ px) para disparar a troca de sala.
+   - Expandido `WALL_TILES` para cobrir $X \in [0, 5], Y \in [8, 11]$ (24 tiles desobstruídos até a borda $X=0$).
+   - Adicionado `ADJACENT_WALL_TILES` para desobstruir $X \in [26, 31], Y \in [8, 11]$ na borda direita da Sala 212, garantindo travessia bidirecional desimpedida.
+
+3. **Instanciação Autêntica da Bolsa (`BAG`)**:
+   - `_spawn_room_items()` atualizado para reconhecer tanto `item_dict.get("item_id") == "BAG"` quanto `type_id: 34`, evitando fallback incorreto para ração.
+
+4. **Menus Modais**:
+   - Inicialização explícita de `weapon_menu`, `item_menu` e `pause_menu` com `visible = false` no sandbox para evitar bloqueio involuntário de inputs.
+
 
 
 

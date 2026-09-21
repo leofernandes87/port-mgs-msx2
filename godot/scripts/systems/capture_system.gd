@@ -24,10 +24,20 @@ const SPAWN_PRISON: Vector2 = Vector2(128.0, 80.0)  # 0x80, 0x50
 
 const HITS_REQUIRED: int = 4
 
-# Coordenadas dos tiles que compõem a parede quebrável (colunas 4-5, linhas 8-11)
+# Coordenadas dos tiles que compõem a parede quebrável (colunas 0-5, linhas 8-11 até a borda esquerda)
 const WALL_TILES: Array = [
-	Vector2i(4, 8), Vector2i(4, 9), Vector2i(4, 10), Vector2i(4, 11),
-	Vector2i(5, 8), Vector2i(5, 9), Vector2i(5, 10), Vector2i(5, 11)
+	Vector2i(0, 8), Vector2i(1, 8), Vector2i(2, 8), Vector2i(3, 8), Vector2i(4, 8), Vector2i(5, 8),
+	Vector2i(0, 9), Vector2i(1, 9), Vector2i(2, 9), Vector2i(3, 9), Vector2i(4, 9), Vector2i(5, 9),
+	Vector2i(0, 10), Vector2i(1, 10), Vector2i(2, 10), Vector2i(3, 10), Vector2i(4, 10), Vector2i(5, 10),
+	Vector2i(0, 11), Vector2i(1, 11), Vector2i(2, 11), Vector2i(3, 11), Vector2i(4, 11), Vector2i(5, 11)
+]
+
+# Coordenadas dos tiles correspondentes na borda direita da Sala 212 (colunas 26-31, linhas 8-11)
+const ADJACENT_WALL_TILES: Array = [
+	Vector2i(26, 8), Vector2i(27, 8), Vector2i(28, 8), Vector2i(29, 8), Vector2i(30, 8), Vector2i(31, 8),
+	Vector2i(26, 9), Vector2i(27, 9), Vector2i(28, 9), Vector2i(29, 9), Vector2i(30, 9), Vector2i(31, 9),
+	Vector2i(26, 10), Vector2i(27, 10), Vector2i(28, 10), Vector2i(29, 10), Vector2i(30, 10), Vector2i(31, 10),
+	Vector2i(26, 11), Vector2i(27, 11), Vector2i(28, 11), Vector2i(29, 11), Vector2i(30, 11), Vector2i(31, 11)
 ]
 
 # Estado global da mecânica
@@ -36,6 +46,7 @@ var capture_occurred: bool = false
 var equip_bag_taken: bool = false
 var wall_hit_counter: int = 0
 var wall_broken: bool = false
+var wall_punch_active: bool = false
 
 # Vetores de backup do inventário e arsenal
 var backup_items: Array[String] = []
@@ -61,6 +72,7 @@ func execute_capture(inventory: InventoryManager, weapon_system: WeaponSystem) -
 	capture_occurred = true
 	wall_hit_counter = 0
 	wall_broken = false
+	wall_punch_active = false
 
 	# Backup do inventário
 	backup_items.clear()
@@ -95,21 +107,39 @@ func execute_capture(inventory: InventoryManager, weapon_system: WeaponSystem) -
 	print("CAPTURE_EVENT: Solid Snake foi emboscado e capturado na Sala 8! Equipamentos confiscados.")
 
 ## Monitora se o soco de Snake atinge as coordenadas da parede oca da Sala 211
-func check_wall_punch(player_pos: Vector2, direction: int, punch_timer: int) -> bool:
+## Suporta chamada flexível: (pos, dir, is_punching, timer) ou compatibilidade com (pos, dir, timer)
+func check_wall_punch(player_pos: Vector2, direction: int, is_punching_or_timer: Variant = true, legacy_timer: int = 8) -> bool:
 	if wall_broken:
 		return false
-	# O soco só registra impacto no tick inicial da animação (punch_timer == 8)
-	if punch_timer != 8:
+
+	var punching: bool = false
+	var timer: int = 8
+	if typeof(is_punching_or_timer) == TYPE_BOOL:
+		punching = bool(is_punching_or_timer)
+		timer = legacy_timer
+	elif typeof(is_punching_or_timer) == TYPE_INT:
+		timer = int(is_punching_or_timer)
+		punching = (timer > 0)
+
+	if not punching:
+		wall_punch_active = false
 		return false
+
+	if wall_punch_active:
+		return false
+
 	# Snake deve estar de frente para a parede esquerda (Direction.LEFT = 3)
 	if direction != PlayerController.Direction.LEFT:
 		return false
+
 	# Posição de Snake adjacente à parede oca interna da cela
-	if player_pos.x < 36.0 or player_pos.x > 72.0:
+	# Cobre confortavelmente a aproximação de Snake na parede esquerda
+	if player_pos.x < 32.0 or player_pos.x > 76.0:
 		return false
 	if player_pos.y < 56.0 or player_pos.y > 96.0:
 		return false
 
+	wall_punch_active = true
 	wall_hit_counter += 1
 	if wall_hit_counter >= HITS_REQUIRED:
 		wall_broken = true
@@ -152,6 +182,7 @@ func reset_state() -> void:
 	equip_bag_taken = false
 	wall_hit_counter = 0
 	wall_broken = false
+	wall_punch_active = false
 	backup_items.clear()
 	backup_rations_count = 0
 	backup_selected_item_index = -1

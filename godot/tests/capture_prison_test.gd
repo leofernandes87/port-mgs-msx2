@@ -30,6 +30,7 @@ func _run_all() -> void:
 	_test_room_connections_211_212()
 	_test_bag_restitution()
 	_test_reset_state()
+	_test_prison_flow_integration()
 
 ## Teste 1: Gatilho canônico de captura na Sala 8 (logic/common.asm:26-47)
 func _test_capture_trigger_bounds() -> void:
@@ -142,34 +143,42 @@ func _test_hollow_wall_punch_detection() -> void:
 	_assert(not h3, "Soco longe da parede não registra acerto")
 	_assert(cs.wall_hit_counter == 0, "Contador permanece 0")
 
-	# 3. punch_timer != 8 não conta (evita multi-hit no mesmo golpe)
-	var h4: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, 7)
-	_assert(not h4, "Soco com punch_timer != 8 não registra múltiplos hits")
-	_assert(cs.wall_hit_counter == 0, "Contador permanece 0")
-
-	# 4. Sequência canônica de 4 socos
-	var hit1: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, 8)
-	_assert(hit1, "1º soco válido detectado")
+	# 3. Multi-hit durante o mesmo golpe é bloqueado
+	var h4: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
+	_assert(h4, "Primeiro contato do soco registra acerto")
 	_assert(cs.wall_hit_counter == 1, "wall_hit_counter == 1")
-	_assert(not cs.wall_broken, "Parede ainda não quebrou (1/4)")
+	# Frame seguinte do MESMO soco (is_punching continua true) não conta ponto extra
+	var h4_repeat: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
+	_assert(not h4_repeat, "Repetição durante o mesmo soco não duplica acerto")
+	_assert(cs.wall_hit_counter == 1, "Contador permanece 1")
 
-	var hit2: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, 8)
+	# 4. Sequência canônica de 4 socos com relaxamento entre golpes
+	# Soco 1 já computado acima; relaxa o golpe
+	cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, false)
+
+	# 2º Soco
+	var hit2: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
 	_assert(hit2, "2º soco válido detectado")
 	_assert(cs.wall_hit_counter == 2, "wall_hit_counter == 2")
 	_assert(not cs.wall_broken, "Parede ainda não quebrou (2/4)")
+	cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, false)
 
-	var hit3: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, 8)
+	# 3º Soco
+	var hit3: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
 	_assert(hit3, "3º soco válido detectado")
 	_assert(cs.wall_hit_counter == 3, "wall_hit_counter == 3")
 	_assert(not cs.wall_broken, "Parede ainda não quebrou (3/4)")
+	cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, false)
 
-	var hit4: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, 8)
+	# 4º Soco
+	var hit4: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
 	_assert(hit4, "4º soco válido detectado")
 	_assert(cs.wall_hit_counter == 4, "wall_hit_counter == 4")
 	_assert(cs.wall_broken, "Parede quebrada com sucesso após o 4º acerto!")
 
 	# Soco após quebra não incrementa mais
-	var hit5: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, 8)
+	cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, false)
+	var hit5: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
 	_assert(not hit5, "Socos adicionais ignorados após quebra")
 
 ## Teste 5: Remoção de colisão e alteração de tiles na quebra da parede
@@ -184,12 +193,15 @@ func _test_wall_collision_and_tile_break() -> void:
 		var idx: int = tile.y * 32 + tile.x
 		collision[idx] = 0
 
-	# Valida desobstrução dos tiles da passagem
+	# Valida desobstrução dos tiles da passagem da Cela 211
 	for tile: Vector2i in CaptureSystem.WALL_TILES:
 		var idx: int = tile.y * 32 + tile.x
 		_assert(collision[idx] == 0, "Tile (%d, %d) desobstruído (colisão == 0)" % [tile.x, tile.y])
 
-	_assert(CaptureSystem.WALL_TILES.size() == 8, "Exatamente 8 tiles liberados na parede")
+	_assert(CaptureSystem.WALL_TILES.size() == 24, "Exatamente 24 tiles liberados na parede da Cela 211 (6x4)")
+
+	# Valida tiles da passagem na Sala 212 adjacente
+	_assert(CaptureSystem.ADJACENT_WALL_TILES.size() == 24, "Exatamente 24 tiles liberados na Sala 212 (6x4)")
 
 ## Teste 6: Conexão bidirecional entre Salas 211 e 212
 func _test_room_connections_211_212() -> void:
@@ -264,3 +276,89 @@ func _test_reset_state() -> void:
 	_assert(cs.wall_hit_counter == 0, "wall_hit_counter resetado para 0")
 	_assert(not cs.wall_broken, "wall_broken resetado para false")
 	_assert(cs.backup_items.is_empty(), "backup_items limpo")
+
+## Teste 9: Integração do Fluxo Completo de Fuga e Restituição (Sala 8 -> Cela 211 -> Parede Oca -> Fuga 212 -> Restituição -> Retorno 211)
+func _test_prison_flow_integration() -> void:
+	var rm := RoomManager.new()
+	var cs := CaptureSystem.new()
+	var inv := InventoryManager.new()
+	var ws := WeaponSystem.new()
+
+	# 1. Carrega dados canônicos da Sala 8
+	var snap8 := rm.load_room_snapshot(8)
+	_assert(snap8 != null and snap8.room_id == 8, "Snapshot canônico da Sala 8 carregado")
+
+	# Prepara equipamentos prévios
+	inv.collect_item(InventoryManager.ITEM_CARD1)
+	ws.add_weapon(WeaponSystem.WEAPON_HANDGUN, 30)
+
+	# 2. Gatilho de emboscada na Sala 8 (X in [192, 208])
+	var snake_pos := Vector2(196.0, 80.0)
+	var triggered: bool = cs.check_capture_trigger(8, snake_pos)
+	_assert(triggered, "Gatilho de captura acionado em X=196 na Sala 8")
+
+	cs.execute_capture(inv, ws)
+	_assert(cs.is_captured, "Solid Snake capturado")
+	_assert(inv.items.is_empty(), "Inventário ativo esvaziado")
+	_assert(ws.owned_weapons.is_empty(), "Arsenal ativo esvaziado")
+
+	# 3. Spawn na Cela 211
+	var snap211 := rm.load_room_snapshot(211)
+	_assert(snap211 != null and snap211.room_id == 211, "Snapshot canônico da Cela 211 carregado")
+	snake_pos = CaptureSystem.SPAWN_PRISON
+	_assert(snake_pos == Vector2(128.0, 80.0), "Snake spawnou no centro da cela (128, 80)")
+
+	# 4. Desloca Snake até a parede oca esquerda (X=44, Y=80) e desfere 4 socos
+	snake_pos = Vector2(44.0, 80.0)
+	for i in range(4):
+		var hit: bool = cs.check_wall_punch(snake_pos, PlayerController.Direction.LEFT, true)
+		_assert(hit, "Soco %d na parede oca registrado" % (i + 1))
+		cs.check_wall_punch(snake_pos, PlayerController.Direction.LEFT, false)
+
+	_assert(cs.wall_broken, "Parede oca destruída após 4 socos")
+
+	# 5. Aplica desobstrução de colisão da Cela 211 (WALL_TILES)
+	var col211 := Array(snap211.collision)
+	for t in CaptureSystem.WALL_TILES:
+		col211[t.y * 32 + t.x] = 0
+	_assert(col211[8 * 32 + 0] == 0, "Borda esquerda da cela (0, 8) desobstruída")
+
+	# 6. Snake atravessa a parede para a esquerda até cruzar a borda (X < 12.0)
+	snake_pos = Vector2(8.0, 80.0)
+	var exit_dir: int = RoomManager.check_room_exit(snake_pos)
+	_assert(exit_dir == PlayerController.Direction.LEFT, "Saída para a esquerda detectada em X=8")
+
+	var dest_room: int = RoomManager.get_next_room(211, exit_dir)
+	_assert(dest_room == 212, "Transição da Cela 211 leva à Sala 212")
+
+	# 7. Snake entra na Sala 212 no lado direito
+	var entry_pos: Vector2 = RoomManager.get_entry_position(exit_dir, snake_pos)
+	_assert(entry_pos.x == RoomManager.ENTRY_X_FROM_LEFT, "Snake entra no lado direito da Sala 212 (242)")
+
+	var snap212 := rm.load_room_snapshot(212)
+	_assert(snap212 != null and snap212.room_id == 212, "Snapshot canônico da Sala 212 carregado")
+
+	var col212 := Array(snap212.collision)
+	for t in CaptureSystem.ADJACENT_WALL_TILES:
+		col212[t.y * 32 + t.x] = 0
+	_assert(col212[8 * 32 + 30] == 0, "Ponto de entrada na Sala 212 (30, 8) desobstruído")
+
+	# 8. Snake recupera equipamentos na Sala 212
+	var bag := ItemBox.new()
+	bag.item_id = "BAG"
+	bag.room_id = 212
+	bag.position = Vector2(136.0, 64.0)
+	var collected: bool = bag.step_tick(Vector2(136.0, 64.0), inv, ws, cs)
+	_assert(collected, "Bolsa coletada na Sala 212")
+	_assert(inv.has_item(InventoryManager.ITEM_CARD1), "CARD1 recuperado")
+	_assert(ws.has_weapon(WeaponSystem.WEAPON_HANDGUN), "HANDGUN recuperada")
+	_assert(not cs.is_captured, "Captura finalizada")
+	bag.free()
+
+	# 9. Retorno para a Cela 211 pela direita
+	snake_pos = Vector2(248.0, 80.0)
+	var exit_dir_ret: int = RoomManager.check_room_exit(snake_pos)
+	_assert(exit_dir_ret == PlayerController.Direction.RIGHT, "Saída para a direita detectada em X=248")
+
+	var ret_room: int = RoomManager.get_next_room(212, exit_dir_ret)
+	_assert(ret_room == 211, "Retorno da Sala 212 leva de volta à Cela 211")
