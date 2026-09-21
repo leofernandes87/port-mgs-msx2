@@ -69,8 +69,10 @@ static func get_card_for_rule(rule_id: int) -> String:
 		9: return InventoryManager.ITEM_CARD8
 		_: return ""
 
-# Tiles ocupados na grade 32x24 (onde a colisão é injetada/removida)
+# Tiles ocupados na grade 32x24 quando a porta está fechada (colisão sólida 1)
 var collision_tile_indices: Array[int] = []
+# Tiles do vão de passagem desobstruídos quando a porta está aberta (colisão livre 0)
+var clearance_tile_indices: Array[int] = []
 
 func _ready() -> void:
 	z_index = 6
@@ -80,89 +82,150 @@ func _ready() -> void:
 
 func _calculate_collision_tiles() -> void:
 	collision_tile_indices.clear()
-	if is_lorry:
-		return
+	clearance_tile_indices.clear()
+
 	var center_tx: int = int(position.x) / 8
 	var center_ty: int = int(position.y) / 8
 
-	# Portas normais cobrem a largura total do vão (4 tiles = 32 pixels) nas paredes Norte/Sul
-	# ou 4 tiles verticais (32 pixels) nas paredes laterais Oeste/Leste.
 	match orientation:
 		DoorOrientation.NORTH:
+			# Bloqueio: soleira inferior da porta (4 tiles de largura)
 			var row_y: int = center_ty + 3
 			for offset_x: int in range(4):
 				var tx: int = center_tx + offset_x
-				if tx < 32 and row_y < 24:
+				if tx >= 0 and tx < 32 and row_y >= 0 and row_y < 24:
 					collision_tile_indices.append(row_y * 32 + tx)
+			# Desobstrução limpa quando aberta: todo o vão 4x4
+			for offset_y: int in range(4):
+				var ty: int = center_ty + offset_y
+				for offset_x: int in range(4):
+					var tx: int = center_tx + offset_x
+					if tx >= 0 and tx < 32 and ty >= 0 and ty < 24:
+						clearance_tile_indices.append(ty * 32 + tx)
+
 		DoorOrientation.SOUTH:
+			# Bloqueio: soleira sul
 			var row_y: int = center_ty
 			for offset_x: int in range(4):
 				var tx: int = center_tx + offset_x
-				if tx < 32 and row_y < 24:
+				if tx >= 0 and tx < 32 and row_y >= 0 and row_y < 24:
 					collision_tile_indices.append(row_y * 32 + tx)
-		DoorOrientation.WEST, DoorOrientation.EAST:
-			var col_x: int = center_tx
-			for offset_y: int in range(4):
+			# Desobstrução limpa quando aberta
+			for offset_y: int in range(-1, 2):
 				var ty: int = center_ty + offset_y
-				if col_x < 32 and ty < 24:
-					collision_tile_indices.append(ty * 32 + col_x)
+				for offset_x: int in range(4):
+					var tx: int = center_tx + offset_x
+					if tx >= 0 and tx < 32 and ty >= 0 and ty < 24:
+						clearance_tile_indices.append(ty * 32 + tx)
+
+		DoorOrientation.WEST:
+			# Parede lateral oeste (ex: Door 128 na Sala 32):
+			# Vão de passagem no chão: Y de position.y + 24 a position.y + 56 (ty = center_ty + 3 a center_ty + 6)
+			# e colunas de passagem em torno de position.x (tx = center_tx - 1 a center_tx).
+			for offset_y: int in range(3, 7):
+				var ty: int = center_ty + offset_y
+				for offset_x: int in range(-1, 1):
+					var tx: int = center_tx + offset_x
+					if tx >= 0 and tx < 32 and ty >= 0 and ty < 24:
+						clearance_tile_indices.append(ty * 32 + tx)
+			# Bloqueio quando fechada: soleira da porta
+			for offset_y: int in range(3, 7):
+				var ty: int = center_ty + offset_y
+				var tx: int = center_tx
+				if tx >= 0 and tx < 32 and ty >= 0 and ty < 24:
+					collision_tile_indices.append(ty * 32 + tx)
+
+		DoorOrientation.EAST:
+			# Parede lateral leste (ex: Door 128 na Sala 153):
+			# Vão de passagem no chão: Y de position.y + 24 a position.y + 56 (ty = center_ty + 3 a center_ty + 6)
+			# e colunas de passagem a partir de position.x (tx = center_tx a center_tx + 1).
+			for offset_y: int in range(3, 7):
+				var ty: int = center_ty + offset_y
+				for offset_x: int in range(0, 2):
+					var tx: int = center_tx + offset_x
+					if tx >= 0 and tx < 32 and ty >= 0 and ty < 24:
+						clearance_tile_indices.append(ty * 32 + tx)
+			# Bloqueio quando fechada: soleira da porta
+			for offset_y: int in range(3, 7):
+				var ty: int = center_ty + offset_y
+				var tx: int = center_tx
+				if tx >= 0 and tx < 32 and ty >= 0 and ty < 24:
+					collision_tile_indices.append(ty * 32 + tx)
+
+		DoorOrientation.LORRY_ENTER:
+			# Traseira de caminhão (ex: Sala 5): desobstrui o vão de entrada
+			for offset_y: int in range(1, 4):
+				var ty: int = center_ty + offset_y
+				for offset_x: int in range(1, 3):
+					var tx: int = center_tx + offset_x
+					if tx >= 0 and tx < 32 and ty >= 0 and ty < 24:
+						clearance_tile_indices.append(ty * 32 + tx)
+
+		DoorOrientation.LORRY_EXIT:
+			# Saída de dentro do caminhão (ex: Sala 128, 127):
+			# Remove as colunas de parede estática na borda direita
+			for ty: int in range(11, 15):
+				for tx: int in range(25, 32):
+					clearance_tile_indices.append(ty * 32 + tx)
 
 func inject_collision(collision_grid: Array) -> void:
-	if is_lorry or collision_grid.is_empty():
+	if collision_grid.is_empty():
 		return
-	if collision_tile_indices.is_empty():
+	if collision_tile_indices.is_empty() and clearance_tile_indices.is_empty():
 		_calculate_collision_tiles()
-	for idx: int in collision_tile_indices:
-		if idx >= 0 and idx < collision_grid.size():
-			collision_grid[idx] = 0 if is_open else 1
 
-## Retorna a caixa retangular canônica onde Snake entra na porta aberta
+	if is_open:
+		# Quando a porta está ABERTA:
+		# 1. Libera os tiles da soleira
+		for idx: int in collision_tile_indices:
+			if idx >= 0 and idx < collision_grid.size():
+				collision_grid[idx] = 0
+		# 2. Desobstrui todos os tiles do vão (eliminando blocos flutuantes e paredes no caminho)
+		for idx: int in clearance_tile_indices:
+			if idx >= 0 and idx < collision_grid.size():
+				collision_grid[idx] = 0
+	else:
+		# Quando a porta está FECHADA: bloqueia fisicamente com 1
+		for idx: int in collision_tile_indices:
+			if idx >= 0 and idx < collision_grid.size():
+				collision_grid[idx] = 1
+
+## Retorna a caixa retangular onde Snake entra na porta aberta
 func get_enter_trigger_rect() -> Rect2:
-	if is_lorry and trigger_rect.size != Vector2.ZERO:
+	if trigger_rect.size != Vector2.ZERO:
 		return trigger_rect
 
 	# Se for saída da traseira de caminhão móvel
 	if orientation == DoorOrientation.LORRY_EXIT or (is_lorry and render_type_id == 4):
-		# Na ROM, a traseira aberta do caminhão fica entre Y=88 e Y=124, e X de 204 a 228
-		return Rect2(204.0, 88.0, 24.0, 36.0)
+		return Rect2(204.0, 88.0, 36.0, 36.0)
 
 	match orientation:
-		DoorOrientation.NORTH, DoorOrientation.LORRY_ENTER:
-			return Rect2(position.x, position.y, 32.0, 32.0)
+		DoorOrientation.NORTH:
+			return Rect2(position.x + 4.0, position.y + 4.0, 24.0, 28.0)
+		DoorOrientation.LORRY_ENTER:
+			return Rect2(position.x + 4.0, position.y + 8.0, 24.0, 24.0)
 		DoorOrientation.SOUTH:
-			return Rect2(position.x, position.y - 4.0, 32.0, 16.0)
+			return Rect2(position.x + 4.0, position.y - 4.0, 24.0, 16.0)
 		DoorOrientation.WEST:
-			return Rect2(position.x - 8.0, position.y - 8.0, 24.0, 32.0)
+			return Rect2(position.x - 16.0, position.y - 8.0, 28.0, 64.0)
 		DoorOrientation.EAST:
-			return Rect2(position.x - 4.0, position.y - 8.0, 24.0, 32.0)
+			return Rect2(position.x - 4.0, position.y - 8.0, 28.0, 64.0)
 		_:
-			var dat: Dictionary = DOOR_OPEN_ENTER_DAT.get(render_type_id, DOOR_OPEN_ENTER_DAT[1])
-			return Rect2(
-				position.x + float(dat.enter_ox),
-				position.y + float(dat.enter_oy),
-				float(dat.enter_w),
-				float(dat.enter_h)
-			)
+			return Rect2(position.x, position.y, 32.0, 32.0)
 
-## Retorna a caixa retangular canônica onde Snake tenta abrir a porta fechada com cartão
+## Retorna a caixa retangular onde Snake tenta abrir a porta fechada com cartão
 func get_open_trigger_rect() -> Rect2:
 	match orientation:
 		DoorOrientation.NORTH:
 			return Rect2(position.x, position.y + 20.0, 32.0, 20.0)
 		DoorOrientation.SOUTH:
-			return Rect2(position.x, position.y - 8.0, 32.0, 16.0)
+			return Rect2(position.x, position.y - 12.0, 32.0, 16.0)
 		DoorOrientation.WEST:
-			return Rect2(position.x - 8.0, position.y - 8.0, 24.0, 32.0)
+			return Rect2(position.x - 8.0, position.y - 8.0, 28.0, 64.0)
 		DoorOrientation.EAST:
-			return Rect2(position.x - 8.0, position.y - 8.0, 24.0, 32.0)
+			return Rect2(position.x - 20.0, position.y - 8.0, 28.0, 64.0)
 		_:
-			var dat: Dictionary = DOOR_OPEN_ENTER_DAT.get(render_type_id, DOOR_OPEN_ENTER_DAT[1])
-			return Rect2(
-				position.x + float(dat.open_ox),
-				position.y + float(dat.open_oy),
-				float(dat.open_w),
-				float(dat.open_h)
-			)
+			return Rect2(position.x, position.y, 32.0, 32.0)
 
 ## Verifica interação do jogador com a porta (logic/doors/opendoor.asm e enterdoor.asm)
 ## Retorna o ID da sala de destino se o jogador atravessar a porta aberta, ou -1 caso contrário.
@@ -202,13 +265,19 @@ func check_interaction(player: PlayerController, inventory: InventoryManager, co
 			expected_dir = PlayerController.Direction.RIGHT
 
 	# 1. Se a porta estiver fechada, verificar se Snake tenta abrir
+	# Lógica fiel à ROM (logic/doors/opendoor.asm): apenas o retângulo canônico é usado,
+	# sem fallback de distância que causaria abertura inadvertida de portas vizinhas.
 	if not is_open:
 		var open_box: Rect2 = get_open_trigger_rect()
-		var in_open_zone: bool = open_box.has_point(player.position) or position.distance_to(player.position) <= 24.0
+		var in_open_zone: bool = open_box.has_point(player.position)
 		if in_open_zone and player.current_direction == expected_dir:
 			if not required_card.is_empty():
-				if inventory.get_selected_item() == required_card:
+				# Fiel à ROM (CardLevelReg): basta *possuir* o cartão — não precisa selecioná-lo.
+				if inventory.has_item(required_card):
+					print("DOOR_CARD_OK: Porta %d aberta com %s!" % [door_id, required_card])
 					open_door(collision_grid)
+				else:
+					print("DOOR_CARD_FAIL: Porta %d requer %s (não possui)." % [door_id, required_card])
 			elif open_rule_id in [1, 10, 11]:
 				open_door(collision_grid)
 		return -1

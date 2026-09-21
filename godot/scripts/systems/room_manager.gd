@@ -247,6 +247,7 @@ func load_room_snapshot(room_id: int) -> RoomSnapshot:
 
 	var candidate_paths: Array[String] = [
 		ProjectSettings.globalize_path("res://../data/extracted/stage5-batch/room-%03d.json" % room_id),
+		ProjectSettings.globalize_path("res://../data/extracted/stage5-item-rooms/room-%03d.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage5-lorries/room-%03d.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage5-elevators/room-%03d.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-%03d.json" % room_id),
@@ -284,6 +285,7 @@ func load_room_actors(room_id: int) -> Dictionary:
 
 	var candidate_paths: Array[String] = [
 		ProjectSettings.globalize_path("res://../data/extracted/stage5-batch/room-%03d-actors.json" % room_id),
+		ProjectSettings.globalize_path("res://../data/extracted/stage5-item-rooms/room-%03d-actors.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage5-lorries/room-%03d-actors.json" % room_id),
 		ProjectSettings.globalize_path("res://../data/extracted/stage5-elevators/room-%03d-actors.json" % room_id)
 	]

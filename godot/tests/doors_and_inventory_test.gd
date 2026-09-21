@@ -76,6 +76,11 @@ func _run() -> void:
 	if not require(inv.has_item("CARD3"), "CARD3 na mesa deve ser adicionado ao inventário"): return
 
 	# 3. Teste de RoomDoor, Trancas e Injeção de Colisão
+	# Usar inventário isolado para não contaminar com CARD1 já coletado acima
+	var door_inv_no_card: InventoryManager = InventoryManager.new()  # sem nenhum cartão
+	var door_inv_with_card: InventoryManager = InventoryManager.new()
+	door_inv_with_card.collect_item(InventoryManager.ITEM_CARD1)
+
 	var door: RoomDoor = RoomDoor.new()
 	door.door_id = 1
 	door.room_id = 2
@@ -95,17 +100,16 @@ func _run() -> void:
 	for idx: int in door.collision_tile_indices:
 		if not require(collision_grid[idx] == 1, "Porta fechada deve injetar colisão (1) nos seus tiles"): return
 
-	# Snake se aproxima da porta sem o cartão correto selecionado
-	inv.select_item("CARD2") # Seleciona cartão incorreto
+	# Snake se aproxima da porta sem nenhum cartão no inventário
 	player.set_grid_position(28.0, 96.0)
 	player.current_direction = PlayerController.Direction.LEFT
-	var dest: int = door.check_interaction(player, inv, collision_grid)
-	if not require(dest == -1 and not door.is_open, "Porta trancada NÃO deve abrir sem o cartão correto"): return
+	var dest: int = door.check_interaction(player, door_inv_no_card, collision_grid)
+	if not require(dest == -1 and not door.is_open, "Porta trancada NÃO deve abrir sem o cartão"): return
 
-	# Snake seleciona CARD1 e se aproxima olhando para WEST
-	inv.select_item("CARD1")
-	dest = door.check_interaction(player, inv, collision_grid)
-	if not require(door.is_open, "Porta deve abrir ao contato com o cartão correto"): return
+	# Snake possui CARD1 no inventário (sem precisar selecioná-lo — fiel à ROM)
+	if not require(door_inv_with_card.has_item("CARD1"), "CARD1 deve estar no inventário"): return
+	dest = door.check_interaction(player, door_inv_with_card, collision_grid)
+	if not require(door.is_open, "Porta deve abrir ao contato com o cartão correto (basta possuir)"): return
 
 	# Abertura deve limpar a colisão dos tiles para 0
 	for idx: int in door.collision_tile_indices:
@@ -113,7 +117,7 @@ func _run() -> void:
 
 	# Snake avança para dentro do vão da porta aberta (distância 6 px <= 10 px)
 	player.set_grid_position(18.0, 96.0)
-	dest = door.check_interaction(player, inv, collision_grid)
+	dest = door.check_interaction(player, door_inv_with_card, collision_grid)
 	if not require(dest == 4, "Atravessar porta aberta deve retornar a sala de destino (4)"): return
 
 	# 4. Teste de Portas de Caminhão (Lorry Doors) e Interior de Caminhões (Salas 126, 127, 128)
@@ -219,18 +223,26 @@ func _run() -> void:
 	door_c4.inject_collision(dummy_collision)
 
 	# Snake tenta abrir sem cartão correto (usando inventário vazio)
+	# NORTH door: position=(36,64), open_trigger_rect = Rect2(36, 84, 32, 20) [pos.y + 20, h=20]
+	# Player deve estar dentro do trigger → y entre 84 e 104, x entre 36 e 68
 	var empty_inv: InventoryManager = InventoryManager.new()
 	var dummy_player: PlayerController = packed_player.instantiate() as PlayerController
 	root.add_child(dummy_player)
-	dummy_player.position = Vector2(36.0, 74.0)
+	dummy_player.position = Vector2(52.0, 90.0)  # dentro de Rect2(36,84,32,20)
 	dummy_player.current_direction = PlayerController.Direction.UP
 
 	var entered: int = door_c4.check_interaction(dummy_player, empty_inv, dummy_collision)
 	if not require(entered == -1 and not door_c4.is_open, "Porta Card 4 deve permanecer fechada sem o cartão"): return
 
-	# Snake usa Card 4 e abre a porta
+	# Snake possui Card 4 no inventário (SEM precisar selecioná-lo — fiel à ROM: CardLevelReg)
+	# O cartão não está selecionado (selected_index aponta para outro item)
+	card4_inv.collect_item(InventoryManager.ITEM_BINOCULARS) # Adiciona outro item
+	card4_inv.select_item(InventoryManager.ITEM_BINOCULARS)  # Seleciona o binóculo, NÃO o cartão
+	if not require(card4_inv.get_selected_item() == "BINOCULARS", "Binoculars deve ser o selecionado"): return
+	if not require(card4_inv.has_item("CARD4"), "Card 4 deve estar no inventário"): return
+
 	entered = door_c4.check_interaction(dummy_player, card4_inv, dummy_collision)
-	if not require(door_c4.is_open, "Porta Card 4 deve abrir com Card 4 selecionado"): return
+	if not require(door_c4.is_open, "Porta Card 4 deve abrir mesmo com Card 4 não selecionado (basta possuir)"): return
 
 	# Testar carregamento dos metadados de portas da sala 6 via RoomManager
 	var rm: RoomManager = RoomManager.new()
@@ -269,16 +281,116 @@ func _run() -> void:
 	if not require(sandbox.snapshot.room_id == 8, "Snake NÃO deve transicionar para Sala 138 sem CARD1"): return
 	if not require(sandbox.player.position.y >= s8_door.position.y + 24.0, "Colisão da porta trancada deve bloquear Snake fisicamente"): return
 
-	# Snake equipa CARD1 e toca na porta
+	# Snake coleta CARD1 (sem precisar selecioná-lo) e toca na porta — fiel à ROM
 	sandbox.inventory.collect_item(InventoryManager.ITEM_CARD1)
-	sandbox.inventory.select_item("CARD1")
+	# Confirmar que o cartão não está necessariamente selecionado (pode estar, mas não é exigência)
+	if not require(sandbox.inventory.has_item("CARD1"), "CARD1 deve estar no inventário"): return
 	sandbox.player.current_direction = PlayerController.Direction.UP
 	sandbox.call("_physics_process", 1.0 / 60.0)
-	if not require(s8_door.is_open, "Porta 1 deve abrir com CARD1 equipado"): return
+	# Snake avança para dentro da porta aberta e entra na Item Room 138
+	sandbox.player.position = Vector2(s8_door.position.x + 16.0, s8_door.position.y + 16.0)
+	sandbox.call("_physics_process", 1.0 / 60.0)
+	if not require(sandbox.snapshot.room_id == 138, "Snake deve transicionar para Item Room 138 através da porta aberta"): return
+	if not require(sandbox.item_boxes.size() > 0 and sandbox.item_boxes[0].item_id == "GAS_MASK", "Sala 138 deve conter a Máscara de Gás"): return
+
+	# Snake sai pela porta sul de volta para a Sala 8
+	var exit_138: RoomDoor = sandbox.room_doors[0]
+	sandbox.player.position = Vector2(exit_138.position.x + 16.0, exit_138.position.y)
+	sandbox.player.current_direction = PlayerController.Direction.DOWN
+	sandbox.call("_physics_process", 1.0 / 60.0)
+	if not require(sandbox.snapshot.room_id == 8, "Snake deve retornar para a Sala 8 ao sair da Item Room"): return
+
+	# 8. Teste de Bloqueio de Borda da Sala 7 para Sala 11 (requer CARD4)
+	sandbox.change_to_room(7, Vector2(128.0, 128.0))
+	var fresh_inv: InventoryManager = InventoryManager.new()
+	sandbox.inventory = fresh_inv
+	# Snake tenta sair pela borda leste (X >= 244) sem CARD4
+	sandbox.player.position = Vector2(242.0, 136.0)
+	sandbox.player.step_tick(Vector2i.RIGHT)
+	sandbox._check_and_handle_room_transition()
+	if not require(sandbox.snapshot.room_id == 7, "Transição da Sala 7 para Sala 11 deve ser BARRADA sem CARD4"): return
+	if not require(sandbox.player.position.x <= 244.0, "Snake deve ser empurrado de volta para dentro dos limites da Sala 7"): return
+
+	# Snake adquire CARD4 e tenta atravessar para a Sala 11
+	sandbox.inventory.collect_item(InventoryManager.ITEM_CARD4)
+	sandbox.player.position = Vector2(242.0, 136.0)
+	sandbox.player.step_tick(Vector2i.RIGHT)
+	sandbox._check_and_handle_room_transition()
+	if not require(sandbox.snapshot.room_id == 11, "Snake com CARD4 deve conseguir transicionar para a Sala 11"): return
+
+	# 9. Teste da Porta 128 (Sala 32 <-> Sala 153) — Vão limpo e eliminação de blocos flutuantes
+	sandbox.change_to_room(32, Vector2(128.0, 128.0))
+	var d128_s32: RoomDoor = null
+	for d in sandbox.room_doors:
+		if d.door_id == 128:
+			d128_s32 = d
+			break
+	if not require(d128_s32 != null and d128_s32.is_open, "Porta 128 na Sala 32 deve existir e estar aberta"): return
+	# Verificar que os tiles do vão não têm blocos flutuantes
+	for ty in range(7, 11):
+		for tx in range(12, 14):
+			var idx = ty * 32 + tx
+			if not require(sandbox.runtime_collision[idx] == 0, "Vão da Porta 128 na Sala 32 deve estar desobstruído (0)"): return
+
+	# Snake entra na Porta 128 na Sala 32
+	sandbox.player.position = Vector2(d128_s32.position.x, d128_s32.position.y + 40.0)
+	sandbox.player.current_direction = PlayerController.Direction.LEFT
+	var dest_153 = d128_s32.check_interaction(sandbox.player, sandbox.inventory, sandbox.runtime_collision)
+	if not require(dest_153 == 153, "Porta 128 deve conduzir à Sala 153"): return
+	sandbox.change_to_room(dest_153, d128_s32.entry_position, d128_s32.destination_direction, d128_s32.door_id)
+	if not require(sandbox.snapshot.room_id == 153, "Snake deve transicionar para a Sala 153"): return
+
+	# Verificar eliminação do bloco de colisão flutuante em ty=11, tx=26 na Sala 153
+	var float_idx = 11 * 32 + 26
+	if not require(sandbox.runtime_collision[float_idx] == 0, "Bloco flutuante da Sala 153 (ty=11, tx=26) deve ter sido eliminado"): return
+
+	# Snake retorna para a Sala 32 através da Porta 128
+	var d128_s153: RoomDoor = null
+	for d in sandbox.room_doors:
+		if d.door_id == 128:
+			d128_s153 = d
+			break
+	if not require(d128_s153 != null, "Porta 128 deve existir na Sala 153"): return
+	sandbox.player.position = Vector2(d128_s153.position.x, d128_s153.position.y + 40.0)
+	sandbox.player.current_direction = PlayerController.Direction.RIGHT
+	var dest_32 = d128_s153.check_interaction(sandbox.player, sandbox.inventory, sandbox.runtime_collision)
+	if not require(dest_32 == 32, "Porta 128 na Sala 153 deve conduzir de volta à Sala 32"): return
+	sandbox.change_to_room(dest_32, d128_s153.entry_position, d128_s153.destination_direction, d128_s153.door_id)
+	if not require(sandbox.snapshot.room_id == 32, "Snake deve retornar com sucesso para a Sala 32"): return
+
+	# 10. Teste do Caminhão 128 (Sala 5 <-> Sala 128) — Desobstrução de saída limpa
+	sandbox.change_to_room(5, Vector2(128.0, 128.0))
+	var d113_truck: RoomDoor = null
+	for d in sandbox.room_doors:
+		if d.destination_room == 128:
+			d113_truck = d
+			break
+	if not require(d113_truck != null, "Porta do caminhão 128 deve existir na Sala 5"): return
+	sandbox.player.position = Vector2(d113_truck.position.x + 16.0, d113_truck.position.y + 24.0)
+	sandbox.player.current_direction = PlayerController.Direction.UP
+	var t128_dest = d113_truck.check_interaction(sandbox.player, sandbox.inventory, sandbox.runtime_collision)
+	if not require(t128_dest == 128, "Snake deve entrar no caminhão 128"): return
+	sandbox.change_to_room(t128_dest, d113_truck.entry_position, d113_truck.destination_direction, d113_truck.door_id)
+	if not require(sandbox.snapshot.room_id == 128, "Snake deve estar na Sala 128 (interior do caminhão)"): return
+
+	# Verificar desobstrução da parede de saída no caminhão 128
+	for ty in range(11, 15):
+		for tx in range(25, 32):
+			var idx = ty * 32 + tx
+			if not require(sandbox.runtime_collision[idx] == 0, "Saída do caminhão 128 (tx=%d, ty=%d) deve estar livre" % [tx, ty]): return
+
+	# Snake sai do caminhão 128 de volta para a Sala 5
+	var truck_exit: RoomDoor = sandbox.room_doors[0]
+	sandbox.player.position = Vector2(216.0, 104.0)
+	sandbox.player.current_direction = PlayerController.Direction.RIGHT
+	var exit_target = truck_exit.check_interaction(sandbox.player, sandbox.inventory, sandbox.runtime_collision)
+	if not require(exit_target == 5, "Snake deve sair do caminhão para a Sala 5"): return
+	sandbox.change_to_room(exit_target, truck_exit.entry_position, truck_exit.destination_direction, truck_exit.door_id)
+	if not require(sandbox.snapshot.room_id == 5, "Snake deve retornar com sucesso para a Sala 5"): return
 
 	sandbox.queue_free()
 	await process_frame
 
-	print("DOORS_AND_INVENTORY_OK: item collection, cycle, ration healing, locked door collision, card unlock, lorry doors enter/exit, and canonical truck items")
+	print("DOORS_AND_INVENTORY_OK: item collection, cycle, ration healing, locked door collision, card unlock, lorry doors enter/exit, canonical truck items, Door 128 clearance, and floating blocks elimination")
 	quit(0)
 

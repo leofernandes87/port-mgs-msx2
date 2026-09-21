@@ -1213,3 +1213,86 @@ Diagnóstico aprofundado e correção completa do comportamento de portas tranca
   - Adicionado teste de integração em `SandboxGameplay` comprovando que Snake sem cartão é fisicamente barrado pela colisão da porta fechada da Sala 8, não transiciona para a Sala 138, e só consegue abrir e avançar quando seleciona `CARD1` no inventário.
 - **Validação Global**:
   - `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.
+
+## 2026-09-21 — Correção de 4 Bugs no Sistema de Portas com Cartão (Etapa 20 — Diagnóstico e Refinamento Fiel)
+
+Diagnóstico profundo baseado no mapa canônico do jogador, auditoria bidirecional de todos as portas com cartão do jogo (salas 0–125) e inspeção da geometria dos retângulos de trigger, identificando e corrigindo 4 bugs concretos.
+
+### 1. Bugs Identificados e Corrigidos
+
+1. **Fallback `distance_to <= 24.0` em `check_interaction()` (bug de trigger excessivo)**
+   - **Causa**: `door.gd` L207 usava `open_box.has_point(player.position) or position.distance_to(player.position) <= 24.0`. O fallback de 24 px fazia com que Snake acionasse o teste de abertura de portas vizinhas ao se aproximar, causando o efeito de "passou sem cartão" (portas livres próximas a portas com cartão abrindo involuntariamente na mesma zona).
+   - **Correção**: Removido o fallback. Apenas `open_box.has_point(player.position)` (retângulo canônico preciso da ROM) é utilizado. Adicionados prints de diagnóstico `DOOR_CARD_OK` e `DOOR_CARD_FAIL`.
+
+2. **Verificação de cartão exigia seleção no menu (`get_selected_item` vs `has_item`)**
+   - **Causa**: `check_interaction()` verificava `inventory.get_selected_item() == required_card`, bloqueando portas mesmo quando Snake já possuía o cartão mas tinha outro item selecionado.
+   - **Correção fiel à ROM** (`logic/doors/opendoor.asm`, `CardLevelReg`): substituído por `inventory.has_item(required_card)`. Basta **possuir** o cartão no inventário — não é necessário selecioná-lo no menu de itens.
+
+3. **Enter box de portas de caminhão (LORRY_ENTER) excessivamente grande**
+   - **Causa**: `get_enter_trigger_rect()` usava `Rect2(position.x, position.y, 32.0, 32.0)` igualmente para portas NORTH normais e entradas de caminhão. Em pátios (Sala 7), Snake entrava involuntariamente em caminhões ao circular próximo às portas abertas.
+   - **Correção**: Separados os casos `DoorOrientation.NORTH` (32×32, mantido) e `DoorOrientation.LORRY_ENTER` (32×16, reduzido e deslocado 8 px para baixo), exigindo alinhamento mais preciso com o vão da carroceria.
+
+4. **Salas de destino inexistentes (item rooms 128–239) sem feedback ao jogador**
+   - **Causa**: Portas com cartão que levam a salas ≥ 128 (item rooms ainda não extraídas) silenciosamente falhavam (`change_to_room` retornava `false`), sem que o jogador entendesse se a porta estava bloqueada ou se o cartão estava errado.
+   - **Correção**: `sandbox_gameplay.gd` agora captura o retorno `bool` de `change_to_room`. Quando `false`, exibe banner `[Sala ainda não extraída — dados indisponíveis]` por 2,5 s, deixando claro que a mecânica funcionou mas o destino ainda não tem dados.
+
+### 2. Auditoria Bidirecional Completa
+
+- Executada auditoria de consistência de todas as 100+ portas com cartão das salas 0–125: todas as portas de item rooms (salas 128–239) são "ORPHAN" (sem par de retorno) porque essas salas ainda não foram extraídas — comportamento esperado e documentado.
+- Nenhum erro de mismatch de regra entre os pares bidirecionais existentes.
+
+### 3. Testes Atualizados
+
+- `godot/tests/doors_and_inventory_test.gd`: atualizado para usar inventários isolados e verificar `has_item` em vez de `get_selected_item`. Novo cenário: "cartão no inventário mas item diferente selecionado → porta abre igualmente".
+- **Validação Global**: `python3 tools/validate.py` — **100% PASS (47 testes Python + 17 suítes Godot, exit code 0)**.
+
+## 2026-09-21 — Extração das Item Rooms (129–207) e Bloqueio de Borda por Cartão (Sala 7 → Sala 11)
+
+### 1. Bloqueio de Borda da Sala 7 para Sala 11 (requisição de CARD4)
+- **Causa Raiz**: A `CONNECTIONS_TABLE` do MSX2 possui conexão contígua de borda leste da Sala 7 para a Sala 11 (`CONNECTIONS_TABLE[7][3] == 11`). Em gameplay, ao atingir o limite direito da tela ($X \ge 244$), `_check_and_handle_room_transition()` disparava a troca de sala diretamente pelo mapa de conexões, contornando a porta fechada `Door 5` que exige CARD4.
+- **Correção Fiel à ROM**: `_check_and_handle_room_transition()` em `sandbox_gameplay.gd` agora intercepta a direção de saída da tela. Se houver uma porta com cartão fechada naquela orientação e Snake não possuir o cartão exigido, Snake é empurrado de volta para dentro dos limites da sala (`_clamp_to_room_bounds()`) e a transição é barrada com emissão de aviso (`DOOR_CARD_FAIL`). Ao adquirir CARD4, a porta se abre e a travessia é liberada.
+
+### 2. Extração Completa e Conexão das Item Rooms (Salas 129 a 207)
+- **Extração Batch de Snapshots e Atores**:
+  - Extraídos 78 snapshots visuais (PNG e JSON) a partir de `rc750-verified/package.json` para o diretório `data/extracted/stage5-item-rooms`.
+  - Extraídos 78 arquivos de metadados (`room-NNN-actors.json`) com atores, patrulhas, itens canônicos (Gas Mask, Silencer, Card, Minas, Rações) e portas.
+  - Atualizado `RoomManager` (`room_manager.gd`) para incluir `stage5-item-rooms` na busca de snapshots (`load_room_snapshot`) e atores (`load_room_actors`).
+- **Conexões e Emparelhamento Bidirecional**:
+  - As portas de saída das item rooms apontam de volta para suas respectivas salas principais com `door_id` canônico da ROM (ex: Sala 138 Porta 1 $\to$ Sala 8 Porta 1; Sala 129 Porta 3 $\to$ Sala 6 Porta 3).
+  - O algoritmo de emparelhamento em `change_to_room()` posiciona Snake exatamente na frente da porta de retorno aberta, com direção de spawn e desobstrução de colisão autênticas.
+
+### 3. Validação Automatizada
+- Teste de integração em `doors_and_inventory_test.gd` expandido cobrindo:
+  1. Bloqueio físico e impedimento de transição na Sala 7 sem CARD4;
+  2. Liberação e travessia para Sala 11 após adquirir CARD4;
+  3. Acesso à Item Room 138 (Máscara de Gás) via Porta 1 com CARD1, spawn de item e retorno perfeito para a Sala 8.
+- `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.
+
+## 2026-09-21 — Ajustes de Colisão nas Passagens de Porta, Vãos Limpos e Eliminação de Blocos Flutuantes (Porta 128 / Salas 32, 153 e Caminhão 128)
+
+### 1. Diagnóstico do Problema de Colisão nas Passagens de Porta
+- **Causa Raiz 1 (Blocos de Colisão Flutuantes na ROM)**:
+  - Nos dados estáticos dos metatiles da ROM (`package.json`), certas salas possuem tiles de colisão sólida (`1`) no meio de vãos de passagem (por exemplo, na Sala 153 na linha `ty=11`, coluna `tx=26`: valor `1` em meio a `0`s; e na Sala 32 na coluna `tx=13`, linhas `ty=7..8`).
+  - Na ROM original do MSX2, quando uma porta abre, o código em `erasedoor.asm:525` (`SetOpenDoorTiles`) sobrescreve a matriz de colisão em RAM em toda a área do vão com `DoorOpenTiles` (tiles transparentes sem colisão).
+  - No motor Godot, o código anterior apenas alternava os tiles da soleira direta da porta (`collision_tile_indices`), deixando os blocos estáticos do metatile inalterados como "blocos de colisão flutuando no meio do vão", obstruindo a passagem de Snake mesmo com a porta aberta.
+- **Causa Raiz 2 (Desalinhamento Vertical dos Triggers em Portas Laterais WEST / EAST)**:
+  - Para portas em paredes laterais (perspectiva em ângulo), a abertura no chão fica deslocada verticalmente em relação ao topo do sprite da parede (`position.y + 24` a `position.y + 56`).
+  - Os retângulos de gatilho (`get_enter_trigger_rect()` e `get_open_trigger_rect()`) utilizavam offsets incorretos (`position.y - 8.0`), situando a área de gatilho 36 pixels acima do vão real de passagem, impedindo que Snake acionasse a transição ao caminhar pelo chão da abertura.
+- **Causa Raiz 3 (Paredes de Colisão na Saída dos Caminhões)**:
+  - No interior dos caminhões (ex.: Sala 128), as colunas 28 a 31 da parede leste continham colisão sólida `1` no metatile, bloqueando a saída de Snake para a direita.
+
+### 2. Refatoração Fiel e Idiomática no Godot (`door.gd`)
+- **Introdução de `clearance_tile_indices`**:
+  - Toda porta agora calcula tanto os tiles de bloqueio quando fechada (`collision_tile_indices`) quanto a área total de desobstrução quando aberta (`clearance_tile_indices`).
+  - Em `inject_collision(collision_grid: Array)`: quando `is_open == true`, **todos** os tiles de `clearance_tile_indices` são forçados a `0`. Isso garante uma abertura limpa e elimina qualquer bloco flutuante remanescente da matriz da ROM.
+- **Normalização dos Gatilhos de Entrada e Abertura**:
+  - `get_enter_trigger_rect()` e `get_open_trigger_rect()` agora cobrem com precisão o vão físico de passagem no chão para cada orientação (Norte, Sul, Oeste, Leste, Lorry Enter e Lorry Exit).
+  - A altura de tolerância para portas laterais foi expandida (altura 64 px), garantindo detecção confortável em todas as aproximações.
+- **Desobstrução Automática da Saída de Caminhões (`LORRY_EXIT`)**:
+  - A saída de dentro dos caminhões limpa as colunas 25 a 31 nas linhas 11 a 15, permitindo caminhar livremente para a direita até cruzar a soleira.
+
+### 3. Validação Automatizada
+- Expandido `godot/tests/doors_and_inventory_test.gd` com:
+  - **Seção 9**: Porta 128 (Sala 32 $\leftrightarrow$ Sala 153) — teste bidirecional completo, verificação de vão limpo e eliminação comprovada do bloco flutuante em `ty=11, tx=26`.
+  - **Seção 10**: Caminhão 128 (Sala 5 $\leftrightarrow$ Sala 128) — entrada, coleta e saída limpa com desobstrução das colunas 28..31.
+- `python3 tools/validate.py`: **100% PASS (47 testes Python + 17 suítes Godot, código de saída 0)**.

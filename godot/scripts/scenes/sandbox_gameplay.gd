@@ -1099,7 +1099,10 @@ func _physics_process(_delta: float) -> void:
 		if is_instance_valid(door):
 			var target_room: int = door.check_interaction(player, inventory, runtime_collision)
 			if target_room != -1:
-				change_to_room(target_room, door.entry_position, door.destination_direction, door.door_id)
+				var ok: bool = change_to_room(target_room, door.entry_position, door.destination_direction, door.door_id)
+				if not ok:
+					# Sala destino ainda não extraída (item rooms 128+): mostrar aviso ao jogador
+					show_dialog_message("Sala %d" % target_room, "[Sala ainda não extraída — dados indisponíveis]", 2.5)
 				break
 
 	# Atualizar prisioneiros / reféns (resgate por toque desarmado ou dano por soco/tiro)
@@ -1306,6 +1309,32 @@ func _check_and_handle_room_transition() -> void:
 	var exit_dir: int = RoomManager.check_room_exit(player.position)
 	if exit_dir == 0:
 		return
+
+	# Verificar se existe porta com cartão na direção de saída (ROM: lógica de opendoor.asm).
+	# A porta trancada bloqueia tanto a interação direta quanto a travessia pela borda da sala.
+	for door: RoomDoor in room_doors:
+		if not is_instance_valid(door) or door.is_lorry or door.required_card.is_empty():
+			continue
+		# Mapear direção de saída → orientação canônica da porta
+		var door_exit_matches: bool = false
+		match exit_dir:
+			PlayerController.Direction.UP:
+				door_exit_matches = (door.orientation == RoomDoor.DoorOrientation.NORTH)
+			PlayerController.Direction.DOWN:
+				door_exit_matches = (door.orientation == RoomDoor.DoorOrientation.SOUTH)
+			PlayerController.Direction.LEFT:
+				door_exit_matches = (door.orientation == RoomDoor.DoorOrientation.WEST)
+			PlayerController.Direction.RIGHT:
+				door_exit_matches = (door.orientation == RoomDoor.DoorOrientation.EAST)
+		if door_exit_matches and not door.is_open:
+			if not inventory.has_item(door.required_card):
+				# Porta trancada bloqueia a borda: empurrar Snake de volta e avisar
+				_clamp_to_room_bounds(exit_dir)
+				print("DOOR_CARD_FAIL: Borda bloqueada pela porta %d — requer %s." % [door.door_id, door.required_card])
+				return
+			else:
+				# Possui o cartão: abrir a porta e permitir passagem
+				door.open_door(runtime_collision)
 
 	var next_room_id: int = RoomManager.get_next_room(snapshot.room_id, exit_dir)
 	if next_room_id != RoomManager.NO_ROOM:

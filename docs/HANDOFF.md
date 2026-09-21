@@ -123,14 +123,15 @@ segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.
 - Acústica do Silenciador: disparo sem silenciador dispara alerta da sala (exceto nas 55 salas seguras `ROOMS_SHOT_SECURE`); disparo com silenciador é silencioso.
 - Sala 150: evento de drop do silenciador ao derrotar os 4 guardas silenciadores em (36, 98).
 - `ElevatorSystem` & `ElevatorCabin`: limites e paradas dos 11 elevadores, movimentação vertical a 1 px/tick.
-- `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/` e `stage5-elevators/`.
+- `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/`, `stage5-elevators/` e `stage5-item-rooms/` (78 salas de item 129 a 207 extraídas e conectadas).
+- Sistema de Portas & Desobstrução de Vãos (`door.gd`): suporte a `clearance_tile_indices` para eliminação de blocos de colisão flutuantes em vãos abertos, triggers laterais (WEST/EAST) alinhados ao chão, saída limpa de caminhões (`LORRY_EXIT`) e bloqueio rigoroso de saídas de borda por portas trancadas (ex: Sala 7 -> Sala 11 requer CARD4).
 - Validação contínua: `python3 tools/validate.py` executa 47 testes Python + 17 suítes Godot (100% PASS).
 
 ---
 
 ## 6. Próximas opções de trabalho
 
-A Etapa 19 está **concluída e validada**. Candidatos para a próxima etapa:
+Etapas anteriores concluídas e validadas. Candidatos para a próxima etapa:
 
 1. **Boss Fight Canônica 2: Machine Gun Kid (Sala 145 / Subsolo do Prédio 1)**:
    - Segundo chefe do jogo (`ID_MACH_GUN_KID = 34` na ROM), movimentação e rajadas contínuas de metralhadora com dano pesado e resgate de refém.
@@ -139,7 +140,7 @@ A Etapa 19 está **concluída e validada**. Candidatos para a próxima etapa:
    - Sprites autênticos da Cardboard Box, movimentação lenta e uso de uniforme inimigo no Prédio 2.
 
 3. **Obstáculos Especiais e Armadilhas (Pitfalls, Chão Eletrificado, Sala de Gás)**:
-   - Alçapões que abrem sob os pés de Snake (`ID_PITFALL`), pisos eletrificados desativados por controle remoto e consumo de oxigênio/dano por gás na ausência de Máscara de Gás.
+   - Alçapões que abrem sob os pés de Snake (`ID_PITFALL`), pisos eletrificados desativados por controle remoto e consumo de oxigênio/dano por gás na ausência de Máscara de Gás (já coletável na Sala 138).
 
 ---
 
