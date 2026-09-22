@@ -71,12 +71,15 @@ var anim_frame: int = 1
 var current_radius: float = SHAPE_RADII[0]
 var is_active: bool = true
 
-var collision_grid: Array[int] = []
+var collision_grid: Array = []
 
 signal hit_player(damage: int)
 signal bullet_destroyed
 
-func setup(origin: Vector2, target: Vector2, grid: Array[int]) -> void:
+func _ready() -> void:
+	z_index = 12
+
+func setup(origin: Vector2, target: Vector2, grid: Array) -> void:
 	position = origin
 	collision_grid = grid
 	var direction: Vector2 = (target - origin).normalized()
@@ -88,7 +91,7 @@ func setup(origin: Vector2, target: Vector2, grid: Array[int]) -> void:
 	current_radius = SHAPE_RADII[0]
 	is_active = true
 
-func step_tick(player_pos: Vector2, grid: Array[int]) -> void:
+func step_tick(player_pos: Vector2, grid: Array) -> void:
 	if not is_active:
 		return
 	collision_grid = grid
@@ -142,7 +145,7 @@ func _check_tile_collision() -> bool:
 	if tx < 0 or tx >= 32 or ty < 0 or ty >= 24:
 		return true
 	var idx: int = ty * 32 + tx
-	if idx >= 0 and idx < collision_grid.size() and collision_grid[idx] == 1:
+	if idx >= 0 and idx < collision_grid.size() and int(collision_grid[idx]) == 1:
 		return true
 	return false
 

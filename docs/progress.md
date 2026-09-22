@@ -1713,3 +1713,15 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Validação geral via `python3 tools/validate.py` 100% aprovada (Zero falhas).
 - **v0.1.5**: Fixed Grey Fox spawn in room 212 (added text mapping and actor ID 51). Implemented Boss door-locking mechanic for Shoot Gunner (doors lock on spawn, unlock on defeat, and Boss does not respawn).
 - **v0.1.6**: Fixed an engine crash (strict Array typing mismatch) that prevented Shoot Gunner from spawning in Room 57.
+
+## [v0.1.7] - Correção do Move Set e Efeitos do Shoot Gunner
+- **Correção de Crash Silencioso nos Disparos:**
+  - `ShotGunnerBullet.gd` esperava um parâmetro tipado estrito `Array[int]` para `grid`, causando crash no momento da chamada `setup(...)` em `sandbox_gameplay.gd` e impedindo a criação visual e física dos projéteis de escopeta.
+  - Tipagem corrigida para `Array` neutro e seguro com verificação inteira segura `int(collision_grid[idx])`.
+- **Fidelidade Canônica ao Move Set da ROM MSX2 (`shotgunner.asm`):**
+  - **Cadência de Tiro Autêntica:** Ajustado para disparar na frequência canônica `(ANIM_CNT & 0x0F) == 0` durante o estado de repouso (45 ticks), permitindo de 2 a 3 disparos por parada.
+  - **Mira Direcional & Muzzle Flash:** Shoot Gunner agora gira para encarar Snake na fase de tiro, apontando a escopeta na direção correta e exibindo um efeito visual de clarão (muzzle flash) na ponta do cano no frame de disparo.
+  - **Múltiplos Projéteis Simultâneos:** Removida a limpeza prematura de tiros; o sandbox agora suporta até 4 projéteis de chumbo simultâneos (fiel aos 4 slots de tiros inimigos da ROM).
+  - **Dano por Contato no Repouso:** Implementado dano de 4 HP ao tocar no boss parado (`COLLISION_CFG = 3`).
+  - **Correção da Detecção de Paredes:** Corrigido o cálculo de deslocamento `px` na rolagem para a esquerda em `_check_tile_collision_horizontal`.
+

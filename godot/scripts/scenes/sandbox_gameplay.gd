@@ -1655,6 +1655,11 @@ func _physics_process(_delta: float) -> void:
 		shot_gunner.step_tick(player.position, runtime_collision)
 		shot_gunner.queue_redraw()
 
+		# Dano por contato do boss quando parado (shotgunner.asm:102: COLLISION_CFG = 3, ActorTouchDamage = 4)
+		if shot_gunner.state == ShotGunner.SGunnerState.SHOOT and player:
+			if shot_gunner.position.distance_to(player.position) <= 14.0:
+				player.apply_damage(4)
+
 	# Tick dos projéteis do boss — colisão com player já tratada por sinal hit_player
 	var surviving_boss_bullets: Array[ShotGunnerBullet] = []
 	for sgb: ShotGunnerBullet in shot_gunner_bullets:
@@ -2013,11 +2018,11 @@ func _on_boss_intro_dialog(text: String) -> void:
 	print("BOSS_DIALOG: %s" % text)
 
 func _on_boss_shot_fired(origin: Vector2, target: Vector2) -> void:
-	# Garante que nenhum tiro residual anterior permaneça ativo na sala
-	for old_sgb: ShotGunnerBullet in shot_gunner_bullets:
-		if is_instance_valid(old_sgb):
-			old_sgb.queue_free()
-	shot_gunner_bullets.clear()
+	# Mantém até 4 disparos simultâneos (fiel aos 4 slots de tiros inimigos da ROM MSX2)
+	while shot_gunner_bullets.size() >= 4:
+		var oldest: ShotGunnerBullet = shot_gunner_bullets.pop_front()
+		if is_instance_valid(oldest):
+			oldest.queue_free()
 
 	var sgb: ShotGunnerBullet = ShotGunnerBullet.new()
 	sgb.setup(origin, target, runtime_collision)

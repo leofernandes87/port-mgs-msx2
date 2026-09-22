@@ -63,6 +63,7 @@ var player_pos: Vector2 = Vector2.ZERO
 
 ## Cor do boss e estado visual
 var flash_timer: int = 0  # Piscada branca ao ser atingido
+var muzzle_flash_timer: int = 0  # Flash na ponta da escopeta ao atirar
 
 ## Disparo único por parada (estilo escopeta autêntico da Konami)
 var has_fired_this_stop: bool = false
@@ -114,6 +115,8 @@ func step_tick(p_pos: Vector2, grid: Array) -> void:
 	# Animação de piscada (hit flash)
 	if flash_timer > 0:
 		flash_timer -= 1
+	if muzzle_flash_timer > 0:
+		muzzle_flash_timer -= 1
 
 	match state:
 		SGunnerState.INTRO:
@@ -179,10 +182,12 @@ func _tick_shoot() -> void:
 	if player_pos.y >= 166.0 and player_pos.x >= 170.0:
 		return
 
-	# Dispara 1 tiro de escopeta por parada após engatilhar (ao atingir SHOOT_WAIT - 15)
-	if not has_fired_this_stop and (SHOOT_WAIT - wait_timer) >= 15:
-		has_fired_this_stop = true
-		var spawn_offset := Vector2(roll_dir * 8.0, -10.0)
+	# Cadência canônica da ROM MSX2 (shotgunner.asm:126-131):
+	# SGunnerShotLogic2: ANIM_CNT & 0x0F == 0 -> AddEnemyShot2
+	if (anim_tick & 0x0F) == 0:
+		var facing_dir: int = 1 if player_pos.x >= position.x else -1
+		var spawn_offset := Vector2(facing_dir * 10.0, -10.0)
+		muzzle_flash_timer = 5
 		emit_signal("boss_shot_fired", position + spawn_offset, player_pos)
 
 # ---------------------------------------------------------------------------
@@ -218,14 +223,14 @@ func _check_tile_collision_horizontal(going_right: bool) -> bool:
 	var ox: float = 7.0 if going_right else -8.0
 	var ny: int = int(cy + (-4.0))
 	var py: int = int(cy + 3.0)
-	var px: int = int(cx + ox + (speed_x if going_right else -speed_x))
+	var px: int = int(cx + ox + speed_x)
 	for ty: int in [ny, py]:
 		if ty < 0 or ty >= 192:
 			return true
 		if px < 0 or px >= 256:
 			return true
 		var col: int = (ty / 8) * 32 + (px / 8)
-		if col >= 0 and col < collision_grid.size() and collision_grid[col] == 1:
+		if col >= 0 and col < collision_grid.size() and int(collision_grid[col]) == 1:
 			return true
 	return false
 
@@ -284,14 +289,21 @@ func _draw() -> void:
 
 	match state:
 		SGunnerState.INTRO, SGunnerState.SHOOT:
+			var facing_dir: int = (1 if player_pos.x >= position.x else -1) if state == SGunnerState.SHOOT else roll_dir
 			# Posição em pé — corpo retangular + capacete
 			draw_rect(Rect2(-6.0, -14.0, 12.0, 16.0), shadow_color)  # Sombra
 			draw_rect(Rect2(-5.0, -15.0, 12.0, 16.0), base_color)    # Corpo
 			draw_rect(Rect2(-5.0, -22.0, 12.0, 8.0), Color(0.2, 0.2, 0.2))  # Capacete
-			draw_rect(Rect2(-3.0, -18.0, 4.0, 4.0), Color(1.0, 0.8, 0.6))  # Rosto
-			# Escopeta
-			var gun_ox: float = 7.0 if roll_dir >= 0 else -10.0
+			var face_ox: float = -1.0 if facing_dir >= 0 else -3.0
+			draw_rect(Rect2(face_ox, -18.0, 4.0, 4.0), Color(1.0, 0.8, 0.6))  # Rosto
+			# Escopeta apontando na direção de disparo
+			var gun_ox: float = 6.0 if facing_dir >= 0 else -14.0
 			draw_rect(Rect2(gun_ox, -10.0, 8.0, 3.0), Color(0.15, 0.15, 0.15))
+			# Muzzle flash autêntico na ponta do cano
+			if muzzle_flash_timer > 0:
+				var m_tip: float = gun_ox + (9.0 if facing_dir >= 0 else -1.0)
+				draw_rect(Rect2(m_tip - 2.0, -13.0, 5.0, 8.0), Color(1.0, 0.9, 0.2))
+				draw_rect(Rect2(m_tip - 3.0, -12.0, 7.0, 6.0), Color.WHITE)
 		SGunnerState.ROLL:
 			# Animação de rolagem: losango que gira
 			var r: float = 7.0 + float(roll_frame) * 0.5
