@@ -1711,3 +1711,5 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Adicionado Teste 10 em `capture_prison_test.gd` cobrindo a saída para a Sala 54, cálculo de spawn em `(112, 168)` e reentrada para a Sala 212.
   - 134 testes no total em `capture_prison_test.gd` (100% PASS).
   - Validação geral via `python3 tools/validate.py` 100% aprovada (Zero falhas).
+- **v0.1.5**: Fixed Grey Fox spawn in room 212 (added text mapping and actor ID 51). Implemented Boss door-locking mechanic for Shoot Gunner (doors lock on spawn, unlock on defeat, and Boss does not respawn).
+- **v0.1.6**: Fixed an engine crash (strict Array typing mismatch) that prevented Shoot Gunner from spawning in Room 57.

@@ -56,7 +56,7 @@ var roll_dir: int = 1
 var speed_x: float = ROLL_SPEED  # SpeedX com sinal
 
 ## Grade de tiles 32×24 (768 ints) — passada pelo sandbox a cada tick
-var collision_grid: Array[int] = []
+var collision_grid: Array = []
 
 ## Posição do player (usada para calcular direção de rolagem e ângulo de disparo)
 var player_pos: Vector2 = Vector2.ZERO
@@ -91,7 +91,7 @@ signal intro_dialog(text: String)
 func _ready() -> void:
 	z_index = 10
 
-func setup(spawn_pos: Vector2, grid: Array[int], initial_player_pos: Vector2) -> void:
+func setup(spawn_pos: Vector2, grid: Array, initial_player_pos: Vector2) -> void:
 	position = spawn_pos
 	collision_grid = grid
 	player_pos = initial_player_pos
@@ -104,7 +104,7 @@ func setup(spawn_pos: Vector2, grid: Array[int], initial_player_pos: Vector2) ->
 # Lógica principal por tick — chamada pelo sandbox em _physics_process
 # ---------------------------------------------------------------------------
 
-func step_tick(p_pos: Vector2, grid: Array[int]) -> void:
+func step_tick(p_pos: Vector2, grid: Array) -> void:
 	if is_dead:
 		return
 	player_pos = p_pos
