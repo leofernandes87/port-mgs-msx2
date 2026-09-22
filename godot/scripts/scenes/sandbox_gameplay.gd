@@ -824,8 +824,12 @@ func _spawn_room_doors(room_id: int) -> void:
 				d.is_open = true
 
 		if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
-			d.is_open = false
-			d.required_card = "LOCKED_BOSS"
+			# Apenas a porta de avanço/saída da arena (Door 15 -> Sala 58) é bloqueada pelo boss.
+			# Door 74 (Sala 122) continua trancada normalmente por CARD2.
+			# Door 154 (Sala 168 contendo a bolsa de equipamentos do Snake) permanece aberta/livre!
+			if d_id == 15 or dest_room == 58:
+				d.is_open = false
+				d.required_card = "LOCKED_BOSS"
 
 		game_world.add_child(d)
 		d.inject_collision(runtime_collision)

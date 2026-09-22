@@ -1722,6 +1722,14 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - **Cadência de Tiro Autêntica:** Ajustado para disparar na frequência canônica `(ANIM_CNT & 0x0F) == 0` durante o estado de repouso (45 ticks), permitindo de 2 a 3 disparos por parada.
   - **Mira Direcional & Muzzle Flash:** Shoot Gunner agora gira para encarar Snake na fase de tiro, apontando a escopeta na direção correta e exibindo um efeito visual de clarão (muzzle flash) na ponta do cano no frame de disparo.
   - **Múltiplos Projéteis Simultâneos:** Removida a limpeza prematura de tiros; o sandbox agora suporta até 4 projéteis de chumbo simultâneos (fiel aos 4 slots de tiros inimigos da ROM).
-  - **Dano por Contato no Repouso:** Implementado dano de 4 HP ao tocar no boss parado (`COLLISION_CFG = 3`).
-  - **Correção da Detecção de Paredes:** Corrigido o cálculo de deslocamento `px` na rolagem para a esquerda em `_check_tile_collision_horizontal`.
+## [v0.1.8] - Correção Canônica das Portas da Sala 57 e Localização do Gear
+- **Desacoplamento de Trancas da Sala 57:**
+  - Corrigido o bloqueio cego que trancava todas as portas da Sala 57 durante a batalha com o boss.
+  - **Door 15 (Saída/Leste -> Sala 58):** Única porta bloqueada pelo combate (`LOCKED_BOSS`), destrancando ao derrotar o Shoot Gunner (passando a exigir CARD3 para avançar).
+  - **Door 74 (Esquerda -> Sala 122):** Trancada normalmente por **CARD2** (`open_rule_id: 3`). Dentro da Sala 122 encontram-se **CARD3** e **AMMO_CRATE** (munição).
+  - **Door 154 (Direita -> Sala 168):** Permanece **aberta e acessível** (`open_rule_id: 10`) mesmo durante o confronto com o chefe.
+- **Localização Canônica da Bolsa de Equipamentos (BAG):**
+  - Conforme a ROM MSX2 (`itemsinrooms.asm`), a bolsa de equipamentos do Snake fica na **Sala 168** (`item_type_id: 34` em X: 136, Y: 32).
+  - Removido o item BAG duplicado da Sala 212 (cela do Grey Fox), restabelecendo a progressão autêntica onde Snake deve invadir a Sala 168 a partir da arena do chefe para recuperar seu arsenal antes ou durante a luta.
+
 
