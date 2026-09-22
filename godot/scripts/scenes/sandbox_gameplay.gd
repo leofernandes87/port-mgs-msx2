@@ -34,6 +34,7 @@ var game_over_banner: Label = null
 var shot_gunner: ShotGunner = null
 var shot_gunner_bullets: Array[ShotGunnerBullet] = []
 var boss_dialog_label: Label = null
+var defeated_bosses: Dictionary = {}
 
 ## Perigo de Gás Tóxico (Etapa 19) — logic/damagegas.asm e logic/actors/gas.asm
 var gas_hazard_system: GasHazardSystem = GasHazardSystem.new()
@@ -511,6 +512,8 @@ func _spawn_room_enemies(room_id: int) -> void:
 
 			# Boss Shoot Gunner — ID_SHOT_GUNNER = 0x21 = 33 (Etapa 18)
 			if type_id == 33:
+				if defeated_bosses.get(33, false):
+					continue
 				var sg: ShotGunner = ShotGunner.new()
 				var player_initial: Vector2 = player.position if player else Vector2(128.0, 96.0)
 				sg.setup(spawn_pos, runtime_collision, player_initial)
@@ -819,6 +822,10 @@ func _spawn_room_doors(room_id: int) -> void:
 			var raw_logic: int = int(d_info.get("open_logic_raw", 0))
 			if (raw_logic & 0x80) != 0 or rule_id in [1, 10, 11, 15] or dest_room in lorry_rooms or room_id in lorry_rooms or r_type in [12, 13]:
 				d.is_open = true
+
+		if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
+			d.is_open = false
+			d.required_card = "LOCKED_BOSS"
 
 		game_world.add_child(d)
 		d.inject_collision(runtime_collision)
@@ -2037,6 +2044,14 @@ func _on_boss_defeated() -> void:
 		if is_instance_valid(sgb):
 			sgb.queue_free()
 	shot_gunner_bullets.clear()
+	defeated_bosses[33] = true
+	
+	# Destranca as portas da sala
+	for door: RoomDoor in room_doors:
+		if door.required_card == "LOCKED_BOSS":
+			door.required_card = RoomDoor.get_card_for_rule(door.open_rule_id)
+			print("DOOR_UNLOCKED: Porta %d destrancada após vitória sobre o boss!" % door.door_id)
+
 	if boss_dialog_label:
 		boss_dialog_label.text = "[ SHOOT GUNNER DERROTADO! ]"
 		boss_dialog_label.visible = true

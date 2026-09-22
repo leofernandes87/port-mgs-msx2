@@ -25,6 +25,7 @@ const PRISONER_TEXTS: Dictionary = {
 	159: "I'm saved! Diane of the Resistance supports you on frequency 120.33...",
 	161: "I'm saved! Use a Parachute to dive between the fences.",
 	164: "Glad you arrived, rookie... I'm Grey Fox... Metal Gear is an armored walking battle tank equipped with nuclear missiles... Only Dr. Pettrovich knows how to destroy it.",
+	212: "Glad you arrived, rookie... I'm Grey Fox... Metal Gear is an armored walking battle tank equipped with nuclear missiles... Only Dr. Pettrovich knows how to destroy it.",
 	167: "Thank you. I'm the daughter of Dr. Pettrovich, Ellen. My father was forced to develop Metal Gear... please save him!",
 	180: "I'm saved! The water channel goes to building 3.",
 	182: "I'm Dr. Pettrovich... To destroy Metal Gear, attach plastic explosives to the right and left feet in sequence!",
