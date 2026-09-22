@@ -153,7 +153,11 @@ func _destroy() -> void:
 	if not is_active:
 		return
 	is_active = false
+	visible = false
+	queue_redraw()
 	emit_signal("bullet_destroyed")
+	if get_parent() != null:
+		get_parent().remove_child(self)
 	queue_free()
 
 # ---------------------------------------------------------------------------

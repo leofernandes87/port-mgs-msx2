@@ -1732,4 +1732,15 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Conforme a ROM MSX2 (`itemsinrooms.asm`), a bolsa de equipamentos do Snake fica na **Sala 168** (`item_type_id: 34` em X: 136, Y: 32).
   - Removido o item BAG duplicado da Sala 212 (cela do Grey Fox), restabelecendo a progressão autêntica onde Snake deve invadir a Sala 168 a partir da arena do chefe para recuperar seu arsenal antes ou durante a luta.
 
+## [v0.1.9] - Restituição da Bolsa, Descarte Limpo de Balas e Sprite de Boss Morto
+- **Restituição Robusta da Bolsa de Equipamentos (`BAG`):**
+  - `restore_equipment()` em `capture_system.gd` aprimorado para fornecer um kit canônico padrão (`CARD1`, `CARD2`, `HANDGUN` [30 tiros], `CIGARETTES` e `RATION`) caso a bolsa seja coletada sem que Snake tenha passado pela captura na Sala 8 (ex: teleporte direto ou reinício de testes na Sala 57 / Sala 168). Se a captura ocorreu normalmente, restaura o backup exato integral.
+- **Eliminação de Sprites Residuais de Tiros de Escopeta:**
+  - `ShotGunnerBullet._destroy()` agora define `is_active = false`, `visible = false`, aciona `queue_redraw()` e desacopla explicitamente o nó do SceneTree via `remove_child(self)` antes de chamar `queue_free()`.
+  - `sandbox_gameplay.gd` atualizado para varrer e descartar com segurança quaisquer instâncias de `ShotGunnerBullet` remanescentes em `game_world` durante `change_to_room`, `_spawn_room_enemies` e `_on_boss_defeated`, impedindo que os projéteis "sujem" visualmente a tela após transições.
+- **Sprite Autoral de Boss Derrotado (Shoot Gunner):**
+  - Implementada renderização procedural em `shot_gunner.gd` quando `is_dead == true`: Shoot Gunner agora cai deitado no chão em posição horizontal sobre sua sombra, com o capacete solto ao lado e a escopeta largada no chão da arena.
+  - Ao derrotar o boss ou reentrar na Sala 57 após a vitória, o sprite caído permanece no local confirmando a derrota de forma clara e visual.
+
+
 

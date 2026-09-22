@@ -461,6 +461,10 @@ func _spawn_room_enemies(room_id: int) -> void:
 		if is_instance_valid(sgb):
 			sgb.queue_free()
 	shot_gunner_bullets.clear()
+	if game_world:
+		for child in game_world.get_children():
+			if child is ShotGunnerBullet:
+				child.queue_free()
 	if boss_dialog_label:
 		boss_dialog_label.visible = false
 
@@ -513,6 +517,12 @@ func _spawn_room_enemies(room_id: int) -> void:
 			# Boss Shoot Gunner — ID_SHOT_GUNNER = 0x21 = 33 (Etapa 18)
 			if type_id == 33:
 				if defeated_bosses.get(33, false):
+					var sg_dead: ShotGunner = ShotGunner.new()
+					sg_dead.setup(spawn_pos, runtime_collision, Vector2.ZERO)
+					sg_dead.is_dead = true
+					game_world.add_child(sg_dead)
+					sg_dead.queue_redraw()
+					shot_gunner = sg_dead
 					continue
 				var sg: ShotGunner = ShotGunner.new()
 				var player_initial: Vector2 = player.position if player else Vector2(128.0, 96.0)
@@ -1883,6 +1893,10 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 		if is_instance_valid(sgb):
 			sgb.queue_free()
 	shot_gunner_bullets.clear()
+	if game_world:
+		for child in game_world.get_children():
+			if child is ShotGunnerBullet:
+				child.queue_free()
 
 	if ElevatorSystem.is_elevator_room(new_room_id):
 		is_in_elevator = true
@@ -2053,7 +2067,13 @@ func _on_boss_defeated() -> void:
 		if is_instance_valid(sgb):
 			sgb.queue_free()
 	shot_gunner_bullets.clear()
+	if game_world:
+		for child in game_world.get_children():
+			if child is ShotGunnerBullet:
+				child.queue_free()
 	defeated_bosses[33] = true
+	if is_instance_valid(shot_gunner):
+		shot_gunner.queue_redraw()
 	
 	# Destranca as portas da sala
 	for door: RoomDoor in room_doors:

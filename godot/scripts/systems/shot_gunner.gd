@@ -274,6 +274,7 @@ func apply_bullet_hit() -> bool:
 
 func _on_defeat() -> void:
 	is_dead = true
+	queue_redraw()
 	emit_signal("boss_defeated")
 
 # ---------------------------------------------------------------------------
@@ -281,11 +282,23 @@ func _on_defeat() -> void:
 # ---------------------------------------------------------------------------
 
 func _draw() -> void:
-	if is_dead:
-		return
 	var base_color: Color = Color(0.85, 0.2, 0.1)    # Vermelho: uniforme de boss
 	var shadow_color: Color = Color(0.4, 0.1, 0.05)
 	var highlight: Color = Color(1.0, 1.0, 1.0, 0.7) if flash_timer > 0 else Color.TRANSPARENT
+
+	if is_dead:
+		# Sprite procedural do Boss Derrotado (caído no chão com escopeta solta)
+		# 1. Sombra no piso
+		draw_rect(Rect2(-12.0, 2.0, 24.0, 3.0), Color(0.0, 0.0, 0.0, 0.45))
+		# 2. Corpo caído na horizontal
+		draw_rect(Rect2(-10.0, -3.0, 20.0, 5.0), shadow_color)
+		draw_rect(Rect2(-9.0, -4.0, 18.0, 5.0), base_color)
+		# 3. Capacete caído de lado
+		draw_rect(Rect2(-12.0, -5.0, 6.0, 6.0), Color(0.2, 0.2, 0.2))
+		draw_rect(Rect2(-8.0, -3.0, 3.0, 3.0), Color(1.0, 0.8, 0.6))
+		# 4. Escopeta caída e solta no chão ao lado
+		draw_rect(Rect2(4.0, -1.0, 9.0, 3.0), Color(0.15, 0.15, 0.15))
+		return
 
 	match state:
 		SGunnerState.INTRO, SGunnerState.SHOOT:

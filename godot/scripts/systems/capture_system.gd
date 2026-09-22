@@ -155,6 +155,24 @@ func check_wall_punch(player_pos: Vector2, direction: int, is_punching_or_timer:
 ## Restitui todo o inventário e armas a partir do vetor de backup ao coletar a bolsa
 func restore_equipment(inventory: InventoryManager, weapon_system: WeaponSystem) -> void:
 	if not is_captured and backup_items.is_empty() and backup_owned_weapons.is_empty():
+		# Se Snake coletar a bolsa sem ter passado pelo gatilho prévio de captura (ex: teste direto),
+		# fornece os equipamentos canônicos correspondentes a este ponto da progressão MSX2:
+		if inventory != null:
+			if not inventory.has_item(InventoryManager.ITEM_CARD1):
+				inventory.collect_item(InventoryManager.ITEM_CARD1)
+			if not inventory.has_item(InventoryManager.ITEM_CARD2):
+				inventory.collect_item(InventoryManager.ITEM_CARD2)
+			if not inventory.has_item(InventoryManager.ITEM_CIGARETTES):
+				inventory.collect_item(InventoryManager.ITEM_CIGARETTES)
+			if not inventory.has_item(InventoryManager.ITEM_RATION):
+				inventory.collect_item(InventoryManager.ITEM_RATION)
+		if weapon_system != null:
+			if not weapon_system.has_weapon(WeaponSystem.WEAPON_HANDGUN):
+				weapon_system.add_weapon(WeaponSystem.WEAPON_HANDGUN, 30)
+		is_captured = false
+		equip_bag_taken = true
+		equipment_restored.emit()
+		print("EQUIPMENT_RESTORED: Bolsa de equipamentos recuperada (kit canônico padrão)! Inventário e armas restituídos.")
 		return
 
 	# Restaura itens
