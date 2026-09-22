@@ -36,6 +36,8 @@ const PLAYER_IN_DOOR_DAT = {
 	4: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT}, # Porta Leste (Parede Direita)
 	5: {"offset_y": 40.0, "offset_x": 12.0, "direction": PlayerController.Direction.DOWN},  # Elevador
 	6: {"offset_y": 40.0, "offset_x": 12.0, "direction": PlayerController.Direction.DOWN},  # Elevador Saída
+	12: {"offset_y": 40.0, "offset_x": 16.0, "direction": PlayerController.Direction.DOWN}, # Cela Basement (Sala 54)
+	13: {"offset_y": -8.0, "offset_x": 16.0, "direction": PlayerController.Direction.UP},    # Porta Saída Sul Cela (Sala 212/164)
 }
 
 # Tabela canônica DoorOpenEnterDat da ROM (external/MetalGear/data/doors.asm:15-35)
@@ -47,6 +49,8 @@ const DOOR_OPEN_ENTER_DAT = {
 	3: {"open_oy": 16.0, "open_h": 32.0, "open_ox": 0.0, "open_w": 20.0, "enter_oy": 24.0, "enter_h": 36.0, "enter_ox": -8.0, "enter_w": 20.0}, # Oeste
 	4: {"open_oy": 16.0, "open_h": 32.0, "open_ox": -8.0, "open_w": 20.0, "enter_oy": 24.0, "enter_h": 36.0, "enter_ox": -4.0, "enter_w": 24.0}, # Leste (traseira caminhão)
 	5: {"open_oy": 24.0, "open_h": 16.0, "open_ox": 0.0, "open_w": 32.0, "enter_oy": 12.0, "enter_h": 20.0, "enter_ox": 0.0, "enter_w": 32.0},  # Elevador
+	12: {"open_oy": 32.0, "open_h": 8.0, "open_ox": 8.0, "open_w": 16.0, "enter_oy": 16.0, "enter_h": 16.0, "enter_ox": 0.0, "enter_w": 32.0},
+	13: {"open_oy": -10.0, "open_h": 18.0, "open_ox": 8.0, "open_w": 16.0, "enter_oy": 0.0, "enter_h": 8.0, "enter_ox": 0.0, "enter_w": 32.0},
 }
 
 static func get_door_spawn(draw_xy: Vector2, render_type: int) -> Dictionary:
@@ -199,6 +203,14 @@ func get_enter_trigger_rect() -> Rect2:
 	if orientation == DoorOrientation.LORRY_EXIT or (is_lorry and render_type_id == 4):
 		return Rect2(204.0, 88.0, 36.0, 36.0)
 
+	match render_type_id:
+		12:
+			# Porta do isolamento na Sala 54: Snake entra pelo vão inferior caminhando para cima
+			return Rect2(position.x + 4.0, position.y + 12.0, 24.0, 24.0)
+		13:
+			# Porta de saída sul da cela (Sala 212): Snake entra pelo vão sul caminhando para baixo
+			return Rect2(position.x + 4.0, position.y - 4.0, 24.0, 20.0)
+
 	match orientation:
 		DoorOrientation.NORTH:
 			return Rect2(position.x + 4.0, position.y + 4.0, 24.0, 28.0)
@@ -233,6 +245,10 @@ func check_interaction(player: PlayerController, inventory: InventoryManager, co
 	if player == null:
 		return -1
 
+	# Portas de cela e passagens de prisão (regras canônicas ChkPrisonWalls)
+	if open_rule_id == 15 or render_type_id in [12, 13]:
+		is_open = true
+
 	# Portas marcadas como apenas de retorno/spawn (fake doors de caminhão móvel da ROM)
 	if is_entry_disabled:
 		return -1
@@ -254,15 +270,21 @@ func check_interaction(player: PlayerController, inventory: InventoryManager, co
 		return -1
 
 	var expected_dir: PlayerController.Direction = PlayerController.Direction.UP
-	match orientation:
-		DoorOrientation.NORTH, DoorOrientation.LORRY_ENTER:
+	match render_type_id:
+		12:
 			expected_dir = PlayerController.Direction.UP
-		DoorOrientation.SOUTH:
+		13:
 			expected_dir = PlayerController.Direction.DOWN
-		DoorOrientation.WEST:
-			expected_dir = PlayerController.Direction.LEFT
-		DoorOrientation.EAST, DoorOrientation.LORRY_EXIT:
-			expected_dir = PlayerController.Direction.RIGHT
+		_:
+			match orientation:
+				DoorOrientation.NORTH, DoorOrientation.LORRY_ENTER:
+					expected_dir = PlayerController.Direction.UP
+				DoorOrientation.SOUTH:
+					expected_dir = PlayerController.Direction.DOWN
+				DoorOrientation.WEST:
+					expected_dir = PlayerController.Direction.LEFT
+				DoorOrientation.EAST, DoorOrientation.LORRY_EXIT:
+					expected_dir = PlayerController.Direction.RIGHT
 
 	# 1. Se a porta estiver fechada, verificar se Snake tenta abrir
 	# Lógica fiel à ROM (logic/doors/opendoor.asm): apenas o retângulo canônico é usado,

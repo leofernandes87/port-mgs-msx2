@@ -31,6 +31,7 @@ func _run_all() -> void:
 	_test_bag_restitution()
 	_test_reset_state()
 	_test_prison_flow_integration()
+	_test_room_212_to_room_54_transition()
 
 ## Teste 1: Gatilho canônico de captura na Sala 8 (logic/common.asm:26-47)
 func _test_capture_trigger_bounds() -> void:
@@ -362,3 +363,46 @@ func _test_prison_flow_integration() -> void:
 
 	var ret_room: int = RoomManager.get_next_room(212, exit_dir_ret)
 	_assert(ret_room == 211, "Retorno da Sala 212 leva de volta à Cela 211")
+
+## Teste 10: Transição da porta sul da Sala 212 para a Sala 54 (Basement) com spawn em (112, 168)
+func _test_room_212_to_room_54_transition() -> void:
+	var rm := RoomManager.new()
+
+	# 1. Validação de saída sul via RoomManager
+	var next_down: int = RoomManager.get_next_room(212, PlayerController.Direction.DOWN)
+	_assert(next_down == 54, "Sala 212 -> DOWN conecta com Sala 54 (Basement)")
+
+	# 2. Carrega metadados de portas da Sala 212
+	var data212: Dictionary = rm.load_room_actors(212)
+	var doors212: Array = data212.get("doors", [])
+	var door12_in_212: Dictionary = {}
+	for d in doors212:
+		if int(d.get("door_id", 0)) == 12:
+			door12_in_212 = d
+			break
+	_assert(not door12_in_212.is_empty(), "Door 12 configurada na Sala 212")
+	_assert(int(door12_in_212.get("destination_room_id", 0)) == 54, "Door 12 na Sala 212 aponta para Sala 54")
+	_assert(int(door12_in_212.get("render_type_id", 0)) == 13, "Door 12 na Sala 212 usa render_type_id 13 (South exit)")
+
+	# 3. Carrega metadados de portas da Sala 54
+	var data54: Dictionary = rm.load_room_actors(54)
+	var doors54: Array = data54.get("doors", [])
+	var door12_in_54: Dictionary = {}
+	for d in doors54:
+		if int(d.get("door_id", 0)) == 12:
+			door12_in_54 = d
+			break
+	_assert(not door12_in_54.is_empty(), "Door 12 configurada na Sala 54")
+	_assert(int(door12_in_54.get("destination_room_id", 0)) == 212, "Door 12 na Sala 54 aponta para Sala 212")
+	_assert(int(door12_in_54.get("render_type_id", 0)) == 12, "Door 12 na Sala 54 usa render_type_id 12 (Basement cell)")
+
+	# 4. Cálculo de spawn canônico ao sair na Sala 54: (96 + 16, 128 + 40) = (112, 168), DIR = DOWN
+	var spawn54: Dictionary = RoomDoor.get_door_spawn(Vector2(96.0, 128.0), 12)
+	_assert(spawn54.get("pos") == Vector2(112.0, 168.0), "Spawn na Sala 54 ocorre exatamente no vão do isolamento em (112, 168)")
+	_assert(int(spawn54.get("dir")) == PlayerController.Direction.DOWN, "Snake emerge na Sala 54 olhando para o SUL (DOWN)")
+
+	# 5. Cálculo de spawn canônico ao reentrar na Sala 212: (96 + 16, 152 - 8) = (112, 144), DIR = UP
+	var spawn212: Dictionary = RoomDoor.get_door_spawn(Vector2(96.0, 152.0), 13)
+	_assert(spawn212.get("pos") == Vector2(112.0, 144.0), "Spawn na Sala 212 ocorre dentro da cela em (112, 144)")
+	_assert(int(spawn212.get("dir")) == PlayerController.Direction.UP, "Snake reentra na Sala 212 olhando para o NORTE (UP)")
+

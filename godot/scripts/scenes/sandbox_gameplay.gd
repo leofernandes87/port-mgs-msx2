@@ -754,8 +754,8 @@ func _spawn_room_doors(room_id: int) -> void:
 		# - Destino à própria sala (paredes internas rachadas sem transição)
 		# - Destino à Sala 204 (o limbo: tela 100% de parede sólida)
 		# - Portas bloqueadas explicitamente na ROM (Door ID 64 na Sala 6 dos cães e Door ID 108 na Sala 5)
-		# - Portas de paredes de explosivos ainda não detonadas (r_type > 6)
-		if dest_room == -1 or dest_room == room_id or dest_room == 204 or d_id in [64, 108] or r_type >= 6:
+		# - Portas de paredes de explosivos ainda não detonadas (r_type > 6, exceto 12 e 13 das celas)
+		if dest_room == -1 or dest_room == room_id or dest_room == 204 or d_id in [64, 108] or (r_type >= 6 and r_type not in [12, 13]):
 			continue
 
 		var d: RoomDoor = RoomDoor.new()
@@ -789,6 +789,16 @@ func _spawn_room_doors(room_id: int) -> void:
 				d.orientation = RoomDoor.DoorOrientation.EAST
 				d.entry_position = Vector2(dx - 10.0, dy + 48.0)
 				d.destination_direction = PlayerController.Direction.LEFT
+			12:
+				# Porta de entrada do isolamento na Sala 54 (Basement): Snake entra pelo vão inferior caminhando para cima
+				d.orientation = RoomDoor.DoorOrientation.NORTH
+				d.entry_position = Vector2(dx + 16.0, dy + 40.0) # (112.0, 168.0)
+				d.destination_direction = PlayerController.Direction.DOWN
+			13:
+				# Porta de saída sul da cela (Sala 212 / 164): Snake entra pelo vão sul caminhando para baixo
+				d.orientation = RoomDoor.DoorOrientation.SOUTH
+				d.entry_position = Vector2(dx + 16.0, dy - 8.0) # (112.0, 144.0)
+				d.destination_direction = PlayerController.Direction.UP
 			_:
 				d.orientation = RoomDoor.DoorOrientation.NORTH
 				d.entry_position = Vector2(dx + 12.0, dy + 40.0)
@@ -807,7 +817,7 @@ func _spawn_room_doors(room_id: int) -> void:
 			d.is_open = false
 		else:
 			var raw_logic: int = int(d_info.get("open_logic_raw", 0))
-			if (raw_logic & 0x80) != 0 or rule_id in [1, 10, 11] or dest_room in lorry_rooms or room_id in lorry_rooms:
+			if (raw_logic & 0x80) != 0 or rule_id in [1, 10, 11, 15] or dest_room in lorry_rooms or room_id in lorry_rooms or r_type in [12, 13]:
 				d.is_open = true
 
 		game_world.add_child(d)
@@ -1813,7 +1823,11 @@ func _check_and_handle_room_transition() -> void:
 	var next_room_id: int = RoomManager.get_next_room(snapshot.room_id, exit_dir)
 	if next_room_id != RoomManager.NO_ROOM:
 		var entry_pos: Vector2 = RoomManager.get_entry_position(exit_dir, player.position)
-		change_to_room(next_room_id, entry_pos)
+		var entry_dir: int = -1
+		if snapshot.room_id == 212 and next_room_id == 54:
+			entry_pos = Vector2(112.0, 168.0)
+			entry_dir = PlayerController.Direction.DOWN
+		change_to_room(next_room_id, entry_pos, entry_dir)
 	else:
 		_clamp_to_room_bounds(exit_dir)
 

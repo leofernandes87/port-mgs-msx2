@@ -1694,4 +1694,20 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
 
 ## [v0.1.3] - Correções de Colisão e Navegação MSX2
 - **Fix (Armas):** Raio de dano da explosão do míssil teleguiado ajustado para 16px durante o frame de detonação, garantindo a destruição de painéis colados em paredes sólidas.
-- **Fix (Navegação):** Corrigida a transição sul da Sala 212 (sala da mochila). A colisão da passagem foi desobstruída via código e o mapeamento restabelecido para o pátio externo (Sala 106), recriando a rota de fuga original sem uso de portas de Key Card.
+- **Fix (Navegação):** Ajustes preliminares na rota de fuga da Sala 212.
+
+## [v0.1.4] - Transição Canônica da Sala 212 para a Sala 54 (Basement) via Door 12
+- **Análise Canônica da ROM MSX2:**
+  - Descoberta da rota exata no código assembly original (`logic/capturescene.asm`, `data/doors.asm: DoorsRoom054, DoorsRoom_164, DoorsRoom165`).
+  - A captura na Sala 8 transfere Snake para a cela de isolamento (Room 165 / Sala 211).
+  - A quebra da parede no soco dá acesso à sala adjacente com a bolsa de equipamentos (Room 164 / Sala 212).
+  - A porta sul da sala adjacente é a **Door ID 12** (`render_type_id: 13`), que conecta diretamente à **Sala 54 (Subsolo / Basement do Prédio 1)**.
+  - Na Sala 54, Door ID 12 (`render_type_id: 12`) posiciona Snake saindo da estrutura de cela central em `(112.0, 168.0)` virado para o SUL (DOWN), exatamente onde indicado pelo jogador.
+- **Implementação do Sistema de Portas (`door.gd` e `sandbox_gameplay.gd`):**
+  - Implementado suporte para os tipos de renderização `12` (entrada/saída da cela no Basement) e `13` (porta sul da cela de prisão) em `PLAYER_IN_DOOR_DAT` e `DOOR_OPEN_ENTER_DAT`.
+  - Habilitada a regra canônica `open_rule_id: 15` (`ChkPrisonWalls`) para permitir livre trânsito bidirecional entre a Sala 212 e a Sala 54.
+  - Atualizados os metadados de `room-212-actors.json` e `room-054-actors.json` com a definição correta da Door 12.
+- **Validação Automatizada:**
+  - Adicionado Teste 10 em `capture_prison_test.gd` cobrindo a saída para a Sala 54, cálculo de spawn em `(112, 168)` e reentrada para a Sala 212.
+  - 134 testes no total em `capture_prison_test.gd` (100% PASS).
+  - Validação geral via `python3 tools/validate.py` 100% aprovada (Zero falhas).
