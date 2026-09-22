@@ -1691,3 +1691,7 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
 - **Correção da UI (Menus Modais)**: Resolvido o problema em que o Godot interceptava e consumia os cliques do mouse nos menus modais (Pause, Armas, Itens e Rádio), impedindo que os botões (como o "Receber Arsenal") funcionassem via mouse.
 - **Melhoria no Arsenal de Debug**: O míssil teleguiado (`WEAPON_MISSILE`) não estava incluído no kit de armas concedido pelo botão "Receber Arsenal Completo (Kit)" do Menu de Pause, o que impedia testes rápidos em salas eletrificadas. O míssil foi adicionado com 10 munições.
 - **Versionamento Semântico**: Tag `v0.1.2` gerada e aplicada ao repositório marcando essas resoluções.
+
+## [v0.1.3] - Correções de Colisão e Navegação MSX2
+- **Fix (Armas):** Raio de dano da explosão do míssil teleguiado ajustado para 16px durante o frame de detonação, garantindo a destruição de painéis colados em paredes sólidas.
+- **Fix (Navegação):** Corrigida a transição sul da Sala 212 (sala da mochila). A colisão da passagem foi desobstruída via código e o mapeamento restabelecido para o pátio externo (Sala 106), recriando a rota de fuga original sem uso de portas de Key Card.
