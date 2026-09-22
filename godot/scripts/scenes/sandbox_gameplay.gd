@@ -414,6 +414,15 @@ func _apply_snapshot() -> void:
 				for px in range(208, 256):
 					img.set_pixel(px, py, floor_col)
 			room_texture.update(img)
+		
+		# A porta sul da Sala 212 não tem portão físico nos arquivos de door.asm
+		# mas possui colisão de tiles preenchida que impede a transição.
+		# Vamos desobstruir a passagem (X=12 a 15, Y=19 a 23)
+		for ty in range(19, 24):
+			for tx in range(12, 16):
+				var idx: int = ty * 32 + tx
+				if idx >= 0 and idx < runtime_collision.size():
+					runtime_collision[idx] = 0
 	if player:
 		player.set_collision_grid(runtime_collision)
 	_spawn_room_enemies(snapshot.room_id)

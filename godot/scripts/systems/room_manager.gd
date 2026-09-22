@@ -191,6 +191,8 @@ static func get_next_room(room_id: int, dir: PlayerController.Direction) -> int:
 	elif room_id == 212:
 		if dir == PlayerController.Direction.RIGHT:
 			return 211
+		if dir == PlayerController.Direction.DOWN:
+			return 106
 		return NO_ROOM
 
 	var index: int = -1
