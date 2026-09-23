@@ -329,7 +329,7 @@ func _update_world_transform(area_size: Vector2) -> void:
 
 func _draw_room_and_collision() -> void:
 	if room_texture:
-		room_display.draw_texture(room_texture, Vector2.ZERO)
+		room_display.draw_texture_rect(room_texture, Rect2(0, 0, 256, 192), false)
 	# Névoa atmosférica sutil de gás tóxico nas salas canônicas (Etapa 19)
 	if gas_hazard_system and snapshot and gas_hazard_system.is_gas_room(snapshot.room_id):
 		room_display.draw_rect(Rect2(0, 0, 256, 192), Color(0.12, 0.40, 0.15, 0.20))
@@ -385,7 +385,18 @@ func _load_initial_room() -> void:
 	_create_synthetic_fallback_room()
 
 func _apply_snapshot() -> void:
-	room_texture = ImageTexture.create_from_image(snapshot.make_image())
+	var base_img: Image = null
+	var rem_path: String = "res://../assets/remastered/room-%03d.png" % snapshot.room_id
+	if ResourceLoader.exists(rem_path) or FileAccess.file_exists(ProjectSettings.globalize_path(rem_path)):
+		base_img = Image.load_from_file(ProjectSettings.globalize_path(rem_path))
+		if base_img:
+			print("REMASTER: Carregada arte remasterizada para a Sala %d" % snapshot.room_id)
+	
+	if not base_img:
+		base_img = snapshot.make_image()
+	
+	if base_img:
+		room_texture = ImageTexture.create_from_image(base_img)
 	runtime_collision = Array(snapshot.collision)
 	if snapshot.room_id == CaptureSystem.ROOM_PRISON and capture_system.wall_broken:
 		for tile_coord: Vector2i in CaptureSystem.WALL_TILES:

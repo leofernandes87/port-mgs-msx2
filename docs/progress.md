@@ -1742,5 +1742,10 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Implementada renderização procedural em `shot_gunner.gd` quando `is_dead == true`: Shoot Gunner agora cai deitado no chão em posição horizontal sobre sua sombra, com o capacete solto ao lado e a escopeta largada no chão da arena.
   - Ao derrotar o boss ou reentrar na Sala 57 após a vitória, o sprite caído permanece no local confirmando a derrota de forma clara e visual.
 
-
-
+## [v0.1.10] - Infraestrutura Híbrida para Remasterização HD (Arte Customizada)
+- **Desacoplamento Visual e Lógico:**
+  - `sandbox_gameplay.gd` atualizado para carregar assets `.png` nativos de `assets/remastered/room-%03d.png` caso existam. Se existirem, a engine utiliza a imagem customizada HD; se não, fallback automático para a renderização 8-bits original dos JSONs (retro-compatibilidade 100%).
+  - Substituição de `draw_texture()` por `draw_texture_rect()` forçando o encaixe no espaço lógico de colisão (256x192), permitindo mapas e sprites pintados em qualquer resolução/escala superior (ex: 4K, 1024x768) sem quebrar o grid de física.
+- **Ferramentas de Workflow Automático:**
+  - Criado `tools/assemble_map.gd`: Monta o mapa externo inteiro (ex: Prédio 1) fundindo os snapshots 256x192 em uma única imagem PNG (1024x768).
+  - Criado `tools/slice_map.gd`: Processo reverso dinâmico. Pega uma imagem de mapa completo (independentemente da resolução, detectando a escala automaticamente) e a fatia matematicamente em 16 matrizes precisas, injetando os resultados em `assets/remastered/`.
