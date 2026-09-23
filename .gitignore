@@ -32,3 +32,6 @@ __pycache__/
 # Ignorar assets de teste/remaster do mapa HD temporários
 building1_map*.png
 building1_map*.psd
+
+# Pastas de montagem de mapas
+maps_to_remaster/
