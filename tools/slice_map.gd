@@ -17,7 +17,7 @@ func _init() -> void:
         quit()
         return
         
-    var json_path: String = "res://../tools/grid_%d.json" % grid_id
+    var json_path: String = "res://../tools/grid_%d_extended.json" % grid_id
     var f: FileAccess = FileAccess.open(json_path, FileAccess.READ)
     if not f:
         print("Erro: JSON de mapeamento não encontrado em ", json_path)
