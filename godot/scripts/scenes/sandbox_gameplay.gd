@@ -718,6 +718,8 @@ func _spawn_room_items(room_id: int) -> void:
 						b.item_id = WeaponSystem.WEAPON_MISSILE
 					8:
 						b.item_id = InventoryManager.ITEM_SILENCER
+					10:
+						b.item_id = InventoryManager.ITEM_BOMB_BLAST_SUIT
 					12:
 						b.item_id = InventoryManager.ITEM_GOGGLES
 					13:

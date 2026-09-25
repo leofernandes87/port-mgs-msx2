@@ -15,6 +15,7 @@ const ITEM_CARD8: String = "CARD8"
 const ITEM_RATION: String = "RATION"
 const ITEM_BINOCULARS: String = "BINOCULARS"
 const ITEM_SILENCER: String = "SILENCER"       # ID 8 na ROM (SUPRESSOR)
+const ITEM_BOMB_BLAST_SUIT: String = "BOMB_BLAST_SUIT" # ID 10 na ROM (BOMB_BLAST_SUIT)
 const ITEM_GOGGLES: String = "GOGGLES"         # ID 12 na ROM (GOGGLES / Óculos Infravermelhos)
 const ITEM_GAS_MASK: String = "GAS_MASK"       # ID 13 na ROM (GAS_MASK)
 const ITEM_BOX: String = "BOX"                 # ID 21 na ROM (CARDBOARD_BOX / Caixa de Papelão)
