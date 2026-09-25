@@ -54,6 +54,9 @@ var punch_timer: int = 0 # 8 ticks de duração do soco (Banks0123.asm:8949)
 var is_punching: bool = false
 var infinite_life: bool = false # Modo de teste (God Mode)
 
+# Mecânica da Caixa de Papelão
+var is_in_box: bool = false
+
 # Estado de Morte e Bloqueio de Controles (Game Over punitivo clássico)
 var is_dead: bool = false
 var can_control: bool = true
@@ -249,6 +252,37 @@ func _draw() -> void:
 
 	# Efeito de piscar durante o período de invulnerabilidade (32 ticks)
 	if invulnerable_timer > 0 and (invulnerable_timer % 4) < 2:
+		return
+
+	if is_in_box:
+		# Desenha a icônica Caixa de Papelão
+		var box_rect := Rect2(-10, -14, 20, 20)
+		var box_color := Color("b88858") # Marrom papelão MSX
+		var tape_color := Color("c0c0c0") # Fita adesiva
+		var text_color := Color("000000") # Marcação "TO TOKYO"
+		
+		# Sombra e corpo da caixa
+		draw_rect(Rect2(-10, 4, 20, 2), Color("283818"))
+		draw_rect(box_rect, box_color)
+		
+		# Detalhes da fita e bordas
+		draw_rect(Rect2(-10, -14, 20, 1), Color("906040")) # Borda superior
+		draw_rect(Rect2(-2, -14, 4, 20), tape_color)       # Fita central
+		
+		# Se estiver andando, sobe um pouquinho a caixa para mostrar a animação de perninhas correndo em baixo!
+		if is_moving:
+			box_rect.position.y -= 2
+			# Pés visíveis embaixo da caixa
+			var leg_left := Rect2(-6, 6, 4, 2)
+			var leg_right := Rect2(2, 6, 4, 2)
+			if frame_num == 1:
+				leg_left.position.y -= 2
+			elif frame_num == 2:
+				leg_right.position.y -= 2
+			draw_rect(leg_left, Color("283818"))
+			draw_rect(leg_right, Color("283818"))
+			
+		# Não desenha o resto do corpo!
 		return
 
 	# Representação visual de Snake (16x16 pixels centralizado)

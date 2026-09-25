@@ -182,6 +182,12 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 
 	# 4. Amostragem da linha de visão até Snake
 	var sees_player: bool = check_line_of_sight(player_pos, collision_grid)
+	
+	# Mecânica da Caixa de Papelão (Stealth)
+	# Se Snake está na caixa e PARADO, os guardas não conseguem vê-lo!
+	if player != null and player.is_in_box and not player.is_moving:
+		sees_player = false
+
 	if sees_player and not is_alert:
 		trigger_alert()
 

@@ -1419,6 +1419,9 @@ func _physics_process(_delta: float) -> void:
 	if not player:
 		return
 
+	# Atualiza a mecânica da Caixa de Papelão
+	player.is_in_box = (inventory.get_selected_item() == InventoryManager.ITEM_BOX)
+
 	# Bloqueio de física e ações durante Game Over / morte de Snake
 	if player.is_dead or not player.can_control or is_game_over:
 		return
