@@ -1,6 +1,19 @@
 class_name PlayerController
 extends Node2D
 
+# ==============================================================================
+# SCRIPT DO JOGADOR (SOLID SNAKE)
+# Este arquivo é responsável por tudo que acontece com o personagem principal.
+# 
+# O QUE VOCÊ PODE ALTERAR AQUI:
+# - Física de movimentação (tamanho dos passos, bloqueios).
+# - Desenho do Sprite (se ele usa a arte original do MSX ou a arte HD importada).
+# - Ajustes de posição da sombra e da escala (procure a função _draw()).
+#
+# IMPORTANTE: A colisão aqui não usa nós Area2D. Ela é feita matematicamente 
+# consultando o `collision_grid` (uma tabela invisível de 1 e 0 que representa as paredes).
+# ==============================================================================
+
 ## Controlador de movimento de Snake fiel à física e colisão MSX2 (Etapa 5).
 ## Coordenadas em subpixels com avanço discreto de 2.0 pixels/tick e 2 pontos de colisão por direção.
 

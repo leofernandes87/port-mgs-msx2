@@ -1,4 +1,24 @@
 extends Control
+
+# ==============================================================================
+# O CORAÇÃO DO JOGO (GAME MANAGER PRINCIPAL)
+# Este é o script mestre que une todos os outros pedaços do jogo.
+# Se algo acontece na tela inteira (tiros, menus, carregar fases, IA dos 
+# inimigos da sala), é este arquivo que controla.
+# 
+# = O QUE VOCÊ PODE ALTERAR AQUI =
+# 1. FUNÇÃO _ready(): Onde o jogo "liga". 
+#    Aqui você pode definir qual sala começa primeiro.
+# 2. FUNÇÃO _process(delta): É o relógio do jogo.
+#    Roda a cada frame. Lê o teclado, move os guardas, os tiros.
+# 3. MUDANÇA DE SALA (_check_and_handle_room_transition): 
+#    Faz a tela piscar, apaga os inimigos antigos e desenha os novos.
+# 4. BOTÕES/TECLADO (_unhandled_input):
+#    Onde estão os atalhos como a tecla 'C' para ver o Grid vermelho, etc.
+#
+# DICA: Use a barra de pesquisa do Godot (Ctrl+F) para procurar essas funções 
+# direto pelo nome. O arquivo é grande porque lida com TODAS as regras do MSX!
+# ==============================================================================
 ## Cena de teste jogável de Snake com movimentação e colisão fiéis ao MSX2 (Etapa 5).
 
 var snapshot: RoomSnapshot = RoomSnapshot.new()

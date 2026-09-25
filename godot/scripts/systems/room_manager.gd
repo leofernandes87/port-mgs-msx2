@@ -1,6 +1,21 @@
 class_name RoomManager
 extends RefCounted
 
+# ==============================================================================
+# SCRIPT DE GERENCIAMENTO DE MAPAS E SALAS
+# Este arquivo funciona como o "GPS" do jogo.
+# 
+# O QUE VOCÊ PODE ALTERAR AQUI:
+# - As coordenadas invisíveis que engatilham a mudança de sala (borda da tela).
+# - As coordenadas onde o Snake nasce (Spawn) quando entra numa sala nova.
+# - (Procure por `hd_mode` se quiser mudar o quão perto da borda ele precisa 
+#    chegar para mudar de tela).
+# 
+# COMO FUNCIONA:
+# Sempre que o `sandbox_gameplay.gd` percebe que o Snake chegou na borda, 
+# ele chama as funções daqui para saber qual é o ID da próxima sala a ser carregada.
+# ==============================================================================
+
 ## Gerenciador de conexões entre salas e transições fiéis ao MSX2 RC750 (Etapa 6).
 ## Lógica revertida de Banks0123.asm (GetNextRoomNum, ChkExitRoom) e logic/nextroom.asm (SetRoomEntryXY).
 
