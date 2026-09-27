@@ -312,14 +312,24 @@ func _follow_patrol_path(collision_grid: Array = []) -> void:
 		anim_frame = 1 if anim_frame == 0 else 0
 
 func _advance_waypoint() -> void:
-	# MSX pause: Inimigos frequentemente pausam ao chegar no final de um trecho de patrulha
-	# e dão uma olhada para os lados ou para baixo.
-	wait_ticks = 60 # 1 segundo parado
-	if guard_type == GuardType.SLOW or randf() > 0.5:
-		current_direction = PlayerController.Direction.DOWN
-
 	if waypoints.size() <= 1:
 		return
+
+	# Lógica Canônica MSX (Banks0123.asm:7120 - ChkWaitPathPoint e guard.asm - GuardPatrolTurn)
+	# 1. 50% de chance de NÃO parar e continuar patrulhando imediatamente.
+	if guard_type in [GuardType.SLOW, GuardType.MEDIUM] and randf() <= 0.5:
+		# 2. Se decidir parar, ele aguarda um pouco (16 frames de espera na direção do movimento)
+		# 3. Depois, ele vira a cabeça em 90 graus (eixo perpendicular)
+		# 4. Aguarda mais 16 frames olhando e depois volta a andar.
+		wait_ticks = 32 # 0.5s de parada total
+		
+		# Pega eixo atual e vira perpendicular
+		var rand_perpendicular := randf() > 0.5
+		match current_direction:
+			PlayerController.Direction.LEFT, PlayerController.Direction.RIGHT:
+				current_direction = PlayerController.Direction.DOWN if rand_perpendicular else PlayerController.Direction.UP
+			PlayerController.Direction.UP, PlayerController.Direction.DOWN:
+				current_direction = PlayerController.Direction.LEFT if rand_perpendicular else PlayerController.Direction.RIGHT
 
 	# Se rota tem apenas 2 pontos, vai e volta (estilo vai-e-vem)
 	if waypoints.size() == 2:
