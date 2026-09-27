@@ -755,14 +755,7 @@ func _spawn_room_items(room_id: int) -> void:
 			item_boxes.append(b)
 
 	# Salas de progressão especial (salas < 122 onde itens são ativados por narrativa/chaves)
-	if room_id == 4 and item_boxes.is_empty():
-		var b: ItemBox = ItemBox.new()
-		b.item_id = InventoryManager.ITEM_CARD1
-		b.room_id = room_id
-		b.position = Vector2(112.0, 80.0)
-		game_world.add_child(b)
-		item_boxes.append(b)
-	elif room_id == 6 and item_boxes.is_empty():
+	if room_id == 6 and item_boxes.is_empty():
 		var b: ItemBox = ItemBox.new()
 		b.item_id = InventoryManager.ITEM_RATION
 		b.room_id = room_id
