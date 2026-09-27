@@ -44,6 +44,7 @@ var show_debug_vision: bool = false
 
 var is_lorry_guard: bool = false
 var lorry_timer: int = 0
+var wait_ticks: int = 0
 
 var anim_tick: int = 0
 var anim_frame: int = 0
@@ -52,15 +53,15 @@ func _ready() -> void:
 	z_index = 8
 	match guard_type:
 		GuardType.SLOW:
-			speed = 0.25
+			speed = 0.4
 		GuardType.MEDIUM:
-			speed = 0.5
+			speed = 0.7
 		GuardType.FAST:
-			speed = 0.75
+			speed = 1.0
 
 	if actor_type_id in [10, 11]:
 		# Soldados de alerta da ROM (ID_GUARD_ALERT e ID_GUARD_REDALERT)
-		speed = 0.75
+		speed = 1.0
 		state = GuardState.ALERT
 		is_alert = true
 		if actor_type_id == 11:
@@ -275,6 +276,11 @@ func _is_colliding_grid(test_pos: Vector2, collision_grid: Array) -> bool:
 func _follow_patrol_path(collision_grid: Array = []) -> void:
 	if waypoints.is_empty():
 		return
+
+	if wait_ticks > 0:
+		wait_ticks -= 1
+		return
+
 	var target: Vector2 = waypoints[current_waypoint_idx]
 	var diff: Vector2 = target - position
 
@@ -306,6 +312,12 @@ func _follow_patrol_path(collision_grid: Array = []) -> void:
 		anim_frame = 1 if anim_frame == 0 else 0
 
 func _advance_waypoint() -> void:
+	# MSX pause: Inimigos frequentemente pausam ao chegar no final de um trecho de patrulha
+	# e dão uma olhada para os lados ou para baixo.
+	wait_ticks = 60 # 1 segundo parado
+	if guard_type == GuardType.SLOW or randf() > 0.5:
+		current_direction = PlayerController.Direction.DOWN
+
 	if waypoints.size() <= 1:
 		return
 
@@ -315,8 +327,6 @@ func _advance_waypoint() -> void:
 	else:
 		# Ciclo contínuo de rota
 		current_waypoint_idx = (current_waypoint_idx + 1) % waypoints.size()
-
-	_update_direction_to_target(waypoints[current_waypoint_idx])
 
 func _update_direction_to_target(target: Vector2) -> void:
 	var diff: Vector2 = target - position
