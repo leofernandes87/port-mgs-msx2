@@ -44,6 +44,7 @@ var show_debug_vision: bool = false
 
 var is_lorry_guard: bool = false
 var lorry_timer: int = 0
+var is_entering_lorry_pending: bool = false
 var wait_ticks: int = 0
 
 var anim_tick: int = 0
@@ -281,6 +282,14 @@ func _follow_patrol_path(collision_grid: Array = []) -> void:
 		wait_ticks -= 1
 		return
 
+	if is_entering_lorry_pending:
+		is_entering_lorry_pending = false
+		visible = false
+		lorry_timer = int(120 + randf() * 100) # Espera aleatória (aprox 2 a 4 segundos)
+		current_waypoint_idx = 0
+		position = waypoints[0] # Volta ao esconderijo
+		return
+
 	var target: Vector2 = waypoints[current_waypoint_idx]
 	var diff: Vector2 = target - position
 
@@ -317,7 +326,7 @@ func _advance_waypoint() -> void:
 
 	# Lógica Canônica MSX (Banks0123.asm:7120 - ChkWaitPathPoint e guard.asm - GuardPatrolTurn)
 	# 1. 50% de chance de NÃO parar e continuar patrulhando imediatamente.
-	if not is_lorry_guard and guard_type in [GuardType.SLOW, GuardType.MEDIUM] and randf() <= 0.5:
+	if guard_type in [GuardType.SLOW, GuardType.MEDIUM] and randf() <= 0.5:
 		# 2. Se decidir parar, ele aguarda um pouco (16 frames de espera na direção do movimento)
 		# 3. Depois, ele vira a cabeça em 90 graus (eixo perpendicular)
 		# 4. Aguarda mais 16 frames olhando e depois volta a andar.
@@ -332,13 +341,14 @@ func _advance_waypoint() -> void:
 				current_direction = PlayerController.Direction.LEFT if rand_perpendicular else PlayerController.Direction.RIGHT
 
 	if is_lorry_guard:
-		# GuardLorry percorre a rota inteira uma vez e depois volta para dentro do caminhão (MSX logic)
+		# O MSX tem uma regra especial: ele NUNCA pausa no PRIMEIRO ponto (logo após sair do caminhão).
+		if current_waypoint_idx == 0:
+			wait_ticks = 0
+
 		current_waypoint_idx += 1
 		if current_waypoint_idx >= waypoints.size():
-			visible = false
-			lorry_timer = int(120 + randf() * 100) # Espera aleatória (aprox 2 a 4 segundos)
-			current_waypoint_idx = 0
-			position = waypoints[0] # Volta ao esconderijo
+			is_entering_lorry_pending = true
+			current_waypoint_idx = waypoints.size() - 1 # Trava no último
 		return
 
 	# Se rota tem apenas 2 pontos, vai e volta (estilo vai-e-vem)
