@@ -24,8 +24,8 @@ enum Direction {
 	RIGHT = 4,
 }
 
-const SPEED_NORMAL: float = 2.0
-const ANIM_TICKS_PER_FRAME: int = 6
+const SPEED_NORMAL: float = 1.0
+const ANIM_TICKS_PER_FRAME: int = 12
 
 # Pontos exatos de amostragem de colisão da ROM (Shape 0 / BoxColliderDat)
 const COLLIDER_OFFSETS = {
@@ -128,8 +128,8 @@ func fire_weapon(weapon_sys: WeaponSystem) -> Bullet:
 	var b: Bullet = Bullet.new()
 	b.position = Vector2(position.x, position.y - 14.0)
 	b.direction = current_direction
-	b.speed = 6.0
-	b.ticks_remaining = 16
+	b.speed = 3.0
+	b.ticks_remaining = 32
 	b.damage = 2
 	b.is_enemy = false
 	return b

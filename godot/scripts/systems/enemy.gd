@@ -52,15 +52,15 @@ func _ready() -> void:
 	z_index = 8
 	match guard_type:
 		GuardType.SLOW:
-			speed = 0.5
+			speed = 0.25
 		GuardType.MEDIUM:
-			speed = 1.0
+			speed = 0.5
 		GuardType.FAST:
-			speed = 1.5
+			speed = 0.75
 
 	if actor_type_id in [10, 11]:
 		# Soldados de alerta da ROM (ID_GUARD_ALERT e ID_GUARD_REDALERT)
-		speed = 1.5
+		speed = 0.75
 		state = GuardState.ALERT
 		is_alert = true
 		if actor_type_id == 11:
@@ -155,8 +155,8 @@ func try_shoot(player_pos: Vector2) -> Bullet:
 		var b: Bullet = Bullet.new()
 		b.position = Vector2(position.x, position.y - 6.0)
 		b.direction = current_direction
-		b.speed = 4.0
-		b.ticks_remaining = 24
+		b.speed = 2.0
+		b.ticks_remaining = 48
 		b.damage = 2
 		b.is_enemy = true
 		return b
@@ -246,7 +246,7 @@ func _chase_player(target_pos: Vector2, collision_grid: Array) -> void:
 				current_direction = PlayerController.Direction.RIGHT if alt_x > 0 else PlayerController.Direction.LEFT
 
 	anim_tick += 1
-	if anim_tick >= 6:
+	if anim_tick >= 12:
 		anim_tick = 0
 		anim_frame = 1 if anim_frame == 0 else 0
 
@@ -301,7 +301,7 @@ func _follow_patrol_path(collision_grid: Array = []) -> void:
 		_advance_waypoint()
 
 	anim_tick += 1
-	if anim_tick >= 8:
+	if anim_tick >= 16:
 		anim_tick = 0
 		anim_frame = 1 if anim_frame == 0 else 0
 
