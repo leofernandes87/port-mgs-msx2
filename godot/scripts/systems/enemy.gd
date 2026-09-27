@@ -74,7 +74,7 @@ func _ready() -> void:
 	if actor_type_id == 19:
 		# GuardLorry: começa escondido dentro do caminhão por alguns segundos (MSX behaviour)
 		is_lorry_guard = true
-		lorry_timer = 150 # 2.5 segundos a 60 fps
+		lorry_timer = 128 + (randi() % 128) # 2.1 a 4.25 segundos a 60 fps (r | 128)
 		visible = false
 
 func set_patrol_path(points: Array[Vector2]) -> void:

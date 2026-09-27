@@ -580,7 +580,7 @@ func _spawn_room_enemies(room_id: int) -> void:
 			if type_id in [13, 57]:
 				g.is_shooter = true
 			# Mapeamento fiel das velocidades da ROM
-			if type_id in [4, 14, 24, 31, 46, 48]:
+			if type_id in [4, 14, 19, 24, 31, 46, 48]:
 				g.guard_type = EnemyGuard.GuardType.SLOW
 			elif type_id in [25, 27, 30]:
 				g.guard_type = EnemyGuard.GuardType.FAST
@@ -1918,6 +1918,9 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 			if e.is_lorry_guard:
 				guard1_exited_lorry = e.visible
 				break
+
+	if new_room_id == 5:
+		guard1_exited_lorry = false
 
 	var snap: RoomSnapshot = room_manager.load_room_snapshot(new_room_id)
 	if snap == null:
