@@ -42,6 +42,9 @@ var is_alert: bool = false
 var alert_timer: float = 0.0
 var show_debug_vision: bool = false
 
+var is_lorry_guard: bool = false
+var lorry_timer: int = 0
+
 var anim_tick: int = 0
 var anim_frame: int = 0
 
@@ -65,6 +68,12 @@ func _ready() -> void:
 
 	if actor_type_id in [13, 57]:
 		is_shooter = true
+
+	if actor_type_id == 19:
+		# GuardLorry: começa escondido dentro do caminhão por alguns segundos (MSX behaviour)
+		is_lorry_guard = true
+		lorry_timer = 150 # 2.5 segundos a 60 fps
+		visible = false
 
 func set_patrol_path(points: Array[Vector2]) -> void:
 	waypoints = points
@@ -157,6 +166,12 @@ func try_shoot(player_pos: Vector2) -> Bullet:
 func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = false, player_dir: PlayerController.Direction = PlayerController.Direction.DOWN, player: PlayerController = null) -> void:
 	if is_dead:
 		queue_redraw()
+		return
+
+	if is_lorry_guard and lorry_timer > 0:
+		lorry_timer -= 1
+		if lorry_timer <= 0:
+			visible = true
 		return
 
 	# 1. Se Snake estiver socando, verificar se acerta este guarda
