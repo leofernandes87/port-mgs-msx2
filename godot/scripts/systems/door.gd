@@ -53,18 +53,11 @@ const DOOR_OPEN_ENTER_DAT = {
 	13: {"open_oy": -10.0, "open_h": 18.0, "open_ox": 8.0, "open_w": 16.0, "enter_oy": 0.0, "enter_h": 8.0, "enter_ox": 0.0, "enter_w": 32.0},
 }
 
-static func get_door_spawn(draw_xy: Vector2, render_type: int, is_lorry: bool = false) -> Dictionary:
+static func get_door_spawn(draw_xy: Vector2, render_type: int) -> Dictionary:
 	var info: Dictionary = PLAYER_IN_DOOR_DAT.get(render_type, {
 		"offset_y": 40.0, "offset_x": 12.0, "direction": PlayerController.Direction.DOWN
 	})
-	
-	# Caminhões usam lógica de spawn diferente na ROM para X
-	var off_x: float = float(info.offset_x)
-	var off_y: float = float(info.offset_y)
-	if is_lorry:
-		off_x = 28.0 # Centraliza corretamente na traseira do caminhão (MSX)
-		
-	var spawn_pos := Vector2(draw_xy.x + off_x, draw_xy.y + off_y)
+	var spawn_pos := Vector2(draw_xy.x + float(info.offset_x), draw_xy.y + float(info.offset_y))
 	var spawn_dir: int = int(info.direction)
 	return {"pos": spawn_pos, "dir": spawn_dir}
 

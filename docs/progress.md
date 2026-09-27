@@ -1749,3 +1749,10 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
 - **Ferramentas de Workflow Automático:**
   - Criado `tools/assemble_map.gd`: Monta o mapa externo inteiro (ex: Prédio 1) fundindo os snapshots 256x192 em uma única imagem PNG (1024x768).
   - Criado `tools/slice_map.gd`: Processo reverso dinâmico. Pega uma imagem de mapa completo (independentemente da resolução, detectando a escala automaticamente) e a fatia matematicamente em 16 matrizes precisas, injetando os resultados em `assets/remastered/`.
+
+## [v0.1.25] - Correções Finais de Colisão, Spawn e Temporizadores MSX (Sala 005)
+- **Correção da Velocidade (GuardLorry)**: GuardLorry (ID 19) recategorizado corretamente para `SLOW` (`speed = 0.4`), equivalente ao Z80 MSX `ID_GUARD_SLOW`.
+- **Rotina de Patrulha Canônica MSX (`ChkWaitPathPoint`)**: Implementada a chance autêntica (50%) de o guarda pausar nos vértices da rota por 32 frames (meio segundo) e girar a cabeça 90 graus antes de prosseguir com a ronda, idêntico à ROM.
+- **Spawn Preciso do Snake ao Sair de Caminhões**: Portas do tipo `LORRY_ENTER` agora aplicam um offset canônico MSX de `+28.0` pixels no eixo X. Isso assegura que o jogador surja no eixo exato (X=128 para o caminhão do centro), em vez de descolado em X=112 (offset genérico da porta Norte), aliviando colisões injustas.
+- **Temporizador Canônico de Caminhão (`lorry_timer`)**: Em vez de spawn imediato, ao sair de um caminhão o GuardLorry nasce invisível, com um tempo de espera aleatório estrito de `128 + randi() % 128` frames (idêntico ao MSX `ld a, r \ set 7, a`), propiciando exatos 2.1 a 4.25 segundos de janela de fuga.
+- **Gatilhos Fantasmas Eliminados**: Resolvida regressão severa no laço de checagem do `sandbox_gameplay.gd`. Inimigos com `visible = false` (ex: GuardLorry esperando seu timer) estavam autorizados a invocar `check_line_of_sight` e `try_shoot`. O conserto proíbe inimigos invisíveis/dormentes de enxergar ou disparar tiros.
