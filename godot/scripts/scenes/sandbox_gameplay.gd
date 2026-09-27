@@ -612,6 +612,10 @@ func _spawn_room_enemies(room_id: int) -> void:
 			# Isso evita insta-kills previsíveis nas bordas das salas!
 			if waypoints.size() > 1 and randf() > 0.5:
 				waypoints.reverse()
+				
+			# Para garantir a lógica orgânica do MSX, o guarda de patrulha nasce
+			# dinamicamente já no primeiro waypoint da rota escolhida!
+			if not waypoints.is_empty() and type_id not in [25, 27, 48]:
 				g.position = waypoints[0]
 
 			g.set_patrol_path(waypoints)
@@ -627,14 +631,16 @@ func _spawn_room_enemies(room_id: int) -> void:
 
 func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> void:
 	if room_id == 1:
-		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
-		g0.guard_type = EnemyGuard.GuardType.MEDIUM
-		# Inicia no lado direito (x=200) para não dar insta-kill no Snake ao entrar do sul
-		g0.position = Vector2(200.0, 176.0)
-		g0.set_patrol_path([Vector2(56.0, 176.0), Vector2(200.0, 176.0)])
-		g0.show_debug_vision = show_enemy_vision
-		game_world.add_child(g0)
-		enemies.append(g0)
+		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g1.guard_type = EnemyGuard.GuardType.SLOW
+		g1.position = Vector2(80.0, 80.0)
+		g1.set_patrol_path([
+			Vector2(56.0, 80.0), Vector2(56.0, 116.0), Vector2(200.0, 116.0), Vector2(200.0, 80.0),
+			Vector2(168.0, 80.0), Vector2(168.0, 104.0), Vector2(88.0, 104.0), Vector2(88.0, 80.0)
+		])
+		g1.show_debug_vision = show_enemy_vision
+		game_world.add_child(g1)
+		enemies.append(g1)
 
 		var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g2.guard_type = EnemyGuard.GuardType.MEDIUM
