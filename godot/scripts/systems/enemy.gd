@@ -317,7 +317,7 @@ func _advance_waypoint() -> void:
 
 	# Lógica Canônica MSX (Banks0123.asm:7120 - ChkWaitPathPoint e guard.asm - GuardPatrolTurn)
 	# 1. 50% de chance de NÃO parar e continuar patrulhando imediatamente.
-	if guard_type in [GuardType.SLOW, GuardType.MEDIUM] and randf() <= 0.5:
+	if not is_lorry_guard and guard_type in [GuardType.SLOW, GuardType.MEDIUM] and randf() <= 0.5:
 		# 2. Se decidir parar, ele aguarda um pouco (16 frames de espera na direção do movimento)
 		# 3. Depois, ele vira a cabeça em 90 graus (eixo perpendicular)
 		# 4. Aguarda mais 16 frames olhando e depois volta a andar.
@@ -330,6 +330,16 @@ func _advance_waypoint() -> void:
 				current_direction = PlayerController.Direction.DOWN if rand_perpendicular else PlayerController.Direction.UP
 			PlayerController.Direction.UP, PlayerController.Direction.DOWN:
 				current_direction = PlayerController.Direction.LEFT if rand_perpendicular else PlayerController.Direction.RIGHT
+
+	if is_lorry_guard:
+		# GuardLorry percorre a rota inteira uma vez e depois volta para dentro do caminhão (MSX logic)
+		current_waypoint_idx += 1
+		if current_waypoint_idx >= waypoints.size():
+			visible = false
+			lorry_timer = int(120 + randf() * 100) # Espera aleatória (aprox 2 a 4 segundos)
+			current_waypoint_idx = 0
+			position = waypoints[0] # Volta ao esconderijo
+		return
 
 	# Se rota tem apenas 2 pontos, vai e volta (estilo vai-e-vem)
 	if waypoints.size() == 2:
