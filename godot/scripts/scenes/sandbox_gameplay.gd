@@ -1971,7 +1971,7 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 					matched_door = d
 					break
 			if matched_door != null:
-				var spawn_info: Dictionary = RoomDoor.get_door_spawn(matched_door.position, matched_door.render_type_id)
+				var spawn_info: Dictionary = RoomDoor.get_door_spawn(matched_door.position, matched_door.render_type_id, matched_door.is_lorry)
 				entry_pos = spawn_info.get("pos", entry_pos) as Vector2
 				entry_dir = int(spawn_info.get("dir", entry_dir))
 				matched_door.open_door(runtime_collision)

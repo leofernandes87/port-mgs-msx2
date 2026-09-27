@@ -144,7 +144,7 @@ func take_bullet_hit(bullet_damage: int = 2) -> bool:
 
 ## Disparo inimigo para atiradores (ID 13, 57) ou guardas em alerta (logic/actors/shooter.asm e guardalert.asm)
 func try_shoot(player_pos: Vector2) -> Bullet:
-	if is_dead or stunned_timer > 0:
+	if is_dead or stunned_timer > 0 or not visible:
 		return null
 
 	if shoot_cooldown > 0:
@@ -373,7 +373,7 @@ func _update_direction_to_target(target: Vector2) -> void:
 
 ## Verifica linha de visão com tolerâncias e bloqueio por obstáculos fiéis à ROM (chkdiscover.asm)
 func check_line_of_sight(player_pos: Vector2, collision_grid: Array) -> bool:
-	if is_dead:
+	if is_dead or not visible:
 		return false
 
 	var diff: Vector2 = player_pos - position
