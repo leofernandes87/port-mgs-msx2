@@ -100,6 +100,8 @@ const INITIAL_ROOM_ID: int = 121
 const DEFAULT_SPAWN_X: float = 128.0
 const DEFAULT_SPAWN_Y: float = 80.0
 
+var guard1_exited_lorry: bool = false
+
 func _ready() -> void:
 	print("BOOT_OK: cena principal pronta")
 	# Montar interface
@@ -567,6 +569,10 @@ func _spawn_room_enemies(room_id: int) -> void:
 				continue
 
 			if not type_id in valid_enemy_types:
+				continue
+
+			# O MSX destrói o Guarda de Alerta de dentro do caminhão (Sala 127) se o GuardLorry da Sala 5 estiver de patrulha
+			if room_id == 127 and type_id in [10, 11] and guard1_exited_lorry:
 				continue
 
 			var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
@@ -1906,6 +1912,12 @@ func _clamp_to_room_bounds(exit_dir: int) -> void:
 func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, from_door_id: int = -1) -> bool:
 	var old_room_id: int = snapshot.room_id if snapshot and snapshot.loaded else -1
 	previous_room_id = old_room_id
+
+	if old_room_id == 5:
+		for e in enemies:
+			if e.is_lorry_guard:
+				guard1_exited_lorry = e.visible
+				break
 
 	var snap: RoomSnapshot = room_manager.load_room_snapshot(new_room_id)
 	if snap == null:
