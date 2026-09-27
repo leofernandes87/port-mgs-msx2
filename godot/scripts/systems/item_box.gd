@@ -30,8 +30,9 @@ func step_tick(player_pos: Vector2, inventory: InventoryManager, weapon_system: 
 	if dx <= 20.0 and dy <= 20.0:
 		if item_id in [WeaponSystem.WEAPON_HANDGUN, WeaponSystem.WEAPON_SMG, WeaponSystem.WEAPON_GRENADE_LAUNCHER, WeaponSystem.WEAPON_MISSILE]:
 			if weapon_system != null:
-				var init_ammo: int = 5 if item_id == WeaponSystem.WEAPON_MISSILE else 20
-				weapon_system.add_weapon(item_id, init_ammo)
+				# Fiel ao MSX: Armas recém-coletadas vêm descarregadas (0 balas).
+				# O jogador precisa encontrar caixas de munição (AMMO_CRATE) separadamente.
+				weapon_system.add_weapon(item_id, 0)
 				collected = true
 				collected_boxes[box_unique_id] = true
 				queue_redraw()
