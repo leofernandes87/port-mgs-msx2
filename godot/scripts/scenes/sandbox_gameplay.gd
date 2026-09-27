@@ -607,6 +607,13 @@ func _spawn_room_enemies(room_id: int) -> void:
 					waypoints.append(Vector2(left_x, spawn_pos.y))
 					waypoints.append(Vector2(right_x, spawn_pos.y))
 
+			# Simulação MSX: Alguns guardas alteram sua posição/sentido de início 
+			# com base no frame counter do jogo quando a sala é carregada.
+			# Isso evita insta-kills previsíveis nas bordas das salas!
+			if waypoints.size() > 1 and randf() > 0.5:
+				waypoints.reverse()
+				g.position = waypoints[0]
+
 			g.set_patrol_path(waypoints)
 			g.show_debug_vision = show_enemy_vision
 			game_world.add_child(g)
@@ -622,8 +629,9 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 	if room_id == 1:
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.MEDIUM
-		g0.position = Vector2(64.0, 176.0)
-		g0.set_patrol_path([Vector2(200.0, 176.0), Vector2(56.0, 176.0)])
+		# Inicia no lado direito (x=200) para não dar insta-kill no Snake ao entrar do sul
+		g0.position = Vector2(200.0, 176.0)
+		g0.set_patrol_path([Vector2(56.0, 176.0), Vector2(200.0, 176.0)])
 		g0.show_debug_vision = show_enemy_vision
 		game_world.add_child(g0)
 		enemies.append(g0)
