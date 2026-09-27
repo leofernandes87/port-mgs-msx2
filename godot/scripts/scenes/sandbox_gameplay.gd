@@ -628,17 +628,6 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		game_world.add_child(g0)
 		enemies.append(g0)
 
-		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
-		g1.guard_type = EnemyGuard.GuardType.SLOW
-		g1.position = Vector2(80.0, 80.0)
-		g1.set_patrol_path([
-			Vector2(56.0, 80.0), Vector2(56.0, 116.0), Vector2(200.0, 116.0), Vector2(200.0, 80.0),
-			Vector2(168.0, 80.0), Vector2(168.0, 104.0), Vector2(88.0, 104.0), Vector2(88.0, 80.0)
-		])
-		g1.show_debug_vision = show_enemy_vision
-		game_world.add_child(g1)
-		enemies.append(g1)
-
 		var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g2.guard_type = EnemyGuard.GuardType.MEDIUM
 		g2.position = Vector2(192.0, 24.0)
