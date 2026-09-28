@@ -47,6 +47,7 @@ def main():
         ("godot-elevator-guards", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/elevator_guard_test.gd"]),
         ("godot-room-007-patrol", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/room_007_patrol_test.gd"]),
         ("godot-binoculars", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/binocular_test.gd"]),
+        ("godot-dogs", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/dog_patrol_test.gd"]),
         ("godot-main", [godot, "--headless", "--path", str(ROOT / "godot"), "--quit-after", "5"]),
     ]
     for name, command in commands:
@@ -100,6 +101,8 @@ def main():
             raise RuntimeError("Teste de patrulha e caminhões da Sala 007 não confirmou conclusão")
         if name == "godot-binoculars" and "BINOCULARS_TEST_OK:" not in result.stdout:
             raise RuntimeError("Teste do binóculo não confirmou conclusão")
+        if name == "godot-dogs" and "DOG_PATROL_TEST_OK:" not in result.stdout:
+            raise RuntimeError("Teste dos cães de guarda não confirmou conclusão")
         if name == "godot-main" and "BOOT_OK:" not in result.stdout:
             raise RuntimeError("Cena principal não iniciou")
         print(name + ": PASS")

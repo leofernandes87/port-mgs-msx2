@@ -609,6 +609,8 @@ func _spawn_room_enemies(room_id: int) -> void:
 			g.actor_type_id = type_id
 			if type_id in [13, 57]:
 				g.is_shooter = true
+			if type_id in [25, 27]:
+				g.init_dog()
 			# Mapeamento fiel das velocidades da ROM
 			if type_id in [4, 19, 24, 31, 46, 48]:
 				g.guard_type = EnemyGuard.GuardType.SLOW
@@ -840,6 +842,22 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		g0.show_debug_vision = show_enemy_vision
 		game_world.add_child(g0)
 		enemies.append(g0)
+	elif room_id == 6:
+		var dog1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		dog1.actor_type_id = 25
+		dog1.position = Vector2(160.0, 64.0)
+		dog1.init_dog()
+		dog1.show_debug_vision = show_enemy_vision
+		game_world.add_child(dog1)
+		enemies.append(dog1)
+
+		var dog2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		dog2.actor_type_id = 25
+		dog2.position = Vector2(112.0, 48.0)
+		dog2.init_dog()
+		dog2.show_debug_vision = show_enemy_vision
+		game_world.add_child(dog2)
+		enemies.append(dog2)
 	elif room_id == 7:
 		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g1.actor_type_id = 19
@@ -1113,6 +1131,11 @@ func _backup_home_enemies() -> void:
 				"elev_guard_state": e.elev_guard_state,
 				"elev_guard_target_x": e.elev_guard_target_x,
 				"is_relieve_speaker": e.is_relieve_speaker,
+				"is_dog": e.is_dog,
+				"dog_state": e.dog_state,
+				"dog_wait_timer": e.dog_wait_timer,
+				"dog_listen_timer": e.dog_listen_timer,
+				"dog_bark_timer": e.dog_bark_timer,
 			})
 
 func _restore_home_enemies() -> void:
@@ -1149,6 +1172,12 @@ func _restore_home_enemies() -> void:
 		g.elev_guard_state = data.get("elev_guard_state", EnemyGuard.ElevatorGuardState.IDLE) as EnemyGuard.ElevatorGuardState
 		g.elev_guard_target_x = float(data.get("elev_guard_target_x", 0.0))
 		g.is_relieve_speaker = bool(data.get("is_relieve_speaker", false))
+		g.is_dog = bool(data.get("is_dog", false))
+		if g.is_dog:
+			g.dog_state = data.get("dog_state", EnemyGuard.DogState.SLEEP) as EnemyGuard.DogState
+			g.dog_wait_timer = int(data.get("dog_wait_timer", 40))
+			g.dog_listen_timer = int(data.get("dog_listen_timer", 0))
+			g.dog_bark_timer = int(data.get("dog_bark_timer", 0))
 		g.show_debug_vision = show_enemy_vision
 		game_world.add_child(g)
 		enemies.append(g)
@@ -1887,6 +1916,9 @@ func _input(event: InputEvent) -> void:
 								enemy.transform_to_alert_guard()
 						print("GUNSHOT_ALERT: Disparo sem silenciador na sala %d alertou a guarnição!" % snapshot.room_id)
 					else:
+						for enemy: EnemyGuard in enemies:
+							if is_instance_valid(enemy) and not enemy.is_dead and enemy.is_dog:
+								enemy.wake_up_to_chase()
 						print("GUNSHOT_SILENT: Disparo furtivo com silenciador!")
 			else:
 				print("WEAPON_NO_AMMO: Arma sem munição! (Click SFX 15h)")

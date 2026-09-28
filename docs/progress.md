@@ -1869,4 +1869,37 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Registrado em `tools/validate.py` como `godot-binoculars`.
   - 100% de aprovação na suíte de testes do projeto (`python3 tools/validate.py`).
 
+## [Implementação Canônica] - Cães de Guarda Canônicos (ID_DOG = 25) e Sprite Canino na Sala 006
+- **Evidências Z80 e ROM (`logic/actors/dog.asm`, `data/actorsinrooms.asm:38-43`, `actorspriteattr.asm:40,128`, `shapes.asm:37`, `gfx/sprites.asm:1104`)**:
+  - `ID_DOG = 19h` (25 em decimal): utilizado na Sala 006 com 2 cães em $(160, 64)$ e $(112, 48)$, além da Sala 010 (3 cães) e Sala 035.
+  - Atributos e Física:
+    - **Vida**: 2 HP (`idxActorLife` em `actorspriteattr.asm:128`), eliminado com 1 tiro de pistola (2 dmg) ou 2 socos.
+    - **Dano de Contato / Mordida**: 2 HP a Snake (`ActorTouchDamage` em `shapes.asm:37`).
+    - **Velocidade de Corrida**: Calibrada para **`DOG_SPEED = 1.3 px/tick`** (progressão canônica em relação aos guardas: 0.4 slow, 0.7 medium, 1.0 fast, 1.3 dog e 1.5 alert sprint), sendo 30% mais rápido que Snake (1.0 px/tick) para garantir uma perseguição veloz, dinâmica e jogável sem teleporte.
+  - Máquina de Estados Canônica (`DogLogic` em `dog.asm:29-36`):
+    - `0 - DogSleep`: cão deitado dormindo (`SpriteId = 14h`), temporizador `dog_wait_timer` de 32 a 56 ticks (`32 + (rand & 3) * 8`).
+    - `1 - DogListen`: cão ouvindo/alerta com cabeça e orelhas erguidas (`SpriteId = 15h`), temporizador de 20 a 32 ticks (`(5 + (rand & 3)) * 4`). Ao término, 50% de chance de voltar a dormir e 50% de iniciar perseguição.
+    - `2 - DogMove / CHASE`: perseguição ativa em alta velocidade (1.3 px/tick) pelo eixo dominante até Snake (`GetDirToPlayer`). Se colidir com obstáculos, desvia pelo eixo secundário. A cada 20 a 32 ticks ou ao trombar, emite latido (`Sfx_DogBark = 3`) e recalcula o rumo.
+  - Despertar por Faro / Som:
+    - Proximidade a Snake ($\le 48$ px) acorda o cão para `CHASE` imediatamente.
+    - Disparo de arma de fogo na sala acorda o cão para `CHASE`.
+    - Diferença dos guardas humanos: cães **não** acionam o rádio da guarnição nem chamam reforços humanos; perseguem diretamente.
+  - Sprite e Poses Caninas:
+    - Paleta MSX: marrom chocolate `#5a3418` com focinho e patas claros `#b87840`, olhos/nariz pretos `#120a05` e brilho `#ffffff`.
+    - Poses desenhadas: cão deitado aconchegado dormindo com "Zzz" animado flutuante; cão em guarda tipo esfinge com peito alto e orelhas em pé ouvindo; galope quadrúpede nas 4 direções cardeais com corpo, cabeça, focinho, orelhas, cauda e 4 patas alternando passadas a cada 4 iterações (`ANIM_CNT`); balão de latido `"AU!"`; silhueta abatida inerte ao ser derrotado.
+- **Implementação em Godot**:
+  - `godot/scripts/systems/enemy.gd`:
+    - Adicionado suporte nativo para cães: `is_dog: bool`, `const DOG_SPEED: float = 1.3`, `enum DogState { SLEEP, LISTEN, CHASE }`, temporizadores `dog_wait_timer`, `dog_listen_timer`, `dog_bark_timer`.
+    - Métodos `init_dog()`, `wake_up_to_chase()`, `_step_dog()`, `_get_dir_vector()`, `_reorient_dog_to_player()`, `_draw_dog()` e `_draw_z_symbol()`.
+    - Combate: 2 socos para eliminar (1º atordoa por 32 ticks e desperta para `CHASE`), 1 tiro de bala para eliminar.
+  - `godot/scripts/scenes/sandbox_gameplay.gd`:
+    - Inicialização canônica de cães para `type_id in [25, 27]` e inclusão na rotina de fallback da Sala 006.
+    - Preservação completa do estado canino em `_backup_home_enemies()` e `_restore_home_enemies()` no modo Binóculo.
+    - Alerta aos cães ao disparar armas de fogo.
+- **Testes Automatizados**:
+  - Criada suíte de testes headless dedicada: `godot/tests/dog_patrol_test.gd` (cobrindo inicialização, velocidade `DOG_SPEED = 1.3 px/tick`, ciclo sono/escuta/perseguição, despertar por proximidade e disparo, mordida de 2 HP, combate por socos e tiro, carregamento dos 2 cães na Sala 006 sem alerta humano de guarnição e preservação no binóculo).
+  - Registrado em `tools/validate.py` como `godot-dogs`.
+  - 100% de aprovação na suíte de testes do projeto (`python3 tools/validate.py`).
+
+
 

@@ -66,7 +66,22 @@ var elev_guard_idle_timer: int = 256
 var elev_guard_look_timer: int = 30
 var is_relieve_speaker: bool = false
 
+# GuardDog (ID_DOG = 25 - logic/actors/dog.asm)
+const DOG_SPEED: float = 1.3
+var is_dog: bool = false
+enum DogState {
+	SLEEP = 0,
+	LISTEN = 1,
+	CHASE = 2
+}
+var dog_state: DogState = DogState.SLEEP
+var dog_wait_timer: int = 40
+var dog_listen_timer: int = 0
+var dog_bark_timer: int = 0
+var dog_anim_tick: int = 0
+
 signal chow_time_called
+signal dog_barked(dog_pos: Vector2)
 
 func _ready() -> void:
 	z_index = 8
@@ -106,6 +121,33 @@ func _ready() -> void:
 				elev_guard_target_x = position.x
 			elev_guard_idle_timer = 256
 			elev_guard_look_timer = 30 + (randi() % 16)
+
+	if actor_type_id in [25, 27]:
+		init_dog()
+
+func init_dog() -> void:
+	is_dog = true
+	actor_type_id = 25
+	guard_type = GuardType.FAST
+	speed = DOG_SPEED
+	touch_damage = 2
+	dog_state = DogState.SLEEP
+	dog_wait_timer = 32 + (randi() % 4) * 8 # 32..56 ticks (dog.asm:11-17)
+	dog_listen_timer = 0
+	dog_bark_timer = 0
+	dog_anim_tick = 0
+	punches_received = 0
+	is_dead = false
+
+func wake_up_to_chase() -> void:
+	if is_dead or not is_dog:
+		return
+	if dog_state != DogState.CHASE:
+		dog_state = DogState.CHASE
+		speed = DOG_SPEED
+		dog_bark_timer = 12
+		dog_barked.emit(position)
+		queue_redraw()
 
 func set_patrol_path(points: Array[Vector2]) -> void:
 	waypoints = points
@@ -148,7 +190,18 @@ func receive_punch() -> void:
 	if is_dead or stunned_timer > 0:
 		return
 	punches_received += 1
-	stunned_timer = 64
+	stunned_timer = 32 if is_dog else 64
+	if is_dog:
+		dog_state = DogState.CHASE
+		speed = DOG_SPEED
+		if punches_received >= 2:
+			is_dead = true
+			print("DOG_KILLED: Cão derrotado por socos na posição %s!" % position)
+		else:
+			print("DOG_HIT: Cão atingido (%d/2) - atordoado por 32 ticks!" % punches_received)
+		queue_redraw()
+		return
+
 	state = GuardState.ALERT
 	is_alert = true
 	if punches_received >= 3:
@@ -172,13 +225,16 @@ func take_bullet_hit(bullet_damage: int = 2) -> bool:
 	if is_dead:
 		return false
 	is_dead = true
-	print("GUARD_KILLED_BY_BULLET: Guarda eliminado por disparo na posição %s!" % position)
+	if is_dog:
+		print("DOG_KILLED_BY_BULLET: Cão eliminado por disparo na posição %s!" % position)
+	else:
+		print("GUARD_KILLED_BY_BULLET: Guarda eliminado por disparo na posição %s!" % position)
 	queue_redraw()
 	return true
 
 ## Disparo inimigo para atiradores (ID 13, 57) ou guardas em alerta (logic/actors/shooter.asm e guardalert.asm)
 func try_shoot(player_pos: Vector2) -> Bullet:
-	if is_dead or stunned_timer > 0 or not visible:
+	if is_dead or stunned_timer > 0 or not visible or is_dog:
 		return null
 
 	if shoot_cooldown > 0:
@@ -202,6 +258,17 @@ func try_shoot(player_pos: Vector2) -> Bullet:
 func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = false, player_dir: PlayerController.Direction = PlayerController.Direction.DOWN, player: PlayerController = null) -> void:
 	if is_dead:
 		queue_redraw()
+		return
+
+	if is_dog:
+		if is_punching and check_punched(player_pos, player_dir):
+			receive_punch()
+			return
+		if stunned_timer > 0:
+			stunned_timer -= 1
+			queue_redraw()
+			return
+		_step_dog(collision_grid, player_pos, player)
 		return
 
 	if is_lorry_guard and lorry_timer > 0:
@@ -563,6 +630,9 @@ func trigger_alert() -> void:
 func transform_to_alert_guard() -> void:
 	if is_dead:
 		return
+	if is_dog:
+		wake_up_to_chase()
+		return
 	is_alert = true
 	state = GuardState.ALERT
 	speed = 1.5 # SetWalkSpeedFast
@@ -572,6 +642,11 @@ func transform_to_alert_guard() -> void:
 ## Restaura soldado ao estado de patrulha pacífica
 func reset_to_patrol() -> void:
 	if is_dead:
+		return
+	if is_dog:
+		dog_state = DogState.SLEEP
+		dog_wait_timer = 32 + (randi() % 4) * 8
+		queue_redraw()
 		return
 	is_alert = false
 	state = GuardState.PATROL
@@ -585,6 +660,10 @@ func reset_to_patrol() -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	if is_dog:
+		_draw_dog()
+		return
+
 	# Se derrotado, desenha silhueta caída no chão
 	if is_dead:
 		var dead_rect := Rect2(-8, -4, 16, 8)
@@ -656,3 +735,287 @@ func _draw() -> void:
 				draw_rect(Rect2(-MAX_VIEW_DISTANCE, -VIEW_HALF_HEIGHT_H, MAX_VIEW_DISTANCE, VIEW_HALF_HEIGHT_H * 2.0), beam_color)
 			PlayerController.Direction.RIGHT:
 				draw_rect(Rect2(0.0, -VIEW_HALF_HEIGHT_H, MAX_VIEW_DISTANCE, VIEW_HALF_HEIGHT_H * 2.0), beam_color)
+
+## Lógica canônica do cão de guarda MSX2 RC750 (logic/actors/dog.asm:29-201)
+func _step_dog(collision_grid: Array, player_pos: Vector2, player: PlayerController = null) -> void:
+	# 1. Proximidade com Snake acorda o cão imediatamente se estiver dormindo ou ouvindo (<= 48 px)
+	var dist_to_player: float = position.distance_to(player_pos)
+	if dog_state != DogState.CHASE and dist_to_player <= 48.0:
+		wake_up_to_chase()
+
+	# 2. Máquina de estados canônica do cão (dog.asm:29-36)
+	match dog_state:
+		DogState.SLEEP:
+			dog_wait_timer -= 1
+			if dog_wait_timer <= 0:
+				dog_state = DogState.LISTEN
+				# Random number 20-32 ticks de escuta (dog.asm:49-53)
+				dog_listen_timer = (5 + (randi() % 4)) * 4
+				dog_wait_timer = dog_listen_timer * 2 # 40-64 ticks de espera
+			dog_anim_tick += 1
+			queue_redraw()
+			return
+
+		DogState.LISTEN:
+			dog_listen_timer -= 1
+			if dog_listen_timer <= 0:
+				# 50% de chance de acordar e 50% de voltar a dormir (dog.asm:74-81)
+				if randf() > 0.5:
+					dog_state = DogState.CHASE
+					speed = DOG_SPEED
+					_reorient_dog_to_player(player_pos, collision_grid)
+					dog_wait_timer = (5 + (randi() % 4)) * 4
+				else:
+					dog_state = DogState.SLEEP
+					if dog_wait_timer <= 0:
+						dog_wait_timer = 32 + (randi() % 4) * 8
+			dog_anim_tick += 1
+			queue_redraw()
+			return
+
+		DogState.CHASE:
+			if dog_bark_timer > 0:
+				dog_bark_timer -= 1
+
+			# Dano por mordida / toque canônico: 2 HP (shapes.asm:37)
+			if dist_to_player <= 12.0 and player != null:
+				player.apply_damage(touch_damage)
+
+			# Movimentação canônica a 3.0 px/tick (dog.asm:193-201)
+			var dir_vec: Vector2 = _get_dir_vector(current_direction)
+			var step_vec: Vector2 = dir_vec * speed
+			var next_pos: Vector2 = position + step_vec
+
+			# Verifica colisão na direção atual
+			if not _is_colliding_grid(next_pos, collision_grid):
+				position = next_pos
+				dog_wait_timer -= 1
+				if dog_wait_timer <= 0:
+					# Ao expirar o tempo de corrida na mesma direção: late e reorienta (dog.asm:123-146)
+					dog_bark_timer = 16
+					dog_barked.emit(position)
+					_reorient_dog_to_player(player_pos, collision_grid)
+					dog_wait_timer = (5 + (randi() % 4)) * 4
+			else:
+				# Bloqueado por obstáculo: late, reorienta rumo para o eixo secundário (dog.asm:127-147)
+				dog_bark_timer = 12
+				dog_barked.emit(position)
+				_reorient_dog_to_player(player_pos, collision_grid)
+				dog_wait_timer = (5 + (randi() % 4)) * 4
+				# Tenta dar o passo na nova direção desobstruída
+				var new_step: Vector2 = _get_dir_vector(current_direction) * speed
+				if not _is_colliding_grid(position + new_step, collision_grid):
+					position += new_step
+
+			dog_anim_tick += 1
+			# Alterna quadro de animação da passada a cada 4 iterações (dog.asm:163 bit 2, ANIM_CNT)
+			anim_frame = (dog_anim_tick / 4) % 2
+			queue_redraw()
+
+func _get_dir_vector(dir: PlayerController.Direction) -> Vector2:
+	match dir:
+		PlayerController.Direction.UP:
+			return Vector2(0.0, -1.0)
+		PlayerController.Direction.DOWN:
+			return Vector2(0.0, 1.0)
+		PlayerController.Direction.LEFT:
+			return Vector2(-1.0, 0.0)
+		PlayerController.Direction.RIGHT:
+			return Vector2(1.0, 0.0)
+	return Vector2.ZERO
+
+## Reorienta rumo do cão escolhendo eixo dominante e contornando colisões (dog.asm:88-98, 127-137)
+func _reorient_dog_to_player(player_pos: Vector2, collision_grid: Array) -> void:
+	var diff: Vector2 = player_pos - position
+	var primary_dir: PlayerController.Direction
+	var secondary_dir: PlayerController.Direction
+
+	if absf(diff.x) >= absf(diff.y):
+		primary_dir = PlayerController.Direction.RIGHT if diff.x >= 0.0 else PlayerController.Direction.LEFT
+		secondary_dir = PlayerController.Direction.DOWN if diff.y >= 0.0 else PlayerController.Direction.UP
+	else:
+		primary_dir = PlayerController.Direction.DOWN if diff.y >= 0.0 else PlayerController.Direction.UP
+		secondary_dir = PlayerController.Direction.RIGHT if diff.x >= 0.0 else PlayerController.Direction.LEFT
+
+	# Testa se a direção primária está livre de colisão
+	var step_pri: Vector2 = _get_dir_vector(primary_dir) * speed
+	if not _is_colliding_grid(position + step_pri, collision_grid):
+		current_direction = primary_dir
+	else:
+		# Testa se o eixo secundário está livre (dog.asm:95, 134)
+		var step_sec: Vector2 = _get_dir_vector(secondary_dir) * speed
+		if not _is_colliding_grid(position + step_sec, collision_grid):
+			current_direction = secondary_dir
+		else:
+			current_direction = primary_dir
+
+## Desenho canônico do cão de guarda com base nas cores e poses da ROM MSX2 (actorspriteattr.asm:40, SprDog)
+func _draw_dog() -> void:
+	var col_body := Color("5a3418")        # Marrom chocolate do pelo
+	var col_body_light := Color("7a4824")  # Brilho / pelagem superior
+	var col_belly := Color("b87840")       # Caramelo / focinho e patas
+	var col_dark := Color("2d1608")        # Contorno / orelhas / garras
+	var col_nose := Color("120a05")        # Nariz e olhos escuros
+	var col_white := Color("ffffff")       # Brilho nos olhos / Zzz
+	var col_red := Color("c82020")         # Língua / alerta latido
+
+	# 1. Cão Derrotado
+	if is_dead:
+		draw_rect(Rect2(-8, -2, 16, 6), col_body)
+		draw_rect(Rect2(-6, 2, 12, 2), col_belly)
+		draw_rect(Rect2(7, 0, 5, 4), col_body)
+		draw_rect(Rect2(11, 2, 3, 2), col_belly)
+		draw_rect(Rect2(13, 2, 1, 1), col_nose)
+		draw_polygon(PackedVector2Array([Vector2(6, -1), Vector2(10, 0), Vector2(7, 2)]), PackedColorArray([col_dark]))
+		draw_line(Vector2(9, 1), Vector2(11, 1), col_nose, 1.0)
+		draw_rect(Rect2(-7, 4, 4, 2), col_dark)
+		draw_rect(Rect2(3, 4, 4, 2), col_dark)
+		draw_line(Vector2(-8, 1), Vector2(-12, 3), col_body, 1.5)
+		return
+
+	# 2. Dormindo (DogSleep - Status 0)
+	if dog_state == DogState.SLEEP:
+		draw_rect(Rect2(-7, -4, 14, 8), col_body)
+		draw_rect(Rect2(-6, -5, 12, 1), col_body_light)
+		draw_rect(Rect2(-5, 3, 10, 2), col_belly)
+		draw_rect(Rect2(3, -3, 6, 6), col_body)
+		draw_rect(Rect2(7, -1, 4, 4), col_belly)
+		draw_rect(Rect2(10, 0, 2, 2), col_nose)
+		draw_line(Vector2(6, -1), Vector2(8, -1), col_dark, 1.0)
+		draw_polygon(PackedVector2Array([Vector2(3, -5), Vector2(6, -5), Vector2(4, -2)]), PackedColorArray([col_dark]))
+		draw_rect(Rect2(-5, 4, 4, 2), col_belly)
+		draw_rect(Rect2(2, 4, 4, 2), col_belly)
+		draw_line(Vector2(-7, -1), Vector2(-11, -3), col_dark, 1.5)
+		draw_line(Vector2(-11, -3), Vector2(-9, -5), col_body, 1.5)
+
+		# Balão "Zzz" flutuante animado
+		var z_phase: float = fmod(float(dog_anim_tick), 36.0)
+		var z1_pos := Vector2(6.0 + sin(z_phase * 0.15) * 2.0, -6.0 - (z_phase * 0.25))
+		_draw_z_symbol(z1_pos, 4.0, Color(0.85, 0.9, 1.0, 0.9))
+		if dog_anim_tick % 36 > 16:
+			var z2_phase: float = fmod(float(dog_anim_tick + 18), 36.0)
+			var z2_pos := Vector2(9.0 + sin(z2_phase * 0.15) * 2.0, -6.0 - (z2_phase * 0.25))
+			_draw_z_symbol(z2_pos, 3.0, Color(0.7, 0.85, 1.0, 0.7))
+		return
+
+	# 3. Ouvindo / Alerta (DogListen - Status 1)
+	if dog_state == DogState.LISTEN:
+		draw_rect(Rect2(-8, -2, 13, 7), col_body)
+		draw_rect(Rect2(-7, 3, 11, 2), col_belly)
+		draw_rect(Rect2(2, -7, 6, 7), col_body)
+		draw_rect(Rect2(3, -4, 4, 5), col_belly)
+		draw_rect(Rect2(3, -11, 6, 6), col_body)
+		draw_rect(Rect2(7, -9, 4, 4), col_belly)
+		draw_rect(Rect2(10, -9, 2, 2), col_nose)
+		draw_rect(Rect2(5, -10, 2, 2), col_white)
+		draw_rect(Rect2(6, -10, 1, 1), col_nose)
+		draw_polygon(PackedVector2Array([Vector2(3, -11), Vector2(4, -15), Vector2(6, -11)]), PackedColorArray([col_dark]))
+		draw_polygon(PackedVector2Array([Vector2(6, -11), Vector2(7, -15), Vector2(8, -11)]), PackedColorArray([col_body_light]))
+		draw_rect(Rect2(3, 4, 5, 2), col_belly)
+		draw_rect(Rect2(-7, 4, 4, 2), col_dark)
+		draw_line(Vector2(-8, -1), Vector2(-12, -5), col_body, 1.5)
+		draw_circle(Vector2(6, -18), 1.5, Color("ffea40"))
+		return
+
+	# 4. Perseguição (DogMove / CHASE - Status 2)
+	match current_direction:
+		PlayerController.Direction.LEFT:
+			draw_rect(Rect2(-4, -4, 11, 7), col_body)
+			draw_rect(Rect2(-3, 1, 9, 2), col_belly)
+			draw_rect(Rect2(-8, -7, 6, 6), col_body)
+			draw_rect(Rect2(-12, -5, 4, 4), col_belly)
+			draw_rect(Rect2(-13, -5, 2, 2), col_nose)
+			draw_rect(Rect2(-7, -7, 2, 2), col_white)
+			draw_rect(Rect2(-8, -7, 1, 1), col_nose)
+			draw_polygon(PackedVector2Array([Vector2(-4, -7), Vector2(-1, -10), Vector2(-1, -6)]), PackedColorArray([col_dark]))
+			draw_line(Vector2(7, -3), Vector2(12, -7), col_body, 1.5)
+			if anim_frame == 0:
+				draw_line(Vector2(-5, 2), Vector2(-10, 6), col_belly, 2.0)
+				draw_line(Vector2(-3, 2), Vector2(-1, 6), col_dark, 2.0)
+				draw_line(Vector2(3, 2), Vector2(1, 6), col_dark, 2.0)
+				draw_line(Vector2(5, 2), Vector2(10, 6), col_belly, 2.0)
+			else:
+				draw_line(Vector2(-4, 2), Vector2(-3, 7), col_belly, 2.0)
+				draw_line(Vector2(-2, 2), Vector2(-1, 7), col_dark, 2.0)
+				draw_line(Vector2(2, 2), Vector2(0, 7), col_dark, 2.0)
+				draw_line(Vector2(4, 2), Vector2(2, 7), col_belly, 2.0)
+
+		PlayerController.Direction.RIGHT:
+			draw_rect(Rect2(-7, -4, 11, 7), col_body)
+			draw_rect(Rect2(-6, 1, 9, 2), col_belly)
+			draw_rect(Rect2(2, -7, 6, 6), col_body)
+			draw_rect(Rect2(8, -5, 4, 4), col_belly)
+			draw_rect(Rect2(11, -5, 2, 2), col_nose)
+			draw_rect(Rect2(5, -7, 2, 2), col_white)
+			draw_rect(Rect2(7, -7, 1, 1), col_nose)
+			draw_polygon(PackedVector2Array([Vector2(4, -7), Vector2(1, -10), Vector2(1, -6)]), PackedColorArray([col_dark]))
+			draw_line(Vector2(-7, -3), Vector2(-12, -7), col_body, 1.5)
+			if anim_frame == 0:
+				draw_line(Vector2(5, 2), Vector2(10, 6), col_belly, 2.0)
+				draw_line(Vector2(3, 2), Vector2(1, 6), col_dark, 2.0)
+				draw_line(Vector2(-3, 2), Vector2(-1, 6), col_dark, 2.0)
+				draw_line(Vector2(-5, 2), Vector2(-10, 6), col_belly, 2.0)
+			else:
+				draw_line(Vector2(4, 2), Vector2(3, 7), col_belly, 2.0)
+				draw_line(Vector2(2, 2), Vector2(1, 7), col_dark, 2.0)
+				draw_line(Vector2(-2, 2), Vector2(0, 7), col_dark, 2.0)
+				draw_line(Vector2(-4, 2), Vector2(-2, 7), col_belly, 2.0)
+
+		PlayerController.Direction.UP:
+			draw_rect(Rect2(-5, -4, 10, 10), col_body)
+			draw_rect(Rect2(-2, -3, 4, 8), col_body_light)
+			draw_rect(Rect2(-4, -8, 8, 5), col_body)
+			draw_polygon(PackedVector2Array([Vector2(-4, -8), Vector2(-5, -12), Vector2(-2, -8)]), PackedColorArray([col_dark]))
+			draw_polygon(PackedVector2Array([Vector2(2, -8), Vector2(5, -12), Vector2(4, -8)]), PackedColorArray([col_dark]))
+			draw_line(Vector2(0, 6), Vector2(0, 11), col_dark, 1.5)
+			if anim_frame == 0:
+				draw_rect(Rect2(-7, -7, 3, 4), col_belly)
+				draw_rect(Rect2(4, -4, 3, 4), col_dark)
+				draw_rect(Rect2(-7, 4, 3, 4), col_dark)
+				draw_rect(Rect2(4, 1, 3, 4), col_belly)
+			else:
+				draw_rect(Rect2(-7, -4, 3, 4), col_dark)
+				draw_rect(Rect2(4, -7, 3, 4), col_belly)
+				draw_rect(Rect2(-7, 1, 3, 4), col_belly)
+				draw_rect(Rect2(4, 4, 3, 4), col_dark)
+
+		PlayerController.Direction.DOWN:
+			draw_rect(Rect2(-5, -6, 10, 9), col_body)
+			draw_rect(Rect2(-3, -2, 6, 5), col_belly)
+			draw_rect(Rect2(-5, -3, 10, 6), col_body)
+			draw_rect(Rect2(-3, 1, 6, 4), col_belly)
+			draw_rect(Rect2(-2, 3, 4, 2), col_nose)
+			draw_rect(Rect2(-4, -1, 2, 2), col_white)
+			draw_rect(Rect2(-3, -1, 1, 1), col_nose)
+			draw_rect(Rect2(2, -1, 2, 2), col_white)
+			draw_rect(Rect2(2, -1, 1, 1), col_nose)
+			draw_polygon(PackedVector2Array([Vector2(-5, -3), Vector2(-8, 0), Vector2(-5, 1)]), PackedColorArray([col_dark]))
+			draw_polygon(PackedVector2Array([Vector2(5, -3), Vector2(8, 0), Vector2(5, 1)]), PackedColorArray([col_dark]))
+			if anim_frame == 0:
+				draw_rect(Rect2(-6, 4, 3, 4), col_belly)
+				draw_rect(Rect2(3, 2, 3, 3), col_dark)
+			else:
+				draw_rect(Rect2(-6, 2, 3, 3), col_dark)
+				draw_rect(Rect2(3, 4, 3, 4), col_belly)
+
+	# 5. Balão de Latido ("AU!" / Sfx_DogBark)
+	if dog_bark_timer > 0:
+		draw_rect(Rect2(-12, -22, 24, 10), Color.BLACK)
+		draw_rect(Rect2(-11, -21, 22, 8), Color.WHITE)
+		draw_polygon(PackedVector2Array([Vector2(-2, -12), Vector2(2, -12), Vector2(0, -9)]), PackedColorArray([Color.BLACK]))
+		draw_polygon(PackedVector2Array([Vector2(-1, -12), Vector2(1, -12), Vector2(0, -10)]), PackedColorArray([Color.WHITE]))
+		draw_string(ThemeDB.fallback_font, Vector2(-9, -15), "AU!", HORIZONTAL_ALIGNMENT_CENTER, 18.0, 7, col_red)
+
+	# 6. Indicador de Atordoamento
+	if stunned_timer > 0:
+		var st_phase: int = (stunned_timer / 8) % 4
+		var offsets := [Vector2(-6, -16), Vector2(0, -18), Vector2(6, -16), Vector2(0, -14)]
+		for i: int in range(3):
+			var pt: Vector2 = offsets[(st_phase + i) % 4]
+			draw_circle(pt, 1.5, Color.YELLOW)
+
+func _draw_z_symbol(pos: Vector2, size: float, col: Color) -> void:
+	draw_line(pos, pos + Vector2(size, 0.0), col, 1.0)
+	draw_line(pos + Vector2(size, 0.0), pos + Vector2(0.0, size), col, 1.0)
+	draw_line(pos + Vector2(0.0, size), pos + Vector2(size, size), col, 1.0)
+
