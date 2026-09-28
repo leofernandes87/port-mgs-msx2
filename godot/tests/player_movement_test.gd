@@ -28,40 +28,42 @@ func _run() -> void:
 	player.set_grid_position(100.0, 100.0)
 	if not require(player.position == Vector2(100.0, 100.0), "set_grid_position falhou"): return
 
-	# Avanço UP (-2.0 px)
+	var spd: float = PlayerController.SPEED_NORMAL
+	# Avanço UP (-spd px)
 	var moved: bool = player.step_tick(Vector2i(0, -1))
-	if not require(moved and player.position == Vector2(100.0, 98.0), "Movimento UP deve avançar exatamente -2.0 px"): return
+	if not require(moved and player.position == Vector2(100.0, 100.0 - spd), "Movimento UP deve avançar exatamente -spd px"): return
 	if not require(player.current_direction == PlayerController.Direction.UP, "Direção deve ser UP"): return
 
-	# Avanço DOWN (+2.0 px)
+	# Avanço DOWN (+spd px)
 	moved = player.step_tick(Vector2i(0, 1))
-	if not require(moved and player.position == Vector2(100.0, 100.0), "Movimento DOWN deve avançar exatamente +2.0 px"): return
+	if not require(moved and player.position == Vector2(100.0, 100.0), "Movimento DOWN deve avançar exatamente +spd px"): return
 	if not require(player.current_direction == PlayerController.Direction.DOWN, "Direção deve ser DOWN"): return
 
-	# Avanço LEFT (-2.0 px)
+	# Avanço LEFT (-spd px)
 	moved = player.step_tick(Vector2i(-1, 0))
-	if not require(moved and player.position == Vector2(98.0, 100.0), "Movimento LEFT deve avançar exatamente -2.0 px"): return
+	if not require(moved and player.position == Vector2(100.0 - spd, 100.0), "Movimento LEFT deve avançar exatamente -spd px"): return
 	if not require(player.current_direction == PlayerController.Direction.LEFT, "Direção deve ser LEFT"): return
 
-	# Avanço RIGHT (+2.0 px)
+	# Avanço RIGHT (+spd px)
 	moved = player.step_tick(Vector2i(1, 0))
-	if not require(moved and player.position == Vector2(100.0, 100.0), "Movimento RIGHT deve avançar exatamente +2.0 px"): return
+	if not require(moved and player.position == Vector2(100.0, 100.0), "Movimento RIGHT deve avançar exatamente +spd px"): return
 	if not require(player.current_direction == PlayerController.Direction.RIGHT, "Direção deve ser RIGHT"): return
 
-	# Ciclo de animação de passos (6 ticks por frame: 0 -> 1 -> 2 -> 1)
+	# Ciclo de animação de passos (ANIM_TICKS_PER_FRAME ticks por frame: 0 -> 1 -> 2 -> 1)
+	var anim_step: int = PlayerController.ANIM_TICKS_PER_FRAME
 	player.anim_wait_cnt = 0
 	player.frame_num = 0
-	for i: int in range(5):
+	for i: int in range(anim_step - 1):
 		player.step_tick(Vector2i(1, 0))
-	if not require(player.frame_num == 0, "Frame deve ser 0 antes de completar 6 ticks"): return
-	player.step_tick(Vector2i(1, 0)) # 6º tick
-	if not require(player.frame_num == 1, "Frame deve avançar para 1 após 6 ticks"): return
-	for i: int in range(6):
-		player.step_tick(Vector2i(1, 0)) # +6 ticks
-	if not require(player.frame_num == 2, "Frame deve avançar para 2 após 12 ticks"): return
-	for i: int in range(6):
-		player.step_tick(Vector2i(1, 0)) # +6 ticks
-	if not require(player.frame_num == 1, "Frame deve ciclar de volta para 1 após 18 ticks"): return
+	if not require(player.frame_num == 0, "Frame deve ser 0 antes de completar anim_step ticks"): return
+	player.step_tick(Vector2i(1, 0)) # anim_stepº tick
+	if not require(player.frame_num == 1, "Frame deve avançar para 1 após anim_step ticks"): return
+	for i: int in range(anim_step):
+		player.step_tick(Vector2i(1, 0)) # +anim_step ticks
+	if not require(player.frame_num == 2, "Frame deve avançar para 2 após 2*anim_step ticks"): return
+	for i: int in range(anim_step):
+		player.step_tick(Vector2i(1, 0)) # +anim_step ticks
+	if not require(player.frame_num == 1, "Frame deve ciclar de volta para 1 após 3*anim_step ticks"): return
 	player.step_tick(Vector2i.ZERO) # Parar
 	if not require(player.frame_num == 0 and not player.is_moving, "Parar deve resetar frame para 0"): return
 
@@ -74,12 +76,12 @@ func _run() -> void:
 	player.set_collision_grid(collision_grid)
 
 	# Teste UP: offsets (-6, -5) e (5, -5)
-	# Ponto esquerdo (-6, -5): atinge (80, 85) a partir de next_pos=(86, 90)
+	# Ponto esquerdo (-6, -5): atinge (80, 86) a partir de next_pos=(86, 92 - spd)
 	player.set_grid_position(86.0, 92.0)
 	moved = player.step_tick(Vector2i(0, -1))
 	if not require(not moved and player.position == Vector2(86.0, 92.0), "Colisor UP esquerdo (-6,-5) deve bloquear movimento"): return
 
-	# Ponto direito (5, -5): atinge (85, 85) a partir de next_pos=(80, 90)
+	# Ponto direito (5, -5): atinge (85, 86) a partir de next_pos=(80, 92 - spd)
 	player.set_grid_position(80.0, 92.0)
 	moved = player.step_tick(Vector2i(0, -1))
 	if not require(not moved and player.position == Vector2(80.0, 92.0), "Colisor UP direito (5,-5) deve bloquear movimento"): return
@@ -87,25 +89,25 @@ func _run() -> void:
 	# Passa raspando à esquerda (ponto direito em 79 < 80)
 	player.set_grid_position(74.0, 92.0)
 	moved = player.step_tick(Vector2i(0, -1))
-	if not require(moved and player.position == Vector2(74.0, 90.0), "Movimento UP livre fora do obstáculo deve prosseguir"): return
+	if not require(moved and player.position == Vector2(74.0, 92.0 - spd), "Movimento UP livre fora do obstáculo deve prosseguir"): return
 
 	# Teste DOWN: offsets (-6, 4) e (5, 4)
 	# Ponto esquerdo (-6, 4): atinge (80, 80) a partir de next_pos=(86, 76)
-	player.set_grid_position(86.0, 74.0)
+	player.set_grid_position(86.0, 76.0 - spd)
 	moved = player.step_tick(Vector2i(0, 1))
-	if not require(not moved and player.position == Vector2(86.0, 74.0), "Colisor DOWN esquerdo (-6,4) deve bloquear movimento"): return
+	if not require(not moved and player.position == Vector2(86.0, 76.0 - spd), "Colisor DOWN esquerdo (-6,4) deve bloquear movimento"): return
 
 	# Teste LEFT: offsets (-8, -4) e (-8, 3)
 	# Ponto superior (-8, -4): atinge (86, 80) a partir de next_pos=(94, 84)
-	player.set_grid_position(96.0, 84.0)
+	player.set_grid_position(95.0 + spd, 84.0)
 	moved = player.step_tick(Vector2i(-1, 0))
-	if not require(not moved and player.position == Vector2(96.0, 84.0), "Colisor LEFT (-8,-4) deve bloquear movimento"): return
+	if not require(not moved and player.position == Vector2(95.0 + spd, 84.0), "Colisor LEFT (-8,-4) deve bloquear movimento"): return
 
 	# Teste RIGHT: offsets (7, -4) e (7, 3)
 	# Ponto superior (7, -4): atinge (81, 80) a partir de next_pos=(74, 84)
-	player.set_grid_position(72.0, 84.0)
+	player.set_grid_position(74.0 - spd, 84.0)
 	moved = player.step_tick(Vector2i(1, 0))
-	if not require(not moved and player.position == Vector2(72.0, 84.0), "Colisor RIGHT (7,-4) deve bloquear movimento"): return
+	if not require(not moved and player.position == Vector2(74.0 - spd, 84.0), "Colisor RIGHT (7,-4) deve bloquear movimento"): return
 
 	# Teste de limites da tela (0..255, 0..191)
 	player.set_grid_position(2.0, 50.0)

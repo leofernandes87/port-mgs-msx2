@@ -47,7 +47,7 @@ func _run() -> void:
 
 	# Próximo tick: movimento volta a funcionar
 	var moved_now: bool = player.step_tick(Vector2i(1, 0))
-	if not require(moved_now and player.position.x == 102.0, "Snake deve voltar a se mover normalmente após o soco"): return
+	if not require(moved_now and player.position.x == 100.0 + PlayerController.SPEED_NORMAL, "Snake deve voltar a se mover normalmente após o soco"): return
 
 	# 3. Teste de Caixas de Impacto de Soco nas 4 Direções da ROM (logic/punchenemy.asm)
 	enemy.position = Vector2(100.0, 100.0)

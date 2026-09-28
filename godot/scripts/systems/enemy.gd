@@ -44,7 +44,9 @@ var show_debug_vision: bool = false
 
 var is_lorry_guard: bool = false
 var lorry_timer: int = 0
-var is_entering_lorry_pending: bool = false
+var is_exiting_lorry: bool = false
+var is_entering_lorry: bool = false
+var lorry_anim_pixels: float = 0.0
 var wait_ticks: int = 0
 
 var anim_tick: int = 0
@@ -79,10 +81,14 @@ func _ready() -> void:
 
 func set_patrol_path(points: Array[Vector2]) -> void:
 	waypoints = points
-	current_waypoint_idx = 0
 	waypoint_reverse = false
-	if not waypoints.is_empty():
-		_update_direction_to_target(waypoints[0])
+	if is_lorry_guard:
+		current_direction = PlayerController.Direction.DOWN
+		current_waypoint_idx = 1 if waypoints.size() > 1 else 0
+	else:
+		current_waypoint_idx = 0
+		if not waypoints.is_empty():
+			_update_direction_to_target(waypoints[0])
 
 ## Verifica se o inimigo foi atingido por um soco de Snake (logic/punchenemy.asm:29-87)
 ## Utiliza as distâncias e raios exatos das tabelas PunchUpDat, PunchDownDat, PunchLeftDat, PunchRightDat
@@ -174,6 +180,33 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 		lorry_timer -= 1
 		if lorry_timer <= 0:
 			visible = true
+			is_exiting_lorry = true
+			lorry_anim_pixels = 16.0
+			current_direction = PlayerController.Direction.DOWN
+		return
+
+	if is_exiting_lorry:
+		lorry_anim_pixels -= speed
+		if lorry_anim_pixels <= 0.0:
+			is_exiting_lorry = false
+			current_waypoint_idx = 1 if waypoints.size() > 1 else 0
+			if not waypoints.is_empty():
+				_update_direction_to_target(waypoints[current_waypoint_idx])
+		else:
+			position.y += speed
+			queue_redraw()
+		return
+
+	if is_entering_lorry:
+		lorry_anim_pixels -= speed
+		if lorry_anim_pixels <= 0.0:
+			is_entering_lorry = false
+			visible = false
+			lorry_timer = 128 + (randi() % 128)
+			current_waypoint_idx = 1 if waypoints.size() > 1 else 0
+		else:
+			position.y -= speed
+			queue_redraw()
 		return
 
 	# 1. Se Snake estiver socando, verificar se acerta este guarda
@@ -282,14 +315,6 @@ func _follow_patrol_path(collision_grid: Array = []) -> void:
 		wait_ticks -= 1
 		return
 
-	if is_entering_lorry_pending:
-		is_entering_lorry_pending = false
-		visible = false
-		lorry_timer = int(120 + randf() * 100) # Espera aleatória (aprox 2 a 4 segundos)
-		current_waypoint_idx = 0
-		position = waypoints[0] # Volta ao esconderijo
-		return
-
 	var target: Vector2 = waypoints[current_waypoint_idx]
 	var diff: Vector2 = target - position
 
@@ -313,6 +338,13 @@ func _follow_patrol_path(collision_grid: Array = []) -> void:
 	else:
 		# Atingiu o waypoint atual: avançar para o próximo
 		position = target
+		if is_lorry_guard and current_waypoint_idx == 0:
+			# Chegou de volta à traseira do caminhão (carroceria) após a volta completa!
+			# Entra na carroceria caminhando na direção Norte (UP)
+			is_entering_lorry = true
+			lorry_anim_pixels = 16.0
+			current_direction = PlayerController.Direction.UP
+			return
 		_advance_waypoint()
 
 	anim_tick += 1
@@ -342,13 +374,11 @@ func _advance_waypoint() -> void:
 
 	if is_lorry_guard:
 		# O MSX tem uma regra especial: ele NUNCA pausa no PRIMEIRO ponto (logo após sair do caminhão).
-		if current_waypoint_idx == 0:
+		if current_waypoint_idx == 1:
 			wait_ticks = 0
 
-		current_waypoint_idx += 1
-		if current_waypoint_idx >= waypoints.size():
-			is_entering_lorry_pending = true
-			current_waypoint_idx = waypoints.size() - 1 # Trava no último
+		# Ciclo contínuo de rota: 1 -> 2 -> 3 -> 4 -> 0
+		current_waypoint_idx = (current_waypoint_idx + 1) % waypoints.size()
 		return
 
 	# Se rota tem apenas 2 pontos, vai e volta (estilo vai-e-vem)
@@ -357,6 +387,9 @@ func _advance_waypoint() -> void:
 	else:
 		# Ciclo contínuo de rota
 		current_waypoint_idx = (current_waypoint_idx + 1) % waypoints.size()
+
+	if wait_ticks == 0 and not waypoints.is_empty():
+		_update_direction_to_target(waypoints[current_waypoint_idx])
 
 func _update_direction_to_target(target: Vector2) -> void:
 	var diff: Vector2 = target - position

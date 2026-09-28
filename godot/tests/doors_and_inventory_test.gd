@@ -306,7 +306,8 @@ func _run() -> void:
 	sandbox.inventory = fresh_inv
 	# Snake tenta sair pela borda leste (X >= 244) sem CARD4
 	sandbox.player.position = Vector2(242.0, 136.0)
-	sandbox.player.step_tick(Vector2i.RIGHT)
+	while sandbox.player.position.x < RoomManager.EXIT_RIGHT_X:
+		sandbox.player.step_tick(Vector2i.RIGHT)
 	sandbox._check_and_handle_room_transition()
 	if not require(sandbox.snapshot.room_id == 7, "Transição da Sala 7 para Sala 11 deve ser BARRADA sem CARD4"): return
 	if not require(sandbox.player.position.x <= 244.0, "Snake deve ser empurrado de volta para dentro dos limites da Sala 7"): return
@@ -314,7 +315,8 @@ func _run() -> void:
 	# Snake adquire CARD4 e tenta atravessar para a Sala 11
 	sandbox.inventory.collect_item(InventoryManager.ITEM_CARD4)
 	sandbox.player.position = Vector2(242.0, 136.0)
-	sandbox.player.step_tick(Vector2i.RIGHT)
+	while sandbox.player.position.x < RoomManager.EXIT_RIGHT_X:
+		sandbox.player.step_tick(Vector2i.RIGHT)
 	sandbox._check_and_handle_room_transition()
 	if not require(sandbox.snapshot.room_id == 11, "Snake com CARD4 deve conseguir transicionar para a Sala 11"): return
 

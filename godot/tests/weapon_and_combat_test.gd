@@ -70,25 +70,25 @@ func _run() -> void:
 	# Ponto de saída fiel ao MSX2: PlayerX, PlayerY - 14.0 (handgun.asm:43-48)
 	if not require(bullet.position.x == 100.0, "Projétil deve iniciar no PlayerX"): return
 	if not require(bullet.position.y == 86.0, "Projétil deve iniciar em PlayerY - 14"): return
-	if not require(bullet.speed == 6.0, "Velocidade da bala deve ser 6.0 px/tick"): return
-	if not require(bullet.ticks_remaining == 16, "Alcance máximo da bala deve ser 16 ticks"): return
+	if not require(bullet.speed == 3.0, "Velocidade da bala deve ser 3.0 px/tick"): return
+	if not require(bullet.ticks_remaining == 32, "Alcance máximo da bala deve ser 32 ticks"): return
 	if not require(bullet.damage == 2, "Dano da bala deve ser 2 pontos (BulletDamage da ROM)"): return
 
-	# Avançar projétil por 15 ticks (espaço livre)
+	# Avançar projétil por 31 ticks (espaço livre)
 	var empty_grid: Array[int] = []
 	empty_grid.resize(768)
 	empty_grid.fill(0)
 
-	for _t: int in range(15):
+	for _t: int in range(31):
 		var alive: bool = bullet.step_tick(empty_grid)
-		if not require(alive, "Bala deve permanecer ativa durante seus 16 ticks"): return
+		if not require(alive, "Bala deve permanecer ativa durante seus 32 ticks"): return
 
-	# Posição após 15 ticks para DOWN (+6 px/tick): 86 + 15 * 6 = 176.0
-	if not require(bullet.position.y == 176.0, "Projétil deve ter percorrido 90 px em 15 ticks"): return
+	# Posição após 31 ticks para DOWN (+3 px/tick): 86 + 31 * 3 = 179.0
+	if not require(bullet.position.y == 179.0, "Projétil deve ter percorrido 93 px em 31 ticks"): return
 
-	# No 16º tick, o projétil atinge o fim do alcance (16 * 6 = 96 px) e expira
+	# No 32º tick, o projétil atinge o fim do alcance (32 * 3 = 96 px) e expira
 	var still_alive: bool = bullet.step_tick(empty_grid)
-	if not require(not still_alive, "Projétil deve expirar exatamente no 16º tick (96 px percorridos)"): return
+	if not require(not still_alive, "Projétil deve expirar exatamente no 32º tick (96 px percorridos)"): return
 
 	bullet.queue_free()
 

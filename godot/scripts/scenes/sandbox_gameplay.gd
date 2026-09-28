@@ -615,13 +615,13 @@ func _spawn_room_enemies(room_id: int) -> void:
 
 			# Simulação MSX: Alguns guardas alteram sua posição/sentido de início 
 			# com base no frame counter do jogo quando a sala é carregada.
-			# Isso evita insta-kills previsíveis nas bordas das salas!
-			if waypoints.size() > 1 and randf() > 0.5:
+			# Isso evita insta-kills previsíveis nas bordas das salas! GuardLorry (19) é fixo.
+			if type_id != 19 and waypoints.size() > 1 and randf() > 0.5:
 				waypoints.reverse()
 				
 			# Para garantir a lógica orgânica do MSX, o guarda de patrulha nasce
 			# dinamicamente já no primeiro waypoint da rota escolhida!
-			if not waypoints.is_empty() and type_id not in [25, 27, 48]:
+			if not waypoints.is_empty() and type_id not in [19, 25, 27, 48]:
 				g.position = waypoints[0]
 
 			g.set_patrol_path(waypoints)

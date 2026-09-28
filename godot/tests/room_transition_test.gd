@@ -70,8 +70,8 @@ func _run() -> void:
 
 	# Transição Sala 121 -> Sala 0 (avançando ao Norte pela água)
 	p.set_grid_position(128.0, 18.0)
-	p.step_tick(Vector2i(0, -1))
-	p.step_tick(Vector2i(0, -1))
+	while p.position.y >= RoomManager.EXIT_UP_Y:
+		p.step_tick(Vector2i(0, -1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -79,8 +79,8 @@ func _run() -> void:
 
 	# Transição Sala 0 -> Sala 1 (avançando ao Norte)
 	p.set_grid_position(128.0, 18.0)
-	p.step_tick(Vector2i(0, -1))
-	p.step_tick(Vector2i(0, -1))
+	while p.position.y >= RoomManager.EXIT_UP_Y:
+		p.step_tick(Vector2i(0, -1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -89,8 +89,8 @@ func _run() -> void:
 	# Transição Sala 1 -> Sala 2 (avançando ao Norte)
 	# Na Sala 1, columns 12..19 são livres na borda norte
 	p.set_grid_position(128.0, 18.0)
-	p.step_tick(Vector2i(0, -1)) # Y vai para 16.0
-	p.step_tick(Vector2i(0, -1)) # Y vai para 14.0 (< 16.0)
+	while p.position.y >= RoomManager.EXIT_UP_Y:
+		p.step_tick(Vector2i(0, -1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -99,8 +99,8 @@ func _run() -> void:
 
 	# Transição Sala 2 -> Sala 3 (avançando ao Norte pelo corredor direito: colunas 16..21, X=144)
 	p.set_grid_position(144.0, 18.0)
-	p.step_tick(Vector2i(0, -1))
-	p.step_tick(Vector2i(0, -1))
+	while p.position.y >= RoomManager.EXIT_UP_Y:
+		p.step_tick(Vector2i(0, -1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -109,7 +109,8 @@ func _run() -> void:
 
 	# Transição Sala 3 -> Sala 2 (voltando ao Sul pelo mesmo corredor em X=144)
 	p.set_grid_position(144.0, 184.0)
-	p.step_tick(Vector2i(0, 1)) # Y vai para 186.0 (>= 186.0)
+	while p.position.y < RoomManager.EXIT_DOWN_Y:
+		p.step_tick(Vector2i(0, 1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -118,7 +119,8 @@ func _run() -> void:
 
 	# Transição Sala 2 -> Sala 1 (voltando ao Sul)
 	p.set_grid_position(128.0, 184.0)
-	p.step_tick(Vector2i(0, 1))
+	while p.position.y < RoomManager.EXIT_DOWN_Y:
+		p.step_tick(Vector2i(0, 1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -127,7 +129,8 @@ func _run() -> void:
 
 	# Transição Sala 1 -> Sala 0 (descendo para o pátio externo)
 	p.set_grid_position(128.0, 184.0)
-	p.step_tick(Vector2i(0, 1))
+	while p.position.y < RoomManager.EXIT_DOWN_Y:
+		p.step_tick(Vector2i(0, 1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -136,7 +139,8 @@ func _run() -> void:
 
 	# Transição Sala 0 -> Sala 121 (descendo até a praia inicial)
 	p.set_grid_position(128.0, 184.0)
-	p.step_tick(Vector2i(0, 1))
+	while p.position.y < RoomManager.EXIT_DOWN_Y:
+		p.step_tick(Vector2i(0, 1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -151,7 +155,8 @@ func _run() -> void:
 
 	# Avançar para o Leste rumo à Sala 5
 	p.set_grid_position(242.0, 104.0)
-	p.step_tick(Vector2i(1, 0)) # X vai para 244.0 (limite RIGHT)
+	while p.position.x < RoomManager.EXIT_RIGHT_X:
+		p.step_tick(Vector2i(1, 0))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
