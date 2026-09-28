@@ -47,6 +47,7 @@ var lorry_timer: int = 0
 var is_exiting_lorry: bool = false
 var is_entering_lorry: bool = false
 var lorry_anim_pixels: float = 0.0
+var lorry_id: int = 0
 var wait_ticks: int = 0
 
 var anim_tick: int = 0
@@ -213,27 +214,27 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 		return
 
 	if is_exiting_lorry:
+		position.y += speed
 		lorry_anim_pixels -= speed
 		if lorry_anim_pixels <= 0.0:
 			is_exiting_lorry = false
+			if waypoints.size() > 0:
+				position.y = waypoints[0].y
 			current_waypoint_idx = 1 if waypoints.size() > 1 else 0
 			if not waypoints.is_empty():
 				_update_direction_to_target(waypoints[current_waypoint_idx])
-		else:
-			position.y += speed
-			queue_redraw()
+		queue_redraw()
 		return
 
 	if is_entering_lorry:
+		position.y -= speed
 		lorry_anim_pixels -= speed
 		if lorry_anim_pixels <= 0.0:
 			is_entering_lorry = false
 			visible = false
 			lorry_timer = 128 + (randi() % 128)
 			current_waypoint_idx = 1 if waypoints.size() > 1 else 0
-		else:
-			position.y -= speed
-			queue_redraw()
+		queue_redraw()
 		return
 
 	# 1. Se Snake estiver socando, verificar se acerta este guarda

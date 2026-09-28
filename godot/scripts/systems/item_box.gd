@@ -36,9 +36,9 @@ func step_tick(player_pos: Vector2, inventory: InventoryManager, weapon_system: 
 				collected_boxes[box_unique_id] = true
 				queue_redraw()
 				return true
-		elif item_id == WeaponSystem.WEAPON_MISSILE:
+		elif item_id in [WeaponSystem.WEAPON_MISSILE, WeaponSystem.WEAPON_LAND_MINE]:
 			if weapon_system != null:
-				# Fiel ao MSX (ItemTakeAmount: 5 para míssil)
+				# Fiel ao MSX (ItemTakeAmount: 5 para míssil e minas terrestres)
 				weapon_system.add_weapon(item_id, 5)
 				collected = true
 				collected_boxes[box_unique_id] = true

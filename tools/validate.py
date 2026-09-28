@@ -45,6 +45,7 @@ def main():
         ("godot-capture-prison", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/capture_prison_test.gd"]),
         ("godot-electrified-floor", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/electrified_floor_test.gd"]),
         ("godot-elevator-guards", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/elevator_guard_test.gd"]),
+        ("godot-room-007-patrol", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/room_007_patrol_test.gd"]),
         ("godot-main", [godot, "--headless", "--path", str(ROOT / "godot"), "--quit-after", "5"]),
     ]
     for name, command in commands:
@@ -94,6 +95,8 @@ def main():
             raise RuntimeError("Teste de pisos eletrificados não confirmou conclusão")
         if name == "godot-elevator-guards" and "ELEVATOR_GUARD_OK:" not in result.stdout:
             raise RuntimeError("Teste de sentinelas do elevador não confirmou conclusão")
+        if name == "godot-room-007-patrol" and "ROOM_007_PATROL_OK:" not in result.stdout:
+            raise RuntimeError("Teste de patrulha e caminhões da Sala 007 não confirmou conclusão")
         if name == "godot-main" and "BOOT_OK:" not in result.stdout:
             raise RuntimeError("Cena principal não iniciou")
         print(name + ": PASS")

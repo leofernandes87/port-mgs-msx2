@@ -1807,3 +1807,35 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Criado teste de regressão headless dedicado: `godot/tests/elevator_guard_test.gd` (validando posto, visão, mensagem *"Chow time!!"*, saída integral até $X \ge 272$, intervalo com corredor vazio sem retorno prematuro, nascimento dos substitutos e retorno do elevador 240).
   - Registrado em `tools/validate.py` como `godot-elevator-guards`.
   - 100% de aprovação na suíte de testes do projeto (`python3 tools/validate.py`).
+
+## [Correção Canônica] - Patrulhas da Sala 007, Caminhões Interiores (Salas 130, 131, 132) e Itens Canônicos
+- **Evidências Z80 e ROM (`guardlorry.asm`, `guardalert.asm`, `doors.asm`, `itemsinrooms.asm`, `itemtakeamount.asm`, `actorsinrooms.asm:44`)**:
+  - A Sala 007 define 2 guardas de caminhão na ROM:
+    - Ator 0 (`ID_GUARD_EXIT_LORRY` 19) em $X=80, Y=120$ (caminhão do meio). Velocidade: `GuardType.SLOW` (`0.4 px/tick`). Rota `Path_006_01` (waypoints `(80, 136)` e `(80, 168)`).
+    - Ator 1 (`ID_GUARD_EXIT_LORRY` 19) em $X=112, Y=120$ (caminhão da direita). Velocidade acelerada per `guardlorry.asm:32` (`IdxGuardSpeed = 8` -> `GuardType.MEDIUM`, `0.7 px/tick`). Rota `Path_006_02` (10 waypoints contornando o pátio e retornando à traseira do caminhão).
+  - Caminhões Conectados:
+    - **Caminhão Esquerdo (Sala 130)** via Porta 118 em $(36, 132)$:
+      - Atores: Nenhum (`NoActorsInRoom`).
+      - Item: `ItemGun` at `4060h` -> `WEAPON_HANDGUN` (ID 1) na posição canônica $(64, 96)$. Fiel à tabela `ItemTakeAmount`, a pistola é obtida com 0 balas até a coleta de caixas de munição.
+    - **Caminhão Central (Sala 131)** via Porta 119 em $(68, 100)$:
+      - Atores: 4 soldados de alerta (`ActorsRoom131`, `ID_GUARD_ALERT` 10). Sem itens.
+      - Mecânica de emboscada / descarte (`guardalert.asm:22-28`): se o alarme não estiver ativo e o Ator 0 da Sala 7 estiver do lado de fora (`Guard2ExitedLorry == 1`), os 4 soldados são descartados (`DismissActor0`). Se o guarda ainda não tiver saído da caçamba, os 4 soldados emboscam Snake.
+    - **Caminhão Direito (Sala 132)** via Porta 120 em $(100, 100)$:
+      - Atores: 1 soldado de alerta (`ActorsRoom132`, `ID_GUARD_ALERT` 10) em $(72, 112)$.
+      - Item: `ItemMines` at `6040h` -> `WEAPON_LAND_MINE` (ID 6) na posição canônica $(96, 64)$, concedendo 5 minas terrestres (`ItemTakeAmount: 5`).
+      - Descarte (`guardalert.asm:30-38`): se o alarme não estiver ativo e o Ator 1 da Sala 7 estiver do lado de fora (`Guard3ExitedLorry == 1`), o soldado é descartado (`DismissActor0`), liberando a coleta das minas sem confronto.
+- **Implementação**:
+  - `godot/scripts/systems/weapon_system.gd`: Adicionado `WEAPON_LAND_MINE = "LAND_MINE"` (ID 6), capacidades por patente (5 a 20), validação em `add_weapon` e reinicialização em `reset()`.
+  - `godot/scripts/systems/item_box.gd`: Adicionada coleta de `WEAPON_LAND_MINE` concedendo 5 minas ao arsenal de Snake.
+  - `godot/scripts/systems/enemy.gd`: Adicionado `lorry_id`, correção do deslocamento por tick durante `is_exiting_lorry` e `is_entering_lorry` com alinhamento preciso a `waypoints[0].y`.
+  - `godot/scripts/scenes/sandbox_gameplay.gd`:
+    - Mapeamento de `type_id: 6` para `WeaponSystem.WEAPON_LAND_MINE`.
+    - Rastreamento dinâmico de `guard2_exited_lorry` e `guard3_exited_lorry` nas transições de/para a Sala 7.
+    - Descarte canônico dos soldados de emboscada nas Salas 131 e 132 caso os guardas do pátio estejam do lado de fora.
+    - Atribuição de velocidade `GuardType.MEDIUM` (`0.7 px/tick`) para o segundo guarda da Sala 7.
+    - Suporte a fallback canônico da Sala 7.
+- **Testes Automatizados**:
+  - Criado teste automatizado headless: `godot/tests/room_007_patrol_test.gd` (cobrindo atributos dos dois guardas da Sala 7, saída da caçamba, transição para Sala 130 com coleta da Handgun, transição para Sala 131 com teste de emboscada ativa vs descarte com guarda fora, e transição para Sala 132 com descarte e coleta das 5 minas terrestres).
+  - Registrado em `tools/validate.py` como `godot-room-007-patrol`.
+  - 100% de aprovação na suíte de validação (`python3 tools/validate.py`).
+

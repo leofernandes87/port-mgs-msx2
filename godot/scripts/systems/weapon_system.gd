@@ -8,6 +8,7 @@ const WEAPON_NONE: String = ""
 const WEAPON_HANDGUN: String = "HANDGUN"                 # ID 1 na ROM (HAND_GUN)
 const WEAPON_SMG: String = "SMG"                         # ID 2 na ROM (SUB_MACHINE_GUN)
 const WEAPON_GRENADE_LAUNCHER: String = "GRENADE_LAUNCHER" # ID 3 na ROM (GRENADE_LAUNCHER)
+const WEAPON_LAND_MINE: String = "LAND_MINE"             # ID 6 na ROM (LAND_MINE)
 const WEAPON_MISSILE: String = "MISSILE"                 # ID 7 na ROM (MISSILE / RC Missile)
 
 var owned_weapons: Array[String] = []
@@ -18,6 +19,7 @@ var ammo: Dictionary = {
 	WEAPON_HANDGUN: 0,
 	WEAPON_SMG: 0,
 	WEAPON_GRENADE_LAUNCHER: 0,
+	WEAPON_LAND_MINE: 0,
 	WEAPON_MISSILE: 0,
 }
 
@@ -26,6 +28,7 @@ var max_ammo: Dictionary = {
 	WEAPON_HANDGUN: 50,
 	WEAPON_SMG: 50,
 	WEAPON_GRENADE_LAUNCHER: 15,
+	WEAPON_LAND_MINE: 5,
 	WEAPON_MISSILE: 5,
 }
 
@@ -38,26 +41,31 @@ func update_rank_capacities(rank: int) -> void:
 			max_ammo[WEAPON_HANDGUN] = 50
 			max_ammo[WEAPON_SMG] = 50
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 15
+			max_ammo[WEAPON_LAND_MINE] = 5
 			max_ammo[WEAPON_MISSILE] = 5
 		2:
 			max_ammo[WEAPON_HANDGUN] = 100
 			max_ammo[WEAPON_SMG] = 100
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 30
+			max_ammo[WEAPON_LAND_MINE] = 10
 			max_ammo[WEAPON_MISSILE] = 10
 		3:
 			max_ammo[WEAPON_HANDGUN] = 200
 			max_ammo[WEAPON_SMG] = 200
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 60
+			max_ammo[WEAPON_LAND_MINE] = 15
 			max_ammo[WEAPON_MISSILE] = 15
 		4:
 			max_ammo[WEAPON_HANDGUN] = 300
 			max_ammo[WEAPON_SMG] = 300
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 90
+			max_ammo[WEAPON_LAND_MINE] = 20
 			max_ammo[WEAPON_MISSILE] = 20
 		_:
 			max_ammo[WEAPON_HANDGUN] = 50
 			max_ammo[WEAPON_SMG] = 50
 			max_ammo[WEAPON_GRENADE_LAUNCHER] = 15
+			max_ammo[WEAPON_LAND_MINE] = 5
 			max_ammo[WEAPON_MISSILE] = 5
 
 	# Ajusta munição atual se exceder o novo limite (em caso de rebaixamento de rank)
@@ -70,7 +78,7 @@ func has_weapon(weapon_id: String) -> bool:
 	return owned_weapons.has(weapon_id)
 
 func add_weapon(weapon_id: String, initial_ammo: int = 0) -> bool:
-	if not weapon_id in [WEAPON_HANDGUN, WEAPON_SMG, WEAPON_GRENADE_LAUNCHER, WEAPON_MISSILE]:
+	if not weapon_id in [WEAPON_HANDGUN, WEAPON_SMG, WEAPON_GRENADE_LAUNCHER, WEAPON_LAND_MINE, WEAPON_MISSILE]:
 		return false
 
 	var is_first: bool = owned_weapons.is_empty()
@@ -177,10 +185,12 @@ func reset() -> void:
 	ammo[WEAPON_HANDGUN] = 0
 	ammo[WEAPON_SMG] = 0
 	ammo[WEAPON_GRENADE_LAUNCHER] = 0
+	ammo[WEAPON_LAND_MINE] = 0
 	ammo[WEAPON_MISSILE] = 0
 	max_ammo[WEAPON_HANDGUN] = 50
 	max_ammo[WEAPON_SMG] = 50
 	max_ammo[WEAPON_GRENADE_LAUNCHER] = 15
+	max_ammo[WEAPON_LAND_MINE] = 5
 	max_ammo[WEAPON_MISSILE] = 5
 	has_silencer = false
 	print("WEAPON_RESET: Arsenal e munições reiniciados ao padrão.")

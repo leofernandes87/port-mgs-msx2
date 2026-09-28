@@ -104,6 +104,8 @@ const DEFAULT_SPAWN_X: float = 128.0
 const DEFAULT_SPAWN_Y: float = 80.0
 
 var guard1_exited_lorry: bool = false
+var guard2_exited_lorry: bool = false
+var guard3_exited_lorry: bool = false
 
 func _ready() -> void:
 	print("BOOT_OK: cena principal pronta")
@@ -574,9 +576,16 @@ func _spawn_room_enemies(room_id: int) -> void:
 			if not type_id in valid_enemy_types:
 				continue
 
-			# O MSX destrói o Guarda de Alerta de dentro do caminhão (Sala 127) se o GuardLorry da Sala 5 estiver de patrulha
-			if room_id == 127 and type_id in [10, 11] and guard1_exited_lorry:
-				continue
+			# Descarte canônico dos guardas de alerta dentro dos caminhões (logic/actors/guardalert.asm:14-38)
+			# Se o alarme NÃO estiver ativo, e o guarda correspondente saiu para o pátio, os sentinelas da emboscada são descartados.
+			var is_alert_active: bool = alert_system != null and alert_system.current_state == AlertSystem.AlertState.ALERT
+			if not is_alert_active:
+				if room_id == 127 and type_id in [10, 11] and guard1_exited_lorry:
+					continue
+				if room_id == 131 and type_id in [10, 11] and guard2_exited_lorry:
+					continue
+				if room_id == 132 and type_id in [10, 11] and guard3_exited_lorry:
+					continue
 
 			# Regra canônica MSX: remoção de guardas conforme direção de entrada (logic/actors/hideguards.asm)
 			if _should_hide_guard(room_id, int(act.get("y", 0)), int(act.get("x", 0))):
@@ -593,6 +602,19 @@ func _spawn_room_enemies(room_id: int) -> void:
 				g.guard_type = EnemyGuard.GuardType.FAST
 			else:
 				g.guard_type = EnemyGuard.GuardType.MEDIUM
+
+			# Na Sala 7, o segundo guarda caminha mais rápido (guardlorry.asm:32 IdxGuardSpeed = 8 -> MEDIUM)
+			if room_id == 7 and type_id == 19 and is_equal_approx(spawn_pos.x, 112.0):
+				g.guard_type = EnemyGuard.GuardType.MEDIUM
+				g.speed = 0.7
+
+			if room_id == 5 and type_id == 19:
+				g.lorry_id = 1
+			elif room_id == 7 and type_id == 19:
+				if is_equal_approx(spawn_pos.x, 80.0):
+					g.lorry_id = 2
+				elif is_equal_approx(spawn_pos.x, 112.0):
+					g.lorry_id = 3
 
 			g.position = spawn_pos
 
@@ -804,6 +826,32 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		g0.show_debug_vision = show_enemy_vision
 		game_world.add_child(g0)
 		enemies.append(g0)
+	elif room_id == 7:
+		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g1.actor_type_id = 19
+		g1.guard_type = EnemyGuard.GuardType.SLOW
+		g1.position = Vector2(80.0, 120.0)
+		g1.lorry_id = 2
+		g1.set_patrol_path([Vector2(80.0, 136.0), Vector2(80.0, 168.0)])
+		g1.show_debug_vision = show_enemy_vision
+		game_world.add_child(g1)
+		enemies.append(g1)
+
+		var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g2.actor_type_id = 19
+		g2.guard_type = EnemyGuard.GuardType.MEDIUM
+		g2.speed = 0.7
+		g2.position = Vector2(112.0, 120.0)
+		g2.lorry_id = 3
+		g2.set_patrol_path([
+			Vector2(112.0, 136.0), Vector2(112.0, 176.0), Vector2(144.0, 176.0),
+			Vector2(144.0, 48.0), Vector2(48.0, 48.0), Vector2(48.0, 80.0),
+			Vector2(48.0, 48.0), Vector2(144.0, 48.0), Vector2(144.0, 152.0),
+			Vector2(112.0, 152.0)
+		])
+		g2.show_debug_vision = show_enemy_vision
+		game_world.add_child(g2)
+		enemies.append(g2)
 	elif room_id == 127:
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.MEDIUM
@@ -899,6 +947,8 @@ func _spawn_room_items(room_id: int) -> void:
 						b.item_id = WeaponSystem.WEAPON_SMG
 					3:
 						b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
+					6:
+						b.item_id = WeaponSystem.WEAPON_LAND_MINE
 					7:
 						b.item_id = WeaponSystem.WEAPON_MISSILE
 					8:
@@ -2113,12 +2163,23 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 
 	if old_room_id == 5:
 		for e in enemies:
-			if e.is_lorry_guard:
-				guard1_exited_lorry = e.visible
+			if e.is_lorry_guard and e.lorry_id == 1:
+				guard1_exited_lorry = e.visible or e.is_dead
 				break
+
+	if old_room_id == 7:
+		for e in enemies:
+			if e.is_lorry_guard:
+				if e.lorry_id == 2:
+					guard2_exited_lorry = e.visible or e.is_dead
+				elif e.lorry_id == 3:
+					guard3_exited_lorry = e.visible or e.is_dead
 
 	if new_room_id == 5:
 		guard1_exited_lorry = false
+	if new_room_id == 7:
+		guard2_exited_lorry = false
+		guard3_exited_lorry = false
 
 	var snap: RoomSnapshot = room_manager.load_room_snapshot(new_room_id)
 	if snap == null:
