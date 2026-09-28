@@ -86,6 +86,19 @@ func _run() -> void:
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
 	if not require(current_snap.room_id == 1, "Transição UP da Sala 0 deve carregar Sala 1"): return
 
+	# Validação canônica HideGuardRoom1 (Sul -> Sala 1): guarda médio ativo deve ser o superior (Y=24)
+	var enemies_s0_to_s1: Array = sandbox.get("enemies") as Array
+	if not require(enemies_s0_to_s1.size() == 2, "Sala 1 deve ter 2 inimigos ao entrar pelo Sul (HideGuardRoom1)"): return
+	var has_top_guard: bool = false
+	var has_bottom_guard: bool = false
+	for e in enemies_s0_to_s1:
+		if e is EnemyGuard and e.guard_type == EnemyGuard.GuardType.MEDIUM:
+			if e.position.y <= 40.0:
+				has_top_guard = true
+			if e.position.y >= 150.0:
+				has_bottom_guard = true
+	if not require(has_top_guard and not has_bottom_guard, "Ao entrar pelo Sul, o guarda médio deve patrulhar o topo (Y=24) e o inferior deve estar oculto"): return
+
 	# Transição Sala 1 -> Sala 2 (avançando ao Norte)
 	# Na Sala 1, columns 12..19 são livres na borda norte
 	p.set_grid_position(128.0, 18.0)
@@ -126,6 +139,19 @@ func _run() -> void:
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
 	if not require(current_snap.room_id == 1, "Transição DOWN da Sala 2 deve retornar à Sala 1"): return
 	if not require(p.position == Vector2(128.0, 18.0), "Snake deve aparecer em (128, 18) na Sala 1"): return
+
+	# Validação canônica HideGuardRoom1 (Norte -> Sala 1): guarda médio ativo deve ser o inferior (Y=176)
+	var enemies_s2_to_s1: Array = sandbox.get("enemies") as Array
+	if not require(enemies_s2_to_s1.size() == 2, "Sala 1 deve ter 2 inimigos ao entrar pelo Norte (HideGuardRoom1)"): return
+	var has_top_guard_north: bool = false
+	var has_bottom_guard_north: bool = false
+	for e in enemies_s2_to_s1:
+		if e is EnemyGuard and e.guard_type == EnemyGuard.GuardType.MEDIUM:
+			if e.position.y <= 40.0:
+				has_top_guard_north = true
+			if e.position.y >= 150.0:
+				has_bottom_guard_north = true
+	if not require(has_bottom_guard_north and not has_top_guard_north, "Ao entrar pelo Norte, o guarda médio deve patrulhar a área inferior (Y=176) e o superior deve estar oculto"): return
 
 	# Transição Sala 1 -> Sala 0 (descendo para o pátio externo)
 	p.set_grid_position(128.0, 184.0)

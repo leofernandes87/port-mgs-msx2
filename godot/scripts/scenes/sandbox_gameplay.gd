@@ -80,6 +80,7 @@ const ROOMS_SHOT_SECURE: Array[int] = [
 ]
 
 var previous_room_id: int = -1
+var room_entry_direction: int = PlayerController.Direction.UP
 var is_in_elevator: bool = false
 var elevator_cabin: ElevatorCabin
 var elevator_y: float = 180.0
@@ -575,6 +576,10 @@ func _spawn_room_enemies(room_id: int) -> void:
 			if room_id == 127 and type_id in [10, 11] and guard1_exited_lorry:
 				continue
 
+			# Regra canônica MSX: remoção de guardas conforme direção de entrada (logic/actors/hideguards.asm)
+			if _should_hide_guard(room_id, int(act.get("y", 0)), int(act.get("x", 0))):
+				continue
+
 			var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 			g.actor_type_id = type_id
 			if type_id in [13, 57]:
@@ -635,6 +640,63 @@ func _spawn_room_enemies(room_id: int) -> void:
 	if laser_system:
 		laser_system.setup(room_id)
 
+## Determina se um guarda deve ser removido na inicialização da sala (MSX: logic/actors/hideguards.asm)
+## A remoção ocorre para evitar que o jogador colida imediatamente com um guarda ao cruzar a borda da sala.
+func _should_hide_guard(room_id: int, act_y: int, act_x: int) -> bool:
+	if room_id == 1:
+		# HideGuardRoom1 (external/MetalGear/logic/actors/hideguards.asm:10)
+		# D = NextRoomDirect (1 = UP / vindo do Sul, 2 = DOWN / vindo do Norte)
+		var entering_from_south: bool = (room_entry_direction == PlayerController.Direction.UP or previous_room_id == 0)
+		if entering_from_south:
+			return act_y == 176
+		else:
+			return act_y == 24
+	elif room_id == 13:
+		# HideGuardRoom13 (external/MetalGear/logic/actors/hideguards.asm:34)
+		if previous_room_id == 137:
+			return act_x == 136
+	elif room_id == 15:
+		# HideGuardRoom15 (external/MetalGear/logic/actors/hideguards.asm:48)
+		if room_entry_direction == PlayerController.Direction.RIGHT or previous_room_id == 14:
+			return act_x == 16
+	elif room_id == 17:
+		# HideGuardRoom17 (external/MetalGear/logic/actors/hideguards.asm:62)
+		if room_entry_direction == PlayerController.Direction.UP or previous_room_id == 16:
+			return act_y != 48
+		else:
+			return act_y == 48
+	elif room_id == 18:
+		# HideGuardRoom18 (external/MetalGear/logic/actors/hideguards.asm:76)
+		if room_entry_direction == PlayerController.Direction.UP or previous_room_id == 17:
+			return act_y != 19
+		else:
+			return act_y == 19
+	elif room_id == 19:
+		# HideGuardRoom19 (external/MetalGear/logic/actors/hideguards.asm:104)
+		if previous_room_id == 141:
+			return act_y == 120
+		elif room_entry_direction == PlayerController.Direction.UP or previous_room_id == 18:
+			return act_y == 168
+	elif room_id == 22:
+		# HideGuardRoom22 (external/MetalGear/logic/actors/hideguards.asm:123)
+		if previous_room_id == 20:
+			return act_x == 32
+		else:
+			return act_x == 240
+	elif room_id == 35:
+		# HideGuardRoom35 (external/MetalGear/logic/actors/hideguards.asm:138)
+		if previous_room_id == 156:
+			return act_y == 40
+		elif previous_room_id == 33:
+			return act_x == 24
+	elif room_id == 39:
+		# HideGuardRoom39 (external/MetalGear/logic/actors/hideguards.asm:161)
+		if previous_room_id == 242:
+			return act_y == 72
+		else:
+			return act_y == 176
+	return false
+
 func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> void:
 	if room_id == 1:
 		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
@@ -648,13 +710,23 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		game_world.add_child(g1)
 		enemies.append(g1)
 
-		var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
-		g2.guard_type = EnemyGuard.GuardType.MEDIUM
-		g2.position = Vector2(192.0, 24.0)
-		g2.set_patrol_path([Vector2(56.0, 24.0), Vector2(200.0, 24.0)])
-		g2.show_debug_vision = show_enemy_vision
-		game_world.add_child(g2)
-		enemies.append(g2)
+		var entering_from_south: bool = (room_entry_direction == PlayerController.Direction.UP or previous_room_id == 0)
+		if entering_from_south:
+			var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			g2.guard_type = EnemyGuard.GuardType.MEDIUM
+			g2.position = Vector2(192.0, 24.0)
+			g2.set_patrol_path([Vector2(56.0, 24.0), Vector2(200.0, 24.0)])
+			g2.show_debug_vision = show_enemy_vision
+			game_world.add_child(g2)
+			enemies.append(g2)
+		else:
+			var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			g0.guard_type = EnemyGuard.GuardType.MEDIUM
+			g0.position = Vector2(64.0, 176.0)
+			g0.set_patrol_path([Vector2(200.0, 176.0), Vector2(56.0, 176.0)])
+			g0.show_debug_vision = show_enemy_vision
+			game_world.add_child(g0)
+			enemies.append(g0)
 	elif room_id == 2:
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.SLOW
@@ -1887,7 +1959,7 @@ func _check_and_handle_room_transition() -> void:
 	var next_room_id: int = RoomManager.get_next_room(snapshot.room_id, exit_dir)
 	if next_room_id != RoomManager.NO_ROOM:
 		var entry_pos: Vector2 = RoomManager.get_entry_position(exit_dir, player.position)
-		var entry_dir: int = -1
+		var entry_dir: int = exit_dir
 		if snapshot.room_id == 212 and next_room_id == 54:
 			entry_pos = Vector2(112.0, 168.0)
 			entry_dir = PlayerController.Direction.DOWN
@@ -1912,6 +1984,19 @@ func _clamp_to_room_bounds(exit_dir: int) -> void:
 func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, from_door_id: int = -1) -> bool:
 	var old_room_id: int = snapshot.room_id if snapshot and snapshot.loaded else -1
 	previous_room_id = old_room_id
+
+	if entry_dir != -1:
+		room_entry_direction = entry_dir
+	elif old_room_id == 0:
+		room_entry_direction = PlayerController.Direction.UP
+	elif old_room_id == 2:
+		room_entry_direction = PlayerController.Direction.DOWN
+	elif entry_pos.y <= 40.0:
+		room_entry_direction = PlayerController.Direction.DOWN
+	elif entry_pos.y >= 160.0:
+		room_entry_direction = PlayerController.Direction.UP
+	else:
+		room_entry_direction = PlayerController.Direction.UP
 
 	if old_room_id == 5:
 		for e in enemies:

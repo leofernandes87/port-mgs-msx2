@@ -1767,3 +1767,19 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
 - **Ciclo Perfeito de Entrada e Saída (100% Canônico)**:
   - O guarda agora nasce sempre em `(112, 120)` na carroceria, caminha 16px para o SUL até `(112, 136)`, contorna o caminhão pelos pontos `(136, 136) -> (136, 56) -> (88, 56) -> (88, 136)`, caminha de volta ao ponto `(112, 136)` alinhando com a traseira, e caminha 16px para o NORTE entrando de volta na carroceria.
   - Testes automatizados do projeto (`tools/validate.py`) atualizados e aprovados com 100% de sucesso.
+
+## [Correção Canônica] - Alternância de Patrulha na Sala 001 por Direção de Entrada (HideGuardRoom1)
+- **Evidência Z80 e ROM (`hideguards.asm:10` / `actorsinrooms.asm:6`)**:
+  - A Sala 001 define originalmente 3 guardas: guarda médio inferior ($Y=176$, $X=64$), guarda lento central ($Y=80$, $X=80$) e guarda médio superior ($Y=24$, $X=192$).
+  - A rotina canônica `HideGuardRoom1` avalia `NextRoomDirect` (vetor de entrada do jogador):
+    - Se entrar pelo Sul (subindo, `NextRoomDirect == 1 / UP`), o guarda inferior em $Y=176$ é removido (`REMOVE_GUARD = 1`), mantendo ativos o guarda central e o superior ($Y=24$).
+    - Se entrar pelo Norte (descendo, `NextRoomDirect == 2 / DOWN`), o guarda superior em $Y=24$ é removido, mantendo ativos o guarda central e o inferior ($Y=176$), impedindo colisão direta com o jogador na entrada norte.
+- **Implementação e Dados**:
+  - Atualizado `data/extracted/stage5-batch/room-001-actors.json` com os 3 atores canônicos e suas respectivas rotas de patrulha extraídas de `rc750-verified/package.json`.
+  - Implementada a função `_should_hide_guard` em `sandbox_gameplay.gd`, replicando a regra exata de `HideGuardRoom1` (além do mapeamento das demais rotinas canônicas de `hideguards.asm` para salas 13, 15, 17, 18, 19, 22, 35 e 39).
+  - Atualizado `_spawn_room_enemies_fallback` da Sala 1 para reproduzir fielmente a mesma lógica.
+  - Propagada a direção de entrada `entry_dir = exit_dir` em `_check_and_handle_room_transition` e salvo `room_entry_direction` em `change_to_room`.
+- **Testes Automatizados**:
+  - Adicionadas asserções em `godot/tests/room_transition_test.gd` validando as transições Sul -> Sala 1 e Norte -> Sala 1.
+  - Suíte completa `tools/validate.py` aprovada com 100% de sucesso.
+
