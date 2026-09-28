@@ -1782,4 +1782,28 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
 - **Testes Automatizados**:
   - Adicionadas asserções em `godot/tests/room_transition_test.gd` validando as transições Sul -> Sala 1 e Norte -> Sala 1.
   - Suíte completa `tools/validate.py` aprovada com 100% de sucesso.
-
+## [Correção Canônica] - Sentinelas do Elevador na Sala 003 e Rotina "Chow time!!" (GuardElevator & ElevatorGuardSpawner)
+- **Evidência Z80 e ROM (`guardelevator.asm`, `elevatorguardspawner.asm`, `actorsinrooms.asm:31`)**:
+  - A Sala 003 define 3 atores na ROM:
+    - `ID_GUARD_ELEVATOR` (14) em $X=80, Y=48$ (lado esquerdo da porta do elevador).
+    - `ID_GUARD_ELEVATOR` (14) em $X=144, Y=48$ (lado direito da porta do elevador).
+    - `ID_SPAWN_GUARD_ELEV` (40) em $X=128, Y=128$ (gerenciador de revezamento).
+  - Rotina `GuardElevator`:
+    - Inicializam parados nos postos (`Status = 1 / IDLE`, $Y=48$).
+    - Durante o estado de vigia (~256 ticks), os guardas permanecem estáticos e alternam a linha de visão aleatoriamente entre as direções válidas: `DIR_DOWN`, `DIR_LEFT` e `DIR_RIGHT` (a direção `DIR_UP` é explicitamente bloqueada pelo Z80 `ret z` para não olharem contra a parede do elevador).
+    - Ao expirar o tempo de guarda (`elev_guard_idle_timer <= 0`), o guarda esquerdo ($X=80$) atua como porta-voz e exibe a mensagem de alívio: `"Chow time!!"`.
+    - Ambos os guardas passam para o estado `LEAVING`, viram para a direita (`DIR_RIGHT`) com velocidade de guarda médio (`GuardType.MEDIUM`, `speed = 0.7`) e caminham até a margem exterior completa da tela ($X \ge 272$, permitindo que o sprite de 16px saia integralmente da viewport antes de ser removido).
+    - Se Snake chegar à Sala 003 saindo de dentro do elevador (`PreviousRoom == 240`), os guardas não estão no posto inicialmente (`DismissActor0`), com o temporizador de revezamento encurtado para cerca de 2,5 segundos (~150 ticks).
+  - Rotina `ElevatorGuardSpawner`:
+    - Enquanto não houver alarme ativo, o spawner aguarda a saída completa de todos os guardas que estão se retirando.
+    - O spawner impõe um intervalo de ~2.5s (150 ticks) com o corredor em frente ao elevador completamente deserto e sem guardas.
+    - Após esse intervalo silencioso, o primeiro soldado de revezamento nasce fora da tela à direita ($X=264, Y=48$), virado para a esquerda (`DIR_LEFT`), e caminha a 0.7 px/tick suavemente até o posto esquerdo ($X=80$).
+    - 64 ticks (~1.0s) depois, o segundo soldado nasce em $X=264, Y=48$ e caminha até o posto direito ($X=144$).
+    - Ao atingirem suas respectivas posições de guarda, ambos viram para o sul (`DIR_DOWN`), entram no estado `IDLE` e o ciclo completo de guarda recomeça.
+- **Implementação em Godot**:
+  - `godot/scripts/systems/enemy.gd`: Máquina de estados `ElevatorGuardState` (`IDLE`, `LEAVING`, `ENTERING`), velocidade `GuardType.MEDIUM` (`speed = 0.7`), descarte após margem exterior ($X \ge 272$), temporizadores autênticos de observação e vigia, sinal `chow_time_called` e lógica de caminhada.
+  - `godot/scripts/scenes/sandbox_gameplay.gd`: Integração do spawner de revezamento `_process_elevator_spawner()` para a Sala 3, trava de segurança que bloqueia spawn prematuro enquanto guardas anteriores se retiram, temporizador de 150 ticks (~2.5s) de corredor vazio, instanciação precisa dos sentinelas de alívio em $X=264$ com atraso canônico de 64 ticks e conexão com banner de diálogo.
+- **Testes Automatizados**:
+  - Criado teste de regressão headless dedicado: `godot/tests/elevator_guard_test.gd` (validando posto, visão, mensagem *"Chow time!!"*, saída integral até $X \ge 272$, intervalo com corredor vazio sem retorno prematuro, nascimento dos substitutos e retorno do elevador 240).
+  - Registrado em `tools/validate.py` como `godot-elevator-guards`.
+  - 100% de aprovação na suíte de testes do projeto (`python3 tools/validate.py`).

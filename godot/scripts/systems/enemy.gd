@@ -52,6 +52,21 @@ var wait_ticks: int = 0
 var anim_tick: int = 0
 var anim_frame: int = 0
 
+# GuardElevator (ID 14 - logic/actors/guardelevator.asm)
+var is_elevator_guard: bool = false
+enum ElevatorGuardState {
+	ENTERING = 0,
+	IDLE = 1,
+	LEAVING = 2
+}
+var elev_guard_state: ElevatorGuardState = ElevatorGuardState.IDLE
+var elev_guard_target_x: float = 80.0
+var elev_guard_idle_timer: int = 256
+var elev_guard_look_timer: int = 30
+var is_relieve_speaker: bool = false
+
+signal chow_time_called
+
 func _ready() -> void:
 	z_index = 8
 	match guard_type:
@@ -78,6 +93,18 @@ func _ready() -> void:
 		is_lorry_guard = true
 		lorry_timer = 128 + (randi() % 128) # 2.1 a 4.25 segundos a 60 fps (r | 128)
 		visible = false
+
+	if actor_type_id == 14:
+		# GuardElevator (ID 14): sentinela da porta do elevador (velocidade guardMedium = 0.7)
+		is_elevator_guard = true
+		guard_type = GuardType.MEDIUM
+		speed = 0.7
+		if elev_guard_state == ElevatorGuardState.IDLE:
+			current_direction = PlayerController.Direction.DOWN
+			if is_zero_approx(elev_guard_target_x):
+				elev_guard_target_x = position.x
+			elev_guard_idle_timer = 256
+			elev_guard_look_timer = 30 + (randi() % 16)
 
 func set_patrol_path(points: Array[Vector2]) -> void:
 	waypoints = points
@@ -224,9 +251,11 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 	if is_alert:
 		alert_timer = maxf(0.0, alert_timer - 1.0)
 
-	# 3. Movimentação (Perseguição em ALERTA ou Patrulha de Waypoints)
+	# 3. Movimentação (Perseguição em ALERTA, Sentinela do Elevador ou Patrulha de Waypoints)
 	if state == GuardState.ALERT:
 		_chase_player(player_pos, collision_grid)
+	elif is_elevator_guard:
+		_process_elevator_guard()
 	elif not waypoints.is_empty() and state == GuardState.PATROL:
 		_follow_patrol_path(collision_grid)
 
@@ -403,6 +432,64 @@ func _update_direction_to_target(target: Vector2) -> void:
 			current_direction = PlayerController.Direction.DOWN
 		elif diff.y < 0:
 			current_direction = PlayerController.Direction.UP
+
+## Processa a máquina de estados do sentinela do elevador (MSX: logic/actors/guardelevator.asm)
+func _process_elevator_guard() -> void:
+	match elev_guard_state:
+		ElevatorGuardState.IDLE:
+			# Fica parado guardando a porta do elevador e alternando a visão para os lados
+			if elev_guard_idle_timer > 0:
+				elev_guard_idle_timer -= 1
+				elev_guard_look_timer -= 1
+				if elev_guard_look_timer <= 0:
+					elev_guard_look_timer = 30 + (randi() % 16)
+					# MSX Z80 (guardelevator.asm:305): alterna entre DOWN, LEFT e RIGHT (nunca UP)
+					var dirs: Array[PlayerController.Direction] = [
+						PlayerController.Direction.DOWN,
+						PlayerController.Direction.LEFT,
+						PlayerController.Direction.RIGHT
+					]
+					current_direction = dirs[randi() % dirs.size()]
+					queue_redraw()
+				return
+
+			# Idle timer esgotou: hora do revezamento ("Chow time!!")
+			elev_guard_state = ElevatorGuardState.LEAVING
+			current_direction = PlayerController.Direction.RIGHT
+			if is_relieve_speaker:
+				chow_time_called.emit()
+			queue_redraw()
+
+		ElevatorGuardState.LEAVING:
+			# Caminha para o lado direito em direção à outra sala
+			current_direction = PlayerController.Direction.RIGHT
+			position.x += speed
+			anim_tick += 1
+			if anim_tick >= 8:
+				anim_tick = 0
+				anim_frame = 1 if anim_frame == 0 else 0
+			if position.x >= 272.0: # Totalmente fora da viewport visível (256 + 16px)
+				visible = false
+				is_dead = true
+				queue_free()
+
+		ElevatorGuardState.ENTERING:
+			# Guarda de revezamento voltando da outra sala caminhando para a esquerda
+			current_direction = PlayerController.Direction.LEFT
+			if position.x > elev_guard_target_x:
+				position.x -= speed
+				anim_tick += 1
+				if anim_tick >= 8:
+					anim_tick = 0
+					anim_frame = 1 if anim_frame == 0 else 0
+			else:
+				position.x = elev_guard_target_x
+				current_direction = PlayerController.Direction.DOWN
+				elev_guard_state = ElevatorGuardState.IDLE
+				elev_guard_idle_timer = 256
+				elev_guard_look_timer = 30 + (randi() % 16)
+				queue_redraw()
+
 
 ## Verifica linha de visão com tolerâncias e bloqueio por obstáculos fiéis à ROM (chkdiscover.asm)
 func check_line_of_sight(player_pos: Vector2, collision_grid: Array) -> bool:

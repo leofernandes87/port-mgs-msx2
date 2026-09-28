@@ -88,6 +88,8 @@ var elevator_target_y: float = 180.0
 var elevator_state: int = ELEVATOR_STATE_IDLE
 const ELEVATOR_STATE_IDLE: int = 0
 const ELEVATOR_STATE_MOVING: int = 1
+var elevator_spawner_timer: int = 0
+var elevator_guard2_delay: int = 0
 
 var status_label: Label
 var call_badge: Label
@@ -585,7 +587,7 @@ func _spawn_room_enemies(room_id: int) -> void:
 			if type_id in [13, 57]:
 				g.is_shooter = true
 			# Mapeamento fiel das velocidades da ROM
-			if type_id in [4, 14, 19, 24, 31, 46, 48]:
+			if type_id in [4, 19, 24, 31, 46, 48]:
 				g.guard_type = EnemyGuard.GuardType.SLOW
 			elif type_id in [25, 27, 30]:
 				g.guard_type = EnemyGuard.GuardType.FAST
@@ -597,9 +599,8 @@ func _spawn_room_enemies(room_id: int) -> void:
 			var raw_path: Array = act.get("patrol_path", [])
 			var waypoints: Array[Vector2] = []
 
-			# Cães de guarda (ID 25, 27) não utilizam waypoints na ROM (dog.asm: InitDog / DogSleep)
-			# Eles iniciam adormecidos/vigilantes no ponto de spawn e só perseguem com alarme
-			if type_id in [25, 27]:
+			# Cães de guarda (ID 25, 27) e GuardElevator (ID 14) não utilizam waypoints na ROM
+			if type_id in [14, 25, 27]:
 				raw_path = []
 
 			for pt_variant: Variant in raw_path:
@@ -609,8 +610,8 @@ func _spawn_room_enemies(room_id: int) -> void:
 					waypoints.append(Vector2(float(pt[1]), float(pt[0])))
 
 			if waypoints.is_empty():
-				if type_id == 48 or type_id in [25, 27]:
-					# Sentinela ou Cão no posto: permanece na posição de spawn
+				if type_id in [14, 48, 25, 27]:
+					# Sentinela, Cão ou Guarda de Elevador no posto: permanece na posição de spawn
 					waypoints.append(spawn_pos)
 				else:
 					var left_x: float = clampf(spawn_pos.x - 32.0, 16.0, 240.0)
@@ -620,14 +621,25 @@ func _spawn_room_enemies(room_id: int) -> void:
 
 			# Simulação MSX: Alguns guardas alteram sua posição/sentido de início 
 			# com base no frame counter do jogo quando a sala é carregada.
-			# Isso evita insta-kills previsíveis nas bordas das salas! GuardLorry (19) é fixo.
-			if type_id != 19 and waypoints.size() > 1 and randf() > 0.5:
+			# Isso evita insta-kills previsíveis nas bordas das salas! GuardLorry (19) e GuardElevator (14) são fixos.
+			if type_id not in [14, 19] and waypoints.size() > 1 and randf() > 0.5:
 				waypoints.reverse()
 				
 			# Para garantir a lógica orgânica do MSX, o guarda de patrulha nasce
 			# dinamicamente já no primeiro waypoint da rota escolhida!
-			if not waypoints.is_empty() and type_id not in [19, 25, 27, 48]:
+			if not waypoints.is_empty() and type_id not in [14, 19, 25, 27, 48]:
 				g.position = waypoints[0]
+
+			if type_id == 14:
+				if previous_room_id == 240:
+					# Se Snake veio do elevador, os guardas não estão no posto inicialmente (guardelevator.asm:19)
+					g.queue_free()
+					continue
+				g.is_elevator_guard = true
+				g.elev_guard_state = EnemyGuard.ElevatorGuardState.IDLE
+				g.elev_guard_target_x = spawn_pos.x
+				g.is_relieve_speaker = is_equal_approx(spawn_pos.x, 80.0)
+				g.chow_time_called.connect(_on_chow_time_called)
 
 			g.set_patrol_path(waypoints)
 			g.show_debug_vision = show_enemy_vision
@@ -635,6 +647,17 @@ func _spawn_room_enemies(room_id: int) -> void:
 			enemies.append(g)
 	else:
 		_spawn_room_enemies_fallback(room_id, enemy_scene)
+
+	# Inicializar temporizador de revezamento dos guardas do elevador (Sala 3)
+	if room_id == 3:
+		if previous_room_id == 240:
+			elevator_spawner_timer = 150 # ~2.5s se veio do elevador
+		else:
+			elevator_spawner_timer = 570 # ~9.5s ciclo normal inicial
+		elevator_guard2_delay = 0
+	else:
+		elevator_spawner_timer = 0
+		elevator_guard2_delay = 0
 
 	# Configurar feixes laser da sala (Salas 24, 25, 72)
 	if laser_system:
@@ -743,6 +766,36 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		g1.show_debug_vision = show_enemy_vision
 		game_world.add_child(g1)
 		enemies.append(g1)
+	elif room_id == 3:
+		if previous_room_id != 240:
+			var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			g1.actor_type_id = 14
+			g1.guard_type = EnemyGuard.GuardType.MEDIUM
+			g1.speed = 0.7
+			g1.position = Vector2(80.0, 48.0)
+			g1.current_direction = PlayerController.Direction.DOWN
+			g1.is_elevator_guard = true
+			g1.elev_guard_state = EnemyGuard.ElevatorGuardState.IDLE
+			g1.elev_guard_target_x = 80.0
+			g1.is_relieve_speaker = true
+			g1.show_debug_vision = show_enemy_vision
+			g1.chow_time_called.connect(_on_chow_time_called)
+			game_world.add_child(g1)
+			enemies.append(g1)
+
+			var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			g2.actor_type_id = 14
+			g2.guard_type = EnemyGuard.GuardType.MEDIUM
+			g2.speed = 0.7
+			g2.position = Vector2(144.0, 48.0)
+			g2.current_direction = PlayerController.Direction.DOWN
+			g2.is_elevator_guard = true
+			g2.elev_guard_state = EnemyGuard.ElevatorGuardState.IDLE
+			g2.elev_guard_target_x = 144.0
+			g2.show_debug_vision = show_enemy_vision
+			g2.chow_time_called.connect(_on_chow_time_called)
+			game_world.add_child(g2)
+			enemies.append(g2)
 	elif room_id == 5:
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.MEDIUM
@@ -759,6 +812,57 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		g0.show_debug_vision = show_enemy_vision
 		game_world.add_child(g0)
 		enemies.append(g0)
+
+func _on_chow_time_called() -> void:
+	show_dialog_message("SOLDIER", "Chow time!!", 2.0)
+	print("ELEVATOR_GUARDS: Chow time!! Sentinelas do elevador iniciam revezamento.")
+
+## Lógica do spawner de sentinelas de revezamento do elevador (MSX: logic/actors/elevatorguardspawner.asm)
+func _process_elevator_spawner() -> void:
+	# Não gera novos sentinelas durante alarme ativo (MSX: elevatorguardspawner.asm:29)
+	if alert_system.current_state == AlertSystem.AlertState.ALERT:
+		return
+
+	# Não gera substitutos enquanto guardas anteriores ainda estiverem saindo da sala
+	for enemy: EnemyGuard in enemies:
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion() and enemy.is_elevator_guard:
+			if enemy.elev_guard_state == EnemyGuard.ElevatorGuardState.LEAVING:
+				# Mantém o temporizador armado em 150 ticks (~2.5s) para garantir o intervalo de corredor vazio após a saída
+				elevator_spawner_timer = 150
+				return
+
+	# Delay para spawn do segundo guarda de revezamento
+	if elevator_guard2_delay > 0:
+		elevator_guard2_delay -= 1
+		if elevator_guard2_delay <= 0:
+			_spawn_relieve_guard(144.0, false)
+		return
+
+	if elevator_spawner_timer > 0:
+		elevator_spawner_timer -= 1
+		if elevator_spawner_timer <= 0:
+			# Dispara o ciclo de revezamento: gera guarda 1 rumo a X=80
+			_spawn_relieve_guard(80.0, true)
+			elevator_guard2_delay = 64 # ~1.0s para gerar o guarda 2
+			elevator_spawner_timer = 720 # Reinicia timer para o próximo ciclo completo
+
+func _spawn_relieve_guard(target_x: float, is_speaker: bool) -> void:
+	var enemy_scene: PackedScene = preload("res://scenes/enemy.tscn")
+	var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+	g.actor_type_id = 14
+	g.guard_type = EnemyGuard.GuardType.MEDIUM
+	g.speed = 0.7
+	g.is_elevator_guard = true
+	g.show_debug_vision = show_enemy_vision
+	g.chow_time_called.connect(_on_chow_time_called)
+	game_world.add_child(g)
+	g.position = Vector2(264.0, 48.0)
+	g.current_direction = PlayerController.Direction.LEFT
+	g.elev_guard_state = EnemyGuard.ElevatorGuardState.ENTERING
+	g.elev_guard_target_x = target_x
+	g.is_relieve_speaker = is_speaker
+	enemies.append(g)
+	print("RELIEVE_GUARD_SPAWNED: Sentinela de revezamento entrando em (264, 48) rumo a X=%.1f" % target_x)
 
 func _spawn_room_items(room_id: int) -> void:
 	for box: ItemBox in item_boxes:
@@ -1672,9 +1776,13 @@ func _physics_process(_delta: float) -> void:
 	var active_guards: int = 0
 	var defeated_count: int = 0
 
+	var surviving_enemies: Array[EnemyGuard] = []
 	for enemy: EnemyGuard in enemies:
-		if is_instance_valid(enemy):
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
 			enemy.step_tick(runtime_collision, player.position, player.is_punching, player.current_direction, player)
+			if enemy.is_queued_for_deletion():
+				continue
+			surviving_enemies.append(enemy)
 			if enemy.is_dead:
 				defeated_count += 1
 			else:
@@ -1686,6 +1794,7 @@ func _physics_process(_delta: float) -> void:
 					game_world.add_child(enemy_shot)
 				if not in_box and enemy.check_line_of_sight(player.position, runtime_collision):
 					any_enemy_sees_snake = true
+	enemies = surviving_enemies
 
 	# Atualizar câmeras de vigilância móveis (Etapa 16)
 	var is_alert_active: bool = (alert_system.current_state == AlertSystem.AlertState.ALERT)
@@ -1725,6 +1834,10 @@ func _physics_process(_delta: float) -> void:
 
 	if is_instance_valid(power_panel):
 		power_panel.tick()
+
+	# Atualizar spawner de guardas do elevador (Sala 3 — MSX: logic/actors/elevatorguardspawner.asm)
+	if snapshot and snapshot.room_id == 3:
+		_process_elevator_spawner()
 
 	# Se Snake for detectado durante o estado NORMAL, aciona ALERTA
 	if any_enemy_sees_snake and alert_system.current_state == AlertSystem.AlertState.NORMAL:
