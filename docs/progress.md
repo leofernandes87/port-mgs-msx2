@@ -1756,3 +1756,14 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
 - **Spawn Preciso do Snake ao Sair de Caminhões**: Portas do tipo `LORRY_ENTER` agora aplicam um offset canônico MSX de `+28.0` pixels no eixo X. Isso assegura que o jogador surja no eixo exato (X=128 para o caminhão do centro), em vez de descolado em X=112 (offset genérico da porta Norte), aliviando colisões injustas.
 - **Temporizador Canônico de Caminhão (`lorry_timer`)**: Em vez de spawn imediato, ao sair de um caminhão o GuardLorry nasce invisível, com um tempo de espera aleatório estrito de `128 + randi() % 128` frames (idêntico ao MSX `ld a, r \ set 7, a`), propiciando exatos 2.1 a 4.25 segundos de janela de fuga.
 - **Gatilhos Fantasmas Eliminados**: Resolvida regressão severa no laço de checagem do `sandbox_gameplay.gd`. Inimigos com `visible = false` (ex: GuardLorry esperando seu timer) estavam autorizados a invocar `check_line_of_sight` e `try_shoot`. O conserto proíbe inimigos invisíveis/dormentes de enxergar ou disparar tiros.
+
+## [Em Validação] - Ciclo Canônico de Patrulha e Entrada/Saída na Carroceria (GuardLorry Sala 005)
+- **Descoberta na Desmontagem Z80 (`guardlorry.asm` / `Paths.asm`)**:
+  - Investigação profunda no código Z80 original confirmou que o GuardLorry na Sala 005 possui uma rota de 5 waypoints (`Path_005_01`): `(112, 136)`, `(136, 136)`, `(136, 56)`, `(88, 56)`, `(88, 136)`.
+  - Ao atingir o ponto 4 `(88, 136)`, o contador de pontos do Z80 (`UpdateActorPath`) cicla de volta para o ponto 0 `(112, 136)`, fazendo o guarda contornar o caminhão e alinhar-se perfeitamente com a traseira (carroceria).
+  - Ao atingir o ponto 0 `(112, 136)` vindo do ponto 4, `GuardLorryWalkEnd` é acionado: o guarda vira para o NORTE (UP) e caminha 16 pixels para dentro da carroceria até `(112, 120)`, onde fica invisível durante o tempo de espera.
+- **Correção da Inversão Randômica e Sobrescrita de Spawn**:
+  - `sandbox_gameplay.gd` revertia aleatoriamente os waypoints e sobrescrevia a posição inicial de `spawn_pos` para `waypoints[0]` (50% de chance de fazê-lo nascer erroneamente em `X=88`). O `type_id == 19` foi explicitamente excluído dessa sobrescrita, mantendo seu spawn inicial estrito em `(112, 120)` dentro do caminhão.
+- **Ciclo Perfeito de Entrada e Saída (100% Canônico)**:
+  - O guarda agora nasce sempre em `(112, 120)` na carroceria, caminha 16px para o SUL até `(112, 136)`, contorna o caminhão pelos pontos `(136, 136) -> (136, 56) -> (88, 56) -> (88, 136)`, caminha de volta ao ponto `(112, 136)` alinhando com a traseira, e caminha 16px para o NORTE entrando de volta na carroceria.
+  - Testes automatizados do projeto (`tools/validate.py`) atualizados e aprovados com 100% de sucesso.
