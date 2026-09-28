@@ -240,6 +240,18 @@ static func get_next_room(room_id: int, dir: PlayerController.Direction) -> int:
 		_:
 			return NO_ROOM
 
+## Verifica se uma sala é isolada na ROM (Banks0123.asm:1030-1048 e logic/menuequipment.asm:300 ChkIsolatedRoom).
+## Em salas isoladas (caminhões, elevadores, salas fechadas), o binóculo não pode ser utilizado.
+static func is_room_isolated(room_id: int) -> bool:
+	var lorry_rooms: Array[int] = [126, 127, 128, 130, 131, 132, 135, 173, 199, 213, 214, 215, 216, 217, 218, 219]
+	if room_id in lorry_rooms:
+		return true
+	if room_id >= 240 and room_id <= 250:
+		return true
+	if room_id >= 122 and room_id < 208:
+		return true
+	return false
+
 ## Verifica se a posição de Snake cruzou um dos 4 limites de tela (ChkExitRoom em Banks0123.asm:9418).
 ## Retorna a Direction de saída, ou 0 se ainda estiver dentro da sala.
 static func check_room_exit(pos: Vector2) -> int:

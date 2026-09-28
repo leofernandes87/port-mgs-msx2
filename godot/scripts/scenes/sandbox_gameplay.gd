@@ -98,6 +98,11 @@ var weapon_menu: WeaponMenu
 var item_menu: ItemMenu
 var pause_menu: PauseMenu
 
+# Sistema de Binóculo / Telescópio (MSX: logic/menuequipment.asm:295 e Banks0123.asm:12250)
+var binocular_system: BinocularSystem
+var binocular_overlay: BinocularOverlay
+var home_enemies_backup: Array[Dictionary] = []
+
 # Posição inicial oficial na Sala 121 em terra firme (após introdução: X = 128.0, Y = 80.0)
 const INITIAL_ROOM_ID: int = 121
 const DEFAULT_SPAWN_X: float = 128.0
@@ -249,6 +254,11 @@ func _ready() -> void:
 	item_menu.item_selected.connect(_on_item_menu_selected)
 	add_child(item_menu)
 
+	# Sistema e Overlay do Binóculo / Telescópio
+	binocular_system = BinocularSystem.new()
+	binocular_overlay = BinocularOverlay.new()
+	game_world.add_child(binocular_overlay)
+
 	pause_menu = PauseMenu.new()
 	pause_menu.visible = false
 	pause_menu.god_mode_toggled.connect(func(v: bool) -> void:
@@ -294,12 +304,16 @@ func _on_item_menu_selected(i_name: String) -> void:
 	if player:
 		player.queue_redraw()
 	print("ITEM_MENU: Item selecionado: %s" % (i_name if not i_name.is_empty() else "[NENHUM]"))
+	if i_name == InventoryManager.ITEM_BINOCULARS:
+		open_binoculars()
 
 func _toggle_pause_menu() -> void:
 	if pause_menu:
 		if pause_menu.visible:
 			pause_menu.close_menu()
 		else:
+			if binocular_system and binocular_system.is_active:
+				close_binoculars()
 			if weapon_menu and weapon_menu.visible:
 				weapon_menu.close_menu()
 			if item_menu and item_menu.visible:
@@ -912,6 +926,233 @@ func _spawn_relieve_guard(target_x: float, is_speaker: bool) -> void:
 	enemies.append(g)
 	print("RELIEVE_GUARD_SPAWNED: Sentinela de revezamento entrando em (264, 48) rumo a X=%.1f" % target_x)
 
+# ==============================================================================
+# SISTEMA DE BINÓCULO / TELESCÓPIO (MSX: menuequipment.asm:295 e Banks0123.asm:12250)
+# ==============================================================================
+
+func open_binoculars() -> bool:
+	if not player or not snapshot:
+		return false
+	if is_game_over or player.is_dead:
+		return false
+	if is_in_elevator or not binocular_system.can_use_in_room(snapshot.room_id):
+		show_dialog_message("BINÓCULO", "[Binóculo inoperante neste local!]", 2.0)
+		print("BINOCULARS_BLOCKED: Não é possível usar o binóculo na sala %d" % snapshot.room_id)
+		return false
+
+	var ok: bool = binocular_system.activate(snapshot.room_id)
+	if not ok:
+		return false
+
+	# Backup canônico dos inimigos da sala de origem (MSX: EnemyList -> EnemyListCopy)
+	_backup_home_enemies()
+
+	player.visible = false
+	player.can_control = false
+
+	if binocular_overlay:
+		binocular_overlay.update_state(true, binocular_system.state, -1, snapshot.room_id, snapshot.room_id)
+
+	print("BINOCULARS_OPENED: Binóculo aberto na sala %d" % snapshot.room_id)
+	return true
+
+func close_binoculars() -> void:
+	if not binocular_system or not binocular_system.is_active:
+		return
+
+	# Se estiver observando uma sala adjacente, retornar a visualização para a sala de origem
+	if binocular_system.state == BinocularSystem.State.LOOKING or (snapshot and snapshot.room_id != binocular_system.home_room_id):
+		_restore_binocular_home()
+
+	binocular_system.deactivate()
+
+	if binocular_overlay:
+		binocular_overlay.update_state(false, BinocularSystem.State.INACTIVE, -1, -1, -1)
+
+	if player:
+		player.visible = true
+		player.can_control = true
+		player.queue_redraw()
+
+	home_enemies_backup.clear()
+	print("BINOCULARS_CLOSED: Binóculo fechado")
+
+func toggle_binoculars() -> void:
+	if binocular_system and binocular_system.is_active:
+		close_binoculars()
+	else:
+		open_binoculars()
+
+func _binocular_look(dir: PlayerController.Direction) -> bool:
+	if not binocular_system or not binocular_system.is_active or binocular_system.state != BinocularSystem.State.IDLE:
+		return false
+
+	var target_room: int = binocular_system.look_direction(dir)
+	if target_room == -1 or target_room == RoomManager.NO_ROOM:
+		print("BINOCULARS_BLOCKED: Sem sala adjacente na direção %d" % dir)
+		return false
+
+	_show_binocular_preview(target_room)
+	return true
+
+func _show_binocular_preview(room_id: int) -> void:
+	var snap: RoomSnapshot = room_manager.load_room_snapshot(room_id)
+	if snap == null:
+		print("BINOCULARS_FAIL: Snapshot da sala %d não encontrado" % room_id)
+		return
+
+	snapshot = snap
+	_apply_snapshot()
+
+	if player:
+		player.visible = false
+		player.can_control = false
+
+	if binocular_overlay:
+		binocular_overlay.update_state(
+			true,
+			binocular_system.state,
+			binocular_system.looking_direction,
+			room_id,
+			binocular_system.home_room_id
+		)
+
+	print("BINOCULARS_PREVIEW_LOADED: Observando sala %d" % room_id)
+
+func _restore_binocular_home() -> void:
+	var home_id: int = binocular_system.home_room_id
+	if home_id == -1:
+		return
+
+	var snap: RoomSnapshot = room_manager.load_room_snapshot(home_id)
+	if snap == null:
+		return
+
+	snapshot = snap
+	_apply_snapshot()
+
+	_restore_home_enemies()
+
+	if player:
+		player.visible = not binocular_system.is_active
+		player.can_control = not binocular_system.is_active
+		player.queue_redraw()
+
+	if binocular_overlay:
+		binocular_overlay.update_state(
+			binocular_system.is_active,
+			binocular_system.state,
+			-1,
+			home_id,
+			home_id
+		)
+
+	print("BINOCULARS_HOME_RESTORED: Sala de origem %d restaurada" % home_id)
+
+func _process_binoculars() -> void:
+	if not binocular_system or not binocular_system.is_active:
+		return
+
+	if binocular_system.state == BinocularSystem.State.IDLE:
+		if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W):
+			_binocular_look(PlayerController.Direction.UP)
+		elif Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S):
+			_binocular_look(PlayerController.Direction.DOWN)
+		elif Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A):
+			_binocular_look(PlayerController.Direction.LEFT)
+		elif Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
+			_binocular_look(PlayerController.Direction.RIGHT)
+	elif binocular_system.state == BinocularSystem.State.LOOKING:
+		var step_res: Dictionary = binocular_system.step_tick()
+		if step_res.get("returned_home", false):
+			_restore_binocular_home()
+		else:
+			for enemy: EnemyGuard in enemies:
+				if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
+					enemy.step_tick(runtime_collision, Vector2(-1000.0, -1000.0))
+
+	if binocular_overlay:
+		binocular_overlay.update_state(
+			binocular_system.is_active,
+			binocular_system.state,
+			binocular_system.looking_direction,
+			binocular_system.preview_room_id,
+			binocular_system.home_room_id
+		)
+
+	if status_label:
+		if binocular_system.state == BinocularSystem.State.LOOKING:
+			var dir_names: Array[String] = ["NORTE", "SUL", "OESTE", "LESTE"]
+			var d_str: String = dir_names[binocular_system.looking_direction] if binocular_system.looking_direction >= 0 and binocular_system.looking_direction < dir_names.size() else ""
+			status_label.text = "TELESCOPE MODE | Observando: %s (Sala %03d) | Retorno em %d ticks" % [d_str, binocular_system.preview_room_id, binocular_system.preview_timer]
+		else:
+			status_label.text = "TELESCOPE MODE | Direções: Setas/WASD | Sair: ESC / E / U"
+		status_label.modulate = Color(0.4, 1.0, 0.5)
+
+func _backup_home_enemies() -> void:
+	home_enemies_backup.clear()
+	for e: EnemyGuard in enemies:
+		if is_instance_valid(e):
+			home_enemies_backup.append({
+				"actor_type_id": e.actor_type_id,
+				"guard_type": e.guard_type,
+				"speed": e.speed,
+				"position": e.position,
+				"current_direction": e.current_direction,
+				"is_dead": e.is_dead,
+				"lorry_id": e.lorry_id,
+				"is_lorry_guard": e.is_lorry_guard,
+				"lorry_timer": e.lorry_timer,
+				"is_exiting_lorry": e.is_exiting_lorry,
+				"is_entering_lorry": e.is_entering_lorry,
+				"lorry_anim_pixels": e.lorry_anim_pixels,
+				"visible": e.visible,
+				"waypoints": e.waypoints.duplicate(),
+				"current_waypoint_idx": e.current_waypoint_idx,
+				"is_elevator_guard": e.is_elevator_guard,
+				"elev_guard_state": e.elev_guard_state,
+				"elev_guard_target_x": e.elev_guard_target_x,
+				"is_relieve_speaker": e.is_relieve_speaker,
+			})
+
+func _restore_home_enemies() -> void:
+	if home_enemies_backup.is_empty():
+		return
+	for e: EnemyGuard in enemies:
+		if is_instance_valid(e):
+			e.queue_free()
+	enemies.clear()
+
+	var enemy_scene: PackedScene = preload("res://scenes/enemy.tscn")
+	for data: Dictionary in home_enemies_backup:
+		var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g.actor_type_id = int(data.get("actor_type_id", 0))
+		g.guard_type = data.get("guard_type", EnemyGuard.GuardType.SLOW) as EnemyGuard.GuardType
+		g.speed = float(data.get("speed", 0.4))
+		g.position = data.get("position", Vector2.ZERO) as Vector2
+		g.current_direction = data.get("current_direction", PlayerController.Direction.DOWN) as PlayerController.Direction
+		g.is_dead = bool(data.get("is_dead", false))
+		g.lorry_id = int(data.get("lorry_id", 0))
+		g.is_lorry_guard = bool(data.get("is_lorry_guard", false))
+		g.lorry_timer = int(data.get("lorry_timer", 0))
+		g.is_exiting_lorry = bool(data.get("is_exiting_lorry", false))
+		g.is_entering_lorry = bool(data.get("is_entering_lorry", false))
+		g.lorry_anim_pixels = float(data.get("lorry_anim_pixels", 0.0))
+		g.visible = bool(data.get("visible", true))
+		var wps: Array = data.get("waypoints", [])
+		var typed_wps: Array[Vector2] = []
+		for pt in wps:
+			typed_wps.append(pt as Vector2)
+		g.waypoints = typed_wps
+		g.current_waypoint_idx = int(data.get("current_waypoint_idx", 0))
+		g.is_elevator_guard = bool(data.get("is_elevator_guard", false))
+		g.elev_guard_state = data.get("elev_guard_state", EnemyGuard.ElevatorGuardState.IDLE) as EnemyGuard.ElevatorGuardState
+		g.elev_guard_target_x = float(data.get("elev_guard_target_x", 0.0))
+		g.is_relieve_speaker = bool(data.get("is_relieve_speaker", false))
+		g.show_debug_vision = show_enemy_vision
+		game_world.add_child(g)
+		enemies.append(g)
+
 func _spawn_room_items(room_id: int) -> void:
 	for box: ItemBox in item_boxes:
 		if is_instance_valid(box):
@@ -1469,11 +1710,7 @@ func _execute_game_restart() -> void:
 		reset_player()
 
 func _input(event: InputEvent) -> void:
-	if player and (player.is_dead or not player.can_control or is_game_over):
-		return
-
 	# 1. Repasse para menus modais abertos
-
 	if radio_dialog and radio_dialog.is_active:
 		radio_dialog.handle_input(event)
 		if not event is InputEventMouse:
@@ -1496,6 +1733,56 @@ func _input(event: InputEvent) -> void:
 		pause_menu.handle_input(event)
 		if not event is InputEventMouse:
 			get_viewport().set_input_as_handled()
+		return
+
+	# 2. Interceptação de entrada do modo Binóculo / Telescópio (MSX: Banks0123.asm:12256 e 12461)
+	if binocular_system and binocular_system.is_active:
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode in [KEY_ESCAPE, KEY_E, KEY_U]:
+				close_binoculars()
+				if get_viewport():
+					get_viewport().set_input_as_handled()
+				return
+			elif event.keycode in [KEY_CTRL, KEY_ALT]:
+				close_binoculars()
+				if get_viewport():
+					get_viewport().set_input_as_handled()
+				return
+			elif event.keycode in [KEY_Q, KEY_SHIFT]:
+				close_binoculars()
+				if weapon_menu:
+					weapon_menu.open_menu(weapon_system)
+				if get_viewport():
+					get_viewport().set_input_as_handled()
+				return
+			elif binocular_system.state == BinocularSystem.State.IDLE:
+				if event.keycode in [KEY_UP, KEY_W]:
+					_binocular_look(PlayerController.Direction.UP)
+					if get_viewport():
+						get_viewport().set_input_as_handled()
+					return
+				elif event.keycode in [KEY_DOWN, KEY_S]:
+					_binocular_look(PlayerController.Direction.DOWN)
+					if get_viewport():
+						get_viewport().set_input_as_handled()
+					return
+				elif event.keycode in [KEY_LEFT, KEY_A]:
+					_binocular_look(PlayerController.Direction.LEFT)
+					if get_viewport():
+						get_viewport().set_input_as_handled()
+					return
+				elif event.keycode in [KEY_RIGHT, KEY_D]:
+					_binocular_look(PlayerController.Direction.RIGHT)
+					if get_viewport():
+						get_viewport().set_input_as_handled()
+					return
+		if not event is InputEventMouse:
+			if get_viewport():
+				get_viewport().set_input_as_handled()
+		return
+
+	# 3. Bloqueio de controle durante Game Over / morte de Snake
+	if player and (player.is_dead or not player.can_control or is_game_over):
 		return
 
 	# 2. Tela Cheia: Tecla F11 ou Alt+Enter
@@ -1640,11 +1927,19 @@ func _input(event: InputEvent) -> void:
 			print("GOD_MODE: Vida infinita %s" % ("LIGADA" if infinite_life else "DESLIGADA"))
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_U:
-			inventory.use_selected_item(player)
+			if inventory.get_selected_item() == InventoryManager.ITEM_BINOCULARS:
+				toggle_binoculars()
+			else:
+				inventory.use_selected_item(player)
 			get_viewport().set_input_as_handled()
 
 func _physics_process(_delta: float) -> void:
 	if not player:
+		return
+
+	# Modo Binóculo / Telescópio ativo: processa temporizador e atualização de inimigos da sala observada
+	if binocular_system and binocular_system.is_active:
+		_process_binoculars()
 		return
 
 	# Atualiza a mecânica da Caixa de Papelão
@@ -2007,6 +2302,16 @@ func _physics_process(_delta: float) -> void:
 		status_label.modulate = Color("50e080")
 		return
 
+	if binocular_system and binocular_system.is_active:
+		if binocular_system.state == BinocularSystem.State.LOOKING:
+			var dir_names: Array[String] = ["NORTE", "SUL", "OESTE", "LESTE"]
+			var d_str: String = dir_names[binocular_system.looking_direction] if binocular_system.looking_direction >= 0 and binocular_system.looking_direction < dir_names.size() else ""
+			status_label.text = "TELESCOPE MODE | Observando: %s (Sala %03d) | Retorno em %d ticks" % [d_str, binocular_system.preview_room_id, binocular_system.preview_timer]
+		else:
+			status_label.text = "TELESCOPE MODE | Direções: Setas/WASD | Sair: ESC / E / U"
+		status_label.modulate = Color(0.4, 1.0, 0.5)
+		return
+
 	var life_val_str: String = "INF" if infinite_life else "%02d/%02d" % [player.life, player.max_life]
 
 	# String de HP do boss (Etapa 18)
@@ -2145,6 +2450,9 @@ func _clamp_to_room_bounds(exit_dir: int) -> void:
 	player.queue_redraw()
 
 func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, from_door_id: int = -1) -> bool:
+	if binocular_system and binocular_system.is_active:
+		close_binoculars()
+
 	var old_room_id: int = snapshot.room_id if snapshot and snapshot.loaded else -1
 	previous_room_id = old_room_id
 

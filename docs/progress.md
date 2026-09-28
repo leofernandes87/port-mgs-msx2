@@ -1839,3 +1839,34 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Registrado em `tools/validate.py` como `godot-room-007-patrol`.
   - 100% de aprovação na suíte de validação (`python3 tools/validate.py`).
 
+## [Implementação Canônica] - Binóculo / Modo Telescópio (TELESCOPE MODE)
+- **Evidências Z80 e ROM (`logic/menuequipment.asm:295-361`, `Banks0123.asm:1030-1048`, `Banks0123.asm:12250-12604`, `Variables.asm:175-176,401`)**:
+  - `GameMode == GAME_MODE_BINOCULARS` (Modo 8): ativado ao selecionar `ITEM_BINOCULARS` no menu de equipamentos ou teclando a tecla de uso rápido (`U`).
+  - Salas Isoladas (`ChkIsolatedRoom` em `Banks0123.asm:1030` e `menuequipment.asm:300`):
+    - O binóculo é bloqueado em salas isoladas (`RoomsMusic` bits 2-0 != 0): interiores de caminhões (Salas 126, 127, 128, 130, 131, 132, etc.), cabines de elevadores (240 a 250) e salas internas fechadas (122 a 207).
+  - Comportamento de Observação e Temporizador (`BinocularLogic` em `Banks0123.asm:12456-12535`):
+    - Ao ativar o binóculo, Snake fica imóvel e oculto na sala de origem (`State.IDLE`), exibindo a retícula central (`BinocularSprAtt`) e o título `"TELESCOPE MODE"`.
+    - O jogador pode pressionar uma direção (CIMA, BAIXO, ESQUERDA, DIREITA / WASD).
+    - Se houver sala adjacente (`GetNextRoomNum != 255`), o jogo transita a visualização para a sala vizinha (`State.LOOKING`), desenha a seta de direção correspondente (`ArrowsChars` em `Banks0123.asm:12599`) e inicia o temporizador canônico de 128 ticks (`TimerBinocular = 80h`, ~2.1 segundos a 60 fps).
+    - Durante a pré-visualização, os inimigos da sala adjacente patrulham normalmente e as colisões de Snake permanecem inativas/seguras.
+    - Se a direção estiver bloqueada (`NO_ROOM = 255`), a ação é ignorada e a visualização permanece na sala de origem.
+  - Retorno Automático e Preservação de Estado (`EnemyListCopy` em `Banks0123.asm:12404-12408`):
+    - Quando o temporizador de 128 ticks expira (`TimerBinocular == 0`), a visualização move-se na direção oposta e retorna automaticamente à sala de origem (`State.IDLE`).
+    - Os inimigos e o estado da sala de origem são restaurados integralmente a partir do backup canônico (`EnemyListCopy`).
+    - O jogador pode observar outra direção ou encerrar o binóculo pressionando `ESC`, `E`, `U` ou abrindo menus (`ExitBinocularMode`), restaurando a visibilidade e o controle de Snake.
+- **Implementação em Godot**:
+  - `godot/scripts/systems/binocular_system.gd`: Classe com lógica desacoplada e máquina de estados (`INACTIVE`, `IDLE`, `LOOKING`), temporizador de 128 ticks (`PREVIEW_DURATION_TICKS = 128`), checagem de salas adjacentes e isoladas.
+  - `godot/scripts/systems/binocular_overlay.gd`: Overlay visual vetorial no espaço 256x192 renderizando o retículo tático central autêntico (`BinocularSprAtt`), as setas poligonais direcionais (`ArrowsChars`) e as legendas *"TELESCOPE MODE"*.
+  - `godot/scripts/systems/room_manager.gd`: Adicionado `is_room_isolated(room_id)`.
+  - `godot/scripts/systems/item_menu.gd`: Opção de exibição de `"BINOCULARS"`.
+  - `godot/scripts/scenes/sandbox_gameplay.gd`:
+    - Métodos `open_binoculars()`, `close_binoculars()`, `toggle_binoculars()`, `_binocular_look()`, `_show_binocular_preview()`, `_restore_binocular_home()`, `_backup_home_enemies()`, `_restore_home_enemies()`, `_process_binoculars()`.
+    - Interceptação de teclado para troca de direção e teclas de saída (`ESC`, `E`, `U`, menus).
+    - Bloqueio de controle do jogador e processamento de física dos inimigos observados sem atingir Snake.
+    - Indicador de status na barra superior: `"TELESCOPE MODE | Observando: [DIREÇÃO] (Sala XXX) | Retorno em Y ticks"`.
+- **Testes Automatizados**:
+  - Criada suíte de testes headless dedicada: `godot/tests/binocular_test.gd` (cobrindo checagem de salas isoladas, bloqueio em caminhões/elevadores, ativação em salas válidas, observação de sala vizinha, bloqueio de direções sem saída, temporizador de 128 ticks com retorno exato à sala de origem, restauração de inimigos, overlay visual e constantes de inventário).
+  - Registrado em `tools/validate.py` como `godot-binoculars`.
+  - 100% de aprovação na suíte de testes do projeto (`python3 tools/validate.py`).
+
+

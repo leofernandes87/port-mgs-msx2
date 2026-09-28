@@ -100,6 +100,8 @@ func _rebuild_list() -> void:
 				label_str = "INFRARED GOGGLES"
 			elif item == InventoryManager.ITEM_SILENCER:
 				label_str = "SILENCER"
+			elif item == InventoryManager.ITEM_BINOCULARS:
+				label_str = "BINOCULARS"
 			available_options.append({
 				"id": item,
 				"label": label_str
