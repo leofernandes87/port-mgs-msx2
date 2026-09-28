@@ -1757,7 +1757,7 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
 - **Temporizador Canônico de Caminhão (`lorry_timer`)**: Em vez de spawn imediato, ao sair de um caminhão o GuardLorry nasce invisível, com um tempo de espera aleatório estrito de `128 + randi() % 128` frames (idêntico ao MSX `ld a, r \ set 7, a`), propiciando exatos 2.1 a 4.25 segundos de janela de fuga.
 - **Gatilhos Fantasmas Eliminados**: Resolvida regressão severa no laço de checagem do `sandbox_gameplay.gd`. Inimigos com `visible = false` (ex: GuardLorry esperando seu timer) estavam autorizados a invocar `check_line_of_sight` e `try_shoot`. O conserto proíbe inimigos invisíveis/dormentes de enxergar ou disparar tiros.
 
-## [Em Validação] - Ciclo Canônico de Patrulha e Entrada/Saída na Carroceria (GuardLorry Sala 005)
+## [v0.1.26] - Ciclo Canônico de Patrulha e Entrada/Saída na Carroceria (GuardLorry Sala 005)
 - **Descoberta na Desmontagem Z80 (`guardlorry.asm` / `Paths.asm`)**:
   - Investigação profunda no código Z80 original confirmou que o GuardLorry na Sala 005 possui uma rota de 5 waypoints (`Path_005_01`): `(112, 136)`, `(136, 136)`, `(136, 56)`, `(88, 56)`, `(88, 136)`.
   - Ao atingir o ponto 4 `(88, 136)`, o contador de pontos do Z80 (`UpdateActorPath`) cicla de volta para o ponto 0 `(112, 136)`, fazendo o guarda contornar o caminhão e alinhar-se perfeitamente com a traseira (carroceria).
