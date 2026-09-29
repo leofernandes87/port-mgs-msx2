@@ -2186,5 +2186,24 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Criada a suíte `tests/test_enemy_sprite_extractor.py` com testes sintéticos de descompressão RLE, composição modular de guarda, composição de cão e conformidade PNG.
   - Execução completa de `python3 tools/validate.py`: **100% PASS** (58 testes unitários Python + 20 suítes de teste headless Godot 4, 0 erros).
 
+## Remoção de Corpos de Inimigos Abatidos e Calibração dos Efeitos de Armas e Tiros (2026-09-29)
+
+- **Remoção de Corpos no Chão (`godot/scripts/systems/enemy.gd`)**:
+  - Investigada a rotina Z80 `KillEnemy` (Banks0123.asm:12927-13305) e `DismissActor`: no Metal Gear MSX2 original, soldados e cães de guarda abatidos liberam imediatamente seus planos de sprite de hardware (`ACTOR.ID = 0`), desaparecendo com o efeito sonoro de morte (SFX 16h), sem deixar cadáveres no solo.
+  - Removido o desenho procedural de silhuetas de corpos caídos em `_draw()` e `_draw_dog()` quando `is_dead == true`, fazendo com que os inimigos eliminados desapareçam imediatamente do campo de visão, preservando o estado `is_dead` para integridade dos testes e simulação de física.
+- **Calibração de Balística e Pontos de Disparo (`godot/scripts/systems/player.gd` e `godot/scripts/systems/enemy.gd`)**:
+  - **Snake (`player.gd`)**:
+    - Ajustado o ponto de origem dos projéteis em `fire_weapon()` para coincidir milimetricamente com a boca do cano da pistola no spritesheet autêntico MSX2 (`snake_msx.png`): UP `(X+3, Y-24)`, DOWN `(X+3, Y+6)`, LEFT `(X-9, Y-12)` e RIGHT `(X+9, Y-12)`.
+    - Substituído o muzzle flash anti-aliasing (`draw_circle`) por um clarão em cruz pixel-art discreto no padrão MSX2 (`draw_rect` branco central com pontas amarelas `#ffff77`).
+  - **Soldados Inimigos (`enemy.gd`)**:
+    - Ajustado o ponto de origem dos projéteis em `try_shoot()` para alinhar com o cano do fuzil no spritesheet original (`guard_msx.png`): UP `(X, Y-26)`, DOWN `(X+2, Y+4)`, LEFT `(X-9, Y-15)` e RIGHT `(X+9, Y-15)`.
+    - Substituído o muzzle flash do fuzil por clarão pixel-art autêntico tanto na renderização via spritesheet quanto no fallback procedural.
+- **Renderização Autêntica dos Projéteis (`godot/scripts/systems/bullet.gd`)**:
+  - Reconstituída a renderização fiel do padrão de hardware VDP `SprBullet` / `SprBulletAttr` (`weaponspratt.asm:47`): projétil quadrado exato de 2x2 pixels com cor amarela `#ffff77` (e `#ff3322` para inimigos) com pixel de destaque superior esquerdo `#ffffff`.
+- **Validação e Testes**:
+  - Atualizada a suíte `godot/tests/weapon_and_combat_test.gd` com asserções geométricas de spawn de projéteis inimigos e do jogador.
+  - Execução de `python3 tools/validate.py`: **100% PASS** (58 testes Python + 20 suítes headless Godot 4).
+
+
 
 

@@ -183,13 +183,13 @@ func fire_weapon(weapon_sys: WeaponSystem) -> Bullet:
 	var b: Bullet = Bullet.new()
 	match current_direction:
 		Direction.UP:
-			b.position = Vector2(position.x + 3.0, position.y - 26.0)
+			b.position = Vector2(position.x + 3.0, position.y - 24.0)
 		Direction.DOWN:
 			b.position = Vector2(position.x + 3.0, position.y + 6.0)
 		Direction.LEFT:
-			b.position = Vector2(position.x - 16.0, position.y - 10.0)
+			b.position = Vector2(position.x - 9.0, position.y - 12.0)
 		Direction.RIGHT:
-			b.position = Vector2(position.x + 16.0, position.y - 10.0)
+			b.position = Vector2(position.x + 9.0, position.y - 12.0)
 	b.direction = current_direction
 	b.speed = 3.0
 	b.ticks_remaining = 32
@@ -319,15 +319,19 @@ func _draw() -> void:
 			var flash_pos := Vector2.ZERO
 			match current_direction:
 				Direction.UP:
-					flash_pos = Vector2(4.0, -28.0)
+					flash_pos = Vector2(3.0, -24.0)
 				Direction.DOWN:
-					flash_pos = Vector2(4.0, 6.0)
+					flash_pos = Vector2(3.0, 6.0)
 				Direction.LEFT:
-					flash_pos = Vector2(-15.0, -9.0)
+					flash_pos = Vector2(-9.0, -12.0)
 				Direction.RIGHT:
-					flash_pos = Vector2(15.0, -9.0)
-			draw_circle(flash_pos, 3.5, Color(1.0, 0.9, 0.3, 0.95))
-			draw_circle(flash_pos, 1.8, Color(1.0, 1.0, 1.0, 1.0))
+					flash_pos = Vector2(9.0, -12.0)
+			# Clarão de disparo discreto em pixel-art estilo MSX2
+			draw_rect(Rect2(flash_pos.x - 1, flash_pos.y - 1, 2, 2), Color.WHITE)
+			draw_rect(Rect2(flash_pos.x - 2, flash_pos.y, 1, 1), Color("ffff77"))
+			draw_rect(Rect2(flash_pos.x + 1, flash_pos.y, 1, 1), Color("ffff77"))
+			draw_rect(Rect2(flash_pos.x, flash_pos.y - 2, 1, 1), Color("ffff77"))
+			draw_rect(Rect2(flash_pos.x, flash_pos.y + 1, 1, 1), Color("ffff77"))
 		return
 
 	# Fallback gracioso: Desenho procedural autoral caso a textura não exista
@@ -563,10 +567,11 @@ func _draw() -> void:
 				draw_rect(Rect2(2, 2, 2, 4), c_gun_metal)
 				if shoot_timer > 0:
 					# Clarão do disparo na ponta do cano
-					draw_circle(Vector2(3, 7), 3.0, Color("ffe040"))
-					draw_circle(Vector2(3, 7), 1.5, Color.WHITE)
-					draw_line(Vector2(3, 4), Vector2(3, 11), Color("ffe040"), 1.5)
-					draw_line(Vector2(0, 7), Vector2(6, 7), Color("ffe040"), 1.5)
+					draw_rect(Rect2(2, 6, 2, 2), Color.WHITE)
+					draw_rect(Rect2(1, 7, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(4, 7, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(2, 5, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(2, 8, 1, 1), Color("ffff77"))
 
 			Direction.UP:
 				# Pistola erguida apontando para cima além do ombro
@@ -576,10 +581,11 @@ func _draw() -> void:
 				draw_rect(Rect2(-7, -13, 2, 7), c_suit)
 				draw_rect(Rect2(-7, -7, 2, 3), c_glove)
 				if shoot_timer > 0:
-					draw_circle(Vector2(4, -27), 3.0, Color("ffe040"))
-					draw_circle(Vector2(4, -27), 1.5, Color.WHITE)
-					draw_line(Vector2(4, -24), Vector2(4, -31), Color("ffe040"), 1.5)
-					draw_line(Vector2(1, -27), Vector2(7, -27), Color("ffe040"), 1.5)
+					draw_rect(Rect2(3, -28, 2, 2), Color.WHITE)
+					draw_rect(Rect2(2, -27, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(5, -27, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(3, -29, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(3, -26, 1, 1), Color("ffff77"))
 
 			Direction.LEFT:
 				# Postura tática isósceles apontando à esquerda
@@ -588,10 +594,11 @@ func _draw() -> void:
 				draw_rect(Rect2(-14, -11, 5, 3), c_gun)
 				draw_rect(Rect2(-16, -11, 2, 2), c_gun_metal)
 				if shoot_timer > 0:
-					draw_circle(Vector2(-18, -10), 3.0, Color("ffe040"))
-					draw_circle(Vector2(-18, -10), 1.5, Color.WHITE)
-					draw_line(Vector2(-15, -10), Vector2(-22, -10), Color("ffe040"), 1.5)
-					draw_line(Vector2(-18, -7), Vector2(-18, -13), Color("ffe040"), 1.5)
+					draw_rect(Rect2(-19, -11, 2, 2), Color.WHITE)
+					draw_rect(Rect2(-20, -10, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(-17, -10, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(-18, -12, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(-18, -9, 1, 1), Color("ffff77"))
 
 			Direction.RIGHT:
 				# Postura tática isósceles apontando à direita
@@ -600,10 +607,11 @@ func _draw() -> void:
 				draw_rect(Rect2(9, -11, 5, 3), c_gun)
 				draw_rect(Rect2(14, -11, 2, 2), c_gun_metal)
 				if shoot_timer > 0:
-					draw_circle(Vector2(18, -10), 3.0, Color("ffe040"))
-					draw_circle(Vector2(18, -10), 1.5, Color.WHITE)
-					draw_line(Vector2(15, -10), Vector2(22, -10), Color("ffe040"), 1.5)
-					draw_line(Vector2(18, -7), Vector2(18, -13), Color("ffe040"), 1.5)
+					draw_rect(Rect2(17, -11, 2, 2), Color.WHITE)
+					draw_rect(Rect2(16, -10, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(19, -10, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(18, -12, 1, 1), Color("ffff77"))
+					draw_rect(Rect2(18, -9, 1, 1), Color("ffff77"))
 
 	else:
 		# BRAÇOS EM MOVIMENTO NATURAL / MARCHA

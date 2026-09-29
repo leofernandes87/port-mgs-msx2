@@ -199,6 +199,7 @@ func _run() -> void:
 	# Guarda dispara projétil contra Snake
 	var enemy_bullet: Bullet = shooter.try_shoot(player.position)
 	if not require(enemy_bullet != null, "Guarda atirador deve gerar projétil Bullet"): return
+	if not require(enemy_bullet.position.x == 102.0 and enemy_bullet.position.y == 64.0, "Tiro inimigo para baixo deve emergir na boca do fuzil (X+2, Y+4)"): return
 	if not require(enemy_bullet.is_enemy, "Projétil gerado por inimigo deve ter is_enemy = true"): return
 	if not require(enemy_bullet.damage == 2, "Dano do tiro inimigo deve ser 2 pontos"): return
 

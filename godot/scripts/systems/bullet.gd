@@ -52,14 +52,8 @@ func step_tick(collision_grid: Array) -> bool:
 	return true
 
 func _draw() -> void:
-	# Representação visual autêntica do projétil MSX2 (2x2 / 3x2 pixels)
-	var color := Color("ff3322") if is_enemy else Color("ffff66")
-	var bullet_size := Vector2(2.0, 2.0)
-	if direction == PlayerController.Direction.LEFT or direction == PlayerController.Direction.RIGHT:
-		bullet_size = Vector2(3.0, 2.0)
-	else:
-		bullet_size = Vector2(2.0, 3.0)
-
-	var bullet_rect := Rect2(-bullet_size.x / 2.0, -bullet_size.y / 2.0, bullet_size.x, bullet_size.y)
+	# Representação visual autêntica do projétil MSX2 (SprBullet / SprBulletAttr: 2x2 pixels)
+	var color := Color("ff3322") if is_enemy else Color("ffff77")
+	var bullet_rect := Rect2(-1.0, -1.0, 2.0, 2.0)
 	draw_rect(bullet_rect, color)
-	draw_rect(Rect2(bullet_rect.position, Vector2(1, 1)), Color.WHITE)
+	draw_rect(Rect2(-1.0, -1.0, 1.0, 1.0), Color.WHITE)

@@ -357,13 +357,13 @@ func try_shoot(player_pos: Vector2) -> Bullet:
 		var b: Bullet = Bullet.new()
 		match current_direction:
 			PlayerController.Direction.UP:
-				b.position = Vector2(position.x + 4.0, position.y - 18.0)
+				b.position = Vector2(position.x, position.y - 26.0)
 			PlayerController.Direction.DOWN:
-				b.position = Vector2(position.x + 2.0, position.y + 6.0)
+				b.position = Vector2(position.x + 2.0, position.y + 4.0)
 			PlayerController.Direction.LEFT:
-				b.position = Vector2(position.x - 14.0, position.y - 7.0)
+				b.position = Vector2(position.x - 9.0, position.y - 15.0)
 			PlayerController.Direction.RIGHT:
-				b.position = Vector2(position.x + 14.0, position.y - 7.0)
+				b.position = Vector2(position.x + 9.0, position.y - 15.0)
 		b.direction = current_direction
 		b.speed = 2.0
 		b.ticks_remaining = 48
@@ -909,19 +909,8 @@ func _draw() -> void:
 		_draw_dog()
 		return
 
-	# 1. Soldado derrotado / caído no solo
+	# 1. Soldado derrotado (no MSX2 original o ator é dispensado sem deixar corpo no chão)
 	if is_dead:
-		var col_dead_body := Color("141820")
-		var col_dead_suit := Color("243040")
-		var col_dead_helmet := Color("18202c")
-		var col_dead_skin := Color("d89870")
-		# Silhueta horizontal estendida (28x8)
-		draw_rect(Rect2(-14, -4, 28, 8), col_dead_body)
-		draw_rect(Rect2(-13, -3, 26, 6), col_dead_suit)
-		draw_rect(Rect2(5, -4, 8, 7), col_dead_helmet) # Capacete no chão
-		draw_rect(Rect2(4, -2, 4, 4), col_dead_skin)    # Rosto visível de lado
-		draw_rect(Rect2(-14, 0, 4, 4), Color("0a0e14")) # Coturnos
-		draw_rect(Rect2(-6, -1, 8, 2), Color("181c24")) # Fuzil caído ao lado
 		return
 
 	# 2. Renderização autêntica com spritesheet MSX2 (se o asset extraído estiver presente)
@@ -935,15 +924,19 @@ func _draw() -> void:
 			var flash_pos := Vector2.ZERO
 			match current_direction:
 				PlayerController.Direction.UP:
-					flash_pos = Vector2(4.0, -28.0)
+					flash_pos = Vector2(0.0, -26.0)
 				PlayerController.Direction.DOWN:
-					flash_pos = Vector2(-4.0, 8.0)
+					flash_pos = Vector2(2.0, 4.0)
 				PlayerController.Direction.LEFT:
-					flash_pos = Vector2(-15.0, -8.0)
+					flash_pos = Vector2(-9.0, -15.0)
 				PlayerController.Direction.RIGHT:
-					flash_pos = Vector2(15.0, -8.0)
-			draw_circle(flash_pos, 3.5, Color(1.0, 0.9, 0.3, 0.95))
-			draw_circle(flash_pos, 1.8, Color(1.0, 1.0, 1.0, 1.0))
+					flash_pos = Vector2(9.0, -15.0)
+			# Clarão de disparo discreto em pixel-art estilo MSX2
+			draw_rect(Rect2(flash_pos.x - 1, flash_pos.y - 1, 2, 2), Color.WHITE)
+			draw_rect(Rect2(flash_pos.x - 2, flash_pos.y, 1, 1), Color("ffff77"))
+			draw_rect(Rect2(flash_pos.x + 1, flash_pos.y, 1, 1), Color("ffff77"))
+			draw_rect(Rect2(flash_pos.x, flash_pos.y - 2, 1, 1), Color("ffff77"))
+			draw_rect(Rect2(flash_pos.x, flash_pos.y + 1, 1, 1), Color("ffff77"))
 
 		_draw_guard_overlays()
 		return
@@ -1051,9 +1044,11 @@ func _draw() -> void:
 			draw_rect(Rect2(2, 1, 2, 5), c_barrel) # Cano descendo até o cinto
 			draw_rect(Rect2(4, -6, 2, 4), c_rifle)  # Carregador curvo
 			if shoot_flash_timer > 0:
-				draw_circle(Vector2(3, 7), 3.0, Color("ffe040"))
-				draw_circle(Vector2(3, 7), 1.5, Color.WHITE)
-				draw_line(Vector2(3, 4), Vector2(3, 11), Color("ffe040"), 1.5)
+				draw_rect(Rect2(2, 6, 2, 2), Color.WHITE)
+				draw_rect(Rect2(1, 7, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(4, 7, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(2, 5, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(2, 8, 1, 1), Color("ffff77"))
 
 		PlayerController.Direction.UP:
 			# Costas do soldado: alça do fuzil cruzando o peito
@@ -1063,9 +1058,11 @@ func _draw() -> void:
 			# Cano do fuzil sobressaindo acima do ombro direito
 			draw_rect(Rect2(4, -18, 2, 6), c_barrel)
 			if shoot_flash_timer > 0:
-				draw_circle(Vector2(5, -19), 3.0, Color("ffe040"))
-				draw_circle(Vector2(5, -19), 1.5, Color.WHITE)
-				draw_line(Vector2(5, -16), Vector2(5, -23), Color("ffe040"), 1.5)
+				draw_rect(Rect2(4, -20, 2, 2), Color.WHITE)
+				draw_rect(Rect2(3, -19, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(6, -19, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(4, -21, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(4, -18, 1, 1), Color("ffff77"))
 
 		PlayerController.Direction.LEFT:
 			# Fuzil de assalto empunhado apontando à esquerda
@@ -1076,9 +1073,11 @@ func _draw() -> void:
 			draw_rect(Rect2(-14, -7, 6, 2), c_barrel) # Cano do fuzil à frente
 			draw_rect(Rect2(-6, -5, 2, 3), c_rifle)   # Carregador
 			if shoot_flash_timer > 0:
-				draw_circle(Vector2(-15, -6), 3.0, Color("ffe040"))
-				draw_circle(Vector2(-15, -6), 1.5, Color.WHITE)
-				draw_line(Vector2(-12, -6), Vector2(-19, -6), Color("ffe040"), 1.5)
+				draw_rect(Rect2(-16, -7, 2, 2), Color.WHITE)
+				draw_rect(Rect2(-17, -6, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(-14, -6, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(-15, -8, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(-15, -5, 1, 1), Color("ffff77"))
 
 		PlayerController.Direction.RIGHT:
 			# Fuzil de assalto empunhado apontando à direita
@@ -1089,9 +1088,11 @@ func _draw() -> void:
 			draw_rect(Rect2(8, -7, 6, 2), c_barrel)   # Cano do fuzil à frente
 			draw_rect(Rect2(4, -5, 2, 3), c_rifle)    # Carregador
 			if shoot_flash_timer > 0:
-				draw_circle(Vector2(15, -6), 3.0, Color("ffe040"))
-				draw_circle(Vector2(15, -6), 1.5, Color.WHITE)
-				draw_line(Vector2(12, -6), Vector2(19, -6), Color("ffe040"), 1.5)
+				draw_rect(Rect2(14, -7, 2, 2), Color.WHITE)
+				draw_rect(Rect2(13, -6, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(16, -6, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(15, -8, 1, 1), Color("ffff77"))
+				draw_rect(Rect2(15, -5, 1, 1), Color("ffff77"))
 
 	# --- CINTO E EQUIPAMENTOS (Y: -4 a 0) ---
 	draw_rect(Rect2(-6, -4, 12, 3), c_belt)
@@ -1313,18 +1314,8 @@ func _draw_dog() -> void:
 	var col_white := Color("ffffff")       # Brilho nos olhos / Zzz
 	var col_red := Color("c82020")         # Língua / alerta latido
 
-	# 1. Cão Derrotado
+	# 1. Cão Derrotado (no MSX2 original o ator é dispensado sem deixar corpo no chão)
 	if is_dead:
-		draw_rect(Rect2(-8, -2, 16, 6), col_body)
-		draw_rect(Rect2(-6, 2, 12, 2), col_belly)
-		draw_rect(Rect2(7, 0, 5, 4), col_body)
-		draw_rect(Rect2(11, 2, 3, 2), col_belly)
-		draw_rect(Rect2(13, 2, 1, 1), col_nose)
-		draw_polygon(PackedVector2Array([Vector2(6, -1), Vector2(10, 0), Vector2(7, 2)]), PackedColorArray([col_dark]))
-		draw_line(Vector2(9, 1), Vector2(11, 1), col_nose, 1.0)
-		draw_rect(Rect2(-7, 4, 4, 2), col_dark)
-		draw_rect(Rect2(3, 4, 4, 2), col_dark)
-		draw_line(Vector2(-8, 1), Vector2(-12, 3), col_body, 1.5)
 		return
 
 	# 2. Renderização autêntica com spritesheet MSX2 (se o asset extraído estiver presente)
