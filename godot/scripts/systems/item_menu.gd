@@ -91,6 +91,8 @@ func _rebuild_list() -> void:
 
 	if inventory != null:
 		for item in inventory.items:
+			if item == "PLASTIC_BOMB" or item == InventoryManager.ITEM_PLASTIC_BOMB:
+				continue
 			var label_str: String = item
 			if item == InventoryManager.ITEM_RATION:
 				label_str = "RATION (x%d/%d)" % [inventory.rations_count, inventory.max_rations]

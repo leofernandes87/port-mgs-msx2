@@ -36,10 +36,23 @@ func step_tick(player_pos: Vector2, inventory: InventoryManager, weapon_system: 
 				collected_boxes[box_unique_id] = true
 				queue_redraw()
 				return true
-		elif item_id in [WeaponSystem.WEAPON_MISSILE, WeaponSystem.WEAPON_LAND_MINE]:
+		elif item_id == WeaponSystem.WEAPON_MISSILE:
 			if weapon_system != null:
-				# Fiel ao MSX (ItemTakeAmount: 5 para míssil e minas terrestres)
-				weapon_system.add_weapon(item_id, 5)
+				weapon_system.add_weapon(WeaponSystem.WEAPON_MISSILE, 5)
+				collected = true
+				collected_boxes[box_unique_id] = true
+				queue_redraw()
+				return true
+		elif item_id in [WeaponSystem.WEAPON_PLASTIC_BOMB, "PLASTIC_BOMB"]:
+			if weapon_system != null:
+				weapon_system.add_weapon(WeaponSystem.WEAPON_PLASTIC_BOMB, 5)
+				collected = true
+				collected_boxes[box_unique_id] = true
+				queue_redraw()
+				return true
+		elif item_id in [WeaponSystem.WEAPON_LAND_MINE, "LAND_MINE", "MINES"]:
+			if weapon_system != null:
+				weapon_system.add_weapon(WeaponSystem.WEAPON_LAND_MINE, 5)
 				collected = true
 				collected_boxes[box_unique_id] = true
 				queue_redraw()
@@ -131,6 +144,21 @@ func _draw() -> void:
 		draw_rect(Rect2(-5, -4, 10, 9), Color("404858"))
 		draw_rect(Rect2(-4, -6, 8, 3), Color("586878"))
 		draw_rect(Rect2(-2, -7, 4, 2), Color("c8a030"))
+	elif item_id == InventoryManager.ITEM_UNIFORM or item_id == "UNIFORM":
+		# Farda inimiga (túnica militar verde com colarinho e cinto)
+		draw_rect(Rect2(-4, -5, 8, 9), Color("385038"))
+		draw_rect(Rect2(-3, -6, 6, 2), Color("486048"))
+		draw_rect(Rect2(-4, -1, 8, 2), Color("202020"))
+	elif item_id == InventoryManager.ITEM_BODY_ARMOR or item_id == "BODY_ARMOR":
+		# Colete balístico (colete azul marinho escuro com reforços Kevlar)
+		draw_rect(Rect2(-4, -5, 8, 8), Color("202838"))
+		draw_rect(Rect2(-3, -6, 6, 2), Color("303848"))
+		draw_rect(Rect2(-3, -3, 6, 2), Color("404858"))
+	elif item_id == InventoryManager.ITEM_MINE_DETECTOR or item_id == "MINE_DETECTOR":
+		# Detector de minas (dispositivo retangular cinza/amarelo com antena)
+		draw_rect(Rect2(-3, -3, 6, 7), Color("505050"))
+		draw_rect(Rect2(-2, -2, 4, 3), Color("d0b030"))
+		draw_line(Vector2(2, -3), Vector2(4, -7), Color("c0c0c0"), 1.0)
 	else:
 		# Ícone de suprimento
 		draw_rect(Rect2(-2, -4, 4, 2), Color.YELLOW)

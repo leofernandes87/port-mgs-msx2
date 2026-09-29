@@ -33,15 +33,15 @@ func _run_all() -> void:
 	_test_ammo_crate_refill()
 	_test_canonical_room_147_and_collection()
 
-## Teste 1: Configuração inicial, velocidade 4 px/tick e offsets da ROM
+## Teste 1: Configuração inicial, velocidade calibrada e offsets da ROM
 func _test_missile_setup_and_properties() -> void:
 	var m: RemoteMissile = RemoteMissile.new()
 	m.setup(Vector2(100.0, 100.0), PlayerController.Direction.UP)
-	_assert(m.speed == 4.0, "Velocidade escalar = 4.0 px/tick (MissileIniSpeed)")
+	_assert(is_equal_approx(m.speed, RemoteMissile.SPEED), "Velocidade escalar = %.1f px/tick (calibrada)" % RemoteMissile.SPEED)
 	_assert(m.damage == 5, "Dano = 5 HP (MissileDamage)")
 	_assert(m.explosion_timer == 15, "Tempo de explosão = 15 ticks (0x0F)")
 	_assert(m.position == Vector2(100.0, 88.0), "Spawn ligeiramente à frente/acima do jogador")
-	_assert(m.velocity == Vector2(0.0, -4.0), "Velocidade inicial orientada para CIMA")
+	_assert(m.velocity == Vector2(0.0, -RemoteMissile.SPEED), "Velocidade inicial orientada para CIMA")
 	_assert(m.state == RemoteMissile.MissileState.FLIGHT, "Estado inicial = FLIGHT")
 	m.free()
 
@@ -52,19 +52,19 @@ func _test_missile_steering() -> void:
 
 	m.steer(Vector2i(1, 0)) # Direita
 	_assert(m.current_direction == PlayerController.Direction.RIGHT, "Curva para DIREITA")
-	_assert(m.velocity == Vector2(4.0, 0.0), "Velocidade = (4, 0)")
+	_assert(m.velocity == Vector2(RemoteMissile.SPEED, 0.0), "Velocidade para direita")
 
 	m.steer(Vector2i(0, 1)) # Baixo
 	_assert(m.current_direction == PlayerController.Direction.DOWN, "Curva para BAIXO")
-	_assert(m.velocity == Vector2(0.0, 4.0), "Velocidade = (0, 4)")
+	_assert(m.velocity == Vector2(0.0, RemoteMissile.SPEED), "Velocidade para baixo")
 
 	m.steer(Vector2i(-1, 0)) # Esquerda
 	_assert(m.current_direction == PlayerController.Direction.LEFT, "Curva para ESQUERDA")
-	_assert(m.velocity == Vector2(-4.0, 0.0), "Velocidade = (-4, 0)")
+	_assert(m.velocity == Vector2(-RemoteMissile.SPEED, 0.0), "Velocidade para esquerda")
 
 	m.steer(Vector2i(0, -1)) # Cima
 	_assert(m.current_direction == PlayerController.Direction.UP, "Curva para CIMA")
-	_assert(m.velocity == Vector2(0.0, -4.0), "Velocidade = (0, -4)")
+	_assert(m.velocity == Vector2(0.0, -RemoteMissile.SPEED), "Velocidade para cima")
 	m.free()
 
 ## Teste 3: Colisão com parede sólida da grade 32x24 aciona explosão
@@ -76,10 +76,10 @@ func _test_wall_collision_causes_explosion() -> void:
 	grid[10 * 32 + 15] = 1
 
 	var m: RemoteMissile = RemoteMissile.new()
-	# Míssil apontado para a direita em (118, 84), avança 4px e atinge (122, 84) dentro do bloco sólido
-	m.setup(Vector2(118.0, 96.0), PlayerController.Direction.RIGHT)
-	m.position = Vector2(118.0, 84.0)
-	m.velocity = Vector2(4.0, 0.0)
+	# Míssil apontado para a direita em (119, 84), avança 1.5px e atinge (120.5, 84) dentro do bloco sólido (col 15)
+	m.setup(Vector2(119.0, 96.0), PlayerController.Direction.RIGHT)
+	m.position = Vector2(119.0, 84.0)
+	m.velocity = Vector2(RemoteMissile.SPEED, 0.0)
 
 	var exploded_received: Array[bool] = [false]
 	m.missile_exploded.connect(func(_p: Vector2) -> void: exploded_received[0] = true)
@@ -96,9 +96,9 @@ func _test_boundaries_explosion() -> void:
 	var m: RemoteMissile = RemoteMissile.new()
 	m.setup(Vector2(10.0, 100.0), PlayerController.Direction.LEFT)
 	m.position = Vector2(10.0, 100.0)
-	m.velocity = Vector2(-4.0, 0.0)
+	m.velocity = Vector2(-RemoteMissile.SPEED, 0.0)
 
-	# Ao avançar, posição torna-se 6.0 (< MIN_X = 9.0)
+	# Ao avançar, posição torna-se 8.5 (< MIN_X = 9.0)
 	m.step_tick([])
 	_assert(m.state == RemoteMissile.MissileState.EXPLODING, "Explode ao cruzar borda esquerda da tela")
 	m.free()

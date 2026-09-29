@@ -187,7 +187,7 @@ func _run_review() -> void:
 	sandbox.call("change_to_room", 153, Vector2(128.0, 96.0), PlayerController.Direction.DOWN)
 	await process_frame
 	var it_153: Array = sandbox.get("item_boxes") as Array
-	if not require(it_153.size() == 1 and (it_153[0] as ItemBox).item_id == InventoryManager.ITEM_PLASTIC_BOMB, "Sala 153 deve conter Explosivo Plástico (PLASTIC_BOMB)"): return
+	if not require(it_153.size() == 1 and (it_153[0] as ItemBox).item_id in [WeaponSystem.WEAPON_PLASTIC_BOMB, "PLASTIC_BOMB"], "Sala 153 deve conter Explosivo Plástico (PLASTIC_BOMB)"): return
 
 	# Sala 156: Caixa de Papelão
 	sandbox.call("change_to_room", 156, Vector2(128.0, 96.0), PlayerController.Direction.DOWN)

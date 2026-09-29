@@ -63,6 +63,10 @@ var gas_clouds: Array[GasCloud] = []
 ## Míssil Teleguiado por Controle Remoto (Etapa 20) — logic/weapon/missile.asm
 var active_missile: RemoteMissile = null
 
+## Bomba Plástica C4 (Etapa 25) — logic/weapon/plasticbomb.asm
+var active_plastic_bomb: PlasticBomb = null
+var broken_basement_walls: Dictionary = {} # "room_id_door_id": true
+
 ## Evento de Captura na Sala 8 e Cela da Sala 211 (Etapa 21)
 var capture_system: CaptureSystem = CaptureSystem.new()
 var tilemap_layer: TileMapLayer = null
@@ -1252,19 +1256,23 @@ func _spawn_room_items(room_id: int) -> void:
 					3:
 						b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
 					5:
-						b.item_id = InventoryManager.ITEM_PLASTIC_BOMB
+						b.item_id = WeaponSystem.WEAPON_PLASTIC_BOMB
 					6:
 						b.item_id = WeaponSystem.WEAPON_LAND_MINE
 					7:
 						b.item_id = WeaponSystem.WEAPON_MISSILE
 					8:
 						b.item_id = InventoryManager.ITEM_SILENCER
+					9:
+						b.item_id = InventoryManager.ITEM_BODY_ARMOR
 					10:
 						b.item_id = InventoryManager.ITEM_BOMB_BLAST_SUIT
 					12:
 						b.item_id = InventoryManager.ITEM_GOGGLES
 					13:
 						b.item_id = InventoryManager.ITEM_GAS_MASK
+					15:
+						b.item_id = InventoryManager.ITEM_MINE_DETECTOR
 					17:
 						b.item_id = InventoryManager.ITEM_BINOCULARS
 					21, 30:
@@ -1285,6 +1293,8 @@ func _spawn_room_items(room_id: int) -> void:
 						b.item_id = InventoryManager.ITEM_CARD7
 					29:
 						b.item_id = InventoryManager.ITEM_CARD8
+					32:
+						b.item_id = InventoryManager.ITEM_UNIFORM
 					33:
 						b.item_id = InventoryManager.ITEM_BOX
 					34:
@@ -1333,11 +1343,15 @@ func _spawn_room_doors(room_id: int) -> void:
 		# Exclusão canônica da ROM (logic/doors/enterdoor.asm:66-84):
 		# - Portas sem destino (dest_room == -1)
 		# - Portas dummy / invisíveis (r_type == 6)
-		# - Destino à própria sala (paredes internas rachadas sem transição)
 		# - Destino à Sala 204 (o limbo: tela 100% de parede sólida)
 		# - Portas bloqueadas explicitamente na ROM (Door ID 64 na Sala 6 dos cães e Door ID 108 na Sala 5)
-		# - Portas de paredes de explosivos ainda não detonadas (r_type > 6, exceto 12 e 13 das celas)
-		if dest_room == -1 or dest_room == room_id or dest_room == 204 or d_id in [64, 108] or (r_type >= 6 and r_type not in [12, 13]):
+		# - Portas com destino à própria sala, EXCETO paredes quebráveis do Basement (r_type in [7, 8, 9, 10, 11])
+		var is_breakable: bool = (r_type in [7, 8, 9, 10, 11] or rule_id == 16)
+		if dest_room == -1 or dest_room == 204 or d_id in [64, 108] or r_type == 6:
+			continue
+		if dest_room == room_id and not is_breakable:
+			continue
+		if r_type >= 6 and not is_breakable and r_type not in [12, 13]:
 			continue
 
 		var d: RoomDoor = RoomDoor.new()
@@ -1347,6 +1361,11 @@ func _spawn_room_doors(room_id: int) -> void:
 		d.open_rule_id = rule_id
 		d.position = Vector2(dx, dy)
 		d.destination_room = dest_room
+
+		var wall_key: String = "%d_%d" % [room_id, d_id]
+		if is_breakable:
+			d.is_breakable_wall = true
+			d.is_open = broken_basement_walls.get(wall_key, false) or broken_basement_walls.get(str(d_id), false)
 
 		# Portas de retorno de caminhões em movimento nos pátios (data/doors.asm:314, 335-337).
 		# Nos pátios 5 e 9, as portas 117, 133, 146, 152 servem unicamente como âncoras de retorno
@@ -1371,6 +1390,20 @@ func _spawn_room_doors(room_id: int) -> void:
 				d.orientation = RoomDoor.DoorOrientation.EAST
 				d.entry_position = Vector2(dx - 10.0, dy + 48.0)
 				d.destination_direction = PlayerController.Direction.LEFT
+			7, 8, 9, 10, 11:
+				d.is_breakable_wall = true
+				if r_type == 9:
+					d.orientation = RoomDoor.DoorOrientation.WEST
+					d.entry_position = Vector2(16.0, dy + 48.0)
+					d.destination_direction = PlayerController.Direction.RIGHT
+				elif r_type == 8:
+					d.orientation = RoomDoor.DoorOrientation.SOUTH
+					d.entry_position = Vector2(dx + 16.0, 40.0)
+					d.destination_direction = PlayerController.Direction.DOWN
+				else:
+					d.orientation = RoomDoor.DoorOrientation.NORTH
+					d.entry_position = Vector2(dx + 16.0, dy + 20.0)
+					d.destination_direction = PlayerController.Direction.DOWN
 			12:
 				# Porta de entrada do isolamento na Sala 54 (Basement): Snake entra pelo vão inferior caminhando para cima
 				d.orientation = RoomDoor.DoorOrientation.NORTH
@@ -1381,6 +1414,10 @@ func _spawn_room_doors(room_id: int) -> void:
 				d.orientation = RoomDoor.DoorOrientation.SOUTH
 				d.entry_position = Vector2(dx + 16.0, dy - 8.0) # (112.0, 144.0)
 				d.destination_direction = PlayerController.Direction.UP
+			17, 18, 19:
+				d.orientation = RoomDoor.DoorOrientation.EAST
+				d.entry_position = Vector2(dx - 10.0, dy + 48.0)
+				d.destination_direction = PlayerController.Direction.LEFT
 			_:
 				d.orientation = RoomDoor.DoorOrientation.NORTH
 				d.entry_position = Vector2(dx + 12.0, dy + 40.0)
@@ -1395,7 +1432,9 @@ func _spawn_room_doors(room_id: int) -> void:
 				d.orientation = RoomDoor.DoorOrientation.LORRY_EXIT
 
 		# Portas que exigem cartão (regras 2 a 9: CARD1 a CARD8) NUNCA iniciam abertas
-		if rule_id >= 2 and rule_id <= 9:
+		if d.is_breakable_wall:
+			d.is_open = broken_basement_walls.get(wall_key, false)
+		elif rule_id >= 2 and rule_id <= 9:
 			d.is_open = false
 		else:
 			var raw_logic: int = int(d_info.get("open_logic_raw", 0))
@@ -1942,6 +1981,20 @@ func _input(event: InputEvent) -> void:
 					print("MISSILE_LAUNCHED: Míssil teleguiado disparado em %s! Controle transferido." % player.position)
 				else:
 					print("WEAPON_NO_AMMO: Sem mísseis!")
+			elif weapon_system.selected_weapon == WeaponSystem.WEAPON_PLASTIC_BOMB:
+				if is_instance_valid(active_plastic_bomb):
+					print("BOMB_BUSY: Bomba plástica já armada!")
+				elif weapon_system.can_fire():
+					weapon_system.consume_ammo()
+					var b: PlasticBomb = PlasticBomb.new()
+					b.setup(player.position, player.current_direction)
+					b.bomb_exploded.connect(_on_plastic_bomb_exploded)
+					b.bomb_finished.connect(_on_plastic_bomb_finished)
+					game_world.add_child(b)
+					active_plastic_bomb = b
+					print("BOMB_PLANTED: Bomba plástica armada em %s!" % b.position)
+				else:
+					print("WEAPON_NO_AMMO: Sem bombas plásticas!")
 			elif weapon_system.can_fire():
 				var b: Bullet = player.fire_weapon(weapon_system)
 				if b != null:
@@ -2181,6 +2234,10 @@ func _physics_process(_delta: float) -> void:
 		if moved:
 			_check_and_handle_room_transition()
 
+	# Atualizar bomba plástica se ativa (logic/weapon/plasticbomb.asm)
+	if is_instance_valid(active_plastic_bomb):
+		active_plastic_bomb.step_tick()
+
 	# Checar evento de captura na Sala 8 (logic/common.asm:26-47)
 	if snapshot and snapshot.room_id == CaptureSystem.ROOM_CAPTURE and capture_system.check_capture_trigger(snapshot.room_id, player.position):
 		_trigger_capture_event()
@@ -2194,6 +2251,14 @@ func _physics_process(_delta: float) -> void:
 				break_prison_wall()
 			elif status_label != null:
 				status_label.text = "[PAREDE OCA! ACERTO %d/4]" % capture_system.wall_hit_counter
+
+	# Checar socos contra paredes ocas quebráveis do Basement (logic/doors/opendoor.asm:350-373)
+	if player.is_punching and player.punch_timer == 7:
+		for door: RoomDoor in room_doors:
+			if is_instance_valid(door) and door.is_breakable_wall and not door.is_open:
+				if door.check_punch(player.position, player.current_direction):
+					if status_label != null:
+						status_label.text = "[PAREDE OCA DETECTADA! USE BOMBA PLÁSTICA]"
 
 	# Atualizar caixas de itens e armas coletáveis
 	for box: ItemBox in item_boxes:
@@ -2621,6 +2686,14 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 			if child is ShotGunnerBullet:
 				child.queue_free()
 
+	if is_instance_valid(active_missile):
+		active_missile.queue_free()
+		active_missile = null
+
+	if is_instance_valid(active_plastic_bomb):
+		active_plastic_bomb.queue_free()
+		active_plastic_bomb = null
+
 	if ElevatorSystem.is_elevator_room(new_room_id):
 		is_in_elevator = true
 		elevator_state = ELEVATOR_STATE_IDLE
@@ -2831,6 +2904,43 @@ func _on_missile_exploded(pos: Vector2) -> void:
 			if is_instance_valid(enemy) and not enemy.is_dead:
 				enemy.transform_to_alert_guard()
 		print("MISSILE_ALERT: Explosão na sala %d alertou a guarnição!" % snapshot.room_id)
+
+func _on_plastic_bomb_exploded(bomb_pos: Vector2, radius: float, damage: int) -> void:
+	# 1. Checa destruição de paredes quebráveis no raio da explosão (logic/doors/opendoor.asm:331-348)
+	for door: RoomDoor in room_doors:
+		if is_instance_valid(door) and door.is_breakable_wall and not door.is_open:
+			if door.check_bomb_explosion(bomb_pos, radius, runtime_collision):
+				var wall_key: String = "%d_%d" % [snapshot.room_id, door.door_id]
+				broken_basement_walls[wall_key] = true
+				broken_basement_walls[str(door.door_id)] = true
+				if room_display:
+					room_display.queue_redraw()
+
+	# 2. Dano ao jogador se estiver dentro do raio de detonação
+	if player and not player.is_dead:
+		if player.position.distance_to(bomb_pos) <= radius:
+			player.apply_damage(damage)
+			print("PLASTIC_BOMB_DAMAGE: Snake apanhado pela explosão! Dano sofrido: %d" % damage)
+
+	# 3. Dano e alerta a inimigos / cães na sala
+	for enemy: EnemyGuard in enemies:
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			if enemy.position.distance_to(bomb_pos) <= radius:
+				enemy.take_bullet_hit(damage)
+			elif enemy.is_dog:
+				enemy.wake_up_to_chase()
+			else:
+				enemy.transform_to_alert_guard()
+
+	# 4. Dano ao chefe Shoot Gunner se presente
+	if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
+		if shot_gunner.position.distance_to(bomb_pos) <= radius:
+			for _i in range(5):
+				shot_gunner.apply_bullet_hit()
+
+func _on_plastic_bomb_finished(bomb_node: Node2D) -> void:
+	if active_plastic_bomb == bomb_node:
+		active_plastic_bomb = null
 
 # ---------------------------------------------------------------------------
 # Handlers do Evento de Captura na Sala 8 e Cela da Sala 211 (Etapa 21)

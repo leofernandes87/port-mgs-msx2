@@ -2091,3 +2091,81 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Criado `godot/tests/floor3_review_test.gd` validando as 12 salas principais, transições de `HideGuard` de 35 e 39, velocidades de câmeras e guardas, piso elétrico, gás e todos os coletáveis e reféns das 12 salas internas.
   - Integrado `godot-floor3-review` ao `tools/validate.py`.
   - Execução de `python3 tools/validate.py`: **100% PASS** (49 testes Python + 19 suítes Godot, 0 erros).
+
+## [Auditoria e Implementação Canônica do Basement (Edifício 1) e Bomba Plástica (C4)]
+- **Auditoria Detalhada contra o Disassembly Original MSX2 RC750**:
+  - Fontes: `external/MetalGear/data/doors.asm`, `data/actorsinrooms.asm`, `data/itemsinrooms.asm`, `logic/doors/opendoor.asm`, `logic/doors/drawdoors.asm`, `logic/actors/dogbasement.asm`, `logic/weapon/plasticbomb.asm`, `constants/Enums.asm`.
+  - Mapeamento completo e validação das 10 salas do subsolo (54 a 63) e salas de itens conectadas (168 a 172, 160):
+    - **Sala 054**: Corredor de isolamento com Door 12 (saída sul da cela 212) e Door 13 (para o canil da Sala 55).
+    - **Sala 055**: Canil 1 com 2 cães de guarda (`ID_DOG = 25`) em velocidade canônica calibrada de 1.3 px/tick.
+    - **Sala 056**: Canil 2 com 4 cães de guarda (`ID_DOG = 25`) em velocidade canônica calibrada de 1.3 px/tick.
+    - **Sala 057**: Arena do chefe Shoot Gunner (`ID_SHOT_GUNNER = 33`), Door 154 (para Sala 168 com a bolsa de Snake), Door 74 (para Sala 122 com Cartão 3) e Door 15 (para Sala 58, liberada após vitória).
+    - **Sala 058**: 1 cão de masmorra (`ID_DOG_BASEMENT = 27`), Door 17 (trancada com Cartão 4, conecta à Sala 171 com Colete Balístico) e Door 140 (parede oca quebrável, soco RIGHT, render type 10).
+    - **Sala 059**: Passagem secreta canônica com Door 16 (parede oca quebrável, soco LEFT, render type 9, conecta à Sala 169 com Farda Inimiga).
+    - **Sala 060**: 1 cão de masmorra (`ID_DOG_BASEMENT = 27`) e Door 142 (parede oca quebrável, soco DOWN, render type 7, divisória de acesso para Sala 63).
+    - **Sala 061**: 1 cão de masmorra (`ID_DOG_BASEMENT = 27`) e Door 18 (parede oca quebrável, soco DOWN, render type 8, conecta à Sala 172 com Munição e Bomba Plástica).
+    - **Sala 062**: Door 19 (trancada com Cartão 4, conecta à Sala 170 com Bomb Blast Suit).
+    - **Sala 063**: 1 cão de masmorra (`ID_DOG_BASEMENT = 27`), Door 141 (parede oca quebrável, soco LEFT, render type 11, divisória interna) e Door 20 (Elevador 2 para a Sala 241).
+- **Mecânica Completa da Bomba Plástica (C4 - Plastic Bomb)**:
+  - Implementada a classe `PlasticBomb` (`godot/scripts/systems/plastic_bomb.gd`):
+    - Spawn com offsets direcionais canônicos: UP $(0, -16)$, DOWN $(0, +8)$, LEFT $(-12, 0)$, RIGHT $(+12, 0)$.
+    - Temporizador militar de 48 ticks ($30\text{h}$, ~0.8s) com LED vermelho pulsante a cada 8 frames.
+    - Animação de explosão de 15 ticks ($0\text{Fh}$) com anéis concêntricos de calor e dispersão de estilhaços.
+    - Detonação em área com raio de 24.0 px e dano letal (10 HP), causando autolesão em Snake caso permaneça no raio, ferindo inimigos/cães e alertando a guarnição.
+  - Integrado ao `WeaponSystem`:
+    - Adicionada constante `WEAPON_PLASTIC_BOMB`, contagem de munição, limite por patente (5 a 20) e disparo via tecla de fogo.
+  - Integrado ao `InventoryManager` e `ItemBox`:
+    - Adicionado suporte a `ITEM_UNIFORM`, `ITEM_BODY_ARMOR`, `ITEM_MINE_DETECTOR` e coleta diferenciada de C4, minas e mísseis.
+    - Arte 2D procedural no `item_box.gd` para Farda Inimiga, Colete Balístico e Detector de Minas.
+- **Paredes Ocas Quebráveis do Basement (Breakable Walls)**:
+  - Implementado suporte completo em `door.gd` para os render types 7, 8, 9, 10, 11 e regra 16 (`BREAKABLE_WALL_SPECS`):
+    - As paredes iniciam ocultas e fechadas com textura de alvenaria.
+    - Detecção de soco com orientação autêntica (`punch_required_direction`): emite som metálico/oco autêntico (SFX 0Ah) e exibe notificação sem destruir a parede física.
+    - Destruição exclusiva por explosão de C4: limpa os tiles sólidos no grid de colisão, abre a passagem e salva o estado em `broken_basement_walls`.
+    - Trânsito bidirecional entre salas secretas (Sala 59 <-> Sala 169 e Sala 61 <-> Sala 172) com posicionamento correto via `PLAYER_IN_DOOR_DAT`.
+- **Testes Automatizados e Validação**:
+  - Criado `godot/tests/basement_and_plastic_bomb_test.gd` validando o subsolo completo, arma C4, quebra de paredes ocas e salas de itens.
+  - Integrado `godot-basement-and-plastic-bomb` em `tools/validate.py`.
+  - Execução de `python3 tools/validate.py`: **100% PASS** (49 testes Python + 20 suítes Godot, 0 erros).
+
+## Calibração e Refinamento do Subsolo, Míssil Teleguiado e Explosivo Plástico (2026-09-28)
+
+- **Paredes Quebráveis do Basement (Subtle Breakable Walls)**:
+  - Removidos os retângulos artificiais de alvenaria em `door.gd` (`_draw()`), deixando as paredes quebráveis bloqueadas puramente pela malha de colisão física e integradas à arte autêntica dos metatiles do MSX2.
+  - Mantida a detecção canônica de socos nas paredes ocas (SFX 0Ah) e abertura via detonação por C4.
+- **Correção da Bomba Plástica no Menu de Equipamento**:
+  - Removido o item `PLASTIC_BOMB` do `InventoryManager` ao ser coletado em caixas; o C4 é uma arma ofensiva estrita pertencente exclusivamente ao `WeaponSystem` e ao menu de armas (F1/Q).
+  - Adicionada blindagem em `ItemMenu` (`item_menu.gd`) e `InventoryManager.collect_item()` para rejeitar e nunca listar bombas no menu de equipamentos.
+- **Calibração do Temporizador do C4**:
+  - Aumentado o tempo de contagem de 48 ticks (~0.8s) para 96 ticks (~1.6s a 60 fps) em `plastic_bomb.gd`, dando a Snake margem confortável para se afastar dos 24 px de raio de explosão sem sofrer dano acidental.
+- **Calibração da Velocidade do Míssil Teleguiado**:
+  - Reduzida a velocidade de voo do míssil teleguiado em `remote_missile.gd` de 4.0 px/tick (240 px/s, incontrolável em 60 fps) para 1.5 px/tick (90 px/s).
+  - A nova velocidade permite manobras precisas e tempo de reação humano para contornar corredores e esquinas.
+- **Validação e Testes**:
+  - Ajustadas as suítes de teste `remote_missile_test.gd`, `basement_and_plastic_bomb_test.gd` e `floor3_review_test.gd` para refletirem as calibrações.
+  - Execução de `python3 tools/validate.py`: **100% PASS** (49 testes Python + 20 suítes Godot, 0 erros).
+
+## Extração e Integração dos Sprites Autênticos de Solid Snake do MSX2 (2026-09-29)
+
+- **Extrator Automatizado em Python 3 (`tools/extractors/extract_snake_sprites.py`)**:
+  - Implementado o leitor reproduzível dos dados RLE de `external/MetalGear/gfx/sprites.asm` e `data/playersprite.asm`.
+  - Reconstruído o algoritmo de descompressão Z80 `SetSnakeSprPatt` e a composição de 4 planos VDP V9938 (Sprite Mode 2) com suporte ao bit de hardware `CC` (*Color Compare*).
+  - Aplicada a paleta canônica da Konami:
+    - Cor 7: Azul-petróleo (`#266f93`, Uniforme)
+    - Cor 10: Bege/Pele (`#da916d`, Rosto e braços)
+    - Cor 12: Verde-oliva militar (`#4a825a`, Calças)
+    - Cor 15: Preto puro (`#101010`, Cabelo escuro, botas e contornos gerados por sobreposição lógica OR)
+  - Extraído spritesheet completo em `godot/assets/protected/sprites/snake_msx.png` (grade 4 colunas x 10 linhas em células de 16x32 px):
+    - Caminhada desarmado (12 frames: 4 direções x 3 passos)
+    - Caminhada armado empunhando arma (12 frames: 4 direções x 3 passos)
+    - Golpes de soco direcionais (4 direções)
+    - Estados especiais: Caixa de papelão, animações de morte (corpo caído) e escalada
+- **Integração no Godot 4 (`godot/scripts/systems/player.gd`)**:
+  - Carregamento em tempo de execução via `Image.load_from_file()` de `res://assets/protected/sprites/snake_msx.png`.
+  - Mapeamento dinâmico de `Rect2` por direção, passo de animação (`frame_num`), porte de arma e estado (soco, caixa, morte, invulnerabilidade e muzzle flash).
+  - Mantido fallback gracioso para desenho procedural autoral se o arquivo de textura não estiver presente.
+- **Testes e Verificação**:
+  - Criado `tests/test_snake_sprite_extractor.py` com testes unitários sintéticos validando descompressão RLE, lógica de Color Compare e formato de cabeçalho PNG.
+  - Execução de `python3 tools/validate.py`: **100% PASS** (53 testes Python + 20 suítes Godot, 0 erros).
+
+

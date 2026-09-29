@@ -99,8 +99,55 @@ func revive() -> void:
 	queue_redraw()
 	print("PLAYER_REVIVE: Snake revivido e controles liberados (Vida: %d/%d)" % [life, max_life])
 
+static var _msx_texture: Texture2D = null
+static var _checked_texture: bool = false
+
+static func load_msx_texture() -> void:
+	if _checked_texture:
+		return
+	_checked_texture = true
+	var path := "res://assets/protected/sprites/snake_msx.png"
+	var abs_path := ProjectSettings.globalize_path(path)
+	if FileAccess.file_exists(abs_path):
+		var img := Image.load_from_file(abs_path)
+		if img != null and not img.is_empty():
+			_msx_texture = ImageTexture.create_from_image(img)
+			print("PLAYER: Spritesheet autêntico MSX2 carregado com sucesso! (64x320 px)")
+
+func _get_msx_sprite_rect() -> Rect2:
+	if is_dead:
+		return Rect2(16.0, 9 * 32.0, 16.0, 32.0) # Dead 1
+	if is_in_box:
+		return Rect2(0.0, 9 * 32.0, 16.0, 32.0) # Box
+	if is_punching:
+		match current_direction:
+			Direction.DOWN:
+				return Rect2(0.0 * 16.0, 8 * 32.0, 16.0, 32.0)
+			Direction.UP:
+				return Rect2(1.0 * 16.0, 8 * 32.0, 16.0, 32.0)
+			Direction.RIGHT:
+				return Rect2(2.0 * 16.0, 8 * 32.0, 16.0, 32.0)
+			Direction.LEFT:
+				return Rect2(3.0 * 16.0, 8 * 32.0, 16.0, 32.0)
+
+	var is_armed: bool = (equipped_weapon in [WeaponSystem.WEAPON_HANDGUN, WeaponSystem.WEAPON_SMG, WeaponSystem.WEAPON_GRENADE_LAUNCHER, WeaponSystem.WEAPON_MISSILE])
+	var base_row: int = 4 if is_armed else 0
+	match current_direction:
+		Direction.DOWN:
+			base_row += 0
+		Direction.UP:
+			base_row += 1
+		Direction.RIGHT:
+			base_row += 2
+		Direction.LEFT:
+			base_row += 3
+
+	var col: int = clampi(frame_num, 0, 2)
+	return Rect2(col * 16.0, base_row * 32.0, 16.0, 32.0)
+
 func _ready() -> void:
 	z_index = 10
+	load_msx_texture()
 
 func set_collision_grid(grid: Array) -> void:
 	collision_grid = grid
@@ -257,6 +304,33 @@ func is_colliding_at(target_pos: Vector2, dir: Direction) -> bool:
 	return false
 
 func _draw() -> void:
+	# 0. Renderização autêntica com spritesheet do MSX2 (se o asset extraído estiver presente)
+	if _msx_texture != null:
+		# Efeito de piscar durante o período de invulnerabilidade (32 ticks)
+		if invulnerable_timer > 0 and (invulnerable_timer % 4) < 2:
+			return
+
+		var src_rect := _get_msx_sprite_rect()
+		var dest_rect := Rect2(-8.0, -24.0, 16.0, 32.0)
+		draw_texture_rect_region(_msx_texture, dest_rect, src_rect)
+
+		# Clarão de disparo (muzzle flash) quando atirando com arma de fogo
+		if shoot_timer > 0:
+			var flash_pos := Vector2.ZERO
+			match current_direction:
+				Direction.UP:
+					flash_pos = Vector2(4.0, -28.0)
+				Direction.DOWN:
+					flash_pos = Vector2(4.0, 6.0)
+				Direction.LEFT:
+					flash_pos = Vector2(-15.0, -9.0)
+				Direction.RIGHT:
+					flash_pos = Vector2(15.0, -9.0)
+			draw_circle(flash_pos, 3.5, Color(1.0, 0.9, 0.3, 0.95))
+			draw_circle(flash_pos, 1.8, Color(1.0, 1.0, 1.0, 1.0))
+		return
+
+	# Fallback gracioso: Desenho procedural autoral caso a textura não exista
 	# 1. Snake abatido / caído no solo (Game Over)
 	if is_dead:
 		var col_shadow := Color("141814")

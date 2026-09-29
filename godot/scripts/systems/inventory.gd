@@ -23,6 +23,9 @@ const ITEM_PLASTIC_BOMB: String = "PLASTIC_BOMB" # ID 5 na ROM (PLASTIC_BOMB)
 const ITEM_AMMO_CRATE: String = "AMMO_CRATE"   # ID 35 na ROM (AMMO_CRATE)
 const ITEM_CIGARETTES: String = "CIGARETTES"   # Equipamento inicial do Snake (Banks0123.asm:11775)
 const ITEM_BAG: String = "BAG"                 # ID 34 na ROM (BAG / Saco de equipamentos)
+const ITEM_UNIFORM: String = "UNIFORM"         # ID 32 (0x20) na ROM (UNIFORM / Farda Inimiga)
+const ITEM_BODY_ARMOR: String = "BODY_ARMOR"   # ID 9 na ROM (BODY_ARMOR / Colete Balístico)
+const ITEM_MINE_DETECTOR: String = "MINE_DETECTOR" # ID 15 (0x0F) na ROM (MINE_DETECTOR)
 
 var items: Array[String] = []
 var selected_index: int = -1
@@ -58,6 +61,10 @@ func get_card_level() -> int:
 	return 0
 
 func collect_item(item_id: String) -> bool:
+	# PLASTIC_BOMB é arma ofensiva no MSX2, pertence exclusivamente ao WeaponSystem
+	if item_id == ITEM_PLASTIC_BOMB or item_id == "PLASTIC_BOMB":
+		return false
+
 	if item_id == ITEM_RATION:
 		if rations_count < max_rations:
 			rations_count += 1

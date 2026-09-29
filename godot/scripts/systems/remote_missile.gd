@@ -13,7 +13,7 @@ enum MissileState {
 	FINISHED = 2
 }
 
-const SPEED: float = 4.0               # 4 px/tick constante (MissileIniSpeed no offset 0x48DE)
+const SPEED: float = 1.5               # 1.5 px/tick (90 px/s calibrado a 60 fps para manobra precisa e responsiva)
 const EXPLOSION_DURATION: int = 15      # 0x0F ticks (MedExplosionLogic em plasticbomb.asm:150)
 const DAMAGE: int = 5                  # 5 HP (MissileDamage em weapondamage.asm:58)
 
