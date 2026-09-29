@@ -1,3 +1,4 @@
+class_name SandboxGameplay
 extends Control
 
 # ==============================================================================
@@ -5,21 +6,15 @@ extends Control
 # Este é o script mestre que une todos os outros pedaços do jogo.
 # Se algo acontece na tela inteira (tiros, menus, carregar fases, IA dos 
 # inimigos da sala), é este arquivo que controla.
-# 
-# = O QUE VOCÊ PODE ALTERAR AQUI =
-# 1. FUNÇÃO _ready(): Onde o jogo "liga". 
-#    Aqui você pode definir qual sala começa primeiro.
-# 2. FUNÇÃO _process(delta): É o relógio do jogo.
-#    Roda a cada frame. Lê o teclado, move os guardas, os tiros.
-# 3. MUDANÇA DE SALA (_check_and_handle_room_transition): 
-#    Faz a tela piscar, apaga os inimigos antigos e desenha os novos.
-# 4. BOTÕES/TECLADO (_unhandled_input):
-#    Onde estão os atalhos como a tecla 'C' para ver o Grid vermelho, etc.
-#
-# DICA: Use a barra de pesquisa do Godot (Ctrl+F) para procurar essas funções 
-# direto pelo nome. O arquivo é grande porque lida com TODAS as regras do MSX!
 # ==============================================================================
 ## Cena de teste jogável de Snake com movimentação e colisão fiéis ao MSX2 (Etapa 5).
+
+## Flag estática para iniciar com a animação de infiltração na água (acionada pela Title Screen)
+static var start_with_intro: bool = false
+
+## Cutscene de Infiltração na Água e Escalada da Grade (MSX2 Sala 121)
+var intro_cutscene: IntroCutscene
+@export var play_intro_cutscene: bool = false
 
 var snapshot: RoomSnapshot = RoomSnapshot.new()
 var player: PlayerController
@@ -248,7 +243,17 @@ func _ready() -> void:
 	radio_dialog = RadioDialog.new()
 	add_child(radio_dialog)
 	radio_dialog.radio_closed.connect(_on_radio_closed)
-	if snapshot and snapshot.loaded:
+
+	# Sistema da Cutscene de Abertura / Infiltração na Água e Escalada da Grade (Sala 121)
+	intro_cutscene = IntroCutscene.new()
+	intro_cutscene.radio_requested.connect(_on_intro_radio_requested)
+	intro_cutscene.intro_finished.connect(_on_intro_finished)
+	add_child(intro_cutscene)
+
+	if (start_with_intro or play_intro_cutscene) and snapshot and snapshot.room_id == INITIAL_ROOM_ID:
+		start_with_intro = false
+		intro_cutscene.start_intro(player)
+	elif snapshot and snapshot.loaded:
 		radio_system.check_incoming_call(snapshot.room_id)
 	# Máquina de Estados de Alerta Global e Reforços (Etapa 17)
 	alert_system.state_changed.connect(_on_alert_state_changed)
@@ -302,6 +307,15 @@ func _ready() -> void:
 	)
 	pause_menu.give_arsenal_requested.connect(_give_debug_arsenal)
 	pause_menu.reset_room_requested.connect(reset_player)
+	pause_menu.replay_intro_requested.connect(func() -> void:
+		if snapshot and snapshot.room_id != INITIAL_ROOM_ID:
+			var s121: RoomSnapshot = room_manager.load_room_snapshot(INITIAL_ROOM_ID)
+			if s121:
+				snapshot = s121
+				_apply_snapshot()
+		if intro_cutscene:
+			intro_cutscene.start_intro(player)
+	)
 	pause_menu.title_screen_requested.connect(func() -> void:
 		get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
 	)
@@ -311,6 +325,7 @@ func _ready() -> void:
 		queue_redraw()
 	)
 	add_child(pause_menu)
+
 
 	call_deferred("_post_ready_layout")
 
@@ -362,8 +377,22 @@ func _give_debug_arsenal() -> void:
 	print("DEBUG_ARSENAL: Arsenal e equipamentos completos concedidos!")
 
 func _on_radio_closed() -> void:
+	if intro_cutscene and intro_cutscene.is_active:
+		intro_cutscene.on_radio_finished()
 	if player:
 		player.queue_redraw()
+
+func _on_intro_radio_requested(pages: Array[String]) -> void:
+	if radio_dialog:
+		if radio_system:
+			radio_system.current_freq = RadioSystem.FREQ_BIGBOSS_PR1
+		radio_dialog.start_briefing(RadioSystem.CONTACT_BIG_BOSS, "BIG BOSS", pages)
+
+func _on_intro_finished() -> void:
+	print("SANDBOX: Cutscene de abertura concluída. Snake assumiu controle em terra firme!")
+	if player:
+		player.queue_redraw()
+
 
 var viewport_area: Control
 var game_world: Node2D
@@ -1671,8 +1700,12 @@ func _get_safe_spawn_position() -> Vector2:
 	return pref_pos
 
 func reset_player() -> void:
+	if intro_cutscene and intro_cutscene.is_active:
+		intro_cutscene.is_active = false
+		intro_cutscene.current_state = IntroCutscene.State.FINISHED
 	if player:
 		player.revive()
+
 		var spawn_pos: Vector2 = _get_safe_spawn_position()
 		player.set_grid_position(spawn_pos.x, spawn_pos.y)
 		player.current_direction = PlayerController.Direction.UP
@@ -1838,8 +1871,23 @@ func _execute_game_restart() -> void:
 		reset_player()
 
 func _input(event: InputEvent) -> void:
+	# 0. Interceptação de skip durante a cutscene de abertura
+	if intro_cutscene and intro_cutscene.is_active:
+		if radio_dialog and radio_dialog.is_active:
+			radio_dialog.handle_input(event)
+			if not event is InputEventMouse:
+				get_viewport().set_input_as_handled()
+			return
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode in [KEY_SPACE, KEY_ENTER, KEY_ESCAPE]:
+				intro_cutscene.skip_intro(player)
+				if get_viewport():
+					get_viewport().set_input_as_handled()
+				return
+
 	# 1. Repasse para menus modais abertos
 	if radio_dialog and radio_dialog.is_active:
+
 		radio_dialog.handle_input(event)
 		if not event is InputEventMouse:
 			get_viewport().set_input_as_handled()
@@ -2118,8 +2166,15 @@ func _physics_process(_delta: float) -> void:
 	if not player:
 		return
 
+	# Cutscene de Abertura / Infiltração na Água e Escalada da Grade (Sala 121)
+	if intro_cutscene and intro_cutscene.is_active:
+		if not (radio_dialog and radio_dialog.is_active):
+			intro_cutscene.tick(player)
+		return
+
 	# Modo Binóculo / Telescópio ativo: processa temporizador e atualização de inimigos da sala observada
 	if binocular_system and binocular_system.is_active:
+
 		_process_binoculars()
 		return
 

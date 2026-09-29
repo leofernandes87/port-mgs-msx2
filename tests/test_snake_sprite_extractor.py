@@ -15,8 +15,11 @@ import zlib
 from tools.extractors.extract_snake_sprites import (
     decompress_rle,
     decode_frame_to_pixels,
+    decode_shadow_to_pixels,
+    decode_water_to_pixels,
     write_png,
-    PALETTE
+    PALETTE,
+    WATER_SHADOW_PALETTE
 )
 
 class SnakeSpriteExtractorTests(unittest.TestCase):
@@ -42,11 +45,11 @@ class SnakeSpriteExtractorTests(unittest.TestCase):
         raw = [0] * 128
         raw[0] = 0b11000000 # p0 linha 0 esquerda
         raw[32] = 0b10100000 # p1 linha 0 esquerda
-        
+
         grid = decode_frame_to_pixels(raw)
         self.assertEqual(len(grid), 32)
         self.assertEqual(len(grid[0]), 16)
-        
+
         # Pixel 0: b0=1, b1=1 -> Color Compare (Cor 15 - Preto)
         self.assertEqual(grid[0][0], PALETTE[15])
         # Pixel 1: b0=1, b1=0 -> Cor 7 (Uniforme azul)
@@ -56,15 +59,45 @@ class SnakeSpriteExtractorTests(unittest.TestCase):
         # Pixel 3: b0=0, b1=0 -> Cor 0 (Transparente)
         self.assertEqual(grid[0][3], PALETTE[0])
 
+    def test_decode_shadow_to_pixels(self):
+        # Cria 64 bytes sintéticos para sombra subaquática
+        raw = [0] * 64
+        raw[0] = 0b11000000  # p0
+        raw[32] = 0b10100000 # p1
+        grid = decode_shadow_to_pixels(raw)
+        self.assertEqual(len(grid), 32)
+        self.assertEqual(len(grid[0]), 16)
+        # Pixel 0: b0=1, b1=1 -> Cor 16 (Color Compare)
+        self.assertEqual(grid[0][0], WATER_SHADOW_PALETTE[16])
+        # Pixel 1: b0=1, b1=0 -> Cor 14 (Ondulação ciano)
+        self.assertEqual(grid[0][1], WATER_SHADOW_PALETTE[14])
+        # Pixel 2: b0=0, b1=1 -> Cor 15 (Silhueta escura)
+        self.assertEqual(grid[0][2], WATER_SHADOW_PALETTE[15])
+        # Linha inferior (16..31) deve ser transparente
+        self.assertEqual(grid[20][0], (0, 0, 0, 0))
+
+    def test_decode_water_to_pixels(self):
+        # Cria 64 bytes sintéticos para Snake nadando na superfície
+        raw = [0] * 64
+        raw[0] = 0b11000000
+        raw[32] = 0b10100000
+        grid = decode_water_to_pixels(raw)
+        self.assertEqual(len(grid), 32)
+        self.assertEqual(len(grid[0]), 16)
+        self.assertEqual(grid[0][0], PALETTE[15])
+        self.assertEqual(grid[0][1], PALETTE[7])
+        self.assertEqual(grid[0][2], PALETTE[10])
+        self.assertEqual(grid[20][0], (0, 0, 0, 0))
+
     def test_write_png_format(self):
         # Teste de geração e leitura de cabeçalho PNG
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
             tmp_path = tmp.name
-            
+
         try:
             rgba = [(255, 0, 0, 255), (0, 255, 0, 255), (0, 0, 255, 255), (0, 0, 0, 0)]
             write_png(tmp_path, 2, 2, rgba)
-            
+
             with open(tmp_path, "rb") as f:
                 header = f.read(8)
                 self.assertEqual(header, b"\x89PNG\r\n\x1a\n")

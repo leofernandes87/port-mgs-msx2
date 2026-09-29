@@ -181,7 +181,9 @@ func _go_to_title_idle() -> void:
 	queue_redraw()
 
 func _start_game() -> void:
+	SandboxGameplay.start_with_intro = true
 	get_tree().change_scene_to_file("res://scenes/sandbox_gameplay.tscn")
+
 
 func _draw() -> void:
 	var viewport_sz: Vector2 = size

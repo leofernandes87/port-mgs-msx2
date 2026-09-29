@@ -2279,3 +2279,43 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Criado teste de integração headless `godot/tests/title_screen_test.gd` validando o carregamento das 6 texturas, máquina de estados, skip, alternância de prompt e Play Start.
   - Execução de `python3 tools/validate.py`: **100% PASS** (67 testes unitários Python + 21 suítes de teste headless Godot 4, 0 erros).
 
+## Cutscene de Infiltração Aquática e Escalada da Grade (Abertura Pré-Jogo MSX2) (2026-09-29)
+
+- **Engenharia Reversa da Sequência de Infiltração (`external/MetalGear/logic/introscene.asm`)**:
+  - Mapeamento exato dos 13 estados sequenciais da abertura pré-jogo na Sala 121 (praia/área externa sul):
+    1. Spawn submerso em `(192, 184)` no modo sombra aquática (`SprWaterShadow`).
+    2. Nado submerso a oeste até `X = 128` (64 frames).
+    3. Emergência na superfície com torso voltado ao norte (`SprSnakeWaterU`), observando a base por 48 frames.
+    4. Nova submersão e nado rápido a oeste até `X = 48` (80 frames) e norte até `Y = 152` (32 frames).
+    5. Emergência virado para o leste (`SprSnakeWaterR`) por 64 frames, com alerta sonoro de rádio no frame 32.
+    6. Chamada de rádio obrigatória de Big Boss na frequência 120.85 com as 4 páginas autênticas de instrução da Operação Intrude N313.
+    7. Fechamento do rádio e nado até a base da cerca em `(88, 136)`.
+    8. Escalada da cerca de arame com alternância de sprites `SprSnakeClimb1` e `SprSnakeClimb2` subindo até `Y = 102` (28 frames).
+    9. Salto/hop sobre a cerca aterrissando em terra firme em `(128, 80)`.
+    10. Encerramento da cutscene e liberação imediata do controle ao jogador.
+  - Implementado sistema de cancelamento/skip instantâneo (Espaço, Enter ou Esc) que posiciona Snake em `(128, 80)` e devolve o controle ao jogador imediatamente.
+- **Extração e Decodificação dos Sprites de Água e Escalada (`tools/extractors/extract_snake_sprites.py`)**:
+  - Implementados os decodificadores `decode_shadow_to_pixels` (64 bytes de silhueta azul escura de nado submerso) e `decode_water_to_pixels` (sprites de água com máscara e torso de Snake).
+  - Adicionadas as linhas 10 e 11 na geração do spritesheet `snake_msx.png`:
+    - `SprSnakeClimb1` e `SprSnakeClimb2` (escalada na cerca de arame)
+    - `SprWaterShadow` e `SprWaterShadow2` (silhuetas de nado submerso)
+    - `SprSnakeWaterD`, `SprSnakeWaterU`, `SprSnakeWaterR`, `SprSnakeWaterL` (nado na superfície nos 4 pontos cardeais)
+- **Extensão do Controlador de Jogador (`godot/scripts/systems/player.gd`)**:
+  - Adicionado enum `AnimMode` com modos `NORMAL`, `SWIM_SURFACE`, `DEEP_WATER`, `CLIMB`.
+  - Mapeamento dinâmico de retângulos UV do spritesheet autêntico para cada modo de animação.
+  - Implementado `_draw()` especializado com renderização das ondulações na água, corpo submerso e garras na cerca, além de fallbacks procedurais limpos.
+- **Sistema de Rádio Multitelas (`godot/scripts/systems/radio_dialog.gd`)**:
+  - Adicionado suporte a `dialog_pages`, avanço sequencial via botão de confirmação (`ui_accept`), contador de páginas `[ %d / %d ]` e quebra de linhas para diálogos longos.
+  - Suporte ao método `start_briefing(pages, portrait, freq_label)`.
+- **Máquina de Estados da Cutscene (`godot/scripts/systems/intro_cutscene.gd`)**:
+  - Implementação modular desacoplada com lógica de estados idêntica a `introscene.asm`.
+  - Sinais `radio_requested(pages)` e `intro_finished` para orquestração limpa.
+  - Função `skip_intro(player)` para transição imediata para terra firme.
+- **Integração no Jogo (`sandbox_gameplay.gd`, `title_screen.gd` e `pause_menu.gd`)**:
+  - Ao iniciar novo jogo na tela de título ("PRESS START"), a cutscene de infiltração é automaticamente ativada (`SandboxGameplay.start_with_intro = true`).
+  - Adicionada opção no Pause Menu ("▶ Rever Abertura (Infiltração)") permitindo assistir à cutscene a qualquer momento durante o jogo.
+- **Testes e Verificação**:
+  - Adicionados 2 testes unitários sintéticos em `tests/test_snake_sprite_extractor.py` (total de 69 testes unitários Python).
+  - Criado teste de integração headless `godot/tests/intro_cutscene_test.gd` com 35 asserções cobrindo todos os 13 estados, transições de modo de animação, briefing de rádio, escalada e funcionalidade de skip.
+  - Execução de `python3 tools/validate.py`: **100% PASS** (69 testes unitários Python + 22 suítes de teste headless Godot 4, 0 erros).
+

@@ -29,11 +29,32 @@ var target_leds: int = 0
 var current_leds: int = 0
 var led_anim_timer: float = 0.0
 
+# Suporte a transmissões com múltiplas páginas (ex: briefing Operação Intrude N313)
+var dialog_pages: Array[String] = []
+var current_page_index: int = 0
+
 func _ready() -> void:
 	visible = false
 	z_index = 20
 	custom_minimum_size = Vector2(256.0, 192.0)
 	size = Vector2(256.0, 192.0)
+
+func start_briefing(contact: String, contact_name: String, pages: Array[String]) -> void:
+	is_active = true
+	visible = true
+	dialog_pages = pages.duplicate()
+	current_page_index = 0
+	current_contact = contact
+	current_contact_name = contact_name
+	has_signal = true
+	target_leds = 12
+	current_leds = 0
+	if radio_system:
+		radio_system.is_send_mode = false
+	if dialog_pages.size() > 0:
+		_set_text(dialog_pages[0])
+	queue_redraw()
+	print("RADIO_BRIEFING: Iniciado briefing de %s (%d páginas)" % [contact_name, dialog_pages.size()])
 
 func open_radio(system: RadioSystem, room_id: int, auto_answer: bool = false) -> void:
 	radio_system = system
@@ -58,8 +79,11 @@ func close_radio() -> void:
 		return
 	is_active = false
 	visible = false
+	dialog_pages.clear()
+	current_page_index = 0
 	radio_closed.emit()
 	print("RADIO_CLOSED: Transceptor desligado.")
+
 
 func _process(delta: float) -> void:
 	if not is_active:
@@ -106,8 +130,19 @@ func handle_input(event: InputEvent) -> bool:
 			queue_redraw()
 			return true
 		else:
-			# Texto já completo: fecha rádio ou retorna a idle
-			return true
+			# Texto já completo: verifica se há mais páginas
+			if current_page_index + 1 < dialog_pages.size():
+				current_page_index += 1
+				_set_text(dialog_pages[current_page_index])
+				queue_redraw()
+				return true
+			elif dialog_pages.size() > 0:
+				close_radio()
+				return true
+			else:
+				close_radio()
+				return true
+
 
 	# Sintonia: Esquerda / Direita
 	if event.is_action_pressed("ui_left") or (event is InputEventKey and event.pressed and event.keycode == KEY_A):
@@ -233,6 +268,11 @@ func _draw() -> void:
 	# Texto da Mensagem quebrando em linhas
 	_draw_multiline_text(displayed_text, Vector2(84, 88), 150.0, 11.0, Color("e0e8f0"))
 
+	# Indicador de páginas para briefings longos
+	if dialog_pages.size() > 1:
+		var page_str := "[ %d / %d ]" % [current_page_index + 1, dialog_pages.size()]
+		draw_string(ThemeDB.fallback_font, Vector2(195, 155), page_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color("60a080"))
+
 	# 6. Rodapé com Instruções de Controle
 	var help_str: String = "A/D: SINTONIZAR  W: TRANSMITIR  ESPAÇO: AVANÇAR  T/F4: SAIR"
 	draw_string(ThemeDB.fallback_font, Vector2(16, 176), help_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color("708898"))
@@ -241,7 +281,7 @@ func _draw_portrait(rect: Rect2) -> void:
 	var cx: float = rect.position.x
 	var cy: float = rect.position.y
 
-	if radio_system.is_send_mode or current_contact.is_empty():
+	if (radio_system and radio_system.is_send_mode) or current_contact.is_empty():
 		# Retrato do Solid Snake (MSX2 style)
 		# Rosto
 		draw_rect(Rect2(cx + 16, cy + 14, 24, 28), Color("d8a078"))
@@ -288,19 +328,23 @@ func _draw_portrait(rect: Rect2) -> void:
 		draw_rect(Rect2(cx + 8, cy + 42, 40, 14), Color("603040"))
 
 func _draw_multiline_text(text: String, start_pos: Vector2, max_w: float, line_h: float, color: Color) -> void:
-	var words: PackedStringArray = text.split(" ")
-	var cur_line: String = ""
+	var raw_lines: PackedStringArray = text.split("\n")
 	var y: float = start_pos.y
 
-	for word: String in words:
-		var test_line: String = cur_line + (" " if not cur_line.is_empty() else "") + word
-		var line_w: float = ThemeDB.fallback_font.get_string_size(test_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-		if line_w > max_w and not cur_line.is_empty():
+	for rline: String in raw_lines:
+		var words: PackedStringArray = rline.split(" ")
+		var cur_line: String = ""
+
+		for word: String in words:
+			var test_line: String = cur_line + (" " if not cur_line.is_empty() else "") + word
+			var line_w: float = ThemeDB.fallback_font.get_string_size(test_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
+			if line_w > max_w and not cur_line.is_empty():
+				draw_string(ThemeDB.fallback_font, Vector2(start_pos.x, y), cur_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, color)
+				y += line_h
+				cur_line = word
+			else:
+				cur_line = test_line
+
+		if not cur_line.is_empty():
 			draw_string(ThemeDB.fallback_font, Vector2(start_pos.x, y), cur_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, color)
 			y += line_h
-			cur_line = word
-		else:
-			cur_line = test_line
-
-	if not cur_line.is_empty():
-		draw_string(ThemeDB.fallback_font, Vector2(start_pos.x, y), cur_line, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, color)

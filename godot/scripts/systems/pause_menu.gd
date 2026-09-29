@@ -13,6 +13,8 @@ signal colliders_toggled(enabled: bool)
 signal reset_room_requested
 signal title_screen_requested
 signal map_mode_toggled(use_remaster: bool)
+signal replay_intro_requested
+
 
 var is_god_mode: bool = false
 var show_collision: bool = false
@@ -138,13 +140,22 @@ func _ready() -> void:
 	)
 	vbox.add_child(reset_btn)
 
-	# 8. Voltar à Tela de Título
+	# 8. Rever Abertura (Infiltração na Água e Grade)
+	var intro_btn := _create_option_button("▶ Rever Abertura (Infiltração)", Color(0.4, 0.9, 0.9))
+	intro_btn.pressed.connect(func() -> void:
+		emit_signal("replay_intro_requested")
+		close_menu()
+	)
+	vbox.add_child(intro_btn)
+
+	# 9. Voltar à Tela de Título
 	var title_btn := _create_option_button("⌂ Voltar à Tela de Título", Color(0.7, 0.8, 1.0))
 	title_btn.pressed.connect(func() -> void:
 		emit_signal("title_screen_requested")
 		close_menu()
 	)
 	vbox.add_child(title_btn)
+
 
 	var sep2 := HSeparator.new()
 	vbox.add_child(sep2)

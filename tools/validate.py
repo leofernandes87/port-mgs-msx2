@@ -52,6 +52,7 @@ def main():
         ("godot-floor3-review", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/floor3_review_test.gd"]),
         ("godot-basement-and-plastic-bomb", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/basement_and_plastic_bomb_test.gd"]),
         ("godot-title-screen", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/title_screen_test.gd"]),
+        ("godot-intro-cutscene", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/intro_cutscene_test.gd"]),
         ("godot-main", [godot, "--headless", "--path", str(ROOT / "godot"), "--quit-after", "5"]),
     ]
     for name, command in commands:
@@ -115,7 +116,10 @@ def main():
             raise RuntimeError("Teste do Basement e bomba plástica não confirmou conclusão")
         if name == "godot-title-screen" and "TITLE_SCREEN_INTEGRATION_OK:" not in result.stdout:
             raise RuntimeError("Teste de abertura e tela de título não confirmou conclusão")
+        if name == "godot-intro-cutscene" and "INTRO_CUTSCENE_INTEGRATION_OK:" not in result.stdout:
+            raise RuntimeError("Teste de cutscene de abertura não confirmou conclusão")
         if name == "godot-main" and "BOOT_OK:" not in result.stdout:
+
             raise RuntimeError("Cena principal não iniciou")
         print(name + ": PASS")
 

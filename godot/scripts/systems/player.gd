@@ -61,9 +61,26 @@ var shoot_timer: int = 0 # 6 ticks de clarão (muzzle flash) e recuo do disparo
 # Mecânica da Caixa de Papelão
 var is_in_box: bool = false
 
+# Modos de Animação do Jogador (conforme PlayerAnimation em Banks0123.asm:8407)
+enum AnimMode {
+	NORMAL = 0,
+	PUNCH = 1,
+	SWIM_SURFACE = 2,
+	PARACHUTE = 3,
+	DEEP_WATER = 4,
+	CLIMB = 5,
+	DEAD = 6,
+	BOX = 7,
+}
+
+var anim_mode: AnimMode = AnimMode.NORMAL
+var climb_frame: int = 0
+var water_frame: int = 0
+
 # Estado de Morte e Bloqueio de Controles (Game Over punitivo clássico)
 var is_dead: bool = false
 var can_control: bool = true
+
 
 func set_rank_life(new_max_life: int, full_heal: bool = true) -> void:
 	max_life = new_max_life
@@ -88,6 +105,9 @@ func die() -> void:
 func revive() -> void:
 	is_dead = false
 	can_control = true
+	anim_mode = AnimMode.NORMAL
+	climb_frame = 0
+	water_frame = 0
 	life = max_life
 	invulnerable_timer = 0
 	punch_timer = 0
@@ -112,13 +132,33 @@ static func load_msx_texture() -> void:
 		var img := Image.load_from_file(abs_path)
 		if img != null and not img.is_empty():
 			_msx_texture = ImageTexture.create_from_image(img)
-			print("PLAYER: Spritesheet autêntico MSX2 carregado com sucesso! (64x320 px)")
+			print("PLAYER: Spritesheet autêntico MSX2 carregado com sucesso! (64x384 px)")
 
 func _get_msx_sprite_rect() -> Rect2:
 	if is_dead:
 		return Rect2(16.0, 9 * 32.0, 16.0, 32.0) # Dead 1
 	if is_in_box:
 		return Rect2(0.0, 9 * 32.0, 16.0, 32.0) # Box
+	if anim_mode == AnimMode.CLIMB:
+		if (climb_frame % 2) == 0:
+			return Rect2(3 * 16.0, 9 * 32.0, 16.0, 32.0) # SprSnakeClimb1
+		else:
+			return Rect2(0 * 16.0, 10 * 32.0, 16.0, 32.0) # SprSnakeClimb2
+	if anim_mode == AnimMode.DEEP_WATER:
+		if (water_frame % 2) == 0:
+			return Rect2(1 * 16.0, 10 * 32.0, 16.0, 16.0) # SprWaterShadow
+		else:
+			return Rect2(2 * 16.0, 10 * 32.0, 16.0, 16.0) # SprWaterShadow2
+	if anim_mode == AnimMode.SWIM_SURFACE:
+		match current_direction:
+			Direction.DOWN:
+				return Rect2(0 * 16.0, 11 * 32.0, 16.0, 16.0) # SprSnakeWaterD
+			Direction.UP:
+				return Rect2(1 * 16.0, 11 * 32.0, 16.0, 16.0) # SprSnakeWaterU
+			Direction.RIGHT:
+				return Rect2(2 * 16.0, 11 * 32.0, 16.0, 16.0) # SprSnakeWaterR
+			Direction.LEFT:
+				return Rect2(3 * 16.0, 11 * 32.0, 16.0, 16.0) # SprSnakeWaterL
 	if is_punching:
 		match current_direction:
 			Direction.DOWN:
@@ -144,6 +184,7 @@ func _get_msx_sprite_rect() -> Rect2:
 
 	var col: int = clampi(frame_num, 0, 2)
 	return Rect2(col * 16.0, base_row * 32.0, 16.0, 32.0)
+
 
 func _ready() -> void:
 	z_index = 10
@@ -312,6 +353,10 @@ func _draw() -> void:
 
 		var src_rect := _get_msx_sprite_rect()
 		var dest_rect := Rect2(-8.0, -24.0, 16.0, 32.0)
+		if anim_mode == AnimMode.DEEP_WATER:
+			dest_rect = Rect2(-8.0, -8.0, 16.0, 16.0)
+		elif anim_mode == AnimMode.SWIM_SURFACE:
+			dest_rect = Rect2(-8.0, -10.0, 16.0, 16.0)
 		draw_texture_rect_region(_msx_texture, dest_rect, src_rect)
 
 		# Clarão de disparo (muzzle flash) quando atirando com arma de fogo
@@ -390,6 +435,47 @@ func _draw() -> void:
 				r_offset = 2
 			draw_rect(Rect2(-6, boot_y + l_offset, 4, 3), Color("141814"))
 			draw_rect(Rect2(2, boot_y + r_offset, 4, 3), Color("141814"))
+		return
+
+	# Fallbacks para água e escalada caso a textura MSX não esteja presente
+	if anim_mode == AnimMode.DEEP_WATER:
+		var c_shadow := Color("101e28", 0.8)
+		var c_ripple := Color("266f93", 0.7)
+		draw_circle(Vector2.ZERO, 6.0, c_shadow)
+		draw_arc(Vector2.ZERO, 7.0, 0, TAU, 12, c_ripple, 1.5)
+		return
+
+	if anim_mode == AnimMode.SWIM_SURFACE:
+		var c_swim_hair := Color("1a1008")
+		var c_swim_skin := Color("d89870")
+		var c_swim_suit := Color("3c4c38")
+		var c_ripple := Color("266f93", 0.8)
+		draw_rect(Rect2(-4, -10, 8, 4), c_swim_hair)
+		draw_rect(Rect2(-3, -7, 6, 3), c_swim_skin)
+		draw_rect(Rect2(-5, -4, 10, 5), c_swim_suit)
+		draw_rect(Rect2(-7, 0, 14, 2), c_ripple)
+		return
+
+	if anim_mode == AnimMode.CLIMB:
+		var c_climb_hair := Color("1a1008")
+		var c_climb_suit := Color("3c4c38")
+		var c_climb_skin := Color("d89870")
+		var c_climb_boot := Color("141814")
+		var alt := (climb_frame % 2)
+		draw_rect(Rect2(-4, -22, 8, 5), c_climb_hair)
+		draw_rect(Rect2(-5, -17, 10, 10), c_climb_suit)
+		if alt == 0:
+			draw_rect(Rect2(-7, -20, 3, 6), c_climb_skin)
+			draw_rect(Rect2(4, -15, 3, 6), c_climb_skin)
+			draw_rect(Rect2(-5, -7, 4, 8), c_climb_suit)
+			draw_rect(Rect2(1, -5, 4, 8), c_climb_suit)
+		else:
+			draw_rect(Rect2(-7, -15, 3, 6), c_climb_skin)
+			draw_rect(Rect2(4, -20, 3, 6), c_climb_skin)
+			draw_rect(Rect2(-5, -5, 4, 8), c_climb_suit)
+			draw_rect(Rect2(1, -7, 4, 8), c_climb_suit)
+		draw_rect(Rect2(-5, 1, 4, 3), c_climb_boot)
+		draw_rect(Rect2(1, 1, 4, 3), c_climb_boot)
 		return
 
 	# 4. Paleta Canônica de Solid Snake (MSX2 RC750)
