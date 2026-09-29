@@ -1431,15 +1431,19 @@ func _spawn_room_doors(room_id: int) -> void:
 			if room_id in lorry_rooms:
 				d.orientation = RoomDoor.DoorOrientation.LORRY_EXIT
 
-		# Portas que exigem cartão (regras 2 a 9: CARD1 a CARD8) NUNCA iniciam abertas
+		# Portas que exigem cartão (regras 2 a 9: CARD1 a CARD8) e elevadores (render_type 5) NUNCA iniciam abertas
 		if d.is_breakable_wall:
 			d.is_open = broken_basement_walls.get(wall_key, false)
+		elif r_type == 5:
+			d.is_open = false
 		elif rule_id >= 2 and rule_id <= 9:
 			d.is_open = false
 		else:
 			var raw_logic: int = int(d_info.get("open_logic_raw", 0))
-			if (raw_logic & 0x80) != 0 or rule_id in [1, 10, 11, 15] or dest_room in lorry_rooms or room_id in lorry_rooms or r_type in [12, 13]:
+			if (raw_logic & 0xC0) == 0x80 or dest_room in lorry_rooms or room_id in lorry_rooms or r_type in [12, 13]:
 				d.is_open = true
+			else:
+				d.is_open = false
 
 		if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
 			# Apenas a porta de avanço/saída da arena (Door 15 -> Sala 58) é bloqueada pelo boss.

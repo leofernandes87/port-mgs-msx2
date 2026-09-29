@@ -120,8 +120,25 @@ var collision_tile_indices: Array[int] = []
 # Tiles do vão de passagem desobstruídos quando a porta está aberta (colisão livre 0)
 var clearance_tile_indices: Array[int] = []
 
+# Texturas autênticas de portas MSX2 (extraídas de external/MetalGear/gfx/doors.asm)
+static var _doors_texture: Texture2D = null
+static var _checked_textures: bool = false
+
+static func load_door_textures() -> void:
+	if _checked_textures:
+		return
+	_checked_textures = true
+	var path := "res://assets/protected/sprites/doors_msx.png"
+	var abs_path := ProjectSettings.globalize_path(path)
+	if FileAccess.file_exists(abs_path):
+		var img := Image.load_from_file(abs_path)
+		if img != null and not img.is_empty():
+			_doors_texture = ImageTexture.create_from_image(img)
+			print("DOOR: Spritesheet autêntico MSX2 de Portas carregado com sucesso! (128x64 px)")
+
 func _ready() -> void:
 	z_index = 6
+	load_door_textures()
 	if render_type_id in [7, 8, 9, 10, 11] or open_rule_id == 16:
 		is_breakable_wall = true
 		var spec: Dictionary = BREAKABLE_WALL_SPECS.get(render_type_id, {})
@@ -295,7 +312,7 @@ func get_enter_trigger_rect() -> Rect2:
 func get_open_trigger_rect() -> Rect2:
 	match orientation:
 		DoorOrientation.NORTH:
-			return Rect2(position.x, position.y + 20.0, 32.0, 20.0)
+			return Rect2(position.x, position.y + 8.0, 32.0, 32.0)
 		DoorOrientation.SOUTH:
 			return Rect2(position.x, position.y - 12.0, 32.0, 16.0)
 		DoorOrientation.WEST:
@@ -449,5 +466,25 @@ func close_door(collision_grid: Array) -> void:
 	queue_redraw()
 
 func _draw() -> void:
+	# Portas abertas revelam o vão da moldura/parede já desenhado no snapshot de fundo (DrawDoors/EraseDoor)
 	# Paredes quebráveis do Basement permanecem integradas à arte da sala e bloqueadas puramente pelas colisões
-	pass
+	if is_open or is_breakable_wall:
+		return
+
+	if _doors_texture == null:
+		load_door_textures()
+
+	if _doors_texture != null:
+		match render_type_id:
+			1: # Porta Norte (24x32 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 24.0, 32.0), Rect2(0.0, 0.0, 24.0, 32.0))
+			5: # Porta de Elevador (24x32 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 24.0, 32.0), Rect2(24.0, 0.0, 24.0, 32.0))
+			2: # Porta Sul (32x8 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 32.0, 8.0), Rect2(48.0, 0.0, 32.0, 8.0))
+			3: # Porta Oeste em perspectiva (8x60 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 8.0, 60.0), Rect2(80.0, 0.0, 8.0, 60.0))
+			4: # Porta Leste em perspectiva (8x60 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 8.0, 60.0), Rect2(88.0, 0.0, 8.0, 60.0))
+			_:
+				pass

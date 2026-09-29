@@ -2204,6 +2204,32 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Atualizada a suíte `godot/tests/weapon_and_combat_test.gd` com asserções geométricas de spawn de projéteis inimigos e do jogador.
   - Execução de `python3 tools/validate.py`: **100% PASS** (58 testes Python + 20 suítes headless Godot 4).
 
+## Extração e Integração dos Sprites Autênticos das Portas do MSX2 (2026-09-29)
 
-
-
+- **Engenharia Reversa dos Gráficos de Portas (`external/MetalGear/gfx/doors.asm` e `logic/doors/drawdoors.asm`)**:
+  - Identificada a representação dos gráficos de portas em modo V9938 Screen 5 (4bpp planar/linear em blocos de tiles 8x8 px):
+    - `GfxDoorFront`: Painel central de 24x32 px (com janela gradeada, leitor de cartão militar, LED indicador e frisos de blindagem) e batentes laterais com dobradiças (4 px em cada lado).
+    - `GfxDoorElevator`: Painel de 24x32 px com folhas duplas corrediças, sulcos angulares e indicador superior.
+    - `GfxDoorDown`: Soleira horizontal da porta sul de 32x8 px.
+    - `GfxDoorLeft` e `GfxDoorRight`: Texturas planas de 8x32 px projetadas em perspectiva oblíqua de 45° via rotinas Z80 `DrawDoorWest` e `DrawDoorEast` (shearing de colunas com deslocamento $\Delta Y = X \times 4$ px e $\Delta Y = (7 - X) \times 4$ px, resultando em portas de 8x60 px).
+  - Constatado que, no MSX2 original, os metatiles de fundo já contêm a abertura do vão da porta desenhada; a rotina `DrawDoors` sobrepõe o gráfico da porta fechada sobre o vão e `EraseDoor` apaga a porta ao ser destrancada, revelando o vão para passagem.
+- **Extrator Automatizado em Python 3 (`tools/extractors/extract_door_sprites.py`)**:
+  - Decodificação dos blocos 4bpp e aplicação da paleta autêntica do Edifício 1 (`DefaultPalette` + `PalMenuWeapon` + `RoomPalette0`).
+  - Geração do spritesheet consolidado de 128x64 px em `godot/assets/protected/sprites/doors_msx.png` (PNG 32-bit RGBA):
+    - Frame 0 (X: 0, Y: 0, 24x32): Porta Frontal Norte Fechada
+    - Frame 1 (X: 24, Y: 0, 24x32): Porta de Elevador Fechada
+    - Frame 2 (X: 48, Y: 0, 32x8): Porta Sul Fechada
+    - Frame 3 (X: 80, Y: 0, 8x60): Porta Oeste Fechada em Perspectiva (sheared 45°)
+    - Frame 4 (X: 88, Y: 0, 8x60): Porta Leste Fechada em Perspectiva (sheared 45°)
+- **Integração no Godot 4 (`godot/scripts/systems/door.gd` e `sandbox_gameplay.gd`)**:
+  - Implementado carregamento seguro via `Image.load_from_file()` com cache estático (`load_door_textures()`).
+  - Implementado `_draw()`:
+    - Portas abertas (`is_open == true`) ou paredes ocas quebráveis (`is_breakable_wall == true`) não desenham sprites sobrepostos, revelando a arte do vão de passagem do snapshot.
+    - Portas fechadas desenham os recortes fiéis do spritesheet de acordo com o `render_type_id` (1: Norte, 5: Elevador, 2: Sul, 3: Oeste em perspectiva, 4: Leste em perspectiva).
+  - Corrigida a inicialização de portas de elevador (`render_type_id == 5`): no MSX2 (`Banks0123.asm:1015-1025`), apenas portas com máscara `(open_logic_raw & 0xC0) == 0x80` iniciam abertas; portas de elevador (`open_logic_raw == 0x41`) iniciam sempre fechadas, abrindo dinamicamente ao contato com Snake virado para cima.
+- **Auditoria de Alinhamento da Sala 008**:
+  - Verificado o alinhamento da Porta 1 em `(X=68, Y=64)`: no plano de fundo autêntico do MSX2, o encaixe é 100% perfeito nas colunas $X \in [68, 91]$ e linhas $Y \in [64, 95]$; na arte remasterizada HD (`assets/remastered/room-008.png`), o vão desenhado pela ilustração encontra-se deslocado 10 pixels para a esquerda ($X \approx 58$) e 3 pixels para baixo ($Y \approx 67$), confirmando a suspeita de desalinhamento originado no plano de fundo do remaster.
+- **Testes e Verificação**:
+  - Criada a suíte `tests/test_door_sprite_extractor.py` com 4 testes unitários sintéticos cobrindo decodificação 4bpp, paleta canônica, montagem do spritesheet com shearing e integridade de arquivo PNG.
+  - Execução de `python3 tools/validate.py`: **100% PASS** (62 testes Python + 20 suítes headless Godot 4, 0 erros).
+  - Geradas imagens comparativas `doors_rooms_comparison.png` e `room8_door_comparison.png` comprovando visualmente o fechamento e abertura perfeitos nas Salas 6, 11 e 3, e o alinhamento na Sala 8.
