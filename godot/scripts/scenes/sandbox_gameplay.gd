@@ -1251,6 +1251,8 @@ func _spawn_room_items(room_id: int) -> void:
 						b.item_id = WeaponSystem.WEAPON_SMG
 					3:
 						b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
+					5:
+						b.item_id = InventoryManager.ITEM_PLASTIC_BOMB
 					6:
 						b.item_id = WeaponSystem.WEAPON_LAND_MINE
 					7:
@@ -1283,6 +1285,8 @@ func _spawn_room_items(room_id: int) -> void:
 						b.item_id = InventoryManager.ITEM_CARD7
 					29:
 						b.item_id = InventoryManager.ITEM_CARD8
+					33:
+						b.item_id = InventoryManager.ITEM_BOX
 					34:
 						b.item_id = InventoryManager.ITEM_BAG
 					35:

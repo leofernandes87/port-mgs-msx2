@@ -2046,3 +2046,48 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
     - Validado dano de 2 HP e atribuição de 32 ticks de invulnerabilidade ao cruzar o soldado.
     - Validado soldado em alerta acionando `WALK_AWAY` na direção oposta ao ficar a $\le 36\text{ px}$ de Snake.
   - `python3 tools/validate.py`: **100% PASS** (49 testes Python + 18 suítes Godot, 0 erros).
+
+## [Auditoria e Revisão Canônica do Floor 3 (Edifício 1)] - Validação de Guardas, Câmeras, Portas, Itens e Comportamentos
+- **Auditoria Detalhada contra o Disassembly Original MSX2 RC750**:
+  - Fontes: `external/MetalGear/data/actorsinrooms.asm`, `data/paths.asm`, `data/doors.asm`, `data/itemsinrooms.asm`, `logic/actors/hideguards.asm`, `constants/Enums.asm`.
+  - Mapeamento completo e validação das 12 salas principais da grade (28 a 39) e salas internas (146 a 159, elevadores 240 e 242):
+    - **Sala 028 (D1)**: 1 soldado móvel lento (`GuardSlow`), 1 câmera de vigilância a 0.5 px/tick (30 px/s), portas para Salas 146 (Refém Grey Fox), 147 (Míssil Teleguiado) e 029 (Gás).
+    - **Sala 029 (C1)**: Sala de gás letal (4 nuvens móveis de gás com dano periódico de 2 HP sem máscara), chamada de rádio do Big Boss instruindo sobre a máscara de gás, portas para 028 e 148 (Refém).
+    - **Sala 030 (B1)**: 2 guardas em patrulha rápida (`GuardFast`), portas para 149 (Munição de pistola) e 152 (Refém alertando sobre lasers).
+    - **Sala 031 (A1)**: Desembarque do Elevador 1 (Sala 240), 2 câmeras de vigilância operando rigorosamente na velocidade calibrada canônica de 0.5 px/tick com temporizador de 60 ticks nas extremidades.
+    - **Sala 032 (D2)**: 1 guarda em patrulha lenta (`GuardSlow`), 2 portas para a Sala 153 (Armadilha de barris e C4).
+    - **Sala 033 (A2)**: 2 guardas de patrulha média (`GuardMedium`), portas para Sala 150 (Guarnição do Silenciador) e transição sul para a Sala 035.
+    - **Sala 034 (D3)**: 2 guardas móveis (1 `GuardFast`, 1 `GuardMedium`), sem portas internas.
+    - **Sala 035 (A3)**: Implementação canônica da regra `HideGuardRoom35` (`logic/actors/hideguards.asm:138`):
+      - Na tabela estática da ROM existem 3 guardas.
+      - Ao entrar pelo norte vindo da Sala 033 (`PreviousRoom == 33`), o guarda em $X=24$ é removido para evitar emboscada de spawn no jogador (2 guardas ativos).
+      - Ao sair da porta da Sala 156 (`PreviousRoom == 156`), o guarda em $Y=40$ é removido (2 guardas ativos).
+      - Vindo de outra direção, todos os 3 guardas operam normalmente.
+    - **Sala 036 (D4)**: 1 soldado móvel, 2 câmeras de vigilância a 0.5 px/tick, portas para Sala 157 (Cartão 2) e Sala 158 (Ração).
+    - **Sala 037 (C4)**: Piso eletrificado com painel de força que requer destruição por Míssil Teleguiado (`ElectrifiedFloorSystem`), chamada de rádio do Big Boss explicando o dispositivo.
+    - **Sala 038 (B4)**: 2 guardas em patrulha, porta para a Sala 159 (Refém com frequência 120.33 de Diane).
+    - **Sala 039 (A4)**: Desembarque do Elevador 3 para a cobertura (Sala 242). Implementação da regra `HideGuardRoom39` (`logic/actors/hideguards.asm:161`):
+      - Possui 4 sentinelas estáticas na ROM.
+      - Ao entrar pela Sala 038 (sul), as 2 sentinelas do sul ($Y=176$) são removidas, mantendo as 2 do norte ($Y=72$).
+      - Ao desembarcar do Elevador 242 (norte), as 2 sentinelas do norte ($Y=72$) são removidas, mantendo as 2 do sul ($Y=176$).
+    - **Salas Internas (Itens e Reféns)**:
+      - Sala 146: Refém com mensagem canônica revelando a captura de Grey Fox.
+      - Sala 147: Item Box com Míssil Teleguiado (`WEAPON_MISSILE`).
+      - Sala 148: Refém de resgate militar.
+      - Sala 149: Item Box com Caixa de Munição de Pistola (`ITEM_AMMO_CRATE`).
+      - Sala 150: Emboscada de 4 guardas atiradores do silenciador (`GuardSilencer`).
+      - Sala 151: Item Box com Lançador de Granadas (`WEAPON_GRENADE_LAUNCHER`).
+      - Sala 152: Refém avisando sobre os sensores infravermelhos.
+      - Sala 153: Armadilha de barris rolantes + Item Box com Explosivo Plástico (`ITEM_PLASTIC_BOMB`).
+      - Sala 156: Item Box com Caixa de Papelão (`ITEM_BOX`).
+      - Sala 157: Item Box com Cartão de Acesso 2 (`ITEM_CARD2`).
+      - Sala 158: Item Box com Ração de Combate (`ITEM_RATION`).
+      - Sala 159: Refém informando a frequência de rádio da operadora Diane (120.33).
+- **Correções Realizadas no Mapeamento de Itens e Visual**:
+  - `CARDBOARD_BOX`: Na ROM MSX (`Enums.asm:153`), `CARDBOARD_BOX: equ 21h` (hexadecimal $0\text{x}21 = 33$ em decimal). O `match type_id` em `sandbox_gameplay.gd` não possuía a chave `33:`, caindo no fallback incorreto de ração na Sala 156. Corrigido para `33: b.item_id = InventoryManager.ITEM_BOX`.
+  - `PLASTIC_BOMB`: Adicionado mapeamento do ID 5 (`PLASTIC_BOMB`, `Enums.asm:8`) em `sandbox_gameplay.gd` e `inventory.gd`, associado à Sala 153.
+  - Arte 2D procedural no `item_box.gd`: adicionada renderização em pixel-art autoral para a Caixa de Papelão (`ITEM_BOX`) e para o bloco de Explosivo Plástico C4 (`ITEM_PLASTIC_BOMB`).
+- **Testes Automatizados e Validação**:
+  - Criado `godot/tests/floor3_review_test.gd` validando as 12 salas principais, transições de `HideGuard` de 35 e 39, velocidades de câmeras e guardas, piso elétrico, gás e todos os coletáveis e reféns das 12 salas internas.
+  - Integrado `godot-floor3-review` ao `tools/validate.py`.
+  - Execução de `python3 tools/validate.py`: **100% PASS** (49 testes Python + 19 suítes Godot, 0 erros).

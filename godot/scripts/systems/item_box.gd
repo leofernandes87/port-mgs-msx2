@@ -116,6 +116,16 @@ func _draw() -> void:
 		draw_rect(Rect2(-2, -5, 4, 7), Color("e03020"))
 		draw_rect(Rect2(-1, -6, 2, 2), Color.WHITE)
 		draw_rect(Rect2(-4, 0, 8, 2), Color("303840"))
+	elif item_id == InventoryManager.ITEM_BOX or item_id == "BOX":
+		# Miniatura da caixa de papelão (marrom com vinco e fita)
+		draw_rect(Rect2(-4, -5, 8, 8), Color("b88858"))
+		draw_rect(Rect2(-4, -5, 8, 2), Color("885e38"))
+		draw_rect(Rect2(-1, -5, 2, 8), Color("d0d0d0"))
+	elif item_id == InventoryManager.ITEM_PLASTIC_BOMB or item_id == "PLASTIC_BOMB":
+		# Bloco de explosivo plástico C4 militar (verde oliva escuro com detonador vermelho)
+		draw_rect(Rect2(-4, -4, 8, 7), Color("384838"))
+		draw_rect(Rect2(-2, -5, 4, 2), Color("d83030"))
+		draw_rect(Rect2(-3, -2, 6, 3), Color("283228"))
 	elif item_id == InventoryManager.ITEM_BAG or item_id == "BAG":
 		# Bolsa militar de equipamentos (saco cinza/azulado amarrado no topo)
 		draw_rect(Rect2(-5, -4, 10, 9), Color("404858"))
