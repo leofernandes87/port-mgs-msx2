@@ -39,7 +39,11 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(256.0, 192.0)
 	size = Vector2(256.0, 192.0)
 
-func start_briefing(contact: String, contact_name: String, pages: Array[String]) -> void:
+func start_briefing(contact: String, contact_name: String, pages: Array[String], system: RadioSystem = null) -> void:
+	if system:
+		radio_system = system
+	elif not radio_system:
+		radio_system = RadioSystem.new()
 	is_active = true
 	visible = true
 	dialog_pages = pages.duplicate()
@@ -51,6 +55,7 @@ func start_briefing(contact: String, contact_name: String, pages: Array[String])
 	current_leds = 0
 	if radio_system:
 		radio_system.is_send_mode = false
+		radio_system.set_frequency(RadioSystem.FREQ_BIGBOSS_PR1)
 	if dialog_pages.size() > 0:
 		_set_text(dialog_pages[0])
 	queue_redraw()
@@ -62,17 +67,19 @@ func open_radio(system: RadioSystem, room_id: int, auto_answer: bool = false) ->
 	is_active = true
 	visible = true
 
-	if auto_answer and radio_system.has_incoming_call:
+	if auto_answer and radio_system and radio_system.has_incoming_call:
 		var result: Dictionary = radio_system.answer_call(room_id)
 		_start_dialog(result)
 	else:
 		# Entra em modo RECV na frequência atual
-		radio_system.is_send_mode = false
+		if radio_system:
+			radio_system.is_send_mode = false
 		_update_status_display()
 		_set_text("TRANSCEIVER ONLINE. TUNE FREQUENCY (LEFT/RIGHT) AND PRESS UP TO TRANSMIT.")
 
 	queue_redraw()
-	print("RADIO_OPENED: Transceptor ativado na sala %d (Freq: %s)" % [room_id, radio_system.get_frequency_string()])
+	var freq_msg: String = radio_system.get_frequency_string() if radio_system else "120.85"
+	print("RADIO_OPENED: Transceptor ativado na sala %d (Freq: %s)" % [room_id, freq_msg])
 
 func close_radio() -> void:
 	if not is_active:
@@ -146,13 +153,15 @@ func handle_input(event: InputEvent) -> bool:
 
 	# Sintonia: Esquerda / Direita
 	if event.is_action_pressed("ui_left") or (event is InputEventKey and event.pressed and event.keycode == KEY_A):
-		radio_system.tune_down()
-		radio_system.is_send_mode = false
+		if radio_system:
+			radio_system.tune_down()
+			radio_system.is_send_mode = false
 		_on_frequency_changed()
 		return true
 	elif event.is_action_pressed("ui_right") or (event is InputEventKey and event.pressed and event.keycode == KEY_D):
-		radio_system.tune_up()
-		radio_system.is_send_mode = false
+		if radio_system:
+			radio_system.tune_up()
+			radio_system.is_send_mode = false
 		_on_frequency_changed()
 		return true
 
@@ -163,7 +172,8 @@ func handle_input(event: InputEvent) -> bool:
 
 	# Modo Recepção (RECV): Baixo / S
 	if event.is_action_pressed("ui_down") or (event is InputEventKey and event.pressed and event.keycode == KEY_S):
-		radio_system.is_send_mode = false
+		if radio_system:
+			radio_system.is_send_mode = false
 		_update_status_display()
 		_set_text("RECEIVER MODE. WAITING FOR TRANSMISSION.")
 		return true
@@ -175,10 +185,13 @@ func _on_frequency_changed() -> void:
 	current_contact = ""
 	current_contact_name = ""
 	has_signal = false
-	_set_text("TUNING: %s MHz..." % radio_system.get_frequency_string())
+	var freq_text: String = radio_system.get_frequency_string() if radio_system else "120.85"
+	_set_text("TUNING: %s MHz..." % freq_text)
 	queue_redraw()
 
 func _trigger_send() -> void:
+	if not radio_system:
+		radio_system = RadioSystem.new()
 	radio_system.is_send_mode = true
 	var result: Dictionary = radio_system.send_transmission(current_room_id)
 	_start_dialog(result)
@@ -186,13 +199,15 @@ func _trigger_send() -> void:
 func _start_dialog(result: Dictionary) -> void:
 	has_signal = bool(result.get("has_signal", false))
 	current_contact = String(result.get("contact", ""))
-	current_contact_name = String(result.get("contact_name", "SOLID SNAKE" if radio_system.is_send_mode else "RADIO"))
+	var is_send: bool = radio_system.is_send_mode if radio_system else false
+	current_contact_name = String(result.get("contact_name", "SOLID SNAKE" if is_send else "RADIO"))
 	target_leds = 12 if has_signal else 0
 	_set_text(String(result.get("text", "")))
 	queue_redraw()
 
 func _update_status_display() -> void:
-	current_contact_name = radio_system.get_contact_name_for_freq(radio_system.current_freq)
+	if radio_system:
+		current_contact_name = radio_system.get_contact_name_for_freq(radio_system.current_freq)
 	target_leds = 0
 	queue_redraw()
 
@@ -220,8 +235,9 @@ func _draw() -> void:
 	draw_rect(Rect2(12, 10, 232, 16), Color("182430"))
 	draw_string(ThemeDB.fallback_font, Vector2(16, 22), "TRANSCEIVER", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color("50e080"))
 
-	var recv_color := Color("40e060") if not radio_system.is_send_mode else Color("405060")
-	var send_color := Color("ff5050") if radio_system.is_send_mode else Color("405060")
+	var is_send: bool = radio_system.is_send_mode if radio_system else false
+	var recv_color := Color("40e060") if not is_send else Color("405060")
+	var send_color := Color("ff5050") if is_send else Color("405060")
 	draw_string(ThemeDB.fallback_font, Vector2(150, 22), "[RECV]", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, recv_color)
 	draw_string(ThemeDB.fallback_font, Vector2(195, 22), "[SEND]", HORIZONTAL_ALIGNMENT_LEFT, -1, 9, send_color)
 
@@ -229,7 +245,8 @@ func _draw() -> void:
 	var freq_box := Rect2(16, 30, 130, 24)
 	draw_rect(freq_box, Color("081014"))
 	draw_rect(freq_box, Color("304858"), false, 1.0)
-	var freq_str: String = "< %s MHz >" % radio_system.get_frequency_string()
+	var freq_val: String = radio_system.get_frequency_string() if radio_system else "120.85"
+	var freq_str: String = "< %s MHz >" % freq_val
 	draw_string(ThemeDB.fallback_font, Vector2(24, 46), freq_str, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color("60ff80"))
 
 	# 3. Medidor de Sinal (12 LEDs de sinal - Banks0123.asm:10798)

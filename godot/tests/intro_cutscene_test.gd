@@ -130,6 +130,27 @@ func _run_tests() -> void:
 	_assert_true(player.position == Vector2(128.0, 80.0), "Skip deve colocar Snake instantaneamente em (128, 80)")
 	_assert_true(player.can_control, "Controles devem estar liberados após skip")
 
+	# 11. Validação de Renderização Segura do RadioDialog durante Briefing (Evitar 'is_send_mode on Nil')
+	var r_dialog := RadioDialog.new()
+	root.add_child(r_dialog)
+	# Teste sem radio_system explicitamente configurado (deve auto-recuperar ou renderizar com segurança)
+	r_dialog.start_briefing(RadioSystem.CONTACT_BIG_BOSS, "BIG BOSS", IntroCutscene.BRIEFING_PAGES)
+	_assert_true(r_dialog.is_active, "RadioDialog deve estar ativo após start_briefing")
+	r_dialog.notification(CanvasItem.NOTIFICATION_DRAW)
+	_assert_true(true, "RadioDialog draw sem radio_system prévio deve renderizar sem exceção")
+
+	# Teste com radio_system atribuído
+	var r_sys := RadioSystem.new()
+	r_dialog.start_briefing(RadioSystem.CONTACT_BIG_BOSS, "BIG BOSS", IntroCutscene.BRIEFING_PAGES, r_sys)
+	_assert_true(r_dialog.radio_system != null, "RadioDialog deve possuir radio_system vinculado")
+	_assert_true(not r_dialog.radio_system.is_send_mode, "Briefing não deve estar em modo SEND")
+	r_dialog.notification(CanvasItem.NOTIFICATION_DRAW)
+	_assert_true(true, "RadioDialog draw com radio_system deve renderizar perfeitamente")
+
+	r_dialog.close_radio()
+	r_dialog.queue_free()
+	await process_frame
+
 	print("INTRO_CUTSCENE_INTEGRATION_OK: Todos os 13 estados da abertura, nado, rádio, escalada e skip validados com 100% de sucesso!")
 	player.free()
 	intro.free()

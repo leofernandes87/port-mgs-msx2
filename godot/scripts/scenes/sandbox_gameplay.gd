@@ -241,6 +241,7 @@ func _ready() -> void:
 
 	# Sistema de Rádio Transceptor (Etapa 15)
 	radio_dialog = RadioDialog.new()
+	radio_dialog.radio_system = radio_system
 	add_child(radio_dialog)
 	radio_dialog.radio_closed.connect(_on_radio_closed)
 
@@ -386,7 +387,9 @@ func _on_intro_radio_requested(pages: Array[String]) -> void:
 	if radio_dialog:
 		if radio_system:
 			radio_system.current_freq = RadioSystem.FREQ_BIGBOSS_PR1
-		radio_dialog.start_briefing(RadioSystem.CONTACT_BIG_BOSS, "BIG BOSS", pages)
+			radio_system.is_send_mode = false
+			radio_dialog.radio_system = radio_system
+		radio_dialog.start_briefing(RadioSystem.CONTACT_BIG_BOSS, "BIG BOSS", pages, radio_system)
 
 func _on_intro_finished() -> void:
 	print("SANDBOX: Cutscene de abertura concluída. Snake assumiu controle em terra firme!")

@@ -2317,5 +2317,10 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
 - **Testes e Verificação**:
   - Adicionados 2 testes unitários sintéticos em `tests/test_snake_sprite_extractor.py` (total de 69 testes unitários Python).
   - Criado teste de integração headless `godot/tests/intro_cutscene_test.gd` com 35 asserções cobrindo todos os 13 estados, transições de modo de animação, briefing de rádio, escalada e funcionalidade de skip.
-  - Execução de `python3 tools/validate.py`: **100% PASS** (69 testes unitários Python + 22 suítes de teste headless Godot 4, 0 erros).
+- **Correção de Acesso a Propriedade Nula (`is_send_mode on Nil`) no RadioDialog**:
+  - Identificada a causa raiz: durante a cutscene de abertura na Sala 121, `RadioDialog.start_briefing()` era invocado antes que `radio_system` tivesse sido vinculado ao diálogo, causando erro em tempo de execução ao tentar ler `radio_system.is_send_mode` e `radio_system.get_frequency_string()` durante a execução de `_draw()`.
+  - Aplicada inicialização defensiva automática de `RadioSystem` em `RadioDialog.start_briefing()` caso seja nulo, vinculação de instância no `_ready()` de `sandbox_gameplay.gd` e garantia de modo `is_send_mode = false` e sintonia em 120.85 MHz.
+  - Implementado tratamento 100% null-safe em todas as propriedades e métodos de `RadioDialog`.
+  - Adicionado teste de regressão em `intro_cutscene_test.gd` disparando renderização CanvasItem (`NOTIFICATION_DRAW`) durante o briefing com e sem `radio_system` vinculado.
+  - Validação via `python3 tools/validate.py`: **100% PASS** (69 testes unitários Python + 22 suítes headless Godot 4).
 
