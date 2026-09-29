@@ -37,6 +37,13 @@ var item_boxes: Array[ItemBox] = []
 var room_doors: Array[RoomDoor] = []
 var runtime_collision: Array = []
 var room_texture: ImageTexture
+
+## = RENDERIZAÇÃO DE MAPAS: ORIGINAL MSX2 vs REMAKE / REMASTER =
+## Se 'false' (padrão): utiliza os mapas autênticos do MSX2 extraídos da ROM (via snapshot.make_image()).
+##    Garante 100% de fidelidade pixel a pixel com colisões, portas, vãos de elevador e passagens secretas.
+## Se 'true': utiliza os planos de fundo ilustrados da pasta assets/remastered/room-XXX.png.
+@export var use_remastered_maps: bool = false
+
 var show_collision: bool = false
 var show_enemy_vision: bool = false
 var infinite_life: bool = false
@@ -295,6 +302,14 @@ func _ready() -> void:
 	)
 	pause_menu.give_arsenal_requested.connect(_give_debug_arsenal)
 	pause_menu.reset_room_requested.connect(reset_player)
+	pause_menu.title_screen_requested.connect(func() -> void:
+		get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
+	)
+	pause_menu.map_mode_toggled.connect(func(use_rem: bool) -> void:
+		use_remastered_maps = use_rem
+		_apply_snapshot()
+		queue_redraw()
+	)
 	add_child(pause_menu)
 
 	call_deferred("_post_ready_layout")
@@ -324,7 +339,7 @@ func _toggle_pause_menu() -> void:
 				item_menu.close_menu()
 			if radio_dialog and radio_dialog.is_active:
 				radio_dialog.close_radio()
-			pause_menu.open_menu(infinite_life, show_collision, show_enemy_vision, player.show_debug_colliders if player else false)
+			pause_menu.open_menu(infinite_life, show_collision, show_enemy_vision, player.show_debug_colliders if player else false, use_remastered_maps)
 
 func _give_debug_arsenal() -> void:
 	weapon_system.add_weapon(WeaponSystem.WEAPON_HANDGUN, 50)
@@ -431,14 +446,17 @@ func _load_initial_room() -> void:
 
 func _apply_snapshot() -> void:
 	var base_img: Image = null
-	var rem_path: String = "res://../assets/remastered/room-%03d.png" % snapshot.room_id
-	if ResourceLoader.exists(rem_path) or FileAccess.file_exists(ProjectSettings.globalize_path(rem_path)):
-		base_img = Image.load_from_file(ProjectSettings.globalize_path(rem_path))
-		if base_img:
-			print("REMASTER: Carregada arte remasterizada para a Sala %d" % snapshot.room_id)
+	if use_remastered_maps:
+		var rem_path: String = "res://../assets/remastered/room-%03d.png" % snapshot.room_id
+		if ResourceLoader.exists(rem_path) or FileAccess.file_exists(ProjectSettings.globalize_path(rem_path)):
+			base_img = Image.load_from_file(ProjectSettings.globalize_path(rem_path))
+			if base_img:
+				print("REMASTER: Carregada arte remasterizada para a Sala %d" % snapshot.room_id)
 	
 	if not base_img:
 		base_img = snapshot.make_image()
+		if not use_remastered_maps:
+			print("MAPA_ORIGINAL: Carregada arte autêntica MSX2 para a Sala %d" % snapshot.room_id)
 	
 	if base_img:
 		room_texture = ImageTexture.create_from_image(base_img)

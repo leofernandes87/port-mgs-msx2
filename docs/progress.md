@@ -2233,3 +2233,49 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Criada a suíte `tests/test_door_sprite_extractor.py` com 4 testes unitários sintéticos cobrindo decodificação 4bpp, paleta canônica, montagem do spritesheet com shearing e integridade de arquivo PNG.
   - Execução de `python3 tools/validate.py`: **100% PASS** (62 testes Python + 20 suítes headless Godot 4, 0 erros).
   - Geradas imagens comparativas `doors_rooms_comparison.png` e `room8_door_comparison.png` comprovando visualmente o fechamento e abertura perfeitos nas Salas 6, 11 e 3, e o alinhamento na Sala 8.
+
+## Abertura Original MSX2: Logo Konami Animado, Tela de Título Metal Gear e Press Start (2026-09-29)
+
+- **Engenharia Reversa da Sequência de Abertura (`external/MetalGear/`)**:
+  - **Logo Konami (`logic/konamilogo.asm` e `gfx/konamilogo.asm`)**:
+    - Decodificação dos blocos de tiles 1bpp: `gfxKonamiLogo` (13 tiles, cor 1), `gfxKonamiLogo2` (13 tiles, cor 2) e `gfxKonami` (26 tiles, cor 3).
+    - Paleta autêntica `KonamiLogoPal`: cor 1 (fita laranja vibrante `R:7, G:3, B:0`), cor 2 (fita escura `R:6, G:1, B:0`), cor 3 (palavra KONAMI cinza `R:4, G:4, B:4`) e cor 15 (fundo branco `R:7, G:7, B:7` via registrador VDP 7 = 0x0F).
+    - Mecânica de cortina: 49 linhas verticais copiadas de cima para baixo na VRAM (largura 168 px, linhas Y: 64 a 112), avançando 1 linha a cada 2 frames (~1.6s).
+    - Rotina `ChkAnykeyStart`: qualquer botão/tecla cancela o logo e transita diretamente para o menu.
+  - **Tela de Título (`logic/mainmenu.asm` e `gfx/metalgearlogo.asm`)**:
+    - Decodificação de 70 tiles em 3bpp (`Decode3bpp`) com a paleta `MenuPalette`: cinzas metálicos reflexivos e frisos vermelho/laranja.
+    - Montagem em blocos: "METAL" ($13 \times 4$ tiles = $104 \times 32$ px) e "GEAR" ($9 \times 4$ tiles = $72 \times 32$ px, rebaixado em 8 px).
+    - Scroll vertical ascendente `MGLogoYpos`: posições Y decrementando de 192 até 32 a cada 3 frames.
+    - Textos com fonte autêntica de 1987 (`gfx/font.asm`): "(C) KONAMI 1987" em $(78, 96)$ e prompt piscante a cada 30 frames em $Y=136$.
+    - Efeito `GS_PlayStart`: ao confirmar, o texto pisca rapidamente a cada 4 frames por 80 frames (~1.3s) antes de carregar o gameplay.
+- **Extrator Automatizado em Python 3 (`tools/extractors/extract_title_intro_sprites.py`)**:
+  - Script autônomo sem dependências externas (apenas `struct` e `zlib`).
+  - Gera em `godot/assets/protected/sprites/`:
+    - `intro_konami_logo.png` (256x192 px, tela branca completa)
+    - `intro_konami_ribbon.png` (168x49 px, fita transparente para efeito de cortina)
+    - `intro_metalgear_logo.png` (176x40 px, logotipo cromado completo transparente)
+    - `intro_copyright.png` (104x8 px, "(C) KONAMI 1987")
+    - `intro_press_start.png` (88x8 px, "PRESS START")
+    - `intro_push_space.png` (112x8 px, "PUSH SPACE KEY")
+    - `intro_play_start.png` (80x8 px, "PLAY START")
+    - `intro_title_full.png` (256x192 px, tela de título composta de referência)
+- **Implementação no Godot 4 (`godot/scenes/title_screen.tscn` e `title_screen.gd`)**:
+  - Máquina de estados com resolução virtual $256 \times 192$ px escalada com filtro pixel-perfect (Nearest Neighbor):
+    - `KONAMI_WIPE`: revelação em cortina de 49 linhas (1 linha a cada 2 frames).
+    - `KONAMI_HOLD`: retenção do logo por ~1.2s.
+    - `LOGO_SCROLL`: scroll ascendente fiel a `MGLogoYpos`.
+    - `TITLE_IDLE`: exibição de "(C) KONAMI 1987" e "PRESS START" piscando a cada 30 frames (tecla T alterna para "PUSH SPACE KEY").
+    - `PLAY_START`: piscar rápido a cada 4 frames por 80 frames antes da transição.
+    - Transição fluida via `get_tree().change_scene_to_file("res://scenes/sandbox_gameplay.tscn")`.
+  - Configurado `run/main_scene="res://scenes/title_screen.tscn"` em `project.godot`.
+  - Adicionada opção no Pause Menu (`pause_menu.gd`) para retornar à tela de título a qualquer momento durante o jogo.
+- **Alternância de Mapas Autênticos MSX2 vs Remake HD (`sandbox_gameplay.gd`)**:
+  - Implementada variável `@export var use_remastered_maps: bool = false`.
+  - Por padrão (`false`), utiliza a renderização autêntica de metatiles extraída da ROM via `snapshot.make_image()`, assegurando precisão pixel-perfect em passagens, portas e colisões (evitando desvios artísticos do remake, como o desvio de 10 px na porta da Sala 008).
+  - Quando `true`, utiliza os fundos ilustrados de `assets/remastered/room-XXX.png`.
+  - Adicionado botão interativo no Pause Menu ("🎨 Mapa de Fundo: [ ORIGINAL MSX2 ] / [ REMASTER HD ]") permitindo alternar a qualquer momento e recarregar a visualização da sala instantaneamente.
+- **Testes e Verificação**:
+  - Criada a suíte unitária sintética `tests/test_title_intro_extractor.py` (5 testes).
+  - Criado teste de integração headless `godot/tests/title_screen_test.gd` validando o carregamento das 6 texturas, máquina de estados, skip, alternância de prompt e Play Start.
+  - Execução de `python3 tools/validate.py`: **100% PASS** (67 testes unitários Python + 21 suítes de teste headless Godot 4, 0 erros).
+
