@@ -2168,4 +2168,23 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Criado `tests/test_snake_sprite_extractor.py` com testes unitários sintéticos validando descompressão RLE, lógica de Color Compare e formato de cabeçalho PNG.
   - Execução de `python3 tools/validate.py`: **100% PASS** (53 testes Python + 20 suítes Godot, 0 erros).
 
+## Extração e Integração dos Sprites Autênticos de Guardas e Cães de Guarda do MSX2 (2026-09-29)
+
+- **Extrator de Sprites de Inimigos (`tools/extractors/extract_enemy_sprites.py`)**:
+  - Implementada a engenharia reversa e extração reproduzível em Python 3 dos dados de `external/MetalGear/gfx/sprites.asm` (`SprGuard` e `SprDog`) e tabelas de mapeamento de `data/actorspriteattr.asm`:
+    - **Guardas (`SprGuard`)**: Reconstituída a composição modular de tronco e pernas em hardware VDP V9938. O tronco (linhas 0 a 15) e as pernas (linhas 16 a 31) usam os deslocamentos de `SprOffsets1` (`91h`) e `SprOffsets2` (`92h`, bobbing vertical de 1 px). Aplicada a paleta canônica com farda azul-acinzentada (`#2e4b78`), pele/cinto (`#da916d`) e contorno preto (`#101010` via Color Compare 2 | 13 = 15).
+    - **Cães de Guarda (`SprDog`)**: Reconstituída a animação em células padronizadas de 32x32 px: repouso/dormindo (16x16, `SprOffsets5`), escuta/alerta (16x16, `SprOffsets5`), corrida vertical 16x32 (Up/Down, `SprOffsets15`) e corrida horizontal 32x16 (Left/Right, `SprOffsets16`). Aplicada a paleta Doberman autêntica: silhueta corporal preta (`#101010`) e detalhes em bege/caramelo (`#da916d`).
+  - Geração automática e protegida de:
+    - `godot/assets/protected/sprites/guard_msx.png` (64x128 px, grade 4x4 de 16x32: 4 direções x Stand/Walk1/Walk2).
+    - `godot/assets/protected/sprites/dog_msx.png` (128x96 px, grade 4x3 de 32x32: Down1/2, Up1/2, Left1/2, Right1/2, Sleep, Listen).
+- **Integração no Godot 4 (`godot/scripts/systems/enemy.gd`)**:
+  - Carregamento dinâmico em tempo de execução via `Image.load_from_file()` com cache estático (`load_enemy_textures()`).
+  - Mapeamento dinâmico de regiões (`_get_guard_sprite_rect()` e `_get_dog_sprite_rect()`) acoplado ao ciclo de passadas, direções canônicas e estados (patrulha, perseguição em alerta, sentinela sonolento, sono e escuta).
+  - Preservados todos os overlays canônicos sobrepostos: ponto de exclamação vermelho (!), balão de latido ("AU!"), ronco "Zzz" flutuante animado, estrelas de atordoamento por soco e clarão de disparo (muzzle flash).
+  - Mantido fallback procedural robusto e idêntico caso as texturas não estejam presentes em disco.
+- **Testes e Verificação**:
+  - Criada a suíte `tests/test_enemy_sprite_extractor.py` com testes sintéticos de descompressão RLE, composição modular de guarda, composição de cão e conformidade PNG.
+  - Execução completa de `python3 tools/validate.py`: **100% PASS** (58 testes unitários Python + 20 suítes de teste headless Godot 4, 0 erros).
+
+
 

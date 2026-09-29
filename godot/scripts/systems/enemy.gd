@@ -108,7 +108,81 @@ var snore_anim_tick: int = 0
 
 signal sleepy_dialog_called(dialog_text: String)
 
+# Sprites autênticos do MSX2 extraídos de SprGuard e SprDog (RC750)
+static var _guard_texture: Texture2D = null
+static var _dog_texture: Texture2D = null
+static var _checked_textures: bool = false
+
+static func load_enemy_textures() -> void:
+	if _checked_textures:
+		return
+	_checked_textures = true
+	var guard_path := "res://assets/protected/sprites/guard_msx.png"
+	var abs_guard := ProjectSettings.globalize_path(guard_path)
+	if FileAccess.file_exists(abs_guard):
+		var img_g := Image.load_from_file(abs_guard)
+		if img_g != null and not img_g.is_empty():
+			_guard_texture = ImageTexture.create_from_image(img_g)
+			print("ENEMY: Spritesheet autêntico MSX2 de Guarda carregado com sucesso! (64x128 px)")
+
+	var dog_path := "res://assets/protected/sprites/dog_msx.png"
+	var abs_dog := ProjectSettings.globalize_path(dog_path)
+	if FileAccess.file_exists(abs_dog):
+		var img_d := Image.load_from_file(abs_dog)
+		if img_d != null and not img_d.is_empty():
+			_dog_texture = ImageTexture.create_from_image(img_d)
+			print("ENEMY: Spritesheet autêntico MSX2 de Cão carregado com sucesso! (128x96 px)")
+
+func _get_guard_sprite_rect() -> Rect2:
+	var row: int = 0
+	match current_direction:
+		PlayerController.Direction.DOWN:
+			row = 0
+		PlayerController.Direction.UP:
+			row = 1
+		PlayerController.Direction.RIGHT:
+			row = 2
+		PlayerController.Direction.LEFT:
+			row = 3
+
+	var col: int = 0
+	if is_sleepy_guard and sleepy_state == SleepyState.SLEEPING:
+		row = 0 # Down
+		col = 0 # Stand
+	elif wait_ticks > 0 or stunned_timer > 0:
+		col = 0 # Stand
+	else:
+		col = 1 if anim_frame == 0 else 2
+
+	return Rect2(col * 16.0, row * 32.0, 16.0, 32.0)
+
+func _get_dog_sprite_rect() -> Rect2:
+	if dog_state == DogState.SLEEP:
+		return Rect2(0.0, 2.0 * 32.0, 32.0, 32.0)
+	if dog_state == DogState.LISTEN:
+		return Rect2(1.0 * 32.0, 2.0 * 32.0, 32.0, 32.0)
+
+	var col: int = 0
+	var row: int = 0
+	var f: int = anim_frame % 2
+	match current_direction:
+		PlayerController.Direction.DOWN:
+			row = 0
+			col = f
+		PlayerController.Direction.UP:
+			row = 0
+			col = 2 + f
+		PlayerController.Direction.LEFT:
+			row = 1
+			col = f
+		PlayerController.Direction.RIGHT:
+			row = 1
+			col = 2 + f
+
+	return Rect2(col * 32.0, row * 32.0, 32.0, 32.0)
+
 func _ready() -> void:
+	load_enemy_textures()
 	z_index = 8
 	match guard_type:
 		GuardType.SLOW:
@@ -850,7 +924,31 @@ func _draw() -> void:
 		draw_rect(Rect2(-6, -1, 8, 2), Color("181c24")) # Fuzil caído ao lado
 		return
 
-	# 2. Paleta Canônica dos Guardas de Outer Heaven (MSX2 RC750)
+	# 2. Renderização autêntica com spritesheet MSX2 (se o asset extraído estiver presente)
+	if _guard_texture != null:
+		var src_rect := _get_guard_sprite_rect()
+		var dest_rect := Rect2(-8.0, -26.0, 16.0, 32.0)
+		draw_texture_rect_region(_guard_texture, dest_rect, src_rect)
+
+		# Clarão de disparo (muzzle flash) na ponta do fuzil
+		if shoot_flash_timer > 0:
+			var flash_pos := Vector2.ZERO
+			match current_direction:
+				PlayerController.Direction.UP:
+					flash_pos = Vector2(4.0, -28.0)
+				PlayerController.Direction.DOWN:
+					flash_pos = Vector2(-4.0, 8.0)
+				PlayerController.Direction.LEFT:
+					flash_pos = Vector2(-15.0, -8.0)
+				PlayerController.Direction.RIGHT:
+					flash_pos = Vector2(15.0, -8.0)
+			draw_circle(flash_pos, 3.5, Color(1.0, 0.9, 0.3, 0.95))
+			draw_circle(flash_pos, 1.8, Color(1.0, 1.0, 1.0, 1.0))
+
+		_draw_guard_overlays()
+		return
+
+	# 3. Procedural Fallback (se a textura não estiver carregada)
 	var c_helmet := Color("1c2432")       # Capacete de combate de aço
 	var c_helmet_light := Color("2c384c") # Cúpula superior do capacete
 	var c_helmet_rim := Color("101620")   # Borda e aba do capacete
@@ -1038,6 +1136,9 @@ func _draw() -> void:
 		draw_line(Vector2(boot_l_rect.position.x, boot_l_rect.end.y), Vector2(boot_l_rect.end.x, boot_l_rect.end.y), Color("06080c"), 1.0)
 		draw_line(Vector2(boot_r_rect.position.x, boot_r_rect.end.y), Vector2(boot_r_rect.end.x, boot_r_rect.end.y), Color("06080c"), 1.0)
 
+	_draw_guard_overlays()
+
+func _draw_guard_overlays() -> void:
 	# --- INDICADOR DE ATORDOAMENTO (estrelas girando sobre o capacete) ---
 	if stunned_timer > 0:
 		var st_phase: int = (stunned_timer / 8) % 4
@@ -1226,7 +1327,40 @@ func _draw_dog() -> void:
 		draw_line(Vector2(-8, 1), Vector2(-12, 3), col_body, 1.5)
 		return
 
-	# 2. Dormindo (DogSleep - Status 0)
+	# 2. Renderização autêntica com spritesheet MSX2 (se o asset extraído estiver presente)
+	if _dog_texture != null:
+		var src_rect := _get_dog_sprite_rect()
+		var dest_rect := Rect2(-16.0, -16.0, 32.0, 32.0)
+		draw_texture_rect_region(_dog_texture, dest_rect, src_rect)
+
+		# Balão "Zzz" flutuante animado
+		if dog_state == DogState.SLEEP:
+			var z_phase: float = fmod(float(dog_anim_tick), 36.0)
+			var z1_pos := Vector2(6.0 + sin(z_phase * 0.15) * 2.0, -6.0 - (z_phase * 0.25))
+			_draw_z_symbol(z1_pos, 4.0, Color(0.85, 0.9, 1.0, 0.9))
+			if dog_anim_tick % 36 > 16:
+				var z2_phase: float = fmod(float(dog_anim_tick + 18), 36.0)
+				var z2_pos := Vector2(9.0 + sin(z2_phase * 0.15) * 2.0, -6.0 - (z2_phase * 0.25))
+				_draw_z_symbol(z2_pos, 3.0, Color(0.7, 0.85, 1.0, 0.7))
+
+		# Balão de Latido ("AU!" / Sfx_DogBark)
+		if dog_bark_timer > 0:
+			draw_rect(Rect2(-12, -22, 24, 10), Color.BLACK)
+			draw_rect(Rect2(-11, -21, 22, 8), Color.WHITE)
+			draw_polygon(PackedVector2Array([Vector2(-2, -12), Vector2(2, -12), Vector2(0, -9)]), PackedColorArray([Color.BLACK]))
+			draw_polygon(PackedVector2Array([Vector2(-1, -12), Vector2(1, -12), Vector2(0, -10)]), PackedColorArray([Color.WHITE]))
+			draw_string(ThemeDB.fallback_font, Vector2(-9, -15), "AU!", HORIZONTAL_ALIGNMENT_CENTER, 18.0, 7, col_red)
+
+		# Indicador de Atordoamento
+		if stunned_timer > 0:
+			var st_phase: int = (stunned_timer / 8) % 4
+			var offsets := [Vector2(-6, -16), Vector2(0, -18), Vector2(6, -16), Vector2(0, -14)]
+			for i: int in range(3):
+				var pt: Vector2 = offsets[(st_phase + i) % 4]
+				draw_circle(pt, 1.5, Color.YELLOW)
+		return
+
+	# 3. Procedural Fallback (Dormindo - DogSleep - Status 0)
 	if dog_state == DogState.SLEEP:
 		draw_rect(Rect2(-7, -4, 14, 8), col_body)
 		draw_rect(Rect2(-6, -5, 12, 1), col_body_light)
