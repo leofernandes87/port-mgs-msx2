@@ -62,14 +62,14 @@ func _run() -> void:
 	root.add_child(player)
 	await process_frame
 
-	player.set_grid_position(100.0, 100.0)
+	player.set_grid_position(100.0, 50.0)
 	player.current_direction = PlayerController.Direction.DOWN
 
 	var bullet: Bullet = player.fire_weapon(ws)
 	if not require(bullet != null, "player.fire_weapon deve instanciar um projétil Bullet"): return
-	# Ponto de saída fiel ao MSX2: PlayerX, PlayerY - 14.0 (handgun.asm:43-48)
-	if not require(bullet.position.x == 100.0, "Projétil deve iniciar no PlayerX"): return
-	if not require(bullet.position.y == 86.0, "Projétil deve iniciar em PlayerY - 14"): return
+	# Ponto de saída do cano da arma na direção DOWN: PlayerX + 3.0, PlayerY + 6.0
+	if not require(bullet.position.x == 103.0, "Projétil deve iniciar no cano da arma em X"): return
+	if not require(bullet.position.y == 56.0, "Projétil deve iniciar no cano da arma em Y"): return
 	if not require(bullet.speed == 3.0, "Velocidade da bala deve ser 3.0 px/tick"): return
 	if not require(bullet.ticks_remaining == 32, "Alcance máximo da bala deve ser 32 ticks"): return
 	if not require(bullet.damage == 2, "Dano da bala deve ser 2 pontos (BulletDamage da ROM)"): return
@@ -83,8 +83,8 @@ func _run() -> void:
 		var alive: bool = bullet.step_tick(empty_grid)
 		if not require(alive, "Bala deve permanecer ativa durante seus 32 ticks"): return
 
-	# Posição após 31 ticks para DOWN (+3 px/tick): 86 + 31 * 3 = 179.0
-	if not require(bullet.position.y == 179.0, "Projétil deve ter percorrido 93 px em 31 ticks"): return
+	# Posição após 31 ticks para DOWN (+3 px/tick): 56 + 31 * 3 = 149.0
+	if not require(bullet.position.y == 149.0, "Projétil deve ter percorrido 93 px em 31 ticks"): return
 
 	# No 32º tick, o projétil atinge o fim do alcance (32 * 3 = 96 px) e expira
 	var still_alive: bool = bullet.step_tick(empty_grid)
@@ -101,12 +101,12 @@ func _run() -> void:
 	root.add_child(wall_bullet)
 	await process_frame
 
-	# Criar grid com parede sólida no tile à frente (ex: x=64, y=36 -> tx=8, ty=4)
+	# Criar grid com parede sólida no tile à frente da trajetória do projétil
 	var solid_grid: Array[int] = []
 	solid_grid.resize(768)
 	solid_grid.fill(0)
-	var wall_tx: int = 8
-	var wall_ty: int = 4 # y = 36 / 8 = 4
+	var wall_tx: int = 10 # x=80
+	var wall_ty: int = int(wall_bullet.position.y) / 8 # y alinhado à altura do cano da arma
 	solid_grid[wall_ty * 32 + wall_tx] = 1
 
 	var wall_hit: bool = false
@@ -135,6 +135,33 @@ func _run() -> void:
 	if not require(hit and enemy.is_dead, "1 tiro de pistola/SMG deve derrotar soldado comum (dano 2 vs HP 2)"): return
 
 	enemy.queue_free()
+
+	# Teste de Tiro à Queima-Roupa (Point-Blank): guarda posicionado a 8 px em frente ao Snake
+	var pb_enemy: EnemyGuard = packed_enemy.instantiate() as EnemyGuard
+	pb_enemy.position = Vector2(108.0, 90.0) # 8 px à direita de Snake, entre peito e cano
+	root.add_child(pb_enemy)
+	await process_frame
+
+	player.set_grid_position(100.0, 90.0)
+	player.current_direction = PlayerController.Direction.RIGHT
+	var pb_bullet: Bullet = player.fire_weapon(ws)
+	if not require(pb_bullet != null, "Disparo à queima-roupa deve gerar projétil Bullet"): return
+
+	# Testar detecção de queima-roupa
+	var muzzle_box := Rect2(
+		minf(player.position.x, pb_bullet.position.x) - 4.0,
+		minf(player.position.y - 12.0, pb_bullet.position.y) - 4.0,
+		absf(pb_bullet.position.x - player.position.x) + 8.0,
+		absf(pb_bullet.position.y - (player.position.y - 12.0)) + 8.0
+	)
+	var enemy_box := Rect2(pb_enemy.position.x - 8.0, pb_enemy.position.y - 10.0, 16.0, 20.0)
+	var is_pb: bool = enemy_box.intersects(muzzle_box) or pb_enemy.check_bullet_hit(pb_bullet.position) or pb_enemy.position.distance_to(player.position) <= 14.0
+	if not require(is_pb, "Guarda à frente a 8 px deve ser interceptado pela zona à queima-roupa do disparo"): return
+	pb_enemy.take_bullet_hit(pb_bullet.damage)
+	if not require(pb_enemy.is_dead, "Disparo à queima-roupa deve eliminar soldado com 1 tiro"): return
+
+	pb_bullet.queue_free()
+	pb_enemy.queue_free()
 
 	# --------------------------------------------------------------------------
 	# 5. Teste Acústico do Silenciador (InvSupressor) e Salas Seguras

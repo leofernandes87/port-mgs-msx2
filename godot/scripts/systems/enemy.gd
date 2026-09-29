@@ -33,6 +33,7 @@ var state: GuardState = GuardState.PATROL
 var current_direction: PlayerController.Direction = PlayerController.Direction.RIGHT
 var is_shooter: bool = false
 var shoot_cooldown: int = 0
+var shoot_flash_timer: int = 0 # Clarão de disparo na ponta do fuzil
 
 var waypoints: Array[Vector2] = []
 var current_waypoint_idx: int = 0
@@ -41,6 +42,17 @@ var waypoint_reverse: bool = false
 var is_alert: bool = false
 var alert_timer: float = 0.0
 var show_debug_vision: bool = false
+
+# GuardAlert (ID 10, 11 - logic/actors/guardalert.asm)
+enum AlertSubstate {
+	CHASE = 0,          # GuardWalk (Status 0): persegue Snake
+	WAIT_SHOT = 1,      # GuardWaitShot (Status 1): mira em Snake e aguarda disparo
+	AVOID_OBSTACLE = 2, # GuardAvoidObstacle (Status 2): desvia de obstáculos do cenário
+	WALK_AWAY = 3       # GuardWalkAwayShot (Status 3): recua/afasta-se para escaramuça
+}
+var alert_substate: AlertSubstate = AlertSubstate.CHASE
+var alert_counter: int = 24
+var walk_away_dir: PlayerController.Direction = PlayerController.Direction.DOWN
 
 var is_lorry_guard: bool = false
 var lorry_timer: int = 0
@@ -82,6 +94,19 @@ var dog_anim_tick: int = 0
 
 signal chow_time_called
 signal dog_barked(dog_pos: Vector2)
+
+# SleepyGuard (Rooms 26, 85, 138 - logic/actors/guard.asm:187-260, Banks0123.asm:6815-6844)
+var is_sleepy_guard: bool = false
+enum SleepyState {
+	AWAKE = 0,
+	SLEEPING = 1
+}
+var sleepy_state: SleepyState = SleepyState.AWAKE
+var awake_timer: int = 64
+var sleep_timer: int = 256
+var snore_anim_tick: int = 0
+
+signal sleepy_dialog_called(dialog_text: String)
 
 func _ready() -> void:
 	z_index = 8
@@ -139,6 +164,17 @@ func init_dog() -> void:
 	punches_received = 0
 	is_dead = false
 
+func init_sleepy_guard(force_awake_timer: int = -1) -> void:
+	is_sleepy_guard = true
+	sleepy_state = SleepyState.AWAKE
+	if force_awake_timer >= 0:
+		awake_timer = force_awake_timer
+	else:
+		# Banks0123.asm:6832-6837: r & 1 == 0 -> 5 ticks; else -> 64 ticks (0x40)
+		awake_timer = 5 if (randi() % 2 == 0) else 64
+	sleep_timer = 256
+	snore_anim_tick = 0
+
 func wake_up_to_chase() -> void:
 	if is_dead or not is_dog:
 		return
@@ -166,25 +202,20 @@ func check_punched(player_pos: Vector2, player_dir: PlayerController.Direction) 
 	if is_dead:
 		return false
 
-	var offset_y: float = 0.0
-	var offset_x: float = 0.0
-	var radius_y: float = 12.0
-	var radius_x: float = 12.0
+	var dx: float = position.x - player_pos.x
+	var dy: float = position.y - player_pos.y
 
 	match player_dir:
 		PlayerController.Direction.UP:
-			offset_y = 12.0
+			return dy >= -24.0 and dy <= 4.0 and absf(dx) <= 12.0
 		PlayerController.Direction.DOWN:
-			offset_y = -12.0
+			return dy >= -4.0 and dy <= 24.0 and absf(dx) <= 12.0
 		PlayerController.Direction.LEFT:
-			offset_x = 12.0
+			return dx >= -24.0 and dx <= 4.0 and absf(dy) <= 12.0
 		PlayerController.Direction.RIGHT:
-			offset_x = -12.0
+			return dx >= -4.0 and dx <= 24.0 and absf(dy) <= 12.0
 
-	var diff_y: float = absf(position.y + offset_y - player_pos.y)
-	var diff_x: float = absf(position.x + offset_x - player_pos.x)
-
-	return diff_y < radius_y and diff_x < radius_x
+	return false
 
 func receive_punch() -> void:
 	if is_dead or stunned_timer > 0:
@@ -201,6 +232,9 @@ func receive_punch() -> void:
 			print("DOG_HIT: Cão atingido (%d/2) - atordoado por 32 ticks!" % punches_received)
 		queue_redraw()
 		return
+
+	if is_sleepy_guard:
+		sleepy_state = SleepyState.AWAKE
 
 	state = GuardState.ALERT
 	is_alert = true
@@ -244,8 +278,18 @@ func try_shoot(player_pos: Vector2) -> Bullet:
 	# Dispara se for atirador nativo ou se estiver em modo de alerta perseguindo
 	if is_shooter or (state == GuardState.ALERT and is_alert):
 		shoot_cooldown = 48 # Cadência de ~48 ticks (aprox. 0.8s)
+		shoot_flash_timer = 6
+		queue_redraw()
 		var b: Bullet = Bullet.new()
-		b.position = Vector2(position.x, position.y - 6.0)
+		match current_direction:
+			PlayerController.Direction.UP:
+				b.position = Vector2(position.x + 4.0, position.y - 18.0)
+			PlayerController.Direction.DOWN:
+				b.position = Vector2(position.x + 2.0, position.y + 6.0)
+			PlayerController.Direction.LEFT:
+				b.position = Vector2(position.x - 14.0, position.y - 7.0)
+			PlayerController.Direction.RIGHT:
+				b.position = Vector2(position.x + 14.0, position.y - 7.0)
 		b.direction = current_direction
 		b.speed = 2.0
 		b.ticks_remaining = 48
@@ -259,6 +303,10 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 	if is_dead:
 		queue_redraw()
 		return
+
+	if shoot_flash_timer > 0:
+		shoot_flash_timer -= 1
+		queue_redraw()
 
 	if is_dog:
 		if is_punching and check_punched(player_pos, player_dir):
@@ -319,6 +367,42 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 	if is_alert:
 		alert_timer = maxf(0.0, alert_timer - 1.0)
 
+	# 2.5. Processamento canônico de guarda sonolento (logic/actors/guard.asm:187-260)
+	if is_sleepy_guard and state == GuardState.PATROL:
+		match sleepy_state:
+			SleepyState.AWAKE:
+				awake_timer -= 1
+				if awake_timer <= 0:
+					sleepy_state = SleepyState.SLEEPING
+					sleep_timer = 256 # guard.asm:205
+					current_direction = PlayerController.Direction.DOWN
+					sleepy_dialog_called.emit("I'm sleepy...")
+					queue_redraw()
+			SleepyState.SLEEPING:
+				snore_anim_tick += 1
+				# Checa toque físico com Snake (ListenShotsChkTouch em chkdiscover.asm:502-535)
+				var touch_dist: float = position.distance_to(player_pos)
+				if touch_dist <= 12.0:
+					sleepy_state = SleepyState.AWAKE
+					trigger_alert()
+					transform_to_alert_guard()
+					if player != null:
+						player.apply_damage(touch_damage)
+					queue_redraw()
+					return
+
+				# Decrementa o tempo de sono (256 ticks per guard.asm:205)
+				sleep_timer -= 1
+				if sleep_timer <= 0:
+					sleepy_state = SleepyState.AWAKE
+					awake_timer = 192 # 0C0h ticks canônicos per guard.asm:233
+					sleepy_dialog_called.emit("Overslept!")
+					if not waypoints.is_empty():
+						_update_direction_to_target(waypoints[current_waypoint_idx])
+
+				queue_redraw()
+				return # Enquanto dorme, não se desloca e linha de visão fica suprimida
+
 	# 3. Movimentação (Perseguição em ALERTA, Sentinela do Elevador ou Patrulha de Waypoints)
 	if state == GuardState.ALERT:
 		_chase_player(player_pos, collision_grid)
@@ -345,42 +429,122 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 
 	queue_redraw()
 
-## Perseguição do soldado em alerta em direção ao Snake (logic/actors/guardalert.asm:42 GetDirToPlayer)
+## Perseguição e escaramuça autêntica do soldado em alerta (logic/actors/guardalert.asm:91-200)
 func _chase_player(target_pos: Vector2, collision_grid: Array) -> void:
 	var diff: Vector2 = target_pos - position
-	if diff.length() <= 4.0:
-		return
+	var dist: float = diff.length()
 
-	var step_vec := Vector2.ZERO
-	if absf(diff.x) >= absf(diff.y):
-		var step_x: float = signf(diff.x) * minf(speed, absf(diff.x))
-		step_vec.x = step_x
-		current_direction = PlayerController.Direction.RIGHT if step_x > 0 else PlayerController.Direction.LEFT
-	else:
-		var step_y: float = signf(diff.y) * minf(speed, absf(diff.y))
-		step_vec.y = step_y
-		current_direction = PlayerController.Direction.DOWN if step_y > 0 else PlayerController.Direction.UP
+	match alert_substate:
+		AlertSubstate.CHASE:
+			# GuardWalk (Status 0): persegue o jogador ao longo do eixo dominante
+			var dir_to_player: PlayerController.Direction
+			var step_vec := Vector2.ZERO
+			if absf(diff.x) >= absf(diff.y):
+				var step_x: float = signf(diff.x) * minf(speed, absf(diff.x))
+				step_vec.x = step_x
+				dir_to_player = PlayerController.Direction.RIGHT if step_x > 0 else PlayerController.Direction.LEFT
+			else:
+				var step_y: float = signf(diff.y) * minf(speed, absf(diff.y))
+				step_vec.y = step_y
+				dir_to_player = PlayerController.Direction.DOWN if step_y > 0 else PlayerController.Direction.UP
 
-	var next_pos: Vector2 = position + step_vec
-	if not _is_colliding_grid(next_pos, collision_grid):
-		position = next_pos
-	else:
-		# Tentar contorno pelo eixo alternativo
-		if step_vec.x != 0.0 and absf(diff.y) > 0.5:
-			var alt_y: float = signf(diff.y) * minf(speed, absf(diff.y))
-			if not _is_colliding_grid(position + Vector2(0.0, alt_y), collision_grid):
-				position.y += alt_y
-				current_direction = PlayerController.Direction.DOWN if alt_y > 0 else PlayerController.Direction.UP
-		elif step_vec.y != 0.0 and absf(diff.x) > 0.5:
-			var alt_x: float = signf(diff.x) * minf(speed, absf(diff.x))
-			if not _is_colliding_grid(position + Vector2(alt_x, 0.0), collision_grid):
-				position.x += alt_x
-				current_direction = PlayerController.Direction.RIGHT if alt_x > 0 else PlayerController.Direction.LEFT
+			current_direction = dir_to_player
+
+			# Avançar se não colidir com paredes do cenário
+			var next_pos: Vector2 = position + step_vec
+			if not _is_colliding_grid(next_pos, collision_grid):
+				position = next_pos
+			else:
+				# Tentar desvio pelo eixo alternativo (GuardAvoidObstacle - Status 2)
+				var alt_vec := Vector2.ZERO
+				if step_vec.x != 0.0 and absf(diff.y) > 0.5:
+					alt_vec.y = signf(diff.y) * minf(speed, absf(diff.y))
+				elif step_vec.y != 0.0 and absf(diff.x) > 0.5:
+					alt_vec.x = signf(diff.x) * minf(speed, absf(diff.x))
+				if alt_vec != Vector2.ZERO and not _is_colliding_grid(position + alt_vec, collision_grid):
+					position += alt_vec
+					if alt_vec.x != 0.0:
+						current_direction = PlayerController.Direction.RIGHT if alt_vec.x > 0 else PlayerController.Direction.LEFT
+					else:
+						current_direction = PlayerController.Direction.DOWN if alt_vec.y > 0 else PlayerController.Direction.UP
+
+			# Decrementar temporizador da marcha
+			alert_counter -= 1
+			if alert_counter <= 0:
+				# ChkNearPlayer (guardalert.asm:124, 464 - limite 36 px):
+				# Quando próximo a Snake, o soldado NÃO fica imóvel colado: recua para escaramuça!
+				if dist <= 36.0:
+					_start_walk_away(target_pos, collision_grid)
+				else:
+					alert_counter = 20 + (randi() % 16)
+					# Sorteio canônico para decidir entre atirar ou continuar marchando (guardalert.asm:148-154)
+					if (randi() % 4) == 0:
+						_start_wait_shot(target_pos)
+
+		AlertSubstate.WALK_AWAY:
+			# GuardWalkAwayShot (Status 3): afasta-se de Snake para manobrar ao redor
+			var away_vec: Vector2 = _get_dir_vector(walk_away_dir) * speed
+			var next_away: Vector2 = position + away_vec
+			if not _is_colliding_grid(next_away, collision_grid):
+				position = next_away
+				current_direction = walk_away_dir
+			else:
+				# Parede encontrada ao recuar: tenta eixo ortogonal de desvio
+				var alt_away_dir := _get_perpendicular_away_dir(target_pos)
+				var alt_away_vec: Vector2 = _get_dir_vector(alt_away_dir) * speed
+				if not _is_colliding_grid(position + alt_away_vec, collision_grid):
+					position += alt_away_vec
+					walk_away_dir = alt_away_dir
+					current_direction = alt_away_dir
+				else:
+					_start_wait_shot(target_pos)
+					return
+
+			alert_counter -= 1
+			if alert_counter <= 0:
+				if dist <= 20.0:
+					_start_walk_away(target_pos, collision_grid)
+				else:
+					# Atingiu distância segura/tática: para, mira e atira! (guardalert.asm:315-316)
+					_start_wait_shot(target_pos)
+
+		AlertSubstate.WAIT_SHOT:
+			# GuardWaitShot (Status 1): soldado para brevemente, mira em Snake e dispara
+			_update_direction_to_target(target_pos)
+			alert_counter -= 1
+			if alert_counter <= 0:
+				# Fim da pausa de tiro: retoma perseguição
+				alert_substate = AlertSubstate.CHASE
+				alert_counter = 24 + (randi() % 16)
 
 	anim_tick += 1
 	if anim_tick >= 12:
 		anim_tick = 0
 		anim_frame = 1 if anim_frame == 0 else 0
+
+func _start_walk_away(target_pos: Vector2, _collision_grid: Array) -> void:
+	alert_substate = AlertSubstate.WALK_AWAY
+	alert_counter = 18 + (randi() % 14)
+	# Direção oposta canônica (GetOppositePlayer em helperdirections.asm:52)
+	var diff: Vector2 = target_pos - position
+	if absf(diff.x) >= absf(diff.y):
+		walk_away_dir = PlayerController.Direction.LEFT if diff.x > 0 else PlayerController.Direction.RIGHT
+	else:
+		walk_away_dir = PlayerController.Direction.UP if diff.y > 0 else PlayerController.Direction.DOWN
+	current_direction = walk_away_dir
+
+func _get_perpendicular_away_dir(target_pos: Vector2) -> PlayerController.Direction:
+	var diff: Vector2 = target_pos - position
+	if walk_away_dir in [PlayerController.Direction.LEFT, PlayerController.Direction.RIGHT]:
+		return PlayerController.Direction.UP if diff.y >= 0 else PlayerController.Direction.DOWN
+	else:
+		return PlayerController.Direction.LEFT if diff.x >= 0 else PlayerController.Direction.RIGHT
+
+func _start_wait_shot(target_pos: Vector2) -> void:
+	alert_substate = AlertSubstate.WAIT_SHOT
+	alert_counter = 16 # Pausa de tiro de ~16 ticks (0.26s)
+	shoot_cooldown = 0 # Pronto para disparar
+	_update_direction_to_target(target_pos)
 
 func _is_colliding_grid(test_pos: Vector2, collision_grid: Array) -> bool:
 	if collision_grid.is_empty():
@@ -563,6 +727,8 @@ func _process_elevator_guard() -> void:
 func check_line_of_sight(player_pos: Vector2, collision_grid: Array) -> bool:
 	if is_dead or not visible:
 		return false
+	if is_sleepy_guard and sleepy_state == SleepyState.SLEEPING:
+		return false
 
 	var diff: Vector2 = player_pos - position
 
@@ -633,6 +799,8 @@ func transform_to_alert_guard() -> void:
 	if is_dog:
 		wake_up_to_chase()
 		return
+	if is_sleepy_guard:
+		sleepy_state = SleepyState.AWAKE
 	is_alert = true
 	state = GuardState.ALERT
 	speed = 1.5 # SetWalkSpeedFast
@@ -650,6 +818,9 @@ func reset_to_patrol() -> void:
 		return
 	is_alert = false
 	state = GuardState.PATROL
+	if is_sleepy_guard:
+		sleepy_state = SleepyState.AWAKE
+		awake_timer = 192 # reinicia ciclo acordado canônico (0C0h)
 	match guard_type:
 		GuardType.SLOW:
 			speed = 0.5
@@ -664,67 +835,232 @@ func _draw() -> void:
 		_draw_dog()
 		return
 
-	# Se derrotado, desenha silhueta caída no chão
+	# 1. Soldado derrotado / caído no solo
 	if is_dead:
-		var dead_rect := Rect2(-8, -4, 16, 8)
-		draw_rect(dead_rect, Color("202830"))
-		draw_rect(Rect2(-6, -3, 12, 6), Color("384050"))
+		var col_dead_body := Color("141820")
+		var col_dead_suit := Color("243040")
+		var col_dead_helmet := Color("18202c")
+		var col_dead_skin := Color("d89870")
+		# Silhueta horizontal estendida (28x8)
+		draw_rect(Rect2(-14, -4, 28, 8), col_dead_body)
+		draw_rect(Rect2(-13, -3, 26, 6), col_dead_suit)
+		draw_rect(Rect2(5, -4, 8, 7), col_dead_helmet) # Capacete no chão
+		draw_rect(Rect2(4, -2, 4, 4), col_dead_skin)    # Rosto visível de lado
+		draw_rect(Rect2(-14, 0, 4, 4), Color("0a0e14")) # Coturnos
+		draw_rect(Rect2(-6, -1, 8, 2), Color("181c24")) # Fuzil caído ao lado
 		return
 
-	# Corpo do soldado inimigo (16x16)
-	var body_rect := Rect2(-8, -12, 16, 16)
-	var suit_color := Color("485068")   # Azul acinzentado do exército de Outer Heaven
-	var helmet_color := Color("283040") # Capacete escuro
-	var skin_color := Color("d89870")   # Rosto visível
-	var shadow_color := Color("182028")
+	# 2. Paleta Canônica dos Guardas de Outer Heaven (MSX2 RC750)
+	var c_helmet := Color("1c2432")       # Capacete de combate de aço
+	var c_helmet_light := Color("2c384c") # Cúpula superior do capacete
+	var c_helmet_rim := Color("101620")   # Borda e aba do capacete
+	var c_skin := Color("d89870")         # Pele humana
+	var c_skin_shadow := Color("a86c48")  # Sombra sob a aba do capacete
+	var c_suit := Color("384860")         # Farda militar azul-acinzentada
+	var c_suit_shadow := Color("243040")  # Dobras e sombras da farda
+	var c_vest := Color("202a3a")         # Colete tático balístico
+	var c_vest_light := Color("303e54")   # Ombreiras e acabamentos
+	var c_belt := Color("141820")         # Cinto de guarnição e coldre
+	var c_buckle := Color("788490")       # Fivela metálica
+	var c_boot := Color("10141c")         # Coturnos de combate pretos
+	var c_glove := Color("141820")        # Luvas táticas
+	var c_rifle := Color("12161e")        # Fuzil de assalto / metralhadora
+	var c_barrel := Color("2c3444")       # Cano metálico da arma
 
-	draw_rect(body_rect, suit_color)
-	draw_rect(Rect2(-8, -12, 16, 4), helmet_color) # Capacete
-	draw_rect(Rect2(-5, -7, 10, 3), skin_color)    # Rosto
+	# Altura total: 32 pixels (Y de -26 até +6)
+	# Largura total: 16 pixels (X de -8 até +8)
 
-	# Visão / Arma na direção do guarda
+	# --- CAPACETE E CABEÇA (Y: -26 a -15) ---
+	# Cúpula do capacete
+	draw_rect(Rect2(-5, -26, 10, 4), c_helmet_light)
+	draw_rect(Rect2(-6, -24, 12, 5), c_helmet)
+	# Borda / aba do capacete
+	draw_rect(Rect2(-7, -21, 14, 2), c_helmet_rim)
+
+	# Rosto / Pele (Y: -19 a -14)
+	draw_rect(Rect2(-5, -19, 10, 5), c_skin)
+	draw_rect(Rect2(-5, -19, 10, 1), c_skin_shadow) # Sombra da aba
+
+	# Detalhes direcionais da cabeça e expressão
 	match current_direction:
-		PlayerController.Direction.UP:
-			draw_rect(Rect2(-6, -12, 12, 5), helmet_color) # Costas do capacete
 		PlayerController.Direction.DOWN:
-			draw_rect(Rect2(-4, -6, 2, 2), Color.BLACK)
-			draw_rect(Rect2(2, -6, 2, 2), Color.BLACK)
-			draw_rect(Rect2(2, -2, 3, 6), shadow_color) # Rifle voltado para baixo
+			if is_sleepy_guard and sleepy_state == SleepyState.SLEEPING:
+				# Olhos fechados dormindo (fendas horizontais)
+				draw_rect(Rect2(-4, -17, 3, 1), Color("243040"))
+				draw_rect(Rect2(1, -17, 3, 1), Color("243040"))
+				# Nariz e boca relaxados
+				draw_rect(Rect2(-1, -15, 2, 1), c_skin_shadow)
+			else:
+				# Olhos vigilantes da guarda
+				draw_rect(Rect2(-4, -18, 2, 2), Color.BLACK)
+				draw_rect(Rect2(2, -18, 2, 2), Color.BLACK)
+				draw_rect(Rect2(-4, -18, 1, 1), Color.WHITE)
+				draw_rect(Rect2(2, -18, 1, 1), Color.WHITE)
+				draw_rect(Rect2(-1, -16, 2, 2), c_skin_shadow)
+
+		PlayerController.Direction.UP:
+			# Traseira do capacete cobrindo a nuca
+			draw_rect(Rect2(-5, -20, 10, 6), c_helmet)
+			draw_rect(Rect2(-6, -18, 12, 3), c_helmet_rim)
+
 		PlayerController.Direction.LEFT:
-			draw_rect(Rect2(-6, -6, 2, 2), Color.BLACK)
-			draw_rect(Rect2(-12, -2, 6, 3), shadow_color) # Rifle à esquerda
+			# Perfil virado para a esquerda
+			draw_rect(Rect2(-7, -20, 3, 3), c_helmet_rim) # Aba proeminente à esquerda
+			draw_rect(Rect2(-6, -18, 2, 3), c_skin)        # Nariz
+			draw_rect(Rect2(-4, -18, 2, 2), Color.BLACK)   # Olho esquerdo
+			draw_rect(Rect2(-4, -18, 1, 1), Color.WHITE)
+			draw_rect(Rect2(1, -21, 5, 7), c_helmet)      # Traseira do capacete
+
 		PlayerController.Direction.RIGHT:
-			draw_rect(Rect2(4, -6, 2, 2), Color.BLACK)
-			draw_rect(Rect2(6, -2, 6, 3), shadow_color) # Rifle à direita
+			# Perfil virado para a direita
+			draw_rect(Rect2(4, -20, 3, 3), c_helmet_rim)  # Aba proeminente à direita
+			draw_rect(Rect2(4, -18, 2, 3), c_skin)         # Nariz
+			draw_rect(Rect2(2, -18, 2, 2), Color.BLACK)    # Olho direito
+			draw_rect(Rect2(3, -18, 1, 1), Color.WHITE)
+			draw_rect(Rect2(-6, -21, 5, 7), c_helmet)     # Traseira do capacete
 
-	# Pés animados
-	var leg_l := Rect2(-6, 2, 4, 3)
-	var leg_r := Rect2(2, 2, 4, 3)
+	# --- PESCOÇO E GOLA MILITAR (Y: -14 a -12) ---
+	draw_rect(Rect2(-4, -14, 8, 2), c_suit_shadow)
+
+	# --- TRONCO, FARDA E COLETE (Y: -13 a -3) ---
+	# Túnica da farda base
+	draw_rect(Rect2(-7, -13, 14, 10), c_suit)
+	# Colete balístico de Outer Heaven
+	draw_rect(Rect2(-6, -13, 12, 9), c_vest)
+	# Ombreiras reforçadas
+	draw_rect(Rect2(-7, -13, 2, 4), c_vest_light)
+	draw_rect(Rect2(5, -13, 2, 4), c_vest_light)
+
+	# --- ARMA / FUZIL E BRAÇOS CONFORME A DIREÇÃO ---
+	var arm_l_y := -12
+	var arm_r_y := -12
 	if anim_frame == 1:
-		leg_l.position.y += 1
-		leg_r.position.y -= 1
-	draw_rect(leg_l, shadow_color)
-	draw_rect(leg_r, shadow_color)
+		arm_l_y = -10
+		arm_r_y = -14
+	else:
+		arm_l_y = -14
+		arm_r_y = -10
 
-	# Indicador de atordoamento (estrelas/pontos girando sobre a cabeça)
+	match current_direction:
+		PlayerController.Direction.DOWN:
+			# Braços segurando o fuzil na diagonal à frente
+			draw_rect(Rect2(-8, arm_l_y, 2, 7), c_suit)
+			draw_rect(Rect2(-8, arm_l_y + 6, 2, 3), c_glove)
+			draw_rect(Rect2(6, arm_r_y, 2, 7), c_suit)
+			draw_rect(Rect2(6, arm_r_y + 6, 2, 3), c_glove)
+			# Fuzil de assalto apontando para baixo
+			draw_rect(Rect2(1, -9, 3, 10), c_rifle)
+			draw_rect(Rect2(2, 1, 2, 5), c_barrel) # Cano descendo até o cinto
+			draw_rect(Rect2(4, -6, 2, 4), c_rifle)  # Carregador curvo
+			if shoot_flash_timer > 0:
+				draw_circle(Vector2(3, 7), 3.0, Color("ffe040"))
+				draw_circle(Vector2(3, 7), 1.5, Color.WHITE)
+				draw_line(Vector2(3, 4), Vector2(3, 11), Color("ffe040"), 1.5)
+
+		PlayerController.Direction.UP:
+			# Costas do soldado: alça do fuzil cruzando o peito
+			draw_rect(Rect2(-8, arm_l_y, 2, 7), c_suit)
+			draw_rect(Rect2(6, arm_r_y, 2, 7), c_suit)
+			draw_line(Vector2(-4, -13), Vector2(4, -4), c_belt, 1.5)
+			# Cano do fuzil sobressaindo acima do ombro direito
+			draw_rect(Rect2(4, -18, 2, 6), c_barrel)
+			if shoot_flash_timer > 0:
+				draw_circle(Vector2(5, -19), 3.0, Color("ffe040"))
+				draw_circle(Vector2(5, -19), 1.5, Color.WHITE)
+				draw_line(Vector2(5, -16), Vector2(5, -23), Color("ffe040"), 1.5)
+
+		PlayerController.Direction.LEFT:
+			# Fuzil de assalto empunhado apontando à esquerda
+			draw_rect(Rect2(-2, arm_l_y, 4, 8), c_suit)
+			draw_rect(Rect2(-2, arm_l_y + 6, 4, 3), c_glove)
+			# Coronha sob o braço e cano estendido à esquerda
+			draw_rect(Rect2(-8, -8, 8, 3), c_rifle)
+			draw_rect(Rect2(-14, -7, 6, 2), c_barrel) # Cano do fuzil à frente
+			draw_rect(Rect2(-6, -5, 2, 3), c_rifle)   # Carregador
+			if shoot_flash_timer > 0:
+				draw_circle(Vector2(-15, -6), 3.0, Color("ffe040"))
+				draw_circle(Vector2(-15, -6), 1.5, Color.WHITE)
+				draw_line(Vector2(-12, -6), Vector2(-19, -6), Color("ffe040"), 1.5)
+
+		PlayerController.Direction.RIGHT:
+			# Fuzil de assalto empunhado apontando à direita
+			draw_rect(Rect2(-2, arm_r_y, 4, 8), c_suit)
+			draw_rect(Rect2(-2, arm_r_y + 6, 4, 3), c_glove)
+			# Coronha sob o braço e cano estendido à direita
+			draw_rect(Rect2(0, -8, 8, 3), c_rifle)
+			draw_rect(Rect2(8, -7, 6, 2), c_barrel)   # Cano do fuzil à frente
+			draw_rect(Rect2(4, -5, 2, 3), c_rifle)    # Carregador
+			if shoot_flash_timer > 0:
+				draw_circle(Vector2(15, -6), 3.0, Color("ffe040"))
+				draw_circle(Vector2(15, -6), 1.5, Color.WHITE)
+				draw_line(Vector2(12, -6), Vector2(19, -6), Color("ffe040"), 1.5)
+
+	# --- CINTO E EQUIPAMENTOS (Y: -4 a 0) ---
+	draw_rect(Rect2(-6, -4, 12, 3), c_belt)
+	draw_rect(Rect2(-1, -4, 2, 3), c_buckle)
+	draw_rect(Rect2(-6, -4, 2, 3), c_vest_light) # Pouch esquerdo
+	draw_rect(Rect2(4, -4, 2, 3), c_vest_light)  # Cantil direito
+
+	# --- PERNAS E COTURNOS (Y: 0 a +6) ---
+	var leg_l_rect := Rect2(-5, 0, 4, 4)
+	var leg_r_rect := Rect2(1, 0, 4, 4)
+	var boot_l_rect := Rect2(-5, 4, 4, 2)
+	var boot_r_rect := Rect2(1, 4, 4, 2)
+
+	if anim_frame == 1:
+		leg_l_rect.position.y += 1
+		boot_l_rect.position.y += 1
+		leg_r_rect.position.y -= 1
+		boot_r_rect.position.y -= 1
+	else:
+		leg_l_rect.position.y -= 1
+		boot_l_rect.position.y -= 1
+		leg_r_rect.position.y += 1
+		boot_r_rect.position.y += 1
+
+	if current_direction == PlayerController.Direction.LEFT:
+		draw_rect(Rect2(-4, 0, 6, 4), c_suit)
+		draw_rect(Rect2(-5, 4, 6, 2), c_boot)
+		if anim_frame == 1:
+			draw_rect(Rect2(-6, 4, 4, 2), c_boot)
+			draw_rect(Rect2(0, 2, 4, 2), Color("080c12"))
+	elif current_direction == PlayerController.Direction.RIGHT:
+		draw_rect(Rect2(-2, 0, 6, 4), c_suit)
+		draw_rect(Rect2(-1, 4, 6, 2), c_boot)
+		if anim_frame == 1:
+			draw_rect(Rect2(2, 4, 4, 2), c_boot)
+			draw_rect(Rect2(-4, 2, 4, 2), Color("080c12"))
+	else:
+		draw_rect(leg_l_rect, c_suit)
+		draw_rect(leg_r_rect, c_suit)
+		draw_rect(boot_l_rect, c_boot)
+		draw_rect(boot_r_rect, c_boot)
+		draw_line(Vector2(boot_l_rect.position.x, boot_l_rect.end.y), Vector2(boot_l_rect.end.x, boot_l_rect.end.y), Color("06080c"), 1.0)
+		draw_line(Vector2(boot_r_rect.position.x, boot_r_rect.end.y), Vector2(boot_r_rect.end.x, boot_r_rect.end.y), Color("06080c"), 1.0)
+
+	# --- INDICADOR DE ATORDOAMENTO (estrelas girando sobre o capacete) ---
 	if stunned_timer > 0:
 		var st_phase: int = (stunned_timer / 8) % 4
-		var offsets := [Vector2(-6, -16), Vector2(0, -18), Vector2(6, -16), Vector2(0, -14)]
+		var offsets := [Vector2(-6, -30), Vector2(0, -32), Vector2(6, -30), Vector2(0, -28)]
 		for i: int in range(3):
 			var pt: Vector2 = offsets[(st_phase + i) % 4]
 			draw_circle(pt, 1.5, Color.YELLOW)
 
-	# Ponto de Exclamação (!) clássico do Metal Gear quando em alerta
-	if is_alert and stunned_timer <= 0:
-		# Balão vermelho
-		draw_circle(Vector2(0, -22), 6.0, Color("c82020"))
-		# Linha superior da exclamação
-		draw_rect(Rect2(-1, -26, 2, 5), Color.WHITE)
-		# Ponto inferior da exclamação
-		draw_rect(Rect2(-1, -19, 2, 2), Color.WHITE)
+	# --- SÍMBOLO ANIMADO DE RONCO ZZZ FLUTUANTE (snoringsymbol.asm) ---
+	if is_sleepy_guard and sleepy_state == SleepyState.SLEEPING and not is_alert and stunned_timer <= 0:
+		_draw_snoring_symbol()
 
-	# Visualização de depuração do cone de visão
-	if show_debug_vision and stunned_timer <= 0:
+	# --- PONTO DE EXCLAMAÇÃO (!) CLÁSSICO DO METAL GEAR ---
+	if is_alert and stunned_timer <= 0:
+		# Balão vermelho elevado acima do capacete
+		draw_circle(Vector2(0, -34), 6.0, Color("c82020"))
+		# Linha superior da exclamação
+		draw_rect(Rect2(-1, -38, 2, 5), Color.WHITE)
+		# Ponto inferior da exclamação
+		draw_rect(Rect2(-1, -31, 2, 2), Color.WHITE)
+
+	# --- VISUALIZAÇÃO DE DEPURAÇÃO DO CONE DE VISÃO ---
+	if show_debug_vision and stunned_timer <= 0 and not (is_sleepy_guard and sleepy_state == SleepyState.SLEEPING):
 		var beam_color := Color(1.0, 1.0, 0.2, 0.25) if not is_alert else Color(1.0, 0.2, 0.2, 0.35)
 		match current_direction:
 			PlayerController.Direction.UP:
@@ -735,6 +1071,23 @@ func _draw() -> void:
 				draw_rect(Rect2(-MAX_VIEW_DISTANCE, -VIEW_HALF_HEIGHT_H, MAX_VIEW_DISTANCE, VIEW_HALF_HEIGHT_H * 2.0), beam_color)
 			PlayerController.Direction.RIGHT:
 				draw_rect(Rect2(0.0, -VIEW_HALF_HEIGHT_H, MAX_VIEW_DISTANCE, VIEW_HALF_HEIGHT_H * 2.0), beam_color)
+
+func _draw_snoring_symbol() -> void:
+	var phase: float = float(snore_anim_tick % 48) / 48.0
+	var float_y: float = -phase * 4.0
+	# 3 letras Z flutuantes com tamanhos crescentes acima do capacete (snoringsymbol.asm)
+	_draw_z_char(Vector2(2.0, -28.0 + float_y), 1.0, Color("e0e8f0"))
+	_draw_z_char(Vector2(6.0, -33.0 + float_y), 1.25, Color("f8d840"))
+	_draw_z_char(Vector2(10.0, -38.0 + float_y), 1.5, Color("40d8f8"))
+
+func _draw_z_char(pos: Vector2, s: float, col: Color) -> void:
+	# Barra superior
+	draw_rect(Rect2(pos.x, pos.y, 4.0 * s, 1.0 * s), col)
+	# Diagonal
+	draw_rect(Rect2(pos.x + 2.0 * s, pos.y + 1.0 * s, 1.0 * s, 1.0 * s), col)
+	draw_rect(Rect2(pos.x + 1.0 * s, pos.y + 2.0 * s, 1.0 * s, 1.0 * s), col)
+	# Barra inferior
+	draw_rect(Rect2(pos.x, pos.y + 3.0 * s, 4.0 * s, 1.0 * s), col)
 
 ## Lógica canônica do cão de guarda MSX2 RC750 (logic/actors/dog.asm:29-201)
 func _step_dog(collision_grid: Array, player_pos: Vector2, player: PlayerController = null) -> void:
@@ -781,7 +1134,7 @@ func _step_dog(collision_grid: Array, player_pos: Vector2, player: PlayerControl
 			if dist_to_player <= 12.0 and player != null:
 				player.apply_damage(touch_damage)
 
-			# Movimentação canônica a 3.0 px/tick (dog.asm:193-201)
+			# Movimentação canônica a 1.3 px/tick (dog.asm:193-201)
 			var dir_vec: Vector2 = _get_dir_vector(current_direction)
 			var step_vec: Vector2 = dir_vec * speed
 			var next_pos: Vector2 = position + step_vec

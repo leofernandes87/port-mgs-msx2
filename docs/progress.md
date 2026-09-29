@@ -1901,5 +1901,148 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Registrado em `tools/validate.py` como `godot-dogs`.
   - 100% de aprovação na suíte de testes do projeto (`python3 tools/validate.py`).
 
+## [Implementação Canônica] - Guarda Sonolento (Sleepy Guard) na Sala 138 (Gas Mask Room) e Salas 26/85
+- **Evidências Z80 e ROM (`Banks0123.asm:6815-6844`, `logic/actors/guard.asm:187-260`, `logic/actors/chkdiscover.asm:502-535`, `data/texts.asm:225-226`, `snoringsymbol.asm`)**:
+  - `SleepyGuardFlag` ativado nas salas canônicas 26, 85 e 138 (`cp 138 ; Gas mask room` em `Banks0123.asm:6822`).
+  - Temporizador Inicial de Vigília (`Banks0123.asm:6832-6840`): ao entrar na sala, `AwakeTime` é sorteado baseado em `r & 1`: 5 ticks (~0.08s, dorme quase instantaneamente) ou 64 ticks (`40h`, ~1.06s).
+  - Adormecer e Diálogo (`guard.asm:198-216`): ao zerar `AwakeTime`, o soldado cessa a marcha (`Moving = 0`), vira para o sul (`SpriteId = 2`), define o tempo de sono em 256 ticks (`SleepingTime = 0`), exibe a mensagem canônica `Text 33`: `"I'm sleepy..."` e gera o símbolo de ronco flutuante animado Zzz em $(X, Y - 35)$.
+  - Supressão de Visão (`guard.asm:226-232`): enquanto dorme, a checagem de linha de visão é completamente suprimida (Snake pode se mover livremente em frente ao guarda sem acionar alerta).
+  - Despertar por Toque ou Tiro (`ListenShotsChkTouch` em `chkdiscover.asm:502-535`): caso Snake toque fisicamente no guarda ($\le 12$ px) ou um disparo ruidoso ocorra na sala, o guarda acorda imediatamente no susto, aciona a sirene de rádio da guarnição (`ALERT`) e persegue ativamente!
+  - Despertar Natural e Diálogo (`guard.asm:230-260`): ao término dos 256 ticks de sono (~4.26s), o guarda remove o símbolo Zzz, retoma a patrulha (`Moving = 1`), define o próximo período acordado para 192 ticks (`0C0h`, ~3.2s) e exclama `Text 34`: `"Overslept!"`. O ciclo se repete.
+  - Combate: pode ser derrotado com 1 tiro de pistola (2 HP) ou 3 socos (1º soco atordoa por 64 ticks e desperta para alerta).
+- **Implementação em Godot**:
+  - `godot/scripts/systems/enemy.gd`:
+    - Adicionado suporte ao Guarda Sonolento: `is_sleepy_guard: bool`, `enum SleepyState { AWAKE, SLEEPING }`, `sleepy_state`, `awake_timer`, `sleep_timer`, `snore_anim_tick` e sinal `sleepy_dialog_called`.
+    - Método `init_sleepy_guard(force_awake_timer)`.
+    - Máquina de estados em `step_tick`: decremento de `awake_timer` no estado acordado; adormecimento com virada para `DOWN`, disparo do sinal `"I'm sleepy..."` e início de 256 ticks de sono; checagem de toque físico $\le 12$ px despertando imediatamente em `ALERT`; término do sono despertando com `"Overslept!"` e ciclo de 192 ticks.
+    - `check_line_of_sight`: retorna `false` incondicionalmente enquanto `sleepy_state == SLEEPING`.
+    - `_draw()`: renderização de olhos fechados (fendas horizontais) quando dormindo, símbolo de ronco animado Zzz (`_draw_snoring_symbol()` e `_draw_z_char()`) flutuando acima do capacete em cores retrô ciano/amarelo, e ocultação do cone de depuração de visão durante o sono.
+    - Acordar em `receive_punch()`, `transform_to_alert_guard()` e restauração de ciclo em `reset_to_patrol()`.
+  - `godot/scripts/scenes/sandbox_gameplay.gd`:
+    - Inicialização automática com `init_sleepy_guard()` e conexão com `_on_guard_sleepy_dialog()` para salas 26, 85 e 138 em `_spawn_room_enemies()`.
+    - Isenção de inversão de rota na Sala 138 para manter o posicionamento canônico no ponto de spawn $(184, 88)$ patrulhando para $(72, 88)$.
+    - Tratamento de disparo de armas sem silenciador acordando guardas sonolentos mesmo em salas seguras.
+    - Preservação completa do estado do guarda sonolento (`is_sleepy_guard`, `sleepy_state`, `awake_timer`, `sleep_timer`) no backup e restauração do modo Binóculo.
+    - Suporte a fallback para as salas 26, 85 e 138.
+- **Testes Automatizados**:
+  - Criada suíte de testes headless dedicada: `godot/tests/sleepy_guard_test.gd` (cobrindo inicialização com timer 5/64 ticks, adormecimento com virada DOWN e diálogo `"I'm sleepy..."`, supressão de linha de visão durante sono, despertar por toque a $\le 12$ px com alerta, despertar natural de 256 ticks com `"Overslept!"` e 192 ticks, combate por soco e tiro, integração na Sala 138 com spawn canônico em $(184, 88)$ e waypoints $[(72, 88), (184, 88)]$, e preservação no binóculo).
+  - Registrado em `tools/validate.py` como `godot-sleepy-guard`.
+  - 100% de aprovação na suíte de testes do projeto (`python3 tools/validate.py`).
 
+## [Recalibração Canônica] - Velocidade das Câmeras de Vigilância (Security Cameras) na Sala 031 e Complexo
+- **Evidências Z80 e ROM (`Banks0123.asm:6409, 6807-6811, 7001-7007`, `logic/actors/camera.asm:28-67, 180-191`, `data/extracted/stage5-batch/room-031-actors.json`)**:
+  - Na Sala 031, existem 2 Câmeras de Vigilância (`actor_type_id: 6`), e não feixes lasers (os lasers estão restritos às Salas 24, 25 e 72).
+  - No código Z80 original da ROM (`logic/actors/camera.asm:32-34`):
+    - `InitCamera` configura `ld (ix+ACTOR.IdxGuardSpeed), 0`, que corresponde exatamente à velocidade do guarda lento (`GuardSlow` / `WalkSpeeds[0] = 100h`).
+    - No MSX a 30 FPS, $1.00\text{h}$ subpixel/frame equivale a $30\text{ px/s}$.
+  - Quando a velocidade global de física (Snake, guardas, balas) foi reduzida em 50% para emular a cadência lenta do MSX original a 60 FPS (commit `1103dd8`), a velocidade de `SecurityCamera` havia permanecido em `1.0 px/tick` ($60\text{ px/s}$).
+  - Isso fazia as câmeras se moverem na velocidade máxima de Snake e 2.5x mais rápido do que um `GuardSlow` ($0.4\text{ px/tick}$ / $24\text{ px/s}$), cruzando os trilhos de forma excessivamente rápida e dificultando a passagem furtiva.
+  - Pausa no término do trilho (`logic/actors/camera.asm:241-248`): `SetCamRndWait` utiliza `r >> 1` gerando pausa média de 64 frames no MSX (~2.1 segundos). Em 60 FPS, 30 ticks (0.5s) era excessivamente rápido.
+- **Implementação em Godot**:
+  - `godot/scripts/systems/security_camera.gd`:
+    - Velocidade recalibrada para `var speed: float = 0.5` ($30\text{ px/s}$ a 60 FPS), correspondendo com fidelidade matemática à cadência de 50% e sincronizada com a velocidade do `GuardSlow`.
+    - Temporizador de pausa no final do trilho (`wait_timer`) ajustado para `60` ticks ($1.0\text{ s}$ a 60 FPS), proporcionando cadência realista para o jogador cronometrar a passagem.
+- **Testes Automatizados**:
+  - `godot/tests/cameras_and_lasers_test.gd`:
+    - Atualizado teste de patrulha `test_camera_patrol_movement` para 20 ticks a $0.5\text{ px/tick}$ avançando $10\text{ px}$ em Y (posição esperada: 18.0 px).
+    - 100% de aprovação em `godot-cameras-and-lasers` e na suíte geral (`python3 tools/validate.py`).
 
+## [Renderização e Proporções Canônicas] - Sprites Humanos de Solid Snake e Guardas Inimigos (16x32 pixels)
+- **Evidências Z80 e ROM (`external/MetalGear/data/playersprite.asm:94-99`, `data/actorspriteattr.asm:549-558`)**:
+  - No hardware VDP do MSX2 (TMS9938), personagens humanos são compostos por **dois planos de hardware sprites de 16x16 pixels empilhados verticalmente**, resultando em silhuetas esguias de **$16 \times 32$ pixels**.
+  - `SnakeAttrShare` (`playersprite.asm:94-99`):
+    - Sprite superior: $Y = -24$ (`0E8h`), $X = -8$ (`0F8h`), cobrindo $Y \in [-24, -8]$ (cabeça, bandana, ombros, peitoral).
+    - Sprite inferior: $Y = -8$ (`0F8h`), $X = -8$ (`0F8h`), cobrindo $Y \in [-8, +8]$ (cinto, quadril, pernas, botas).
+    - Altura total: 32 pixels ($Y \in [-24, +8]$), largura: 16 pixels ($X \in [-8, +8]$).
+  - `SprOffsets1` (`actorspriteattr.asm:549-558`):
+    - Sprite superior dos guardas: $Y = -27$, $X = -8$, cobrindo $Y \in [-27, -11]$ (capacete, viseira, ombros, colete).
+    - Sprite inferior dos guardas: $Y = -11$, $X = -8$, cobrindo $Y \in [-11, +5]$ (cinto, farda, pernas, coturnos).
+    - Altura total: 32 pixels ($Y \in [-27, +5]$), largura: 16 pixels ($X \in [-8, +8]$).
+  - Na versão anterior de Godot, ambos eram renderizados como cubos simplificados de apenas $16 \times 16$ pixels (~17 px de altura total).
+- **Implementação em Godot**:
+  - `godot/scripts/systems/player.gd`:
+    - Redesenho completo em vetor pixel-art na escala canônica de $16 \times 32$ pixels ($X \in [-8, 8]$, $Y \in [-24, 8]$).
+    - Anatomia humana detalhada: corte de cabelo mullet anos 80, bandana vermelha esvoaçante com tiras dinâmicas, traços faciais e olhar atento nas 4 direções, macacão militar verde-oliva com colete balístico, arnês, ombreiras, cinto de guarnição com fivela e bolsas, calças cargo e botas de combate com passada alternada em 3 frames (`frame_num` 0, 1, 2).
+    - Animação de soco estendendo o braço na direção do golpe com punho cerrado e linha de impacto.
+    - Caixa de papelão reescalada para cobrir o tronco humano com pezinhos correndo por baixo durante a marcha.
+    - Silhueta abatida deitada no chão ao morrer.
+  - `godot/scripts/systems/enemy.gd`:
+    - Redesenho completo dos soldados de Outer Heaven na escala canônica de $16 \times 32$ pixels ($X \in [-8, 8]$, $Y \in [-26, 6]$).
+    - Anatomia militar: capacete de aço escuro com cúpula e aba protetora, rosto humano com tira de queixo, farda azul-acinzentada clássica, colete tático balístico, fuzil de assalto empunhado canonicamente conforme a direção apontada, cinto com cantil/pouches e coturnos de combate com marcha alternada.
+    - Guarda sonolento com olhos fechados e símbolo "Zzz" flutuando acima do capacete em $Y \in [-28, -40]$.
+    - Exclamação de alerta "!" em $Y = -34$, estrelas de atordoamento em $Y = -30$, e soldado abatido estendido no chão.
+- **Testes Automatizados**:
+  - `python3 tools/validate.py`: **100% PASS** (49 testes unitários Python + 18 suítes Godot, 0 falhas).
+
+## [Revisão e Correção Canônica] - Animações de Soco, Empunhadura de Armas, Disparo Balístico e Correção de Inicialização
+- **Diagnóstico e Resolução do Erro em Tempo de Execução (`player_died` Nil)**:
+  - *Sintoma*: `Invalid access to property or key 'player_died' on a base object of type 'Nil' at sandbox_gameplay.gd:229`.
+  - *Causa Raiz*: Em `player.gd`, foram referenciadas constantes inexistentes `WeaponSystem.WEAPON_MINES` e `WeaponSystem.WEAPON_BOMB` (a classe define `WEAPON_LAND_MINE` e não possui bombas). No Godot, erros de parse durante compilação de script GDScript fazem com que `preload("res://scenes/player.tscn").instantiate() as PlayerController` resulte em `null` silenciosamente, fazendo o acesso ao sinal `player.player_died` falhar com `Nil`.
+  - *Correção*: Corrigida a verificação de armas de fogo em `player.gd` para `[WeaponSystem.WEAPON_HANDGUN, WeaponSystem.WEAPON_SMG, WeaponSystem.WEAPON_GRENADE_LAUNCHER, WeaponSystem.WEAPON_MISSILE]`, restaurando o carregamento e instância do jogador com 100% de integridade.
+- **Animações de Soco Dedicadas nas 4 Direções**:
+  - Removido o conflito visual em que os braços da postura de marcha padrão continuavam sendo desenhados sob os braços do golpe marcial (gerando um "terceiro braço" fantasma).
+  - Implementado golpe marcial canônico com braço em guarda/câmara junto ao peito e braço atacante estendido na direção do soco com punho cerrado e linhas cinéticas dinâmicas de impacto (UP, DOWN, LEFT, RIGHT).
+- **Postura com Arma de Fogo e Origem Realista dos Disparos**:
+  - *Causa das Balas Saindo da Boca*: No disassembly da ROM (`logic/weapon/handgun.asm:43`), a instrução `sub 14` em `PlayerY` referia-se à coordenada dos pés ($Y = +8$ no espaço local), posicionando o tiro na linha da cintura. No modelo do Godot com centro/cintura em $Y = 0$, $0 - 14 = -14$ colocava o spawn do tiro diretamente na boca de Snake.
+  - *Postura com Arma de Fogo*: Quando Snake está com arma de fogo equipada ou atirando (`has_firearm` ou `shoot_timer > 0`), Snake empunha a arma canonicamente com as duas mãos (postura isósceles para os lados, empunhadura frontal voltada para baixo e fuzil/pistola elevado ao ombro para cima).
+  - *Ponto de Saída dos Projéteis*:
+    - **DOWN**: $(X+3, Y+6)$ na ponta do cano voltado para baixo.
+    - **UP**: $(X+3, Y-26)$ na ponta do cano erguido acima da cabeça.
+    - **LEFT**: $(X-16, Y-10)$ na extremidade do cano estendido à esquerda.
+    - **RIGHT**: $(X+16, Y-10)$ na extremidade do cano estendido à direita.
+  - *Clarão de Disparo (Muzzle Flash)*: Efeito luminoso animado de 6 ticks no cano da arma de Snake e dos guardas atiradores.
+- **Testes Automatizados e Validação**:
+  - Atualizado `godot/tests/weapon_and_combat_test.gd` para validar as coordenadas do cano e trajetória balística.
+  - Execução de `python3 tools/validate.py`: **100% PASS** (49 testes unitários Python + 18 suítes Godot, 0 erros).
+
+## [Física e Combate Corpo a Corpo] - Colisão Sólida Snake vs Inimigos, Socos e Tiros à Queima-Roupa
+- **Diagnóstico e Evidências**:
+  - Anteriormente, Solid Snake e os inimigos não possuíam colisão física de corpos sólidos entre si, permitindo que se sobrepusessem completamente no mesmo pixel durante perseguições (`_chase_player` avançava até `diff.length() <= 4.0`).
+  - Ao ficarem sobrepostos:
+    - O soco (`check_punched`) falhava porque a fórmula utilizava intervalos abertos exclusivos de zero (`diff_y < 12.0` com offset de 12 resultava em `0 < 0` falso).
+    - O disparo balístico errava porque o projétil nascia na ponta do cano da arma (ex: $X \pm 16, Y - 10$), ultrapassando o corpo do inimigo sobreposto e voando para longe no vazio.
+- **Implementação em Godot**:
+  - `godot/scripts/systems/player.gd`:
+    - `step_tick(input_dir, enemies)` e `is_colliding_at(target_pos, dir, enemies)`: colisão sólida de corpo ($12 \times 12$ px) contra inimigos vivos, bloqueando o avanço de Snake contra soldados/cães.
+    - Lógica de descolamento inteligente: o movimento só é barrado se `target_pos` aproximar Snake do inimigo (`distance_squared_to < position.distance_squared_to`), permitindo que Snake se afaste livremente caso esteja em contato.
+  - `godot/scripts/systems/enemy.gd`:
+    - `_chase_player`: configurada distância mínima de parada em 12.0 px (distância de contato corpo a corpo), com vetor de separação suave (anti-stuck) se estiverem a menos de 12 px, impedindo que soldados penetrem no sprite de Snake.
+    - `_step_dog`: cães em perseguição param a 12.0 px (distância de mordida), aplicando dano de mordida sem sobreposição.
+    - `check_punched`: fórmula recalculada para o intervalo $[-4.0, 24.0]$ px na direção do golpe com tolerância lateral de $12.0$ px, garantindo acerto a distância zero (sobreposto), combate colado (2 a 12 px) e alcance estendido (14 a 24 px), rejeitando ataques de costas ou fora de alcance.
+  - `godot/scripts/scenes/sandbox_gameplay.gd`:
+    - Passagem da lista `enemies` para `player.step_tick(input_dir, enemies)`.
+    - Detecção de tiro à queima-roupa (*point-blank shot*): ao disparar com arma de fogo, verifica se há algum soldado vivo na linha entre o peito de Snake e a ponta do cano na direção de visada. Em caso afirmativo, aplica `take_bullet_hit(damage)` imediatamente e consome o projétil, simulando o impacto à queima-roupa.
+- **Testes Automatizados**:
+  - `godot/tests/combat_and_health_test.gd`: adicionados testes para soco em sobreposição direta (distância zero), soco a 4 px colado, bloqueio de movimento de Snake contra guarda vivo, movimento livre de afastamento e parada do guarda a 12 px.
+  - `godot/tests/weapon_and_combat_test.gd`: adicionado teste de tiro à queima-roupa com guarda posicionado a 8 px entre o peito e o cano da arma, eliminando-o com 1 disparo.
+  - `python3 tools/validate.py`: **100% PASS** (49 testes unitários Python + 18 suítes Godot, 0 falhas).
+
+## [Física Canônica MSX2 e IA de Escaramuça] - Transparência de Corpos com Dano de Contato e Manobra de Alerta
+- **Evidências Z80 e ROM (`external/MetalGear/logic/actors/guardalert.asm:91-200`, `logic/touchenemy.asm:84-189`, `data/shapes.asm:36`)**:
+  - No hardware do MSX2, atores móveis (soldados, cães, chefes) **não possuem colisão de corpo sólido rígido (hard blocking)** que trave o movimento do jogador contra suas caixas de colisão.
+  - A física original funciona como **transparência com dano por contato**:
+    - Ao colidir/atravessar a bounding box de um inimigo vivo (`ChkTouchEnemy` em `touchenemy.asm`), Snake recebe **2 HP de dano** e ganha **32 frames de invulnerabilidade** (`DamageDelayTimer = 20h`).
+    - Durante esses 32 frames (0.53s), Snake pode continuar correndo através dos inimigos sem travar, permitindo fugas e reposicionamentos táteis essenciais.
+  - **IA Autêntica de Escaramuça dos Guardas em Alerta (`guardalert.asm:91-200`)**:
+    - Soldados em alerta não convergem cegamente para ficar imóveis colados no corpo de Snake.
+    - O código original implementa uma máquina com 4 subestados:
+      1. `CHASE` (`GuardWalk`, Status 0): persegue o jogador ao longo do eixo dominante de distância.
+      2. `WALK_AWAY` (`GuardWalkAwayShot`, Status 3): verificado periodicamente por `ChkNearPlayer` (`guardalert.asm:124, 436-465`). Se a distância até Snake for $\le 36\text{ px}$ (ou $48\text{ px}$ na ROM), o soldado **não para**: ele recua na direção oposta (`GetOppositePlayer` em `helperdirections.asm:52`) ou contorna perpendicularmente por 18 a 32 ticks, manobrando ao redor de Snake para ganhar distância de disparo.
+      3. `WAIT_SHOT` (`GuardWaitShot`, Status 1): ao alcançar distância de tiro segura, o soldado estanca brevemente (~16 ticks), ajusta sua mira para Snake e dispara antes de retomar a marcha.
+      4. `AVOID_OBSTACLE` (`GuardAvoidObstacle`, Status 2): contorno suave de cantos e obstáculos sólidos.
+- **Implementação em Godot**:
+  - `godot/scripts/systems/player.gd`:
+    - Revertido o bloqueio sólido em `step_tick(input_dir)` e `is_colliding_at()`: removida a checagem que tratava corpos de inimigos como paredes. Snake pode se mover livremente pelo espaço dos guardas e cães.
+  - `godot/scripts/systems/enemy.gd`:
+    - Adicionado enum `AlertSubstate { CHASE = 0, WAIT_SHOT = 1, AVOID_OBSTACLE = 2, WALK_AWAY = 3 }`.
+    - Implementada a máquina canônica em `_chase_player()` com subestados `CHASE`, `WALK_AWAY` e `WAIT_SHOT`.
+    - Guarda em alerta próximo a Snake ($\le 36\text{ px}$) chama `_start_walk_away()`, calculando a direção oposta ou perpendicular e recuando ativamente.
+    - Tiro à queima-roupa e socos mantidos com intervalo $[-4.0, 24.0]\text{ px}$, garantindo combate responsivo a qualquer distância.
+  - `godot/scripts/scenes/sandbox_gameplay.gd`:
+    - Atualizada chamada `player.step_tick(input_dir)` para o formato sem barreira de corpo.
+- **Testes Automatizados**:
+  - `godot/tests/combat_and_health_test.gd`:
+    - Validada a movimentação de Snake através de soldado vivo (sem travamento de parede).
+    - Validado dano de 2 HP e atribuição de 32 ticks de invulnerabilidade ao cruzar o soldado.
+    - Validado soldado em alerta acionando `WALK_AWAY` na direção oposta ao ficar a $\le 36\text{ px}$ de Snake.
+  - `python3 tools/validate.py`: **100% PASS** (49 testes Python + 18 suítes Godot, 0 erros).

@@ -46,7 +46,7 @@ var camera_index: int = 0
 var facing_direction: int = Direction.DOWN
 var patrol_waypoints: Array[Vector2] = []
 var waypoint_target_idx: int = 0
-var speed: float = 1.0 # 1 px/tick conforme MSX2
+var speed: float = 0.5 # 0.5 px/tick (30 px/s), calibrado com a redução de 50% de física global e canônico com IdxGuardSpeed = 0 (GuardSlow)
 var is_moving: bool = true
 var wait_timer: int = 0
 var alert_flashing: bool = false
@@ -116,7 +116,7 @@ func tick(player_pos: Vector2, collision_grid: Array, is_box_idle: bool = false,
 		if dist <= speed:
 			position = target
 			is_moving = false
-			wait_timer = 30 # Pausa no final do trilho antes de retornar
+			wait_timer = 60 # Pausa no final do trilho antes de retornar (1.0s a 60 FPS per camera.asm:241-248 SetCamRndWait)
 			waypoint_target_idx = (waypoint_target_idx + 1) % patrol_waypoints.size()
 		else:
 			position += delta.normalized() * speed

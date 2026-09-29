@@ -660,12 +660,12 @@ func _spawn_room_enemies(room_id: int) -> void:
 			# Simulação MSX: Alguns guardas alteram sua posição/sentido de início 
 			# com base no frame counter do jogo quando a sala é carregada.
 			# Isso evita insta-kills previsíveis nas bordas das salas! GuardLorry (19) e GuardElevator (14) são fixos.
-			if type_id not in [14, 19] and waypoints.size() > 1 and randf() > 0.5:
+			if type_id not in [14, 19] and room_id not in [26, 85, 138] and waypoints.size() > 1 and randf() > 0.5:
 				waypoints.reverse()
 				
 			# Para garantir a lógica orgânica do MSX, o guarda de patrulha nasce
 			# dinamicamente já no primeiro waypoint da rota escolhida!
-			if not waypoints.is_empty() and type_id not in [14, 19, 25, 27, 48]:
+			if not waypoints.is_empty() and type_id not in [14, 19, 25, 27, 48] and room_id not in [26, 85, 138]:
 				g.position = waypoints[0]
 
 			if type_id == 14:
@@ -678,6 +678,11 @@ func _spawn_room_enemies(room_id: int) -> void:
 				g.elev_guard_target_x = spawn_pos.x
 				g.is_relieve_speaker = is_equal_approx(spawn_pos.x, 80.0)
 				g.chow_time_called.connect(_on_chow_time_called)
+
+			# Inicialização canônica do Guarda Sonolento (Salas 26, 85, 138 - Banks0123.asm:6815-6844)
+			if room_id in [26, 85, 138]:
+				g.init_sleepy_guard()
+				g.sleepy_dialog_called.connect(_on_guard_sleepy_dialog)
 
 			g.set_patrol_path(waypoints)
 			g.show_debug_vision = show_enemy_vision
@@ -892,10 +897,29 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		g0.show_debug_vision = show_enemy_vision
 		game_world.add_child(g0)
 		enemies.append(g0)
+	elif room_id in [26, 85, 138]:
+		var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g.actor_type_id = 4
+		g.guard_type = EnemyGuard.GuardType.SLOW
+		if room_id == 138:
+			g.position = Vector2(184.0, 88.0)
+			g.set_patrol_path([Vector2(72.0, 88.0), Vector2(184.0, 88.0)])
+		else:
+			g.position = Vector2(128.0, 96.0)
+			g.set_patrol_path([Vector2(64.0, 96.0), Vector2(192.0, 96.0)])
+		g.init_sleepy_guard()
+		g.sleepy_dialog_called.connect(_on_guard_sleepy_dialog)
+		g.show_debug_vision = show_enemy_vision
+		game_world.add_child(g)
+		enemies.append(g)
 
 func _on_chow_time_called() -> void:
 	show_dialog_message("SOLDIER", "Chow time!!", 2.0)
 	print("ELEVATOR_GUARDS: Chow time!! Sentinelas do elevador iniciam revezamento.")
+
+func _on_guard_sleepy_dialog(text: String) -> void:
+	show_dialog_message("SOLDIER", text, 2.0)
+	print("SLEEPY_GUARD: %s" % text)
 
 ## Lógica do spawner de sentinelas de revezamento do elevador (MSX: logic/actors/elevatorguardspawner.asm)
 func _process_elevator_spawner() -> void:
@@ -1136,6 +1160,10 @@ func _backup_home_enemies() -> void:
 				"dog_wait_timer": e.dog_wait_timer,
 				"dog_listen_timer": e.dog_listen_timer,
 				"dog_bark_timer": e.dog_bark_timer,
+				"is_sleepy_guard": e.is_sleepy_guard,
+				"sleepy_state": e.sleepy_state,
+				"awake_timer": e.awake_timer,
+				"sleep_timer": e.sleep_timer,
 			})
 
 func _restore_home_enemies() -> void:
@@ -1178,6 +1206,12 @@ func _restore_home_enemies() -> void:
 			g.dog_wait_timer = int(data.get("dog_wait_timer", 40))
 			g.dog_listen_timer = int(data.get("dog_listen_timer", 0))
 			g.dog_bark_timer = int(data.get("dog_bark_timer", 0))
+		g.is_sleepy_guard = bool(data.get("is_sleepy_guard", false))
+		if g.is_sleepy_guard:
+			g.sleepy_state = data.get("sleepy_state", EnemyGuard.SleepyState.AWAKE) as EnemyGuard.SleepyState
+			g.awake_timer = int(data.get("awake_timer", 64))
+			g.sleep_timer = int(data.get("sleep_timer", 256))
+			g.sleepy_dialog_called.connect(_on_guard_sleepy_dialog)
 		g.show_debug_vision = show_enemy_vision
 		game_world.add_child(g)
 		enemies.append(g)
@@ -1907,8 +1941,41 @@ func _input(event: InputEvent) -> void:
 			elif weapon_system.can_fire():
 				var b: Bullet = player.fire_weapon(weapon_system)
 				if b != null:
-					bullets.append(b)
-					game_world.add_child(b)
+					# Detecção de acerto à queima-roupa (point-blank)
+					var point_blank_hit: bool = false
+					var muzzle_box := Rect2(
+						minf(player.position.x, b.position.x) - 4.0,
+						minf(player.position.y - 12.0, b.position.y) - 4.0,
+						absf(b.position.x - player.position.x) + 8.0,
+						absf(b.position.y - (player.position.y - 12.0)) + 8.0
+					)
+					for enemy: EnemyGuard in enemies:
+						if is_instance_valid(enemy) and not enemy.is_dead:
+							var enemy_box := Rect2(enemy.position.x - 8.0, enemy.position.y - 10.0, 16.0, 20.0)
+							var is_in_point_blank: bool = enemy_box.intersects(muzzle_box) or enemy.check_bullet_hit(b.position) or enemy.position.distance_to(player.position) <= 14.0
+							if is_in_point_blank:
+								var dx: float = enemy.position.x - player.position.x
+								var dy: float = enemy.position.y - player.position.y
+								var in_front: bool = false
+								match player.current_direction:
+									PlayerController.Direction.UP:
+										in_front = dy <= 4.0 and absf(dx) <= 14.0
+									PlayerController.Direction.DOWN:
+										in_front = dy >= -4.0 and absf(dx) <= 14.0
+									PlayerController.Direction.LEFT:
+										in_front = dx <= 4.0 and absf(dy) <= 14.0
+									PlayerController.Direction.RIGHT:
+										in_front = dx >= -4.0 and absf(dy) <= 14.0
+								if in_front:
+									enemy.take_bullet_hit(b.damage)
+									point_blank_hit = true
+									break
+
+					if point_blank_hit:
+						b.queue_free()
+					else:
+						bullets.append(b)
+						game_world.add_child(b)
 					if not weapon_system.has_silencer and not snapshot.room_id in ROOMS_SHOT_SECURE:
 						alert_system.trigger_alert(false, inventory.get_card_level(), snapshot.room_id)
 						for enemy: EnemyGuard in enemies:
@@ -1917,8 +1984,11 @@ func _input(event: InputEvent) -> void:
 						print("GUNSHOT_ALERT: Disparo sem silenciador na sala %d alertou a guarnição!" % snapshot.room_id)
 					else:
 						for enemy: EnemyGuard in enemies:
-							if is_instance_valid(enemy) and not enemy.is_dead and enemy.is_dog:
-								enemy.wake_up_to_chase()
+							if is_instance_valid(enemy) and not enemy.is_dead:
+								if enemy.is_dog:
+									enemy.wake_up_to_chase()
+								elif not weapon_system.has_silencer and enemy.is_sleepy_guard:
+									enemy.transform_to_alert_guard()
 						print("GUNSHOT_SILENT: Disparo furtivo com silenciador!")
 			else:
 				print("WEAPON_NO_AMMO: Arma sem munição! (Click SFX 15h)")
@@ -1974,8 +2044,9 @@ func _physics_process(_delta: float) -> void:
 		_process_binoculars()
 		return
 
-	# Atualiza a mecânica da Caixa de Papelão
+	# Atualiza a mecânica da Caixa de Papelão e Arma Equipada
 	player.is_in_box = (inventory.get_selected_item() == InventoryManager.ITEM_BOX)
+	player.equipped_weapon = weapon_system.selected_weapon if weapon_system else ""
 
 	# Bloqueio de física e ações durante Game Over / morte de Snake
 	if player.is_dead or not player.can_control or is_game_over:
@@ -2170,6 +2241,8 @@ func _physics_process(_delta: float) -> void:
 					bullets.append(enemy_shot)
 					game_world.add_child(enemy_shot)
 				if not in_box and enemy.check_line_of_sight(player.position, runtime_collision):
+					any_enemy_sees_snake = true
+				elif enemy.is_alert and not enemy.is_dead:
 					any_enemy_sees_snake = true
 	enemies = surviving_enemies
 

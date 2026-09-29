@@ -70,9 +70,49 @@ func _run() -> void:
 	hit = enemy.check_punched(Vector2(86.0, 100.0), PlayerController.Direction.RIGHT)
 	if not require(hit, "Soco para RIGHT deve acertar guarda à direita de Snake"): return
 
+	# Soco em sobreposição / distância zero (deve acertar com sucesso)
+	hit = enemy.check_punched(Vector2(100.0, 100.0), PlayerController.Direction.DOWN)
+	if not require(hit, "Soco em sobreposição direta deve acertar o inimigo"): return
+
+	# Soco em combate colado / distância íntima de 4 px (deve acertar)
+	hit = enemy.check_punched(Vector2(100.0, 104.0), PlayerController.Direction.UP)
+	if not require(hit, "Soco em combate colado a 4 px deve acertar"): return
+
+	# Soco de costas (inimigo atrás do Snake) não deve acertar
+	hit = enemy.check_punched(Vector2(100.0, 80.0), PlayerController.Direction.UP)
+	if not require(not hit, "Soco desferido de costas para o inimigo não deve acertar"): return
+
 	# Fora do raio do soco (distância > 24 px)
 	hit = enemy.check_punched(Vector2(140.0, 100.0), PlayerController.Direction.RIGHT)
 	if not require(not hit, "Soco fora de alcance não deve acertar o guarda"): return
+
+	# 3.5. Teste Canônico MSX2: Transparência de Atores com Dano de Toque e Escaramuça
+	player.set_grid_position(100.0, 100.0)
+	enemy.position = Vector2(108.0, 100.0)
+	enemy.is_dead = false
+	player.life = 24
+	player.invulnerable_timer = 0
+
+	# Snake consegue se mover livremente através do espaço do soldado (sem bloqueio sólido de parede)
+	var moved_through: bool = player.step_tick(Vector2i(1, 0))
+	if not require(moved_through and player.position.x == 100.0 + PlayerController.SPEED_NORMAL, "Snake deve poder se deslocar através do soldado (transparência canônica de atores MSX2)"): return
+
+	# Ao cruzar/tocar o soldado (distância <= 12 px), Snake sofre dano de contato canônico de 2 HP
+	enemy.step_tick(dummy_collision, player.position, false, player.current_direction, player)
+	if not require(player.life == 22, "Cruzamento de corpos deve aplicar 2 HP de dano por contato (TouchPlayer em touchenemy.asm)"): return
+	if not require(player.invulnerable_timer == 32, "Snake deve receber 32 ticks de invulnerabilidade (DamageDelayTimer = 20h) para escapar"): return
+
+	# Teste de Escaramuça de Guarda em Alerta (guardalert.asm:91-200)
+	# Ao ficar muito próximo (<= 36 px), o soldado aciona WALK_AWAY para recuar e manobrar, não ficando imóvel
+	enemy.state = EnemyGuard.GuardState.ALERT
+	enemy.is_alert = true
+	enemy.alert_substate = EnemyGuard.AlertSubstate.CHASE
+	enemy.alert_counter = 1 # Disparará a checagem ChkNearPlayer no próximo tick
+	enemy.position = Vector2(120.0, 100.0)
+	player.set_grid_position(100.0, 100.0)
+	enemy._chase_player(player.position, dummy_collision)
+	if not require(enemy.alert_substate == EnemyGuard.AlertSubstate.WALK_AWAY, "Soldado em alerta próximo a Snake deve acionar WALK_AWAY (guardalert.asm:125)"): return
+	if not require(enemy.walk_away_dir == PlayerController.Direction.RIGHT, "Soldado à direita de Snake deve recuar para a DIREITA (afastando-se de Snake)"): return
 
 	# 4. Teste de Atordoamento (64 ticks) e Morte com 3 Socos
 	enemy.punches_received = 0

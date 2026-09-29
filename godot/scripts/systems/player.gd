@@ -54,6 +54,10 @@ var punch_timer: int = 0 # 8 ticks de duração do soco (Banks0123.asm:8949)
 var is_punching: bool = false
 var infinite_life: bool = false # Modo de teste (God Mode)
 
+# Sistema de Armas e Animação de Disparo
+var equipped_weapon: String = ""
+var shoot_timer: int = 0 # 6 ticks de clarão (muzzle flash) e recuo do disparo
+
 # Mecânica da Caixa de Papelão
 var is_in_box: bool = false
 
@@ -117,7 +121,7 @@ func punch() -> bool:
 	return false
 
 ## Disparo com arma de fogo equipada (logic/weapon/handgun.asm:39-65)
-## Origem do tiro: PlayerX, PlayerY - 14 (deslocamento vertical exato da ROM)
+## O projétil emerge com precisão do cano da arma na direção em que Snake está mirando
 func fire_weapon(weapon_sys: WeaponSystem) -> Bullet:
 	if is_dead or not can_control or life <= 0 or weapon_sys == null or not weapon_sys.can_fire():
 		return null
@@ -125,8 +129,20 @@ func fire_weapon(weapon_sys: WeaponSystem) -> Bullet:
 	if not weapon_sys.consume_ammo():
 		return null
 
+	shoot_timer = 6 # Clarão do disparo (muzzle flash) e recuo por 6 ticks
+	equipped_weapon = weapon_sys.selected_weapon
+	queue_redraw()
+
 	var b: Bullet = Bullet.new()
-	b.position = Vector2(position.x, position.y - 14.0)
+	match current_direction:
+		Direction.UP:
+			b.position = Vector2(position.x + 3.0, position.y - 26.0)
+		Direction.DOWN:
+			b.position = Vector2(position.x + 3.0, position.y + 6.0)
+		Direction.LEFT:
+			b.position = Vector2(position.x - 16.0, position.y - 10.0)
+		Direction.RIGHT:
+			b.position = Vector2(position.x + 16.0, position.y - 10.0)
 	b.direction = current_direction
 	b.speed = 3.0
 	b.ticks_remaining = 32
@@ -156,6 +172,10 @@ func step_tick(input_dir: Vector2i) -> bool:
 
 	if invulnerable_timer > 0:
 		invulnerable_timer -= 1
+
+	if shoot_timer > 0:
+		shoot_timer -= 1
+		queue_redraw()
 
 	if punch_timer > 0:
 		punch_timer -= 1
@@ -215,134 +235,372 @@ func step_tick(input_dir: Vector2i) -> bool:
 	return true
 
 func is_colliding_at(target_pos: Vector2, dir: Direction) -> bool:
-	if collision_grid.is_empty():
-		return false
+	if not collision_grid.is_empty():
+		var offsets: Array = COLLIDER_OFFSETS.get(dir, [])
+		for offset: Vector2i in offsets:
+			var sample_x: float = target_pos.x + float(offset.x)
+			var sample_y: float = target_pos.y + float(offset.y)
 
-	var offsets: Array = COLLIDER_OFFSETS.get(dir, [])
-	for offset: Vector2i in offsets:
-		var sample_x: float = target_pos.x + float(offset.x)
-		var sample_y: float = target_pos.y + float(offset.y)
+			if sample_x < 0.0 or sample_x >= 256.0 or sample_y < 0.0 or sample_y >= 192.0:
+				return true
 
-		if sample_x < 0.0 or sample_x >= 256.0 or sample_y < 0.0 or sample_y >= 192.0:
-			return true
+			var tile_x: int = int(sample_x) / 8
+			var tile_y: int = int(sample_y) / 8
 
-		var tile_x: int = int(sample_x) / 8
-		var tile_y: int = int(sample_y) / 8
+			if tile_x < 0 or tile_x >= 32 or tile_y < 0 or tile_y >= 24:
+				return true
 
-		if tile_x < 0 or tile_x >= 32 or tile_y < 0 or tile_y >= 24:
-			return true
-
-		var tile_index: int = tile_y * 32 + tile_x
-		if tile_index < collision_grid.size() and int(collision_grid[tile_index]) == 1:
-			return true
+			var tile_index: int = tile_y * 32 + tile_x
+			if tile_index < collision_grid.size() and int(collision_grid[tile_index]) == 1:
+				return true
 
 	return false
 
 func _draw() -> void:
+	# 1. Snake abatido / caído no solo (Game Over)
 	if is_dead:
-		# Snake caído / abatido no solo (MSX Game Over)
-		var dead_body := Rect2(-10, -3, 20, 6)
-		var shadow_col := Color("283818")
-		var skin_col := Color("d89870")
-		var dead_bandana := Color("802020")
-		draw_rect(dead_body, shadow_col)
-		draw_rect(Rect2(-10, -5, 6, 4), skin_col)
-		draw_rect(Rect2(-10, -5, 6, 2), dead_bandana)
+		var col_shadow := Color("141814")
+		var col_uniform := Color("2a3828")
+		var col_skin := Color("d89870")
+		var col_bandana := Color("c82020")
+		var col_vest := Color("1e281c")
+		# Corpo caído horizontalmente (28x8)
+		draw_rect(Rect2(-14, -4, 28, 8), col_shadow)
+		draw_rect(Rect2(-13, -3, 26, 6), col_uniform)
+		draw_rect(Rect2(-7, -3, 10, 6), col_vest) # Colete
+		draw_rect(Rect2(5, -4, 8, 7), col_skin)    # Cabeça no solo
+		draw_rect(Rect2(5, -4, 8, 2), col_bandana) # Bandana caída
+		draw_rect(Rect2(-14, 0, 4, 4), Color("0a0e0a")) # Botas
 		return
 
-	# Efeito de piscar durante o período de invulnerabilidade (32 ticks)
+	# 2. Efeito de piscar durante o período de invulnerabilidade (32 ticks)
 	if invulnerable_timer > 0 and (invulnerable_timer % 4) < 2:
 		return
 
+	# 3. Caixa de Papelão (Cardboard Box) com proporções humanas autênticas
 	if is_in_box:
-		# Desenha a icônica Caixa de Papelão
-		var box_rect := Rect2(-10, -14, 20, 20)
-		var box_color := Color("b88858") # Marrom papelão MSX
-		var tape_color := Color("c0c0c0") # Fita adesiva
-		var text_color := Color("000000") # Marcação "TO TOKYO"
-		
-		# Sombra e corpo da caixa
-		draw_rect(Rect2(-10, 4, 20, 2), Color("283818"))
-		draw_rect(box_rect, box_color)
-		
-		# Detalhes da fita e bordas
-		draw_rect(Rect2(-10, -14, 20, 1), Color("906040")) # Borda superior
-		draw_rect(Rect2(-2, -14, 4, 20), tape_color)       # Fita central
-		
-		# Se estiver andando, sobe um pouquinho a caixa para mostrar a animação de perninhas correndo em baixo!
+		var box_rect := Rect2(-11, -16, 22, 22)
+		var col_box := Color("b88858")
+		var col_box_dark := Color("885e38")
+		var col_tape := Color("d0d0d0")
+		var col_shadow := Color("182418")
+
+		# Sombra sob a caixa
+		draw_rect(Rect2(-11, 6, 22, 2), col_shadow)
+		# Corpo da caixa
+		draw_rect(box_rect, col_box)
+		# Borda e vinco superior
+		draw_rect(Rect2(-11, -16, 22, 2), col_box_dark)
+		draw_rect(Rect2(-11, -16, 2, 22), col_box_dark)
+		draw_rect(Rect2(9, -16, 2, 22), col_box_dark)
+		# Fita adesiva central
+		draw_rect(Rect2(-2, -16, 4, 22), col_tape)
+		# Logotipo estilizado da caixa
+		draw_rect(Rect2(-8, -8, 4, 2), col_box_dark)
+		draw_rect(Rect2(4, -8, 4, 2), col_box_dark)
+
+		# Animação de passadas das pernas por baixo da caixa ao andar
 		if is_moving:
-			box_rect.position.y -= 2
-			# Pés visíveis embaixo da caixa
-			var leg_left := Rect2(-6, 6, 4, 2)
-			var leg_right := Rect2(2, 6, 4, 2)
+			var boot_y := 6
+			var l_offset := 0
+			var r_offset := 0
 			if frame_num == 1:
-				leg_left.position.y -= 2
+				l_offset = 2
+				r_offset = -1
 			elif frame_num == 2:
-				leg_right.position.y -= 2
-			draw_rect(leg_left, Color("283818"))
-			draw_rect(leg_right, Color("283818"))
-			
-		# Não desenha o resto do corpo!
+				l_offset = -1
+				r_offset = 2
+			draw_rect(Rect2(-6, boot_y + l_offset, 4, 3), Color("141814"))
+			draw_rect(Rect2(2, boot_y + r_offset, 4, 3), Color("141814"))
 		return
 
-	# Representação visual de Snake (16x16 pixels centralizado)
-	var body_rect := Rect2(-8, -12, 16, 16)
-	
-	# Uniforme militar (verde oliva autêntico MSX)
-	var uniform_color := Color("486838")
-	var shadow_color := Color("283818")
-	var skin_color := Color("d89870")
-	var bandana_color := Color("c83030")
+	# 4. Paleta Canônica de Solid Snake (MSX2 RC750)
+	var c_hair := Color("1a1008")        # Cabelo castanho escuro / preto
+	var c_hair_light := Color("2e1d10")  # Mechas / volume do cabelo
+	var c_skin := Color("d89870")        # Pele de Snake
+	var c_skin_shadow := Color("aa7050") # Sombra facial / barba por fazer
+	var c_bandana := Color("c82020")     # Faixa vermelha icônica da bandana
+	var c_bandana_dark := Color("8a1414")# Sombra da bandana
+	var c_suit := Color("3c4c38")        # Macacão militar verde-oliva
+	var c_vest := Color("243022")        # Colete tático balístico escuro
+	var c_vest_light := Color("42543e")  # Destaque de ombreiras e arnês
+	var c_belt := Color("181c16")        # Cinto de guarnição e coldre
+	var c_buckle := Color("8a9680")      # Fivela metálica
+	var c_boot := Color("141814")        # Botas de combate pretas
+	var c_glove := Color("1c221a")       # Luvas táticas sem dedos
+	var c_eye := Color("120a06")         # Olhos escuros
 
-	draw_rect(body_rect, uniform_color)
-	draw_rect(Rect2(-8, -12, 16, 2), shadow_color)
+	# Altura total: 32 pixels (Y de -24 até +8)
+	# Largura total: 16 pixels (X de -8 até +8)
 
-	# Faixa da bandana
-	draw_rect(Rect2(-7, -10, 14, 2), bandana_color)
-	
-	# Rosto / Pele visível
-	draw_rect(Rect2(-5, -8, 10, 4), skin_color)
+	# --- CABEÇA E CABELO (Y: -24 a -15) ---
+	# Cabelo (volume base)
+	draw_rect(Rect2(-5, -24, 10, 4), c_hair)
+	draw_rect(Rect2(-6, -22, 12, 5), c_hair)
+	draw_rect(Rect2(-3, -24, 6, 2), c_hair_light)
 
-	# Indicador de direção dos olhos / visão
-	var eye_offset := Vector2.ZERO
+	# Faixa da Bandana (Y: -22 a -19)
+	draw_rect(Rect2(-6, -21, 12, 2), c_bandana)
+	draw_rect(Rect2(-6, -20, 12, 1), c_bandana_dark)
+
+	# Rosto / Pele (Y: -19 a -14)
+	draw_rect(Rect2(-5, -19, 10, 5), c_skin)
+	draw_rect(Rect2(-4, -14, 8, 1), c_skin_shadow) # Queixo / maxilar
+
+	# Detalhes direcionais da cabeça e feições
 	match current_direction:
-		Direction.UP:
-			draw_rect(Rect2(-6, -11, 12, 4), shadow_color) # Costas da cabeça
 		Direction.DOWN:
-			draw_rect(Rect2(-4, -7, 2, 2), Color.BLACK)
-			draw_rect(Rect2(2, -7, 2, 2), Color.BLACK)
+			# Olhos focados para frente
+			draw_rect(Rect2(-4, -18, 2, 2), c_eye)
+			draw_rect(Rect2(2, -18, 2, 2), c_eye)
+			draw_rect(Rect2(-4, -18, 1, 1), Color.WHITE)
+			draw_rect(Rect2(2, -18, 1, 1), Color.WHITE)
+			# Nariz e barba
+			draw_rect(Rect2(-1, -16, 2, 2), c_skin_shadow)
+			# Franja frontal sobre a bandana
+			draw_rect(Rect2(-2, -22, 2, 2), c_hair)
+			draw_rect(Rect2(1, -22, 2, 2), c_hair)
+			# Pontas da bandana caindo atrás dos ombros
+			draw_rect(Rect2(-7, -19, 2, 4), c_bandana)
+			draw_rect(Rect2(5, -19, 2, 3), c_bandana)
+
+		Direction.UP:
+			# Costas da cabeça: cabelo cobre o rosto
+			draw_rect(Rect2(-5, -20, 10, 6), c_hair)
+			draw_rect(Rect2(-4, -18, 8, 4), c_hair_light)
+			# Nó da bandana no centro da nuca
+			draw_rect(Rect2(-1, -21, 2, 3), c_bandana_dark)
+			# Duas tiras de tecido da bandana balançando
+			var band_sway: int = 1 if frame_num == 1 else (-1 if frame_num == 2 else 0)
+			draw_line(Vector2(0, -19), Vector2(-2 + band_sway, -14), c_bandana, 1.5)
+			draw_line(Vector2(1, -19), Vector2(3 + band_sway, -13), c_bandana, 1.5)
+
 		Direction.LEFT:
-			draw_rect(Rect2(-6, -7, 2, 2), Color.BLACK)
+			# Perfil esquerdo: rosto virado para a esquerda
+			draw_rect(Rect2(-6, -18, 2, 4), c_skin) # Nariz projetado
+			draw_rect(Rect2(-4, -18, 2, 2), c_eye)
+			draw_rect(Rect2(-4, -18, 1, 1), Color.WHITE)
+			# Cabelo na parte de trás da cabeça (direita)
+			draw_rect(Rect2(-1, -21, 6, 7), c_hair)
+			draw_rect(Rect2(0, -19, 4, 4), c_hair_light)
+			# Tiras da bandana voando para trás (para a direita)
+			var band_trail: int = 1 if frame_num == 2 else 0
+			draw_line(Vector2(4, -20), Vector2(8, -19 + band_trail), c_bandana, 2.0)
+			draw_line(Vector2(5, -19), Vector2(10, -17 + band_trail), c_bandana, 1.5)
+
 		Direction.RIGHT:
-			draw_rect(Rect2(4, -7, 2, 2), Color.BLACK)
+			# Perfil direito: rosto virado para a direita
+			draw_rect(Rect2(4, -18, 2, 4), c_skin) # Nariz projetado
+			draw_rect(Rect2(2, -18, 2, 2), c_eye)
+			draw_rect(Rect2(3, -18, 1, 1), Color.WHITE)
+			# Cabelo na parte de trás da cabeça (esquerda)
+			draw_rect(Rect2(-5, -21, 6, 7), c_hair)
+			draw_rect(Rect2(-4, -19, 4, 4), c_hair_light)
+			# Tiras da bandana voando para trás (para a esquerda)
+			var band_trail: int = -1 if frame_num == 2 else 0
+			draw_line(Vector2(-4, -20), Vector2(-8, -19 + band_trail), c_bandana, 2.0)
+			draw_line(Vector2(-5, -19), Vector2(-10, -17 + band_trail), c_bandana, 1.5)
 
-	# Pés com animação de passos
-	var leg_left := Rect2(-6, 2, 4, 3)
-	var leg_right := Rect2(2, 2, 4, 3)
-	if is_moving:
-		if frame_num == 1:
-			leg_left.position.y += 1
-			leg_right.position.y -= 1
-		elif frame_num == 2:
-			leg_left.position.y -= 1
-			leg_right.position.y += 1
-	draw_rect(leg_left, shadow_color)
-	draw_rect(leg_right, shadow_color)
+	# --- PESCOÇO E OMBROS (Y: -14 a -12) ---
+	draw_rect(Rect2(-3, -14, 6, 2), c_skin_shadow)
 
-	# Animação do soco (braço/punho estendido na direção do ataque)
+	# --- TRONCO E COLETE TÁTICO (Y: -13 a -3) ---
+	# Macacão tático base
+	draw_rect(Rect2(-7, -13, 14, 10), c_suit)
+	# Colete balístico de combate
+	draw_rect(Rect2(-6, -13, 12, 9), c_vest)
+	# Ombreiras e arnês tático
+	draw_rect(Rect2(-7, -13, 2, 5), c_vest_light)
+	draw_rect(Rect2(5, -13, 2, 5), c_vest_light)
+
+	if current_direction == Direction.DOWN:
+		# Zíper frontal do colete e bolsos peitorais
+		draw_line(Vector2(0, -13), Vector2(0, -4), c_vest_light, 1.0)
+		draw_rect(Rect2(-4, -11, 3, 3), c_belt)
+		draw_rect(Rect2(1, -11, 3, 3), c_belt)
+	elif current_direction == Direction.UP:
+		# Tiras traseiras cruzadas do arnês
+		draw_line(Vector2(-4, -13), Vector2(4, -5), c_vest_light, 1.0)
+		draw_line(Vector2(4, -13), Vector2(-4, -5), c_vest_light, 1.0)
+
+	# --- BRAÇOS, SOCO E ARMAS ---
+	var c_gun := Color("16181e")
+	var c_gun_metal := Color("2e3440")
+	var has_firearm: bool = (equipped_weapon in [WeaponSystem.WEAPON_HANDGUN, WeaponSystem.WEAPON_SMG, WeaponSystem.WEAPON_GRENADE_LAUNCHER, WeaponSystem.WEAPON_MISSILE])
+
 	if is_punching:
-		var fist_rect := Rect2(0, 0, 4, 4)
+		# GOLPE MARCIAL / SOCO DINÂMICO
 		match current_direction:
 			Direction.UP:
-				fist_rect = Rect2(-2, -16, 4, 5)
+				# Braço esquerdo em guarda perto do peito
+				draw_rect(Rect2(-7, -13, 3, 5), c_suit)
+				draw_rect(Rect2(-7, -9, 3, 3), c_glove)
+				# Braço direito sobe golpeando para cima
+				draw_rect(Rect2(3, -24, 3, 11), c_suit)
+				draw_rect(Rect2(2, -28, 5, 5), c_glove)
+				draw_rect(Rect2(3, -28, 3, 2), c_skin)
+				# Linhas cinéticas de impacto
+				draw_line(Vector2(2, -30), Vector2(0, -34), Color(1, 1, 1, 0.8), 1.0)
+				draw_line(Vector2(6, -30), Vector2(8, -34), Color(1, 1, 1, 0.8), 1.0)
 			Direction.DOWN:
-				fist_rect = Rect2(-2, 4, 4, 5)
+				# Braço esquerdo em guarda
+				draw_rect(Rect2(-8, -13, 3, 5), c_suit)
+				draw_rect(Rect2(-8, -9, 3, 3), c_glove)
+				# Braço direito golpeia para baixo
+				draw_rect(Rect2(3, -10, 4, 10), c_suit)
+				draw_rect(Rect2(2, 0, 5, 5), c_glove)
+				draw_rect(Rect2(3, 3, 3, 2), c_skin)
+				# Linhas cinéticas de impacto
+				draw_line(Vector2(2, 6), Vector2(0, 10), Color(1, 1, 1, 0.8), 1.0)
+				draw_line(Vector2(6, 6), Vector2(8, 10), Color(1, 1, 1, 0.8), 1.0)
 			Direction.LEFT:
-				fist_rect = Rect2(-13, -6, 5, 4)
+				# Braço direito recuado em guarda
+				draw_rect(Rect2(3, -13, 3, 6), c_suit)
+				draw_rect(Rect2(3, -8, 3, 3), c_glove)
+				# Braço esquerdo golpeia reto à esquerda
+				draw_rect(Rect2(-12, -12, 6, 4), c_suit)
+				draw_rect(Rect2(-17, -13, 5, 5), c_glove)
+				draw_rect(Rect2(-17, -12, 2, 3), c_skin)
+				# Linhas cinéticas de impacto
+				draw_line(Vector2(-19, -13), Vector2(-23, -15), Color(1, 1, 1, 0.8), 1.0)
+				draw_line(Vector2(-19, -9), Vector2(-23, -7), Color(1, 1, 1, 0.8), 1.0)
 			Direction.RIGHT:
-				fist_rect = Rect2(8, -6, 5, 4)
-		draw_rect(fist_rect, skin_color)
-		draw_rect(Rect2(fist_rect.position, Vector2(fist_rect.size.x, 1)), shadow_color)
+				# Braço esquerdo recuado em guarda
+				draw_rect(Rect2(-6, -13, 3, 6), c_suit)
+				draw_rect(Rect2(-6, -8, 3, 3), c_glove)
+				# Braço direito golpeia reto à direita
+				draw_rect(Rect2(6, -12, 6, 4), c_suit)
+				draw_rect(Rect2(12, -13, 5, 5), c_glove)
+				draw_rect(Rect2(15, -12, 2, 3), c_skin)
+				# Linhas cinéticas de impacto
+				draw_line(Vector2(19, -13), Vector2(23, -15), Color(1, 1, 1, 0.8), 1.0)
+				draw_line(Vector2(19, -9), Vector2(23, -7), Color(1, 1, 1, 0.8), 1.0)
+
+	elif has_firearm or shoot_timer > 0:
+		# POSTURA DE EMPUNHADURA DE ARMA (SNAKE WITH WEAPON) E CLARÃO DE DISPARO
+		match current_direction:
+			Direction.DOWN:
+				# Empunhadura à frente do quadril apontando para baixo
+				draw_rect(Rect2(2, -12, 3, 8), c_suit)
+				draw_rect(Rect2(2, -4, 3, 4), c_glove)
+				draw_rect(Rect2(-4, -10, 3, 6), c_suit)
+				draw_rect(Rect2(-2, -6, 3, 3), c_glove)
+				draw_rect(Rect2(2, -5, 3, 7), c_gun)
+				draw_rect(Rect2(2, 2, 2, 4), c_gun_metal)
+				if shoot_timer > 0:
+					# Clarão do disparo na ponta do cano
+					draw_circle(Vector2(3, 7), 3.0, Color("ffe040"))
+					draw_circle(Vector2(3, 7), 1.5, Color.WHITE)
+					draw_line(Vector2(3, 4), Vector2(3, 11), Color("ffe040"), 1.5)
+					draw_line(Vector2(0, 7), Vector2(6, 7), Color("ffe040"), 1.5)
+
+			Direction.UP:
+				# Pistola erguida apontando para cima além do ombro
+				draw_rect(Rect2(3, -21, 3, 9), c_suit)
+				draw_rect(Rect2(3, -22, 3, 3), c_glove)
+				draw_rect(Rect2(3, -26, 2, 5), c_gun_metal)
+				draw_rect(Rect2(-7, -13, 2, 7), c_suit)
+				draw_rect(Rect2(-7, -7, 2, 3), c_glove)
+				if shoot_timer > 0:
+					draw_circle(Vector2(4, -27), 3.0, Color("ffe040"))
+					draw_circle(Vector2(4, -27), 1.5, Color.WHITE)
+					draw_line(Vector2(4, -24), Vector2(4, -31), Color("ffe040"), 1.5)
+					draw_line(Vector2(1, -27), Vector2(7, -27), Color("ffe040"), 1.5)
+
+			Direction.LEFT:
+				# Postura tática isósceles apontando à esquerda
+				draw_rect(Rect2(-7, -12, 6, 4), c_suit)
+				draw_rect(Rect2(-10, -12, 4, 4), c_glove)
+				draw_rect(Rect2(-14, -11, 5, 3), c_gun)
+				draw_rect(Rect2(-16, -11, 2, 2), c_gun_metal)
+				if shoot_timer > 0:
+					draw_circle(Vector2(-18, -10), 3.0, Color("ffe040"))
+					draw_circle(Vector2(-18, -10), 1.5, Color.WHITE)
+					draw_line(Vector2(-15, -10), Vector2(-22, -10), Color("ffe040"), 1.5)
+					draw_line(Vector2(-18, -7), Vector2(-18, -13), Color("ffe040"), 1.5)
+
+			Direction.RIGHT:
+				# Postura tática isósceles apontando à direita
+				draw_rect(Rect2(1, -12, 6, 4), c_suit)
+				draw_rect(Rect2(6, -12, 4, 4), c_glove)
+				draw_rect(Rect2(9, -11, 5, 3), c_gun)
+				draw_rect(Rect2(14, -11, 2, 2), c_gun_metal)
+				if shoot_timer > 0:
+					draw_circle(Vector2(18, -10), 3.0, Color("ffe040"))
+					draw_circle(Vector2(18, -10), 1.5, Color.WHITE)
+					draw_line(Vector2(15, -10), Vector2(22, -10), Color("ffe040"), 1.5)
+					draw_line(Vector2(18, -7), Vector2(18, -13), Color("ffe040"), 1.5)
+
+	else:
+		# BRAÇOS EM MOVIMENTO NATURAL / MARCHA
+		var arm_l_y := -12
+		var arm_r_y := -12
+		if is_moving:
+			if frame_num == 1:
+				arm_l_y = -10
+				arm_r_y = -14
+			elif frame_num == 2:
+				arm_l_y = -14
+				arm_r_y = -10
+
+		match current_direction:
+			Direction.DOWN, Direction.UP:
+				draw_rect(Rect2(-8, arm_l_y, 2, 7), c_suit)
+				draw_rect(Rect2(-8, arm_l_y + 6, 2, 3), c_glove)
+				draw_rect(Rect2(6, arm_r_y, 2, 7), c_suit)
+				draw_rect(Rect2(6, arm_r_y + 6, 2, 3), c_glove)
+			Direction.LEFT:
+				draw_rect(Rect2(-2, arm_l_y, 3, 8), c_suit)
+				draw_rect(Rect2(-2, arm_l_y + 6, 3, 3), c_glove)
+			Direction.RIGHT:
+				draw_rect(Rect2(-1, arm_r_y, 3, 8), c_suit)
+				draw_rect(Rect2(-1, arm_r_y + 6, 3, 3), c_glove)
+
+	# --- CINTO E GUILHOTINA TÁTICA (Y: -4 a 0) ---
+	draw_rect(Rect2(-6, -4, 12, 3), c_belt)
+	draw_rect(Rect2(-1, -4, 2, 3), c_buckle) # Fivela
+	draw_rect(Rect2(-6, -4, 2, 3), c_vest_light) # Pouch esquerdo
+	draw_rect(Rect2(4, -4, 2, 3), c_vest_light)  # Pouch direito
+
+	# --- PERNAS E BOTAS (Y: 0 a +8) ---
+	var leg_l_rect := Rect2(-5, 0, 4, 5)
+	var leg_r_rect := Rect2(1, 0, 4, 5)
+	var boot_l_rect := Rect2(-6, 5, 4, 3)
+	var boot_r_rect := Rect2(1, 5, 4, 3)
+
+	if is_moving:
+		if frame_num == 1:
+			leg_l_rect.position.y += 1
+			boot_l_rect.position.y += 1
+			leg_r_rect.position.y -= 1
+			boot_r_rect.position.y -= 1
+		elif frame_num == 2:
+			leg_l_rect.position.y -= 1
+			boot_l_rect.position.y -= 1
+			leg_r_rect.position.y += 1
+			boot_r_rect.position.y += 1
+
+	if current_direction == Direction.LEFT:
+		draw_rect(Rect2(-4, 0, 6, 5), c_suit)
+		draw_rect(Rect2(-5, 5, 6, 3), c_boot)
+		if is_moving and frame_num == 1:
+			draw_rect(Rect2(-6, 5, 4, 3), c_boot)
+			draw_rect(Rect2(0, 3, 4, 3), Color("0a0e0a"))
+	elif current_direction == Direction.RIGHT:
+		draw_rect(Rect2(-2, 0, 6, 5), c_suit)
+		draw_rect(Rect2(-1, 5, 6, 3), c_boot)
+		if is_moving and frame_num == 1:
+			draw_rect(Rect2(2, 5, 4, 3), c_boot)
+			draw_rect(Rect2(-4, 3, 4, 3), Color("0a0e0a"))
+	else:
+		draw_rect(leg_l_rect, c_suit)
+		draw_rect(leg_r_rect, c_suit)
+		draw_rect(Rect2(leg_l_rect.position.x, 2, 4, 2), c_vest)
+		draw_rect(Rect2(leg_r_rect.position.x, 2, 4, 2), c_vest)
+		draw_rect(boot_l_rect, c_boot)
+		draw_rect(boot_r_rect, c_boot)
+		draw_line(Vector2(boot_l_rect.position.x, boot_l_rect.end.y), Vector2(boot_l_rect.end.x, boot_l_rect.end.y), Color("080a08"), 1.0)
+		draw_line(Vector2(boot_r_rect.position.x, boot_r_rect.end.y), Vector2(boot_r_rect.end.x, boot_r_rect.end.y), Color("080a08"), 1.0)
 
 	# Debug: desenhar os 2 pontos de colisão ativos de BoxColliderDat
 	if show_debug_colliders:
