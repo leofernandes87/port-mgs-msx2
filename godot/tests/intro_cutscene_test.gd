@@ -83,17 +83,20 @@ func _run_tests() -> void:
 	intro.on_radio_finished()
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_8_RADIO_CLOSED, "Estado após rádio deve ser SCENE_8_RADIO_CLOSED")
 
-	# 7. State 9 & 10: Nadar até a grade em (88, 136)
+	# 7. State 9 & 10: Nadar até a grade em (128, 136)
 	intro.tick(player) # Transita de SCENE_8 para SCENE_9
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_9_SWIM_RIGHT, "Estado de nado à cerca deve ser SCENE_9_SWIM_RIGHT")
+	_assert_true(player.anim_mode == PlayerController.AnimMode.DEEP_WATER, "Snake deve submergir (DEEP_WATER) ao sair do rádio")
 
 	for i in range(40):
 		intro.tick(player)
-	_assert_true(is_equal_approx(player.position.x, 88.0), "Snake alcançou X = 88")
+	_assert_true(is_equal_approx(player.position.x, 128.0), "Snake alcançou o centro em X = 128")
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_10_SWIM_NORTH, "Estado de aproximação vertical deve ser SCENE_10_SWIM_NORTH")
+	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake deve emergir (SWIM_SURFACE) ao virar para o norte")
 
-	for i in range(48):
+	for i in range(24):
 		intro.tick(player)
+	_assert_true(is_equal_approx(player.position.x, 128.0), "Snake permaneceu centralizado em X = 128")
 	_assert_true(is_equal_approx(player.position.y, 136.0), "Snake chegou à base da cerca em Y = 136")
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_11_CLIMB, "Deve iniciar escalada da cerca (SCENE_11_CLIMB)")
 	_assert_true(player.anim_mode == PlayerController.AnimMode.CLIMB, "Animação de escalada deve estar ativa (CLIMB)")
@@ -101,6 +104,7 @@ func _run_tests() -> void:
 	# 8. State 11: Escalada da cerca (28 ticks até Y = 102)
 	for i in range(28):
 		intro.tick(player)
+	_assert_true(is_equal_approx(player.position.x, 128.0), "Escalada deve ocorrer estritamente em X = 128")
 	_assert_true(is_equal_approx(player.position.y, 102.0), "Snake deve chegar ao topo da grade em Y = 102")
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_12_BOUNCE, "Deve iniciar salto para terra firme (SCENE_12_BOUNCE)")
 

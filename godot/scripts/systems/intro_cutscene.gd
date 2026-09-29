@@ -149,41 +149,47 @@ func tick(player: PlayerController) -> void:
 		State.SCENE_8_RADIO_CLOSED:
 			current_state = State.SCENE_9_SWIM_RIGHT
 			state_counter = 0x28 # 40 frames
-			player.anim_mode = PlayerController.AnimMode.SWIM_SURFACE
+			player.anim_mode = PlayerController.AnimMode.DEEP_WATER
 			player.current_direction = PlayerController.Direction.RIGHT
 			player.queue_redraw()
-			print("INTRO_CUTSCENE: Briefing encerrado. Nadando para a direita rumo à cerca")
+			print("INTRO_CUTSCENE: Briefing encerrado. Mergulhando rumo ao centro da sala (128, 152)")
 
 		State.SCENE_9_SWIM_RIGHT:
 			state_counter -= 1
-			player.position.x += 1.0 # 40 px: 48 -> 88
+			player.position.x += 2.0 # 80 px: 48 -> 128 (velocidade canônica 2.0 px/tick rumo ao centro)
+			player.water_frame = (state_counter / 8) % 2
 			player.queue_redraw()
 			if state_counter <= 0:
+				player.position.x = 128.0
 				current_state = State.SCENE_10_SWIM_NORTH
-				state_counter = 0x30 # 48 frames
+				state_counter = 0x18 # 24 frames
+				player.anim_mode = PlayerController.AnimMode.SWIM_SURFACE
 				player.current_direction = PlayerController.Direction.UP
 				player.queue_redraw()
+				print("INTRO_CUTSCENE: Snake alcançou o centro (128, 152). Emergindo e nadando até a grade ao norte")
 
 		State.SCENE_10_SWIM_NORTH:
 			state_counter -= 1
-			player.position.y -= (16.0 / 48.0) # 16 px: 152 -> 136
+			player.position.y -= (16.0 / 24.0) # 16 px: 152 -> 136
+			player.water_frame = (state_counter / 8) % 2
 			player.queue_redraw()
 			if state_counter <= 0:
-				player.position.y = 136.0
+				player.position = Vector2(128.0, 136.0)
 				current_state = State.SCENE_11_CLIMB
 				state_counter = 0x1C # 28 frames
 				player.anim_mode = PlayerController.AnimMode.CLIMB
 				player.current_direction = PlayerController.Direction.UP
 				player.queue_redraw()
-				print("INTRO_CUTSCENE: Snake alcançou a grade em (88, 136) e começou a escalar!")
+				print("INTRO_CUTSCENE: Snake alcançou a grade em (128, 136) e começou a escalar!")
 
 		State.SCENE_11_CLIMB:
 			state_counter -= 1
+			player.position.x = 128.0 # Mantém estritamente no centro horizontal
 			player.position.y -= (34.0 / 28.0) # 34 px: 136 -> 102
 			player.climb_frame = (state_counter / 6) % 2
 			player.queue_redraw()
 			if state_counter <= 0:
-				player.position.y = 102.0
+				player.position = Vector2(128.0, 102.0)
 				current_state = State.SCENE_12_BOUNCE
 				state_counter = 12
 				player.anim_mode = PlayerController.AnimMode.NORMAL
@@ -194,8 +200,9 @@ func tick(player: PlayerController) -> void:
 		State.SCENE_12_BOUNCE:
 			state_counter -= 1
 			var progress := 1.0 - float(state_counter) / 12.0
-			player.position.x = lerp(88.0, 128.0, progress)
-			player.position.y = lerp(102.0, 80.0, progress)
+			var arc: float = sin(progress * PI) * 6.0
+			player.position.x = 128.0 # Estritamente vertical, sem desvio diagonal
+			player.position.y = lerpf(102.0, 80.0, progress) - arc
 			player.queue_redraw()
 			if state_counter <= 0:
 				_finish_intro(player)

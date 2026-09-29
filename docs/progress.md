@@ -2323,4 +2323,10 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Implementado tratamento 100% null-safe em todas as propriedades e métodos de `RadioDialog`.
   - Adicionado teste de regressão em `intro_cutscene_test.gd` disparando renderização CanvasItem (`NOTIFICATION_DRAW`) durante o briefing com e sem `radio_system` vinculado.
   - Validação via `python3 tools/validate.py`: **100% PASS** (69 testes unitários Python + 22 suítes headless Godot 4).
+- **Correção da Cinemática Pós-Rádio: Submersão e Trajetória Ortogonal ao Centro da Sala**:
+  - Identificada a causa da movimentação diagonal: em `introscene.asm:228-230`, a rotina pós-rádio define `PlayerMovSpeed = 200h` (2.0 px/tick) por 40 frames, levando Snake de $X = 48$ a $X = 128$ (centro exato da sala). A versão anterior usava 1.0 px/tick, parando em $X = 88$ e saltando na diagonal para $(128, 80)$.
+  - Implementada a submersão imediata pós-rádio (`DEEP_WATER`): Snake mergulha novamente e nada debaixo d'água até o centro da tela $(128, 152)$.
+  - Emersão no centro e nado vertical (`SWIM_SURFACE`): Snake sobe em linha reta ao longo de $X = 128.0$ até a grade em $(128, 136)$.
+  - Escalada e salto vertical sobre a cerca: executados estritamente no centro ($X = 128.0$) com escalada até $Y = 102$ e arco de salto até terra firme em $(128, 80)$, eliminando qualquer desvio diagonal.
+  - Suíte `intro_cutscene_test.gd` atualizada e validação global via `python3 tools/validate.py`: **100% PASS** (69 testes Python + 22 suítes headless Godot 4).
 
