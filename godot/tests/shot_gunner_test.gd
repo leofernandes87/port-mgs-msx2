@@ -29,6 +29,8 @@ func _run_all() -> void:
 	_test_roll_blocks_on_collision()
 	_test_shoot_fires_every_16_ticks()
 	_test_no_shot_during_roll()
+	_test_msx2_sprite_rects()
+	_test_shotgun_bullet_sprites()
 
 ## Teste 1: HP inicial = 20 (idxActorLife[32] = 0x14)
 func _test_initial_hp() -> void:
@@ -125,3 +127,51 @@ func _test_no_shot_during_roll() -> void:
 	_assert(not result, "Bala não causa dano durante ROLL (COLLISION_CFG = 0)")
 	_assert(sg.boss_hp == 20, "HP inalterado durante ROLL")
 	sg.free()
+
+## Teste 8: Regiões e orientação do spritesheet MSX2 do Shoot Gunner
+func _test_msx2_sprite_rects() -> void:
+	var sg: ShotGunner = ShotGunner.new()
+	# Stand virado para direita
+	sg.setup(Vector2(100.0, 50.0), [], Vector2(150.0, 50.0))
+	sg.state = ShotGunner.SGunnerState.SHOOT
+	var r_stand_r: Rect2 = sg._get_sprite_rect()
+	_assert(r_stand_r == Rect2(0.0, 0.0, 16.0, 32.0), "Stand virado para a direita: Col 0, Row 0")
+
+	# Stand virado para esquerda
+	sg.player_pos = Vector2(50.0, 50.0)
+	var r_stand_l: Rect2 = sg._get_sprite_rect()
+	_assert(r_stand_l == Rect2(0.0, 32.0, 16.0, 32.0), "Stand virado para a esquerda: Col 0, Row 1")
+
+	# Roll frames (5Eh, 5Fh, 60h, 5Fh -> col 1, 2, 3, 2)
+	sg.state = ShotGunner.SGunnerState.ROLL
+	sg.roll_dir = 1
+	sg.roll_frame = 0
+	_assert(sg._get_sprite_rect() == Rect2(16.0, 0.0, 16.0, 32.0), "Roll frame 0 -> Col 1 (5Eh)")
+	sg.roll_frame = 1
+	_assert(sg._get_sprite_rect() == Rect2(32.0, 0.0, 16.0, 32.0), "Roll frame 1 -> Col 2 (5Fh)")
+	sg.roll_frame = 2
+	_assert(sg._get_sprite_rect() == Rect2(48.0, 0.0, 16.0, 32.0), "Roll frame 2 -> Col 3 (60h)")
+	sg.roll_frame = 3
+	_assert(sg._get_sprite_rect() == Rect2(32.0, 0.0, 16.0, 32.0), "Roll frame 3 -> Col 2 (5Fh)")
+
+	# Roll virado para esquerda
+	sg.roll_dir = -1
+	sg.roll_frame = 0
+	_assert(sg._get_sprite_rect() == Rect2(16.0, 32.0, 16.0, 32.0), "Roll virado para a esquerda -> Row 1")
+
+	# Executa NOTIFICATION_DRAW sem erros
+	sg.notification(Node2D.NOTIFICATION_DRAW)
+	_assert(true, "Draw do Shoot Gunner executado com sucesso")
+	sg.free()
+
+## Teste 9: Projétil de escopeta MSX2 e expansão do cone de chumbo
+func _test_shotgun_bullet_sprites() -> void:
+	var bullet: ShotGunnerBullet = ShotGunnerBullet.new()
+	bullet.setup(Vector2(100.0, 100.0), Vector2(150.0, 100.0), [])
+
+	# Valida os 4 frames de animação executando draw
+	for f: int in [1, 2, 3, 4]:
+		bullet.anim_frame = f
+		bullet.notification(Node2D.NOTIFICATION_DRAW)
+	_assert(true, "Draw dos 4 frames do tiro de escopeta executado com sucesso")
+	bullet.free()

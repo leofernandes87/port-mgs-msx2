@@ -94,8 +94,12 @@ signal intro_dialog(text: String)
 # Inicialização
 # ---------------------------------------------------------------------------
 
+var _boss_texture: Texture2D = null
+
 func _ready() -> void:
 	z_index = 10
+	if ResourceLoader.exists("res://assets/protected/sprites/shoot_gunner_msx.png"):
+		_boss_texture = load("res://assets/protected/sprites/shoot_gunner_msx.png")
 
 func setup(spawn_pos: Vector2, grid: Array, initial_player_pos: Vector2) -> void:
 	position = spawn_pos
@@ -283,8 +287,23 @@ func _on_defeat() -> void:
 	queue_redraw()
 	emit_signal("boss_defeated")
 
+## Obtém a região retangular exata no spritesheet MSX2 (64x64 px).
+## Linha 0 = Facing Right, Linha 1 = Facing Left (espelhado).
+## Colunas: 0 = Stand (0x5D), 1..3 = Roll 1, 2, 3 (0x5E, 0x5F, 0x60).
+func _get_sprite_rect() -> Rect2:
+	var facing_right: bool = (player_pos.x >= position.x) if state == SGunnerState.SHOOT else (roll_dir >= 0)
+	var row: int = 0 if facing_right else 1
+	var col: int = 0
+	if state == SGunnerState.ROLL:
+		# SGunnerRollSpr: 5Eh, 5Fh, 60h, 5Fh -> colunas 1, 2, 3, 2
+		const ROLL_COLS: Array[int] = [1, 2, 3, 2]
+		col = ROLL_COLS[roll_frame % 4]
+	else:
+		col = 0  # Stand
+	return Rect2(col * 16.0, row * 32.0, 16.0, 32.0)
+
 # ---------------------------------------------------------------------------
-# Desenho procedural autoral (sem sprites protegidos)
+# Desenho autêntico MSX2 com fallback procedural
 # ---------------------------------------------------------------------------
 
 func _draw() -> void:
@@ -304,6 +323,28 @@ func _draw() -> void:
 		draw_rect(Rect2(-8.0, -3.0, 3.0, 3.0), Color(1.0, 0.8, 0.6))
 		# 4. Escopeta caída e solta no chão ao lado
 		draw_rect(Rect2(4.0, -1.0, 9.0, 3.0), Color(0.15, 0.15, 0.15))
+		return
+
+	# 1. Renderização autêntica com spritesheet MSX2
+	# Stand: SprOffsets1 (-8, -27); Roll: SprOffsets10 (-8, -32)
+	if _boss_texture != null:
+		var src_rect := _get_sprite_rect()
+		var dest_offset_y: float = -32.0 if state == SGunnerState.ROLL else -27.0
+		var dest_rect := Rect2(-8.0, dest_offset_y, 16.0, 32.0)
+		draw_texture_rect_region(_boss_texture, dest_rect, src_rect)
+
+		# Muzzle flash na ponta do cano da escopeta
+		if muzzle_flash_timer > 0 and state != SGunnerState.ROLL:
+			var facing_right: bool = player_pos.x >= position.x
+			var m_tip: float = 8.0 if facing_right else -8.0
+			draw_rect(Rect2(m_tip - 2.0, -13.0, 5.0, 8.0), Color(1.0, 0.9, 0.2))
+			draw_rect(Rect2(m_tip - 3.0, -12.0, 7.0, 6.0), Color.WHITE)
+
+		# Flash de hit
+		if flash_timer > 0:
+			draw_rect(dest_rect, highlight)
+
+		queue_redraw()
 		return
 
 	match state:

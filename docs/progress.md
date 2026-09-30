@@ -2643,3 +2643,70 @@ Substituição da renderização procedural antiga de reféns e prisioneiros por
   - `python-tests`: **85 testes unitários** PASS
   - Todas as **27 suítes de integração headless** Godot 4 PASS
 
+
+## 2026-09-30 — Sprites Originais do Boss Shoot Gunner e Projéteis de Escopeta MSX2
+
+Substituição da renderização procedural do Boss Shoot Gunner (`shot_gunner.gd`) e de seus projéteis de escopeta (`shot_gunner_bullet.gd`) pelos sprites autênticos originais do Metal Gear MSX2 RC750 (Konami 1987), reconstituídos com base nas rotinas e tabelas assembly Z80 em `external/MetalGear/`.
+
+### Evidências Primárias no Código Original (`external/MetalGear/`)
+
+1. **Lógica e Sequenciamento de Animação (`logic/actors/shotgunner.asm`)**:
+   - `InitShotGunner` (linhas 12-28):
+     - `(ix+SHOT_GUNNER.SpriteId) = 5Dh`: ID do sprite de Shoot Gunner em pé com escopeta.
+     - `SpeedX = ±4`: velocidade de rolagem (4 px/frame -> 240 px/s).
+   - `SetSGunnerRollSpr` (linhas 158-178):
+     - Alternância de quadros na rolagem usando tabela `SGunnerRollSpr: db 5Eh, 5Fh, 60h, 5Fh` indexada por `(anim_tick & 6) >> 1`.
+   - `InitShotGunnerShot` e `ShotGunnerShot` (linhas 188-228):
+     - `ID_SGUNNER_SHOT = 0x2B` (43).
+     - Expansão do cone de chumbo em 4 fases canônicas:
+       - Wait < 7 ticks ($0..0.117\text{ s}$): `SpriteId = 6Eh` (`ShotGunShot1`, flash inicial do cano)
+       - Wait < 14 ticks ($0.117..0.233\text{ s}$): `SpriteId = 6Fh` (`ShotGunShot2`, início do cone)
+       - Wait < 21 ticks ($0.233..0.350\text{ s}$): `SpriteId = 70h` (`ShotGunShot3`, dispersão média)
+       - Wait >= 21 ticks: `SpriteId = 71h` (`ShotGunShot4`, nuvem ampla de chumbos cobrindo 32x32 px)
+
+2. **Atributos de Sprites e Offsets (`data/actorspriteattr.asm`)**:
+   - Shoot Gunner:
+     - `5Dh`: `dw ShotGunner` -> `db 91h, 60h, 64h, 68h, 6Ch` (em pé, `SprOffsets1`: Y=-27, X=-8)
+     - `5Eh`: `dw ShotGunRol1` -> `db 9Ah, 70h, 74h, 78h, 7Ch` (rolagem 1, `SprOffsets10`: Y=-32, X=-8)
+     - `5Fh`: `dw ShotGunRol2` -> `db 9Ah, 80h, 84h, 88h, 8Ch` (rolagem 2, `SprOffsets10`: Y=-32, X=-8)
+     - `60h`: `dw ShotGunRol3` -> `db 9Ah, 90h, 94h, 98h, 9Ch` (rolagem 3, `SprOffsets10`: Y=-32, X=-8)
+     - `SprShotGunner`: 512 bytes descompactados = exatamente 16 padrões de 16x16.
+   - Projéteis de Escopeta:
+     - `6Eh`: `dw ShotGunShot1` -> `db 95h, 0A0h, 0A0h, 0A0h, 0A0h` (`SprOffsets5`: Y=-8, X=-8, centrado em 16x16)
+     - `6Fh`: `dw ShotGunShot2` -> `db 95h, 0A4h, 0A4h, 0A4h, 0A4h` (`SprOffsets5`: Y=-8, X=-8, centrado em 16x16)
+     - `70h`: `dw ShotGunShot3` -> `db 95h, 0A8h, 0A8h, 0A8h, 0A8h` (`SprOffsets5`: Y=-8, X=-8, centrado em 16x16)
+     - `71h`: `dw ShotGunShot4` -> `db 0F0h, 0F0h, 0ACh, 0F0h, 0, 0B0h, 0, 0F0h, 0B4h, 0, 0, 0B8h` (grade 2x2 com offsets -16 e 0 cobrindo 32x32 px)
+     - `SprSGunnerShot`: 224 bytes descompactados = exatamente 7 padrões de 16x16.
+
+3. **Cores e Paletas de Hardware (`data/palettes.asm:253-256`, `data/actorspriteattr.asm:87-88, 113`)**:
+   - Shoot Gunner (`ActorSprColors3`, `SprsetPal10` na Sala 57):
+     - Camada 0: Cor 2 -> Azul militar escuro / camuflagem (`#242448`)
+     - Camada 1: Cor 13 -> Cáqui / pele (`#916d48`)
+     - Interseção (Color Compare $2 \mid 13 = 15$): Cor 15 -> Preto puro (`#101010`, espingarda, quepe, botas)
+   - Projéteis de Chumbo (`ActorSprColors12`):
+     - Cor 14 -> Prata / Branco brilhante (`#ebebeb`)
+
+### Componentes Implementados
+
+1. **Extrator em Python 3 (`tools/extractors/extract_shoot_gunner_sprites.py`)**:
+   - Descompactador RLE idêntico ao Z80 (`Banks0123.asm:5543-5580`).
+   - Composição VDP Sprite Mode 2 com Color Compare bit a bit.
+   - Geração de `godot/assets/protected/sprites/shoot_gunner_msx.png` (64x64 px: 4 colunas de 16x32 x 2 linhas dir/esq).
+   - Geração de `godot/assets/protected/sprites/shotgun_shot_msx.png` (128x32 px: 4 células uniformes de 32x32 px).
+2. **Testes Unitários em Python (`tests/test_shoot_gunner_sprite_extractor.py`)**:
+   - 5 testes sintéticos cobrindo RLE, composição 16x32 com Color Compare, decodificação 16x16 monocromática, escrita de PNG e extração completa com dados sintéticos (elevando a suíte para 90 testes unitários).
+3. **Integração na Engine Godot 4 (`godot/scripts/systems/shot_gunner.gd` e `shot_gunner_bullet.gd`)**:
+   - Carregamento seguro das texturas autênticas com detecção via `ResourceLoader.exists`.
+   - Seleção de orientação (Facing Right / Facing Left) e quadros de animação (Stand / Roll 1, 2, 3) no boss.
+   - Offsets exatos de hardware: `Rect2(-8.0, -27.0, 16.0, 32.0)` em pé e `Rect2(-8.0, -32.0, 16.0, 32.0)` rolando.
+   - Renderização dos disparos de escopeta em 4 fases centrados em `Rect2(-16.0, -16.0, 32.0, 32.0)`.
+   - Fallback procedural completo preservado para ambos.
+4. **Suíte de Testes Godot (`godot/tests/shot_gunner_test.gd`)**:
+   - Adicionados testes de regiões e orientação dos spritesheets e desenho sem exceções (24 testes passando na suíte).
+
+### Verificação Automatizada Concluída
+
+- `python3 tools/validate.py`: **100% PASS**
+  - `python-tests`: **90 testes unitários** PASS
+  - Todas as **27 suítes de integração headless** Godot 4 PASS
+

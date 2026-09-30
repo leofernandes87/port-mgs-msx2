@@ -77,8 +77,12 @@ var collision_grid: Array = []
 signal hit_player(damage: int)
 signal bullet_destroyed
 
+var _bullet_texture: Texture2D = null
+
 func _ready() -> void:
 	z_index = 12
+	if ResourceLoader.exists("res://assets/protected/sprites/shotgun_shot_msx.png"):
+		_bullet_texture = load("res://assets/protected/sprites/shotgun_shot_msx.png")
 
 func setup(origin: Vector2, target: Vector2, grid: Array) -> void:
 	position = origin
@@ -171,6 +175,15 @@ func _draw() -> void:
 	if not is_active:
 		return
 
+	# 1. Renderização autêntica com spritesheet MSX2 (ShotGunShot1..ShotGunShot4)
+	if _bullet_texture != null:
+		var frame_idx: int = clampi(anim_frame - 1, 0, 3)
+		var src_rect := Rect2(frame_idx * 32.0, 0.0, 32.0, 32.0)
+		var dest_rect := Rect2(-16.0, -16.0, 32.0, 32.0)
+		draw_texture_rect_region(_bullet_texture, dest_rect, src_rect)
+		return
+
+	# 2. Desenho procedural autêntico do Spray de Escopeta MSX2
 	match anim_frame:
 		1:
 			# Flash de saída do cano: losango/cruz branca compacta
