@@ -2574,3 +2574,72 @@ Implementada a recalibração rigorosa e inegociável de velocidade e temporizad
   - `python-tests`: **81 testes unitários** PASS.
   - Todas as **27 suítes de integração headless** Godot 4 PASS (100% de sucesso).
 
+
+## 2026-09-30 — Implementação dos Sprites Originais dos Prisioneiros e Reféns (MSX2 RC750)
+
+Substituição da renderização procedural antiga de reféns e prisioneiros por sprites autênticos originais do Metal Gear MSX2 RC750 (Konami 1987), reconstituídos a partir das rotinas assembly do Z80 e tabelas do VDP TMS9918/V9938.
+
+### Evidências Primárias no Código Original (`external/MetalGear/`)
+
+1. **Lógica e Temporização do Prisioneiro (`logic/actors/prisoner.asm` e `Banks0123.asm`)**:
+   - `InitPrisoner` (`prisoner.asm:7-9`): `ld (ix+PRISONER.SpriteId), 3Eh`.
+   - `PrisonerIdle` (`prisoner.asm:79-80`): `ld b, 0Fh; call Anim2FramesActor`.
+   - `Anim2FramesActor` (`Banks0123.asm:7324-7332`):
+     - Executa `(ANIM_CNT & 0x0F) == 0`, alternando o bit 0 do `SpriteId` via `xor 1` exatamente a cada 16 frames NTSC ($16/60 = 0.2667\text{ s}$).
+     - Alterna ciclicamente entre Frame 0 (`0x3E`) e Frame 1 (`0x3F`) enquanto amarrado.
+   - `PrisonerIdle2` (`prisoner.asm:95`): ao ser tocado pelo jogador desarmado, assume `SpriteId = 0x40` (`PrisonerFree`) com braços abertos.
+
+2. **Atributos dos Sprites e Offset de Hardware (`data/actorspriteattr.asm`)**:
+   - `idxSprites`:
+     - `3Eh`: `dw Prisoner` $\rightarrow$ `db 91h, 0D0h, 0D4h, 0E0h, 0E4h` (amarrado frame 1)
+     - `3Fh`: `dw Prisoner2` $\rightarrow$ `db 91h, 0D8h, 0DCh, 0E0h, 0E4h` (amarrado frame 2)
+     - `40h`: `dw PrisonerFree` $\rightarrow$ `db 91h, 0E8h, 0ECh, 0F0h, 0F4h` (livre / resgatado)
+   - `91h`: aponta para `SprOffsets1` (`-27, -8` para o topo e `-11, -8` para a base). A entidade tem $16 \times 32$ pixels e renderiza no Godot com `dest_rect = Rect2(-8.0, -27.0, 16.0, 32.0)`.
+   - Padrões VDP indexados em base `0xD0`:
+     - Topo Camada 0: `0xD0` (Frame 1), `0xD8` (Frame 2), `0xE8` (Livre)
+     - Topo Camada 1: `0xD4` (Frame 1), `0xDC` (Frame 2), `0xEC` (Livre)
+     - Base Camada 0: `0xE0` (Amarrado), `0xF0` (Livre)
+     - Base Camada 1: `0xE4` (Amarrado), `0xF4` (Livre)
+     - Cada personagem possui exatamente 10 padrões de 16x16 (320 bytes descompactados RLE).
+
+3. **Cores dos Personagens e Color Compare (`data/palettes.asm`, `data/spritesets.asm`, `data/actorspriteattr.asm`)**:
+   - **Prisioneiro Comum** (`SprPrisoner`, SprsetPal3):
+     - Camada 0: Cor 13 (`#b6916d`, cáqui amarronzado / roupa)
+     - Camada 1: Cor 11 (`#dada91`, cáqui claro / rosto)
+     - Interseção (Color Compare $13 \mid 11 = 15$): Cor 15 (`#101010`, preto puro para olhos, contornos, sapatos)
+   - **Grey Fox** (`SprPrisoner2`, SprsetPal9):
+     - Camada 0 Topo: Cor 13 (`#916d48`, torso / pele)
+     - Camada 1 Topo: Cor 14 (`#dadada`, ataduras / calças brancas rasgadas)
+     - Base: Cor 14 e Cor 11 (`#dada91`)
+     - Interseção: Cor 15 (cabelo preto, botas)
+   - **Ellen Madnar** (`SprElen`, SprsetPal8):
+     - Camada 0: Cor 13 (`#b6916d`, pele / rosto)
+     - Camada 1: Cor 11 (`#910024`, vestido carmesim / vermelho vivo)
+     - Interseção: Cor 15 (cabelo preto comprido, contorno)
+   - **Dr. Pettrovich Madnar / Falso Madnar** (`SprMadnar`, SprsetPal7):
+     - Camada 0: Cor 2 (`#484824`, jaleco cáqui oliva)
+     - Camada 1: Cor 13 (`#b6916d`, pele / cabeça)
+     - Interseção: Cor 15 (óculos, bigode, sapatos pretos)
+
+### Componentes Implementados
+
+1. **Extrator em Python 3 (`tools/extractors/extract_prisoner_sprites.py`)**:
+   - Descompactador RLE idêntico ao hardware MSX2 (`Banks0123.asm:5543-5580`).
+   - Composição de hardware VDP Sprite Mode 2 com Color Compare bitwise OR.
+   - Geração do spritesheet canônico de 48x128 pixels (3 poses de 16x32 x 4 personagens) em `godot/assets/protected/sprites/prisoners_msx.png`.
+2. **Testes Unitários em Python (`tests/test_prisoner_sprite_extractor.py`)**:
+   - 4 testes sintéticos cobrindo descompressão RLE, composição de hardware Color Compare, escrita de PNG 32-bit e pipeline de extração completo (85 testes unitários totais no projeto).
+3. **Integração na Engine Godot 4 (`godot/scripts/systems/prisoner.gd`)**:
+   - Carregamento seguro da textura em `res://assets/protected/sprites/prisoners_msx.png`.
+   - Temporizador de animação `anim_timer` calibrado em 60Hz NTSC ($16/60 = 0.2667\text{ s}$) via `step_tick(delta)`.
+   - Mapeamento exato de regiões do spritesheet por tipo de personagem e estado de resgate.
+   - Renderização com offset de hardware `Rect2(-8.0, -27.0, 16.0, 32.0)` e fallback procedural preservado.
+4. **Suíte de Testes Godot (`godot/tests/rank_and_prisoners_test.gd`)**:
+   - Adicionado `_test_prisoner_sprites_and_animation()` validando todas as 4 entidades, alternância de frames e poses livres (78 testes passando na suíte).
+
+### Verificação Automatizada Concluída
+
+- `python3 tools/validate.py`: **100% PASS**
+  - `python-tests`: **85 testes unitários** PASS
+  - Todas as **27 suítes de integração headless** Godot 4 PASS
+

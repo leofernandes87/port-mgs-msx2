@@ -40,6 +40,14 @@ const PRISONER_TEXTS: Dictionary = {
 	203: "Rescued! Thank you for saving me!"
 }
 
+## Textura compartilhada dos sprites de prisioneiros
+static var _prisoner_texture: Texture2D = null
+static var _checked_textures: bool = false
+
+## Temporização autêntica de animação do MSX2 (Banks0123.asm:7324-7332 e prisoner.asm:79-80):
+## Anim2FramesActor com máscara 0x0F alterna o sprite a cada 16 frames NTSC (16/60 = 0.2667s)
+const ANIM_INTERVAL_SEC: float = 16.0 / 60.0
+
 var room_id: int = 0
 var actor_type_id: int = TYPE_PRISONER
 var prisoner_name: String = "PRISIONEIRO"
@@ -48,9 +56,39 @@ var is_rescued: bool = false
 var is_dead: bool = false
 var is_vital: bool = false # Grey Fox ou Ellen: morte causa falha crítica
 
+var anim_frame: int = 0
+var anim_timer: float = 0.0
+
+static func load_prisoner_textures() -> void:
+	if _checked_textures:
+		return
+	_checked_textures = true
+	var pris_path := "res://assets/protected/sprites/prisoners_msx.png"
+	var abs_pris := ProjectSettings.globalize_path(pris_path)
+	if FileAccess.file_exists(abs_pris):
+		var img := Image.load_from_file(abs_pris)
+		if img != null and not img.is_empty():
+			_prisoner_texture = ImageTexture.create_from_image(img)
+			print("PRISONER: Spritesheet autêntico MSX2 carregado com sucesso! (48x128 px)")
+
 func _ready() -> void:
 	z_index = 3
+	load_prisoner_textures()
 	_configure_prisoner()
+
+func _process(delta: float) -> void:
+	step_tick(delta)
+
+## Avança o ciclo temporal calibrado a 60Hz NTSC.
+func step_tick(delta: float = 1.0 / 60.0) -> void:
+	if is_dead or is_rescued:
+		return
+
+	anim_timer += delta
+	if anim_timer >= ANIM_INTERVAL_SEC:
+		anim_timer -= ANIM_INTERVAL_SEC
+		anim_frame = 1 if anim_frame == 0 else 0
+		queue_redraw()
 
 func setup(type_id: int, r_id: int, pos: Vector2 = Vector2.ZERO) -> void:
 	actor_type_id = type_id
@@ -77,6 +115,27 @@ func _configure_prisoner() -> void:
 			is_vital = false
 
 	message_text = PRISONER_TEXTS.get(room_id, "I'm saved! Thank you, Snake!")
+
+## Obtém a região retangular exata no spritesheet MSX2 (48x128 px).
+func _get_sprite_rect() -> Rect2:
+	var row: int = 0
+	match actor_type_id:
+		TYPE_GREY_FOX:
+			row = 1
+		TYPE_ELLEN:
+			row = 2
+		TYPE_MADNAR, TYPE_FAKE_MADNAR:
+			row = 3
+		_:
+			row = 0
+
+	var col: int = 0
+	if is_rescued:
+		col = 2 # SpriteId 0x40 (PrisonerFree)
+	else:
+		col = anim_frame # SpriteId 0x3E (col 0) ou 0x3F (col 1)
+
+	return Rect2(col * 16.0, row * 32.0, 16.0, 32.0)
 
 ## Verifica toque do jogador desarmado ou soco.
 func check_touch(player_pos: Vector2, is_punching: bool) -> bool:
@@ -124,7 +183,14 @@ func _draw() -> void:
 		draw_rect(Rect2(-8, 6, 16, 6), Color(0.4, 0.05, 0.05))
 		return
 
-	# Paleta MSX2 autêntica
+	# 1. Renderização autêntica com spritesheet MSX2 (SprOffsets1: -8, -27)
+	if _prisoner_texture != null:
+		var src_rect := _get_sprite_rect()
+		var dest_rect := Rect2(-8.0, -27.0, 16.0, 32.0)
+		draw_texture_rect_region(_prisoner_texture, dest_rect, src_rect)
+		return
+
+	# 2. Fallback procedural caso a textura não esteja carregada
 	var c_skin := Color(0.91, 0.63, 0.50) # Pele #E8A080
 	var c_hair := Color(0.19, 0.13, 0.06) # Cabelo castanho/preto
 	var c_cloth := Color(0.85, 0.85, 0.85) # Roupa padrão cáqui/clara

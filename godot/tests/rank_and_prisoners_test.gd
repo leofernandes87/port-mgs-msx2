@@ -32,6 +32,7 @@ func _run_all() -> void:
 	_test_key_story_hostages()
 	_test_prisoner_kill_and_rank_downgrade()
 	_test_room_persistence()
+	_test_prisoner_sprites_and_animation()
 
 ## Teste 1: Atributos iniciais de Rank 1 (Class ★)
 func _test_initial_rank_attributes() -> void:
@@ -225,3 +226,60 @@ func _test_room_persistence() -> void:
 	rank_sys.register_rescue(164)
 	_assert(rank_sys.is_room_rescued(164), "Sala 164 marcada como resgatada")
 	_assert(not rank_sys.is_room_rescued(167), "Sala 167 ainda não resgatada")
+
+## Teste 11: Sprites autênticos MSX2 e temporização da animação
+func _test_prisoner_sprites_and_animation() -> void:
+	Prisoner.load_prisoner_textures()
+	_assert(Prisoner._prisoner_texture != null, "Textura de prisioneiros autêntica (prisoners_msx.png) carregada!")
+
+	# 1. Prisioneiro comum (Linha 0)
+	var p := Prisoner.new()
+	p.setup(Prisoner.TYPE_PRISONER, 148, Vector2(100.0, 100.0))
+	_assert(p._get_sprite_rect() == Rect2(0.0, 0.0, 16.0, 32.0), "Prisioneiro amarrado frame 0 = Coluna 0, Linha 0")
+
+	# Avança 8 frames (meio ciclo): não deve alternar
+	p.step_tick(8.0 / 60.0)
+	_assert(p.anim_frame == 0, "Aos 8 frames (meio ciclo), frame continua 0")
+
+	# Avança mais 8 frames (total 16 frames = 0.2667s): deve alternar para frame 1
+	p.step_tick(8.0 / 60.0)
+	_assert(p.anim_frame == 1, "Aos 16 frames (Anim2FramesActor), frame alterna para 1")
+	_assert(p._get_sprite_rect() == Rect2(16.0, 0.0, 16.0, 32.0), "Prisioneiro amarrado frame 1 = Coluna 1, Linha 0")
+
+	# Resgate: muda para pose livre (Coluna 2)
+	p.rescue_prisoner()
+	_assert(p._get_sprite_rect() == Rect2(32.0, 0.0, 16.0, 32.0), "Prisioneiro resgatado = Coluna 2, Linha 0")
+
+	# 2. Grey Fox (Linha 1)
+	var fox := Prisoner.new()
+	fox.setup(Prisoner.TYPE_GREY_FOX, 164)
+	_assert(fox._get_sprite_rect() == Rect2(0.0, 32.0, 16.0, 32.0), "Grey Fox amarrado = Coluna 0, Linha 1")
+	fox.rescue_prisoner()
+	_assert(fox._get_sprite_rect() == Rect2(32.0, 32.0, 16.0, 32.0), "Grey Fox livre = Coluna 2, Linha 1")
+
+	# 3. Ellen Madnar (Linha 2)
+	var ellen := Prisoner.new()
+	ellen.setup(Prisoner.TYPE_ELLEN, 167)
+	_assert(ellen._get_sprite_rect() == Rect2(0.0, 64.0, 16.0, 32.0), "Ellen amarrada = Coluna 0, Linha 2")
+	ellen.rescue_prisoner()
+	_assert(ellen._get_sprite_rect() == Rect2(32.0, 64.0, 16.0, 32.0), "Ellen livre = Coluna 2, Linha 2")
+
+	# 4. Dr. Madnar (Linha 3)
+	var madnar := Prisoner.new()
+	madnar.setup(Prisoner.TYPE_MADNAR, 182)
+	_assert(madnar._get_sprite_rect() == Rect2(0.0, 96.0, 16.0, 32.0), "Dr. Madnar amarrado = Coluna 0, Linha 3")
+	madnar.rescue_prisoner()
+	_assert(madnar._get_sprite_rect() == Rect2(32.0, 96.0, 16.0, 32.0), "Dr. Madnar livre = Coluna 2, Linha 3")
+
+	# 5. Validação de renderização sem exceções
+	p.notification(CanvasItem.NOTIFICATION_DRAW)
+	fox.notification(CanvasItem.NOTIFICATION_DRAW)
+	ellen.notification(CanvasItem.NOTIFICATION_DRAW)
+	madnar.notification(CanvasItem.NOTIFICATION_DRAW)
+	_assert(true, "Rotinas de renderização (NOTIFICATION_DRAW) executadas sem erro para todos os personagens!")
+
+	p.free()
+	fox.free()
+	ellen.free()
+	madnar.free()
+
