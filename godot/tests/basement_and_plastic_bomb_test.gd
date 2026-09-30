@@ -85,7 +85,7 @@ func _run_review() -> void:
 	for d in em_55:
 		var eg := d as EnemyGuard
 		if not require(eg.is_dog, "Inimigo na Sala 55 deve ser cão"): return
-		if not require(is_equal_approx(eg.speed, 1.3), "Velocidade do cão na Sala 55 deve ser 1.3 px/tick"): return
+		if not require(is_equal_approx(eg.speed, EnemyGuard.DOG_SPEED), "Velocidade do cão na Sala 55 deve ser DOG_SPEED"): return
 
 	# Sala 56: Canil 2 (4 cães de guarda)
 	sandbox.call("change_to_room", 56, Vector2(128.0, 96.0), PlayerController.Direction.DOWN)
@@ -95,7 +95,7 @@ func _run_review() -> void:
 	for d in em_56:
 		var eg := d as EnemyGuard
 		if not require(eg.is_dog, "Inimigo na Sala 56 deve ser cão"): return
-		if not require(is_equal_approx(eg.speed, 1.3), "Velocidade do cão na Sala 56 deve ser 1.3 px/tick"): return
+		if not require(is_equal_approx(eg.speed, EnemyGuard.DOG_SPEED), "Velocidade do cão na Sala 56 deve ser DOG_SPEED"): return
 
 	# Sala 57: Arena do Chefe Shoot Gunner
 	sandbox.call("change_to_room", 57, Vector2(128.0, 96.0), PlayerController.Direction.DOWN)

@@ -27,15 +27,39 @@ const MG_LOGO_Y_POSITIONS: Array[int] = [192, 176, 160, 144, 128, 112, 96, 80, 6
 var current_state: State = State.KONAMI_WIPE
 var state_timer: float = 0.0
 
-# Controles de animação
+# Controles de animação calibrados a 60Hz com delta
 var wipe_line: int = 0
-var wipe_frame_counter: int = 0
+var wipe_timer_sec: float = 0.0
+var wipe_frame_counter: int:
+	get:
+		return int(roundf(wipe_timer_sec * 60.0))
+	set(v):
+		wipe_timer_sec = float(v) / 60.0
+
 var scroll_step_index: int = 0
-var scroll_frame_counter: int = 0
-var blink_counter: int = 0
+var scroll_timer_sec: float = 0.0
+var scroll_frame_counter: int:
+	get:
+		return int(roundf(scroll_timer_sec * 60.0))
+	set(v):
+		scroll_timer_sec = float(v) / 60.0
+
+var blink_timer_sec: float = 0.0
+var blink_counter: int:
+	get:
+		return int(roundf(blink_timer_sec * 60.0))
+	set(v):
+		blink_timer_sec = float(v) / 60.0
 var blink_visible: bool = true
-var flash_counter: int = 0
+
+var flash_timer_sec: float = 0.0
+var flash_counter: int:
+	get:
+		return int(roundf(flash_timer_sec * 60.0))
+	set(v):
+		flash_timer_sec = float(v) / 60.0
 var flash_visible: bool = true
+var input_cooldown: float = 0.0
 
 # Texturas protegidas autênticas
 var tex_konami_ribbon: Texture2D = null
@@ -45,8 +69,8 @@ var tex_press_start: Texture2D = null
 var tex_push_space: Texture2D = null
 var tex_play_start: Texture2D = null
 
-# Configurações de exibição
-var use_press_start_prompt: bool = true
+# Configurações de exibição (padrão autêntico MSX2: PUSH SPACE KEY)
+var use_press_start_prompt: bool = false
 var current_logo_y: int = 192
 
 func _ready() -> void:
@@ -80,18 +104,21 @@ func _load_textures() -> void:
 
 func _process(delta: float) -> void:
 	state_timer += delta
+	if input_cooldown > 0.0:
+		input_cooldown = maxf(0.0, input_cooldown - delta)
 
 	match current_state:
 		State.KONAMI_WIPE:
 			# Revela 1 linha da cortina a cada 2 frames (~30 linhas/segundo em 60fps)
-			wipe_frame_counter += 1
-			if wipe_frame_counter >= 2:
-				wipe_frame_counter = 0
+			wipe_timer_sec += delta
+			while wipe_timer_sec >= 2.0 / 60.0:
+				wipe_timer_sec -= 2.0 / 60.0
 				wipe_line += 1
 				if wipe_line >= 49:
 					wipe_line = 49
 					current_state = State.KONAMI_HOLD
 					state_timer = 0.0
+					break
 			queue_redraw()
 
 		State.KONAMI_HOLD:
@@ -101,32 +128,34 @@ func _process(delta: float) -> void:
 
 		State.LOGO_SCROLL:
 			# Avança os passos de scroll do logotipo Metal Gear
-			scroll_frame_counter += 1
-			if scroll_frame_counter >= 3:
-				scroll_frame_counter = 0
+			scroll_timer_sec += delta
+			while scroll_timer_sec >= 3.0 / 60.0:
+				scroll_timer_sec -= 3.0 / 60.0
 				scroll_step_index += 1
 				if scroll_step_index < MG_LOGO_Y_POSITIONS.size():
 					current_logo_y = MG_LOGO_Y_POSITIONS[scroll_step_index]
 				else:
 					_go_to_title_idle()
+					break
 			queue_redraw()
 
 		State.TITLE_IDLE:
-			# Pisca o texto a cada 32 frames (~0.5s)
-			blink_counter += 1
-			if blink_counter >= 30:
-				blink_counter = 0
+			# Pisca o texto a cada 30 frames (0.5s)
+			blink_timer_sec += delta
+			while blink_timer_sec >= 30.0 / 60.0:
+				blink_timer_sec -= 30.0 / 60.0
 				blink_visible = !blink_visible
 				queue_redraw()
 
 		State.PLAY_START:
-			# Efeito de confirmação (piscar rápido por 80 frames = ~1.3s)
-			flash_counter += 1
-			# Alterna visibilidade a cada 4 frames
-			flash_visible = ((flash_counter / 4) % 2) == 0
+			# Efeito de confirmação (piscar rápido por 80 frames = ~1.333s)
+			flash_timer_sec += delta
+			# Alterna visibilidade a cada 4 frames (4 / 60.0 = 0.0667s)
+			var step: int = int(flash_timer_sec / (4.0 / 60.0))
+			flash_visible = (step % 2) == 0
 			queue_redraw()
 
-			if flash_counter >= 80:
+			if flash_timer_sec >= 80.0 / 60.0:
 				_start_game()
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -138,7 +167,16 @@ func _unhandled_input(event: InputEvent) -> void:
 			queue_redraw()
 			return
 
-		_handle_action_press()
+		if input_cooldown > 0.0:
+			return
+
+		# Teclas de ação para avançar ou iniciar o jogo
+		if key_event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]:
+			_handle_action_press()
+			return
+		return
+
+	if input_cooldown > 0.0:
 		return
 
 	if event is InputEventJoypadButton and event.is_pressed():
@@ -152,7 +190,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func _handle_action_press() -> void:
 	match current_state:
 		State.KONAMI_WIPE, State.KONAMI_HOLD:
-			# Qualquer tecla pula direto para o menu (comportamento de ChkAnykeyStart no MSX)
+			# Pula o logo e vai para a tela de título
 			_go_to_title_idle()
 		State.LOGO_SCROLL:
 			_go_to_title_idle()
@@ -178,6 +216,7 @@ func _go_to_title_idle() -> void:
 	blink_counter = 0
 	blink_visible = true
 	state_timer = 0.0
+	input_cooldown = 0.4 # Debounce para garantir avanço em duas etapas separadas
 	queue_redraw()
 
 func _start_game() -> void:

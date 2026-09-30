@@ -16,6 +16,7 @@ const CABIN_TRIGGER_X: float = 120.0       # PlayerX <= 0x78 está dentro da cab
 const SHAFT_MIN_X: float = 104.0           # Limite esquerdo da cabine (ChkLimitXElevator)
 const SHAFT_MAX_X: float = 224.0           # Limite direito para acionar saída (ChkLimitXElevator2)
 const ELEVATOR_SPEED: float = 1.0          # 1 px/tick (dec (hl) / inc (hl) em MoveElevator)
+const ELEVATOR_SPEED_PX_PER_SEC: float = 60.0 # 1 px/tick * 60 = 60 px/s (Banks0123.asm:8540-8556)
 const EXIT_UP_Y: float = 24.0               # cp 24 em MoveElevator (0x18)
 const EXIT_DOWN_Y: float = 208.0            # cp 208 em ElevatorDown (0xD0)
 const ENTRY_UP_Y: float = 208.0             # 0xD0 em SetNextRoomElev (entrando por baixo ao subir)

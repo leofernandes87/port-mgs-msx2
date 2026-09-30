@@ -42,15 +42,33 @@ const CAMERA_DRAW_OFFSETS: Dictionary = {
 signal player_detected(camera: SecurityCamera)
 
 var room_id: int = 0
+# Velocidade canônica de 0.5 px/frame (logic/actors/camera.asm:145-186) -> 0.5 * 60 = 30 px/s
+const SPEED_PX_PER_SEC: float = 30.0
+const WAIT_DURATION_SEC: float = 60.0 / 60.0 # 1.000s de pausa (SetCamRndWait em camera.asm:241-248)
+const ALERT_DURATION_SEC: float = 32.0 / 60.0 # 0.5333s de alarme (Wait = 20h em camera.asm:174)
+
 var camera_index: int = 0
 var facing_direction: int = Direction.DOWN
 var patrol_waypoints: Array[Vector2] = []
 var waypoint_target_idx: int = 0
-var speed: float = 0.5 # 0.5 px/tick (30 px/s), calibrado com a redução de 50% de física global e canônico com IdxGuardSpeed = 0 (GuardSlow)
+var speed: float = 0.5
 var is_moving: bool = true
-var wait_timer: int = 0
+
+var wait_timer_sec: float = 0.0
+var wait_timer: int:
+	get:
+		return int(ceil(wait_timer_sec * 60.0 - 0.0001))
+	set(v):
+		wait_timer_sec = float(v) / 60.0
+
 var alert_flashing: bool = false
-var alert_timer: int = 0 # 32 ticks (Wait = 20h em camera.asm:174)
+var alert_timer_sec: float = 0.0
+var alert_timer: int:
+	get:
+		return int(ceil(alert_timer_sec * 60.0 - 0.0001))
+	set(v):
+		alert_timer_sec = float(v) / 60.0
+
 var has_seen_player: bool = false
 var show_debug_vision: bool = false
 
@@ -76,18 +94,19 @@ func setup(p_room_id: int, p_camera_index: int, p_waypoints: Array[Vector2], p_i
 
 	queue_redraw()
 
-func tick(player_pos: Vector2, collision_grid: Array, is_box_idle: bool = false, in_alert_mode: bool = false) -> void:
+func tick(player_pos: Vector2, collision_grid: Array, is_box_idle: bool = false, in_alert_mode: bool = false, delta_time: float = 1.0 / 60.0) -> void:
 	# No MSX2, durante o modo de alerta as câmeras param de se mover (camera.asm:146-148)
 	if in_alert_mode and not alert_flashing:
 		is_moving = false
 		queue_redraw()
 		return
 
-	# Animação de alarme (piscar vermelho por 32 ticks)
+	# Animação de alarme (piscar vermelho por 32 frames / ~0.533s)
 	if alert_flashing:
-		alert_timer -= 1
+		alert_timer_sec = maxf(0.0, alert_timer_sec - delta_time)
 		queue_redraw()
-		if alert_timer <= 0:
+		if alert_timer_sec <= 0.0001:
+			alert_timer_sec = 0.0
 			alert_flashing = false
 		return
 
@@ -96,30 +115,32 @@ func tick(player_pos: Vector2, collision_grid: Array, is_box_idle: bool = false,
 		has_seen_player = true
 		is_moving = false
 		alert_flashing = true
-		alert_timer = 32 # 0x20 ticks
+		alert_timer_sec = ALERT_DURATION_SEC
 		player_detected.emit(self)
 		queue_redraw()
 		return
 
 	# Movimento de patrulha ao longo do trilho/waypoints
 	if not is_moving:
-		wait_timer -= 1
-		if wait_timer <= 0:
+		wait_timer_sec = maxf(0.0, wait_timer_sec - delta_time)
+		if wait_timer_sec <= 0.0001:
+			wait_timer_sec = 0.0
 			is_moving = true
 		return
 
 	if patrol_waypoints.size() >= 2:
 		var target: Vector2 = patrol_waypoints[waypoint_target_idx]
-		var delta: Vector2 = target - position
-		var dist: float = delta.length()
+		var diff: Vector2 = target - position
+		var dist: float = diff.length()
+		var step_dist: float = (speed * 60.0) * delta_time
 
-		if dist <= speed:
+		if dist <= step_dist:
 			position = target
 			is_moving = false
-			wait_timer = 60 # Pausa no final do trilho antes de retornar (1.0s a 60 FPS per camera.asm:241-248 SetCamRndWait)
+			wait_timer_sec = WAIT_DURATION_SEC # Pausa no final do trilho antes de retornar (1.0s a 60 FPS)
 			waypoint_target_idx = (waypoint_target_idx + 1) % patrol_waypoints.size()
 		else:
-			position += delta.normalized() * speed
+			position += diff.normalized() * step_dist
 
 	queue_redraw()
 

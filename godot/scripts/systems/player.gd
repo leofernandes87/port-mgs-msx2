@@ -24,8 +24,16 @@ enum Direction {
 	RIGHT = 4,
 }
 
-const SPEED_NORMAL: float = 1.0
-const ANIM_TICKS_PER_FRAME: int = 12
+# Velocidade em pixels por segundo conforme MSX2 NTSC 60Hz (Banks0123.asm:8415 PlayerMovSpeed = 200h -> 2.0 px/frame * 60 = 120 px/s)
+const SPEED_NORMAL_PX_PER_SEC: float = 120.0
+const SPEED_SLOW_PX_PER_SEC: float = 60.0    # Água e escadas (1.0 px/frame * 60 = 60 px/s, Banks0123.asm:9360)
+const SPEED_NORMAL: float = 2.0               # Equivalente discreto por frame a 60 Hz (120 * 1/60 = 2.0 px)
+const ANIM_TICKS_PER_FRAME: int = 6           # 6 frames na ROM MSX2 (Banks0123.asm:9724 cp 6)
+const ANIM_STEP_SEC: float = 6.0 / 60.0       # 0.100s por frame de animação
+
+const PUNCH_DURATION_SEC: float = 8.0 / 60.0        # 8 frames (Banks0123.asm:8949)
+const INVULNERABLE_DURATION_SEC: float = 32.0 / 60.0 # 32 frames (touchenemy.asm:155)
+const SHOOT_FLASH_SEC: float = 6.0 / 60.0           # 6 frames de muzzle flash
 
 # Pontos exatos de amostragem de colisão da ROM (Shape 0 / BoxColliderDat)
 const COLLIDER_OFFSETS = {
@@ -39,7 +47,12 @@ signal player_died
 
 var current_direction: Direction = Direction.DOWN
 var is_moving: bool = false
-var anim_wait_cnt: int = 0
+var anim_timer_sec: float = 0.0
+var anim_wait_cnt: int:
+	get:
+		return int(roundf(anim_timer_sec * 60.0))
+	set(v):
+		anim_timer_sec = float(v) / 60.0
 var frame_num: int = 0  # 0: Parado, 1: Passo 1, 2: Passo 2
 
 var collision_grid: Array = []  # 768 inteiros (32x24 tiles, 1=bloqueio, 0=livre)
@@ -48,15 +61,31 @@ var show_debug_colliders: bool = false
 # Sistema de Vida e Combate MSX2 RC750 (Etapa 8)
 var life: int = 24       # Rank 1: 24 pontos de vida (Banks0123.asm:9672)
 var max_life: int = 24
-var invulnerable_timer: int = 0 # 32 ticks de atraso de dano (logic/touchenemy.asm:155)
 
-var punch_timer: int = 0 # 8 ticks de duração do soco (Banks0123.asm:8949)
+var invulnerable_timer_sec: float = 0.0
+var invulnerable_timer: int:
+	get:
+		return int(ceil(invulnerable_timer_sec * 60.0 - 0.0001))
+	set(v):
+		invulnerable_timer_sec = float(v) / 60.0
+
+var punch_timer_sec: float = 0.0
+var punch_timer: int:
+	get:
+		return int(ceil(punch_timer_sec * 60.0 - 0.0001))
+	set(v):
+		punch_timer_sec = float(v) / 60.0
 var is_punching: bool = false
 var infinite_life: bool = false # Modo de teste (God Mode)
 
 # Sistema de Armas e Animação de Disparo
 var equipped_weapon: String = ""
-var shoot_timer: int = 0 # 6 ticks de clarão (muzzle flash) e recuo do disparo
+var shoot_timer_sec: float = 0.0
+var shoot_timer: int:
+	get:
+		return int(ceil(shoot_timer_sec * 60.0 - 0.0001))
+	set(v):
+		shoot_timer_sec = float(v) / 60.0
 
 # Mecânica da Caixa de Papelão
 var is_in_box: bool = false
@@ -200,8 +229,8 @@ func set_grid_position(px: float, py: float) -> void:
 func punch() -> bool:
 	if is_dead or not can_control or life <= 0:
 		return false
-	if punch_timer <= 0:
-		punch_timer = 8
+	if punch_timer_sec <= 0.0:
+		punch_timer_sec = PUNCH_DURATION_SEC
 		is_punching = true
 		is_moving = false
 		queue_redraw()
@@ -217,7 +246,7 @@ func fire_weapon(weapon_sys: WeaponSystem) -> Bullet:
 	if not weapon_sys.consume_ammo():
 		return null
 
-	shoot_timer = 6 # Clarão do disparo (muzzle flash) e recuo por 6 ticks
+	shoot_timer_sec = SHOOT_FLASH_SEC
 	equipped_weapon = weapon_sys.selected_weapon
 	queue_redraw()
 
@@ -244,37 +273,43 @@ func apply_damage(amount: int) -> bool:
 	if infinite_life:
 		life = max_life
 		return false
-	if invulnerable_timer <= 0 and life > 0:
+	if invulnerable_timer_sec <= 0.0 and life > 0:
 		life = maxi(0, life - amount)
-		invulnerable_timer = 32
+		invulnerable_timer_sec = INVULNERABLE_DURATION_SEC
 		queue_redraw()
 		if life <= 0:
 			die()
 		return true
 	return false
 
-func step_tick(input_dir: Vector2i) -> bool:
+func step_tick(input_dir: Vector2i, delta: float = 1.0 / 60.0) -> bool:
 	if is_dead or not can_control:
 		is_moving = false
 		return false
 
-	if invulnerable_timer > 0:
-		invulnerable_timer -= 1
+	if invulnerable_timer_sec > 0.0:
+		invulnerable_timer_sec = maxf(0.0, invulnerable_timer_sec - delta)
+		if invulnerable_timer_sec <= 0.0001:
+			invulnerable_timer_sec = 0.0
 
-	if shoot_timer > 0:
-		shoot_timer -= 1
+	if shoot_timer_sec > 0.0:
+		shoot_timer_sec = maxf(0.0, shoot_timer_sec - delta)
+		if shoot_timer_sec <= 0.0001:
+			shoot_timer_sec = 0.0
 		queue_redraw()
 
-	if punch_timer > 0:
-		punch_timer -= 1
-		is_punching = (punch_timer > 0)
+	if punch_timer_sec > 0.0:
+		punch_timer_sec = maxf(0.0, punch_timer_sec - delta)
+		if punch_timer_sec <= 0.0001:
+			punch_timer_sec = 0.0
+		is_punching = (punch_timer_sec > 0.0)
 		is_moving = false
 		queue_redraw()
 		return false
 	is_punching = false
 	if input_dir == Vector2i.ZERO:
 		is_moving = false
-		anim_wait_cnt = 0
+		anim_timer_sec = 0.0
 		frame_num = 0
 		queue_redraw()
 		return false
@@ -291,16 +326,19 @@ func step_tick(input_dir: Vector2i) -> bool:
 
 	current_direction = new_dir
 
+	var speed_px_per_sec: float = SPEED_SLOW_PX_PER_SEC if (anim_mode == AnimMode.SWIM_SURFACE or anim_mode == AnimMode.CLIMB) else SPEED_NORMAL_PX_PER_SEC
+	var step_dist: float = speed_px_per_sec * delta
+
 	var speed_vector := Vector2.ZERO
 	match current_direction:
 		Direction.UP:
-			speed_vector = Vector2(0.0, -SPEED_NORMAL)
+			speed_vector = Vector2(0.0, -step_dist)
 		Direction.DOWN:
-			speed_vector = Vector2(0.0, SPEED_NORMAL)
+			speed_vector = Vector2(0.0, step_dist)
 		Direction.LEFT:
-			speed_vector = Vector2(-SPEED_NORMAL, 0.0)
+			speed_vector = Vector2(-step_dist, 0.0)
 		Direction.RIGHT:
-			speed_vector = Vector2(SPEED_NORMAL, 0.0)
+			speed_vector = Vector2(step_dist, 0.0)
 
 	var next_pos := position + speed_vector
 
@@ -312,9 +350,9 @@ func step_tick(input_dir: Vector2i) -> bool:
 	position = next_pos
 	is_moving = true
 
-	anim_wait_cnt += 1
-	if anim_wait_cnt >= ANIM_TICKS_PER_FRAME:
-		anim_wait_cnt = 0
+	anim_timer_sec += delta
+	if anim_timer_sec >= ANIM_STEP_SEC - 0.0001:
+		anim_timer_sec = maxf(0.0, anim_timer_sec - ANIM_STEP_SEC)
 		frame_num += 1
 		if frame_num >= 3:
 			frame_num = 1

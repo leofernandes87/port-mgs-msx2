@@ -4,6 +4,9 @@ Projeto de aprendizagem: engenharia reversa do Metal Gear original MSX2 RC750, r
 
 1. Trabalhar com autonomia: investigar, executar comandos e corrigir erros quando permitido.
 2. Não inventar estruturas da ROM ou mecânicas. Registrar evidências, endereços, bancos, arquivos, revisão da fonte e hipóteses separadamente.
+   - **CONSULTA OBRIGATÓRIA DO CÓDIGO ORIGINAL (`external/MetalGear/`)**: Todo o código-fonte desmontado do jogo está disponível em `external/MetalGear/` (pastas `logic/`, `data/`, `gfx/` e arquivo `Banks0123.asm`).
+   - **Passo zero não-negociável**: Antes de escrever ou alterar qualquer linha de código em GDScript ou Python para qualquer mecânica, cutscene, animação, temporizador, velocidade, colisão ou comportamento, é OBRIGATÓRIO inspecionar a rotina assembly Z80 correspondente e citar o arquivo e linhas exatas como evidência primária.
+   - **Zero suposições**: É terminantemente proibido supor, estimar ou inferir comportamentos por intuição ou memória quando o código-fonte original está presente no projeto.
 3. Nunca modificar a ROM original. Ferramentas devem abrir entradas em modo somente leitura e escrever em outro destino.
 4. Não versionar ROMs, código de terceiros ou assets protegidos sem verificar permissões. Referências externas ficam isoladas em external/, ignoradas. Não usar git add -f para contornar essa política.
 5. Priorizar ferramentas automáticas reutilizáveis em Python 3.

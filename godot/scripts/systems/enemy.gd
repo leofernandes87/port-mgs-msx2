@@ -5,10 +5,14 @@ extends Node2D
 ## Lógica revertida de logic/actors/chkdiscover.asm, data/paths.asm, logic/actors/guardalert.asm e logic/punchenemy.asm.
 
 enum GuardType {
-	SLOW = 4,   # ID_GUARD_SLOW (0.5 px/tick ou 1.0 px a cada 2 ticks)
-	MEDIUM = 5, # ID_GUARD_MEDIUM (1.0 px/tick)
-	FAST = 6,   # ID_GUARD_FAST (1.5 px/tick)
+	SLOW = 4,   # ID_GUARD_SLOW (1.0 px/frame -> 60 px/s, Banks0123.asm:7039)
+	MEDIUM = 5, # ID_GUARD_MEDIUM (1.25 px/frame -> 75 px/s, Banks0123.asm:7042)
+	FAST = 6,   # ID_GUARD_FAST (1.5 px/frame -> 90 px/s, Banks0123.asm:7045)
 }
+
+const SPEED_SLOW_PX_PER_SEC: float = 60.0
+const SPEED_MEDIUM_PX_PER_SEC: float = 75.0
+const SPEED_FAST_PX_PER_SEC: float = 90.0
 
 enum GuardState {
 	PATROL = 0,
@@ -79,7 +83,8 @@ var elev_guard_look_timer: int = 30
 var is_relieve_speaker: bool = false
 
 # GuardDog (ID_DOG = 25 - logic/actors/dog.asm)
-const DOG_SPEED: float = 1.3
+const DOG_SPEED: float = 3.0 # Canônico: logic/actors/dog.asm:193-200 DogSpeeds = 3.0 px/frame
+const DOG_SPEED_PX_PER_SEC: float = 180.0 # 3.0 * 60 px/s
 var is_dog: bool = false
 enum DogState {
 	SLEEP = 0,
@@ -373,7 +378,7 @@ func try_shoot(player_pos: Vector2) -> Bullet:
 
 	return null
 
-func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = false, player_dir: PlayerController.Direction = PlayerController.Direction.DOWN, player: PlayerController = null) -> void:
+func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = false, player_dir: PlayerController.Direction = PlayerController.Direction.DOWN, player: PlayerController = null, delta: float = 1.0 / 60.0) -> void:
 	if is_dead:
 		queue_redraw()
 		return
@@ -390,7 +395,7 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 			stunned_timer -= 1
 			queue_redraw()
 			return
-		_step_dog(collision_grid, player_pos, player)
+		_step_dog(collision_grid, player_pos, player, delta)
 		return
 
 	if is_lorry_guard and lorry_timer > 0:
@@ -402,9 +407,10 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 			current_direction = PlayerController.Direction.DOWN
 		return
 
+	var lorry_step: float = (speed * 60.0) * delta
 	if is_exiting_lorry:
-		position.y += speed
-		lorry_anim_pixels -= speed
+		position.y += lorry_step
+		lorry_anim_pixels -= lorry_step
 		if lorry_anim_pixels <= 0.0:
 			is_exiting_lorry = false
 			if waypoints.size() > 0:
@@ -416,8 +422,8 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 		return
 
 	if is_entering_lorry:
-		position.y -= speed
-		lorry_anim_pixels -= speed
+		position.y -= lorry_step
+		lorry_anim_pixels -= lorry_step
 		if lorry_anim_pixels <= 0.0:
 			is_entering_lorry = false
 			visible = false
@@ -479,11 +485,11 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 
 	# 3. Movimentação (Perseguição em ALERTA, Sentinela do Elevador ou Patrulha de Waypoints)
 	if state == GuardState.ALERT:
-		_chase_player(player_pos, collision_grid)
+		_chase_player(player_pos, collision_grid, delta)
 	elif is_elevator_guard:
 		_process_elevator_guard()
 	elif not waypoints.is_empty() and state == GuardState.PATROL:
-		_follow_patrol_path(collision_grid)
+		_follow_patrol_path(collision_grid, delta)
 
 	# 4. Amostragem da linha de visão até Snake
 	var sees_player: bool = check_line_of_sight(player_pos, collision_grid)
@@ -504,9 +510,10 @@ func step_tick(collision_grid: Array, player_pos: Vector2, is_punching: bool = f
 	queue_redraw()
 
 ## Perseguição e escaramuça autêntica do soldado em alerta (logic/actors/guardalert.asm:91-200)
-func _chase_player(target_pos: Vector2, collision_grid: Array) -> void:
+func _chase_player(target_pos: Vector2, collision_grid: Array, delta: float = 1.0 / 60.0) -> void:
 	var diff: Vector2 = target_pos - position
 	var dist: float = diff.length()
+	var cur_speed: float = (speed * 60.0) * delta
 
 	match alert_substate:
 		AlertSubstate.CHASE:
@@ -514,11 +521,11 @@ func _chase_player(target_pos: Vector2, collision_grid: Array) -> void:
 			var dir_to_player: PlayerController.Direction
 			var step_vec := Vector2.ZERO
 			if absf(diff.x) >= absf(diff.y):
-				var step_x: float = signf(diff.x) * minf(speed, absf(diff.x))
+				var step_x: float = signf(diff.x) * minf(cur_speed, absf(diff.x))
 				step_vec.x = step_x
 				dir_to_player = PlayerController.Direction.RIGHT if step_x > 0 else PlayerController.Direction.LEFT
 			else:
-				var step_y: float = signf(diff.y) * minf(speed, absf(diff.y))
+				var step_y: float = signf(diff.y) * minf(cur_speed, absf(diff.y))
 				step_vec.y = step_y
 				dir_to_player = PlayerController.Direction.DOWN if step_y > 0 else PlayerController.Direction.UP
 
@@ -532,9 +539,9 @@ func _chase_player(target_pos: Vector2, collision_grid: Array) -> void:
 				# Tentar desvio pelo eixo alternativo (GuardAvoidObstacle - Status 2)
 				var alt_vec := Vector2.ZERO
 				if step_vec.x != 0.0 and absf(diff.y) > 0.5:
-					alt_vec.y = signf(diff.y) * minf(speed, absf(diff.y))
+					alt_vec.y = signf(diff.y) * minf(cur_speed, absf(diff.y))
 				elif step_vec.y != 0.0 and absf(diff.x) > 0.5:
-					alt_vec.x = signf(diff.x) * minf(speed, absf(diff.x))
+					alt_vec.x = signf(diff.x) * minf(cur_speed, absf(diff.x))
 				if alt_vec != Vector2.ZERO and not _is_colliding_grid(position + alt_vec, collision_grid):
 					position += alt_vec
 					if alt_vec.x != 0.0:
@@ -557,7 +564,7 @@ func _chase_player(target_pos: Vector2, collision_grid: Array) -> void:
 
 		AlertSubstate.WALK_AWAY:
 			# GuardWalkAwayShot (Status 3): afasta-se de Snake para manobrar ao redor
-			var away_vec: Vector2 = _get_dir_vector(walk_away_dir) * speed
+			var away_vec: Vector2 = _get_dir_vector(walk_away_dir) * cur_speed
 			var next_away: Vector2 = position + away_vec
 			if not _is_colliding_grid(next_away, collision_grid):
 				position = next_away
@@ -565,7 +572,7 @@ func _chase_player(target_pos: Vector2, collision_grid: Array) -> void:
 			else:
 				# Parede encontrada ao recuar: tenta eixo ortogonal de desvio
 				var alt_away_dir := _get_perpendicular_away_dir(target_pos)
-				var alt_away_vec: Vector2 = _get_dir_vector(alt_away_dir) * speed
+				var alt_away_vec: Vector2 = _get_dir_vector(alt_away_dir) * cur_speed
 				if not _is_colliding_grid(position + alt_away_vec, collision_grid):
 					position += alt_away_vec
 					walk_away_dir = alt_away_dir
@@ -642,7 +649,7 @@ func _is_colliding_grid(test_pos: Vector2, collision_grid: Array) -> bool:
 			return true
 	return false
 
-func _follow_patrol_path(collision_grid: Array = []) -> void:
+func _follow_patrol_path(collision_grid: Array = [], delta: float = 1.0 / 60.0) -> void:
 	if waypoints.is_empty():
 		return
 
@@ -650,12 +657,13 @@ func _follow_patrol_path(collision_grid: Array = []) -> void:
 		wait_ticks -= 1
 		return
 
+	var cur_speed: float = (speed * 60.0) * delta
 	var target: Vector2 = waypoints[current_waypoint_idx]
 	var diff: Vector2 = target - position
 
 	# Determinar eixo prioritário de avanço
 	if absf(diff.x) > 0.5:
-		var step_x: float = signf(diff.x) * minf(speed, absf(diff.x))
+		var step_x: float = signf(diff.x) * minf(cur_speed, absf(diff.x))
 		var new_pos := Vector2(position.x + step_x, position.y)
 		if not _is_colliding_grid(new_pos, collision_grid):
 			position.x += step_x
@@ -663,7 +671,7 @@ func _follow_patrol_path(collision_grid: Array = []) -> void:
 			_advance_waypoint()
 		current_direction = PlayerController.Direction.RIGHT if step_x > 0 else PlayerController.Direction.LEFT
 	elif absf(diff.y) > 0.5:
-		var step_y: float = signf(diff.y) * minf(speed, absf(diff.y))
+		var step_y: float = signf(diff.y) * minf(cur_speed, absf(diff.y))
 		var new_pos := Vector2(position.x, position.y + step_y)
 		if not _is_colliding_grid(new_pos, collision_grid):
 			position.y += step_y
@@ -1192,7 +1200,7 @@ func _draw_z_char(pos: Vector2, s: float, col: Color) -> void:
 	draw_rect(Rect2(pos.x, pos.y + 3.0 * s, 4.0 * s, 1.0 * s), col)
 
 ## Lógica canônica do cão de guarda MSX2 RC750 (logic/actors/dog.asm:29-201)
-func _step_dog(collision_grid: Array, player_pos: Vector2, player: PlayerController = null) -> void:
+func _step_dog(collision_grid: Array, player_pos: Vector2, player: PlayerController = null, delta: float = 1.0 / 60.0) -> void:
 	# 1. Proximidade com Snake acorda o cão imediatamente se estiver dormindo ou ouvindo (<= 48 px)
 	var dist_to_player: float = position.distance_to(player_pos)
 	if dog_state != DogState.CHASE and dist_to_player <= 48.0:
@@ -1236,9 +1244,10 @@ func _step_dog(collision_grid: Array, player_pos: Vector2, player: PlayerControl
 			if dist_to_player <= 12.0 and player != null:
 				player.apply_damage(touch_damage)
 
-			# Movimentação canônica a 1.3 px/tick (dog.asm:193-201)
+			# Movimentação canônica a 3.0 px/frame (dog.asm:193-201 DogSpeeds = 3 -> 180 px/s)
+			var cur_speed: float = (speed * 60.0) * delta
 			var dir_vec: Vector2 = _get_dir_vector(current_direction)
-			var step_vec: Vector2 = dir_vec * speed
+			var step_vec: Vector2 = dir_vec * cur_speed
 			var next_pos: Vector2 = position + step_vec
 
 			# Verifica colisão na direção atual
@@ -1258,7 +1267,7 @@ func _step_dog(collision_grid: Array, player_pos: Vector2, player: PlayerControl
 				_reorient_dog_to_player(player_pos, collision_grid)
 				dog_wait_timer = (5 + (randi() % 4)) * 4
 				# Tenta dar o passo na nova direção desobstruída
-				var new_step: Vector2 = _get_dir_vector(current_direction) * speed
+				var new_step: Vector2 = _get_dir_vector(current_direction) * cur_speed
 				if not _is_colliding_grid(position + new_step, collision_grid):
 					position += new_step
 

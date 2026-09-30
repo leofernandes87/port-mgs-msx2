@@ -11,13 +11,19 @@ enum State {
 }
 
 const PREVIEW_DURATION_TICKS: int = 128 ## 80h na ROM MSX (Banks0123.asm:12481) ~2.1s a 60fps
+const PREVIEW_DURATION_SEC: float = 128.0 / 60.0
 
 var is_active: bool = false
 var state: State = State.INACTIVE
 var home_room_id: int = -1
 var preview_room_id: int = -1
 var looking_direction: int = -1
-var preview_timer: int = 0
+var preview_timer_sec: float = 0.0
+var preview_timer: int:
+	get:
+		return int(ceil(preview_timer_sec * 60.0 - 0.0001))
+	set(v):
+		preview_timer_sec = float(v) / 60.0
 
 ## Salas isoladas da ROM onde o binóculo é inoperante (Banks0123.asm:1030-1048 e menuequipment.asm:300)
 static func is_room_isolated(room_id: int) -> bool:
@@ -34,7 +40,7 @@ func activate(current_room_id: int) -> bool:
 	home_room_id = current_room_id
 	preview_room_id = current_room_id
 	looking_direction = -1
-	preview_timer = 0
+	preview_timer_sec = 0.0
 	print("BINOCULARS_ACTIVATED: Modo binóculo ativo na sala %d" % current_room_id)
 	return true
 
@@ -44,7 +50,7 @@ func deactivate() -> void:
 	home_room_id = -1
 	preview_room_id = -1
 	looking_direction = -1
-	preview_timer = 0
+	preview_timer_sec = 0.0
 	print("BINOCULARS_DEACTIVATED: Modo binóculo desativado")
 
 func look_direction(dir: PlayerController.Direction) -> int:
@@ -55,14 +61,14 @@ func look_direction(dir: PlayerController.Direction) -> int:
 		return -1
 	looking_direction = int(dir)
 	preview_room_id = target_room
-	preview_timer = PREVIEW_DURATION_TICKS
+	preview_timer_sec = PREVIEW_DURATION_SEC
 	state = State.LOOKING
 	print("BINOCULARS_LOOK: Observando sala adjacente %d na direção %d (Duração: %d ticks)" % [
 		target_room, looking_direction, preview_timer
 	])
 	return target_room
 
-func step_tick() -> Dictionary:
+func step_tick(delta: float = 1.0 / 60.0) -> Dictionary:
 	var result := {
 		"is_active": is_active,
 		"state": state,
@@ -74,9 +80,9 @@ func step_tick() -> Dictionary:
 	if not is_active:
 		return result
 	if state == State.LOOKING:
-		preview_timer -= 1
-		result["remaining_ticks"] = preview_timer
-		if preview_timer <= 0:
+		preview_timer_sec = maxf(0.0, preview_timer_sec - delta)
+		if preview_timer_sec <= 0.0001:
+			preview_timer_sec = 0.0
 			state = State.IDLE
 			preview_room_id = home_room_id
 			looking_direction = -1
@@ -84,5 +90,8 @@ func step_tick() -> Dictionary:
 			result["returned_home"] = true
 			result["preview_room_id"] = home_room_id
 			result["looking_direction"] = -1
+			result["remaining_ticks"] = 0
 			print("BINOCULARS_RETURN: Fim do temporizador, retornando à sala de origem %d" % home_room_id)
+		else:
+			result["remaining_ticks"] = preview_timer
 	return result

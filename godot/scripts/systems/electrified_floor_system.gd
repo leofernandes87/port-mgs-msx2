@@ -15,13 +15,19 @@ const ELECTRIFIED_ROOMS: Array[int] = [ROOM_SOLDIER, ROOM_SWITCH_1, ROOM_ROOF, R
 
 const DAMAGE_PER_SHOCK: int = 2     # DecrementLife_2 em logic/damageelectric.asm:62
 const SHOCK_DELAY_TICKS: int = 8    # ld a, 8; ld (DamageDelayTimer), a em logic/damageelectric.asm:59-60
+const SHOCK_DELAY_SEC: float = 8.0 / 60.0
 const SFX_ID: int = 24              # 0x18 (SFX electric damage) em logic/damageelectric.asm:56
 
 signal player_shocked(damage: int)
 signal power_changed(room_id: int, is_on: bool)
 
 var current_room_id: int = -1
-var damage_delay_timer: int = 0
+var damage_delay_timer_sec: float = 0.0
+var damage_delay_timer: int:
+	get:
+		return int(ceil(damage_delay_timer_sec * 60.0 - 0.0001))
+	set(v):
+		damage_delay_timer_sec = float(v) / 60.0
 var room_panels_state: Dictionary = {}        # room_id (int) -> is_on (bool)
 var hazard_coords_by_room: Dictionary = {}    # room_id (int) -> Dictionary[Vector2i, bool]
 var hazard_tile_ids_by_room: Dictionary = {}  # room_id (int) -> Array[int]
@@ -64,14 +70,14 @@ func _load_extracted_data() -> void:
 		hazard_coords_by_room[rid] = set_dict
 
 func reset_state() -> void:
-	damage_delay_timer = 0
+	damage_delay_timer_sec = 0.0
 	pulse_tick = 0
 	for rid: int in ELECTRIFIED_ROOMS:
 		room_panels_state[rid] = true
 
 func setup_room(room_id: int) -> void:
 	current_room_id = room_id
-	damage_delay_timer = 0
+	damage_delay_timer_sec = 0.0
 	if not room_panels_state.has(room_id):
 		room_panels_state[room_id] = true
 
@@ -101,12 +107,12 @@ func set_custom_hazard_tiles(room_id: int, tiles: Array[Vector2i]) -> void:
 
 ## Verifica se o jogador sofre dano de choque no frame atual (GetTilePlayer em logic/collisions.asm:155).
 ## Retorna o valor de dano causado (2 ou 0).
-func check_player_hazard(player_pos: Vector2, room_id: int) -> int:
+func check_player_hazard(player_pos: Vector2, room_id: int, delta: float = 1.0 / 60.0) -> int:
 	if not is_room_electrified(room_id):
-		damage_delay_timer = 0
+		damage_delay_timer_sec = 0.0
 		return 0
 	if not is_power_on(room_id):
-		damage_delay_timer = 0
+		damage_delay_timer_sec = 0.0
 		return 0
 
 	# GetTilePlayer: verifica pé esquerdo (pos.x - 4, pos.y) e pé direito (pos.x + 4, pos.y)
@@ -118,16 +124,16 @@ func check_player_hazard(player_pos: Vector2, room_id: int) -> int:
 	var on_hazard: bool = is_tile_electrified(room_id, left_tx, left_ty) or is_tile_electrified(room_id, right_tx, right_ty)
 
 	if on_hazard:
-		if damage_delay_timer > 0:
-			damage_delay_timer -= 1
+		if damage_delay_timer_sec > 0.0001:
+			damage_delay_timer_sec = maxf(0.0, damage_delay_timer_sec - delta)
 			return 0
 		else:
-			damage_delay_timer = SHOCK_DELAY_TICKS
+			damage_delay_timer_sec = SHOCK_DELAY_SEC
 			player_shocked.emit(DAMAGE_PER_SHOCK)
 			return DAMAGE_PER_SHOCK
 	else:
-		if damage_delay_timer > 0:
-			damage_delay_timer -= 1
+		if damage_delay_timer_sec > 0.0001:
+			damage_delay_timer_sec = maxf(0.0, damage_delay_timer_sec - delta)
 		return 0
 
 func get_hazard_coords(room_id: int) -> Array[Vector2i]:

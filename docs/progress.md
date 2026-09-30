@@ -2322,11 +2322,255 @@ Entregue com base na engenharia reversa e desmontagem da ROM MSX2 RC750 (`logic/
   - Aplicada inicialização defensiva automática de `RadioSystem` em `RadioDialog.start_briefing()` caso seja nulo, vinculação de instância no `_ready()` de `sandbox_gameplay.gd` e garantia de modo `is_send_mode = false` e sintonia em 120.85 MHz.
   - Implementado tratamento 100% null-safe em todas as propriedades e métodos de `RadioDialog`.
   - Adicionado teste de regressão em `intro_cutscene_test.gd` disparando renderização CanvasItem (`NOTIFICATION_DRAW`) durante o briefing com e sem `radio_system` vinculado.
-  - Validação via `python3 tools/validate.py`: **100% PASS** (69 testes unitários Python + 22 suítes headless Godot 4).
-- **Correção da Cinemática Pós-Rádio: Submersão e Trajetória Ortogonal ao Centro da Sala**:
-  - Identificada a causa da movimentação diagonal: em `introscene.asm:228-230`, a rotina pós-rádio define `PlayerMovSpeed = 200h` (2.0 px/tick) por 40 frames, levando Snake de $X = 48$ a $X = 128$ (centro exato da sala). A versão anterior usava 1.0 px/tick, parando em $X = 88$ e saltando na diagonal para $(128, 80)$.
-  - Implementada a submersão imediata pós-rádio (`DEEP_WATER`): Snake mergulha novamente e nada debaixo d'água até o centro da tela $(128, 152)$.
-  - Emersão no centro e nado vertical (`SWIM_SURFACE`): Snake sobe em linha reta ao longo de $X = 128.0$ até a grade em $(128, 136)$.
-  - Escalada e salto vertical sobre a cerca: executados estritamente no centro ($X = 128.0$) com escalada até $Y = 102$ e arco de salto até terra firme em $(128, 80)$, eliminando qualquer desvio diagonal.
-  - Suíte `intro_cutscene_test.gd` atualizada e validação global via `python3 tools/validate.py`: **100% PASS** (69 testes Python + 22 suítes headless Godot 4).
+- **Implementação da Interface Autêntica do Transmissor MSX2 e Calibração de Velocidade da Cutscene**:
+  - **Pesquisa e Fundamentação da ROM (`Banks0123.asm:10695-10730`, `data/tileblocks.asm`, `gfx/radio.asm`, `gfx/snakeportrait.asm`, `gfx/font.asm`)**:
+    - Tela base Screen 5 em $256 \times 192$ px, paleta `RadioPalette` e `DefaultPalette` com cor 8 vermelha (`#ff2424`).
+    - Chassi metálico militar de $144 \times 72$ px em $(48, 24)$ decodificado de `RadioTilesMap` ($18 \times 9$ tiles de 3bpp) combinando `gfxRadio` e `gfxRadio2` espelhado horizontalmente.
+    - Retrato de Solid Snake de $32 \times 32$ px em $(200, 40)$ decodificado de `SnakeTilesMap` ($4 \times 4$ tiles de 3bpp com tabela `ColSnakePic`). No MSX2 de 1987, o rádio continha exclusivamente o retrato de Snake no visor, com animação dos olhos (`SnakePicture1`) e boca (`SnakePicture2`) controlada por `TickCounter & 0x1C` (`Banks0123.asm:8072`).
+    - Medidor de 12 LEDs de sinal de 2 andares (altura 16 px) em $(64, 32)$ e $(64, 40)$ gerado a partir de pares de barras (tiles `0x41`, `0x42`, `0x43`) acendendo progressivamente conforme `RadioLedCnt`.
+    - Display digital de frequência em $(120, 33)$ com prefixo "120." e dígitos de 7 segmentos vermelhos a partir de `gfxFreqDigits` e `RedDigitTiles`.
+    - Rótulo de título `"TRANSCEIVER"` em $(80, 8)$, modos `"RECV"` em $(56, 64)$ e `"SEND"` em $(56, 56)$, e janela de diálogo autêntica em $(32, 116)$ com moldura de $200 \times 72$ px e prompt piscante de avanço a cada 16 frames (`bit 4`).
+  - **Extrator Python 3 (`tools/extractors/extract_transceiver_sprites.py`)**:
+    - Gera `transceiver_chassis.png` ($144 \times 72$ px), `transceiver_snake_portrait.png` ($96 \times 32$ px, 3 quadros), `transceiver_digits.png` ($80 \times 16$ px), `transceiver_120.png` ($32 \times 16$ px), `transceiver_leds.png` ($24 \times 8$ px) e o mockup de referência `transceiver_mockup.png` ($256 \times 192$ px).
+    - Criada suíte unitária sintética `tests/test_transceiver_extractor.py` (4 testes, 100% PASS).
+  - **Atualização do Transceptor em Godot (`godot/scripts/systems/radio_dialog.gd`)**:
+    - Carregamento automático e renderização das texturas autênticas de chassi, LEDs, display digital e retrato de Snake com ciclo de animação sincronizado com a digitação do texto, preservando fallbacks procedurais.
+  - **Calibração de Velocidade da Cutscene (`godot/scripts/systems/intro_cutscene.gd`)**:
+    - Ajustada movimentação em `SCENE_10_SWIM_NORTH` para $1.0$ px/tick inteiro e repouso na cerca até o término dos 24 ticks, garantindo fluidez sem distorção fracionária.
+  - **Validação Automatizada Global (`python3 tools/validate.py`)**:
+    - **100% PASS** em 73 testes unitários Python e 22 suítes headless Godot 4.
+
+- **Transceptor em Tela Cheia, Calibração de Parada na Água e Fluxo de Abertura em Etapas**:
+  - **Transceptor em Tela Cheia (`godot/scripts/systems/radio_dialog.gd`)**:
+    - Fundo preto preenchendo 100% da janela com `draw_rect(Rect2(Vector2.ZERO, size), Color.BLACK)`.
+    - Centralização e zoom inteiro canônico (3x na resolução padrão 1280x720: $768 \times 576$ px) via `draw_set_transform(origin, 0.0, Vector2(zoom_factor, zoom_factor))`.
+    - Eliminação do bug do widget preso no canto superior esquerdo a 1x.
+  - **Calibração do Ponto de Parada de Snake na Sala 121 (`intro_cutscene.gd`)**:
+    - Comprovação analítica e empírica via `room-121.json` de que $Y = 152$ ficava dentro de caixas sólidas de colisão 1.
+    - Ponto de parada corrigido para $Y = 168.0$ (16 frames em `SCENE_4_DIVE_NORTH`), repousando na água limpa abaixo das caixas.
+    - `SCENE_9_SWIM_RIGHT` mantido em $Y = 168.0$ até $X = 128.0$, e `SCENE_10_SWIM_NORTH` calibrado para 32 frames ($168 \to 136$ px a 1.0 px/frame).
+  - **Abertura em Etapas e Controle de Skip (`title_screen.gd` e `sandbox_gameplay.gd`)**:
+    - Sequência estritamente particionada: Logo da Konami $\rightarrow$ Espaço avança para Tela de Título $\rightarrow$ "PRESS START" piscando $\rightarrow$ Enter/Espaço dispara PLAY_START $\rightarrow$ Cutscene na Sala 121.
+    - Debounce de 400ms em `title_screen.gd` ao transitar de Konami para Título, impedindo pulo acidental direto para o jogo.
+    - Removido o cancelamento prematuro de cutscene em `sandbox_gameplay.gd`: teclas de ação durante o rádio aceleram a fala (typewriter), e a movimentação (nado, escalada e salto) é aguardada até conclusão natural em terra firme $(128, 80)$.
+  - **Confirmação do Código Original Z80 (`logic/introscene.asm:224-295`)**:
+    - Verificado que em `IntroScene8` (`ExitRadio_`), `IntroScene9` (movimento para $X=128$) e `IntroScene10` (movimento para $Y=136$), `PlayerAnimation` **NÃO é alterado para 4** (`Deep water` / submerso).
+    - Snake permanece estritamente em `PlayerAnimation = 2` (`Water` / `SWIM_SURFACE`), caminhando pela água na superfície com metade do corpo visível (`SprSnakeWaterR` no avanço a leste e `SprSnakeWaterU` no avanço ao norte), transacionando para `PlayerAnimation = 5` (`Climb`) apenas ao tocar na grade em `IntroScene10b` ($Y = 136$).
+    - `godot/scripts/systems/intro_cutscene.gd` e `godot/tests/intro_cutscene_test.gd` atualizados para refletir essa evidência empírica 100% autêntica da ROM.
+  - **Validação Automatizada Global (`python3 tools/validate.py`)**:
+    - **100% PASS** em todas as suítes (73 testes Python, 22 suítes headless Godot).
+
+- **Fidelidade Visual do Transceptor e Fonte Bitmap 8x8 do MSX2 (Screen 5)**:
+  - **Evidências Primárias do Código Z80 (`Banks0123.asm`, `gfx/font.asm`, `logic/loadfont.asm`, `data/menuradiotexts.asm`, `data/texts.asm`)**:
+    - Constatado que o MSX2 Yamaha V9938 em Screen 5 não utiliza sprites nem fontes vetoriais FreeType para diálogos: todos os caracteres são blocos monoespaçados de $8 \times 8$ pixels copiados por comando VDP (`VDP_Copy_Byte` / `HMMM`) da Página 1 para a Página 0 (`Banks0123.asm:4721-4749` `DrawChar`).
+    - Carregamento da fonte em VRAM comprovado por `logic/loadfont.asm:15-19`: `Load1bppGFX_` transfere 108 tiles ($0x6C$) em branco puro para $DX=0, DY=64$ na Página 1 a partir de `gfxFont` e `gfxSymbChars`.
+    - Geometria e coordenadas canônicas comprovadas por `TextXYSize` (`Banks0123.asm:8377`): caixa de diálogo em $(X=36, Y=120)$ com entrelinha estrita de 12 pixels (`Banks0123.asm:8118` `add a, 12`), cursor PromptXY piscante em $(X=212, Y=168)$ usando o símbolo autêntico de ENTER `⏎` (Tile 15), título `"TRANSCEIVER"` em $(X=80, Y=8)$ e indicador `"RECV"` em $(X=56, Y=64)$ conforme `data/menuradiotexts.asm:7-13`.
+  - **Extrator Python 3 (`tools/extractors/extract_transceiver_sprites.py`)**:
+    - Adicionada função `generate_msx_font(font_syms, out_path)` gerando spritesheet completo de 128 glifos ASCII ($128 \times 64$ px) em `godot/assets/protected/sprites/transceiver/msx_font.png`.
+    - Mapeamento exato de todos os glifos maiúsculos ('A'-'Z'), numéricos ('0'-'9'), pontuação canônica ('.', ',', '!', '?', '-', "'", ':', '/', '(', ')', '[', ']', '<', '>') e símbolos especiais do MSX ('⏎', '★', '©', setas cardeais).
+    - Criado teste unitário sintético em `tests/test_transceiver_extractor.py` (`test_generate_msx_font_synthetic`), elevando o total da suíte Python para 74 testes (100% PASS).
+  - **Reimplementação do Renderizador em GDScript (`godot/scripts/systems/radio_dialog.gd`)**:
+    - Substituição integral de `ThemeDB.fallback_font` vetorial borrado por renderização pixel-perfect com `draw_texture_rect_region` dos glifos $8 \times 8$ da fonte MSX.
+    - Implementadas rotinas `_draw_msx_char`, `_draw_msx_line` e `_draw_msx_multiline` com suporte nativo a apóstrofos compactos de 4px (`Banks0123.asm:4703`), espaçamento de linha de 12px e quebra de palavras.
+    - Renderização de `"TRANSCEIVER"` em $(80, 8)$, `"RECV"` em $(56, 64)$ e `"SEND"` em $(56, 64)$ sobre o chassi verde.
+    - Cursor piscante de confirmação com o glifo autêntico de Enter `⏎` em $(212, 168)$.
+    - Calibração de `typewriter_speed = 0.045` para compasso autêntico da máquina de escrever do MSX2.
+    - Trava de sintonia e comandos de transmissão durante a cutscene de abertura preservada.
+  - **Validação Automatizada Global (`python3 tools/validate.py`)**:
+    - **100% PASS** em todas as 74 suítes Python e 22 suítes de integração do Godot 4.
+
+- **Implementação do HUD Original do Metal Gear MSX2 (RC750, 1987)**:
+  - **Engenharia Reversa e Evidências Primárias no Z80 (`Banks0123.asm`, `logic/hud.asm`, `data/hudstartendtexts.asm`, `data/weapongfxxy.asm`, `data/itemgfxxy.asm`, `gfx/items.asm`, `gfx/font.asm`)**:
+    - **Ciclo Canônico de Renderização (`logic/hud.asm:8-14` `RenderHUD`)**:
+      - Sequência de chamadas: `DrawLife`, `DrawClass`, `DrawCallTimer`, `DrawWeaponHUD`, `DrawItemHUD`.
+    - **Barra de Energia `DrawLife` (`logic/hud.asm:162-205`, `data/hudstartendtexts.asm:45`)**:
+      - Rótulo `txtLife` (`dw 0C110h`) em $X=16, Y=193$.
+      - Caixa da barra de vida: retângulo de $(49, 193)$, tamanho $50 \times 8$ px, borda branca (cor 14).
+      - Preenchimento da barra de energia: retângulo vermelho vivo (cor 8, `#ff2424`) em $(50, 194)$, altura de 6 px e largura dinâmica proporcional à vida atual (máximo $30h = 48$ px).
+      - `EraseLifeBar`: preenchimento com preto (cor 0) do restante da barra não ocupada pela vida.
+    - **Patente Militar `DrawClass` (`logic/hud.asm:214-244`, `data/hudstartendtexts.asm:55`)**:
+      - Rótulo `txtClass` (`dw 0C908h`) em $X=8, Y=201$.
+      - Estrelas de rank (`DrawStars`): desenha de 1 a 4 estrelas (`★`, caractere $3Bh$ da fonte MSX) a partir de $X=52, Y=201$, com espaçamento de 8 pixels entre estrelas.
+    - **Sinal de Chamada do Rádio `DrawCallTimer` (`logic/hud.asm:25-56`, `data/hudstartendtexts.asm:73`)**:
+      - Ativado quando `RadioCallFlag == 1` (`has_incoming_call = true`).
+      - Efeito de piscar autêntico controlado pelo bit 3 de `TickCounter` (8 frames visível, 8 frames invisível).
+      - Rótulo gráfico `txtCALL` em $X=120, Y=193$, dimensões $24 \times 16$ px (6 tiles de 2bpp decodificados de `gfxCALL` em `gfx/font.asm:87` com cores 6, 8, 14, 15).
+    - **Caixa de Arma Selecionada `DrawWeaponHUD` (`Banks0123.asm:2092-2141`)**:
+      - Retângulo delimitador em $X=159, Y=193$, tamanho $58 \times 18$ px, borda branca, fundo preto.
+      - Posicionamento da arma: armas largas ($32 \times 16$ px) em $(160, 194)$; armas estreitas ($16 \times 16$ px) centralizadas com offset $+8$ em $(168, 194)$.
+      - Contagem de munição (`RenderAmmoHUD` / `Render3Numbers` em $X=192, Y=200$): número de 3 dígitos formatado com a fonte numérica do MSX. Silenciador não exibe contador de munição.
+    - **Caixa de Item Selecionado `DrawItemHUD` (`Banks0123.asm:2270-2312`)**:
+      - Retângulo delimitador em $X=222, Y=193$, tamanho $27 \times 18$ px, borda branca, fundo preto.
+      - Sprite do item ($16 \times 16$ px) centralizado em $(228, 194)$ a partir da tabela `ItemGfxXY`.
+      - Identificação de cartões de acesso (IDs 14..21 para Cards 1..8): renderização do algarismo numérico do cartão sobreposto em $X=240, Y=200$ com `DrawChar`.
+    - **Resolução de Tela Canônica**:
+      - Resolução Screen 5 do Yamaha V9938: $256 \times 212$ pixels.
+      - Sala de gameplay: $Y = 0 \dots 191$ ($256 \times 192$ px).
+      - HUD inferior: $Y = 192 \dots 211$ ($256 \times 20$ px).
+  - **Extrator Python 3 (`tools/extractors/extract_hud_assets.py`)**:
+    - Extração reproduzível de `GfxItems` (132 tiles 3bpp, `gfx/items.asm:6`), `gfxCALL` (6 tiles 2bpp, `gfx/font.asm:87`) e paleta `ColorsItems` (`Banks0123.asm:2999`).
+    - Geração de:
+      - `hud_weapons.png` ($256 \times 16$ px: 8 armas de $32 \times 16$ px).
+      - `hud_items.png` ($432 \times 16$ px: 27 itens de $16 \times 16$ px).
+      - `hud_call.png` ($24 \times 16$ px: sinal CALL autêntico).
+      - `hud_mockup.png` ($256 \times 20$ px: referência visual do HUD completo).
+    - Criada suíte unitária sintética `tests/test_hud_extractor.py` (7 testes, 100% PASS).
+  - **Componente `GameHUD` (`godot/scripts/systems/hud.gd`)**:
+    - Classe `GameHUD` extends `Control` em $(0, 192)$ com tamanho $256 \times 20$ px.
+    - Carregamento e renderização de texturas autênticas com fallbacks procedurais robustos.
+    - Renderização com fonte bitmap monoespaçada $8 \times 8$ autêntica para rótulos ("LIFE", "CLASS"), estrelas de rank (★) e numeração de munição e cartões.
+    - Método `bind_systems(player, rank_system, weapon_system, inventory, radio_system)` para amarração reativa completa.
+    - Piscar do sinal CALL com frequência exata de 8 frames conforme Z80.
+  - **Integração em `sandbox_gameplay.gd`**:
+    - `_update_world_transform` ajustado para a proporção canônica $256 \times 212$ px, posicionando a sala em $Y=0 \dots 191$ e o HUD em $Y=192 \dots 211$ perfeitamente centralizados e escalados em números inteiros.
+    - Instanciação de `GameHUD` e vinculação reativa aos eventos de dano, rank, menus de armas/itens e rádio.
+  - **Testes e Verificação Automatizada**:
+    - Criada suíte headless Godot `godot/tests/hud_test.gd` cobrindo dimensões, barra de vida dinâmica, estrelas de patente, sinal CALL piscante, seleção de armas e munição, seleção de itens e cartões 1..8, e amarração com subsistemas reais.
+    - Integrado `godot-hud` em `tools/validate.py`.
+  - **Refinamento de Cores dos Itens, Estrela Amarela e Proporção Canônica da Barra de Vida**:
+    - **Estrela Amarela de CLASS (`logic/loadfont.asm:27-28`)**:
+      - Confirmado no Z80: `ld bc, 106h` com o comentário explícito `; Load yellow star tile` transfere o glifo $3Bh$ da estrela para a VRAM Página 1 em amarelo.
+      - Corrigido `GameHUD._draw_class` em `godot/scripts/systems/hud.gd` para utilizar `COLOR_STAR_YELLOW` (`Color(1.0, 0.86, 0.14)`), eliminando o desenho em branco.
+    - **Cores Autênticas dos Sprites de Itens e Armas (`Banks0123.asm:2890-2892`, `data/palettes.asm:4-10`)**:
+      - Identificada a causa das cores incorretas no extrator: o uso da `DefaultPalette` sem as correções de runtime do jogo resultava em cor 7 (Ciano `#49dbff`) e cor 10 (Amarelo `#dbdb24`), fazendo com que a Handgun e os Cartões tivessem um azul neon artificial e a Caixa de Papelão fosse amarela.
+      - Aplicadas as paletas canônicas:
+        - `SnakePal` (`Banks0123.asm:2890`): cor 7 vira chumbo escuro metálico (`12h, 2` $\rightarrow$ `#244949`) e cor 10 vira cáqui/papelão (`63h, 4` $\rightarrow$ `#db926d`).
+        - `PalMenuWeapon` (`data/palettes.asm:7`): cor 12 vira cinza médio metálico (`33h, 3` $\rightarrow$ `#6d6d6d`).
+      - Regenerados `hud_weapons.png`, `hud_items.png` e `hud_mockup.png`: Handgun, Míssil, Silenciador e demais armas tornaram-se estritamente metálicas (cinza, branco, preto com pontas vermelhas), os Cartões 1 a 8 ganharam fundo cinza metálico com tarja vermelha viva e chave branca, e a Caixa de Papelão assumiu sua cor clássica de papelão cáqui/marrom.
+    - **Proporção Canônica da Barra de Vida (`Banks0123.asm:8400-8402, 9660-9675`, `logic/hud.asm:166-205`)**:
+      - Esclarecida e comprovada a mecânica: a caixa da barra de energia no HUD possui $NX = 50$ px com 48 pixels úteis fixos.
+      - Ao iniciar o jogo no Rank 1 (Class 0), Snake possui `Life = 24` e `MaxLife = 24` (`18h`). Como o Z80 desenha a barra com $NX = (Life)$ pixels (`ld b, a; call FillRect`), a barra vermelha preenche **exatos 24 pixels (metade da caixa de 48 px)**, deixando a outra metade preta (`EraseLifeBar`).
+      - Conforme Snake resgata prisioneiros e sobe de patente militar, a barra cresce progressivamente: Rank 2 (32 px / dois terços), Rank 3 (40 px / cinco sextos) e Rank 4 (48 px / caixa inteira).
+      - Comportamento 100% autêntico ao hardware MSX2 original.
+    - **Validação Automatizada Global (`python3 tools/validate.py`)**:
+      - **100% PASS** em todas as 81 suítes Python e 23 suítes de integração do Godot 4.
+
+- **Correção da Paleta Canônica (PalMenuWeapon), Fundo Invertido de Armas/Itens, Cigarros, CALL e Paginação do Transceptor**:
+  - **Evidências Primárias no Z80 (`data/palettes.asm:4-10`, `Banks0123.asm:2875, 3884-3887, 8344, 8377, 8386, 5319`, `logic/loadfont.asm:35-38, 57`, `gfx/items.asm`, `gfx/font.asm`)**:
+    - **Causa Raiz do Fundo Invertido (Manchas Brancas na Handgun e Itens)**:
+      - Descoberto em `data/palettes.asm:4-10` (`PalMenuWeapon`): a linha `db 0Fh, 0, 0` define a Cor 15 como **PRETO PURO (`#000000`)**, enquanto a Cor 14 (`db 0Eh, 77h, 7`) é Branco Puro (`#FFFFFF`).
+      - O extrator antigo atribuía a Cor 15 como Branco, invertendo as sombras pretas de contorno dos sprites de armas (Handgun) e itens para blocos brancos sólidos.
+      - Corrigido `get_default_palette` em `tools/extractors/extract_hud_assets.py`: Cor 15 passa a ser Preto (`#000000`), restaurando o contorno e sombras pretas dos sprites perfeitamente integrados ao fundo da caixa preta.
+    - **Cores Autênticas do Maço de Cigarros (`CIGARETTES`)**:
+      - Em `PalMenuWeapon`: `db 6, 70h, 7` define a Cor 6 como **AMARELO OURO VIVO (`#FFFF00`)** (`Red=7, Green=7, Blue=0`).
+      - Nos tiles 66 e 67 de `gfx/items.asm`, o miolo do círculo do logotipo Lucky Strike utiliza a Cor 6, enquanto o aro externo usa a Cor 8 (Vermelho vivo `#FF0000`).
+      - A aplicação da cor 6 restaurou fielmente o centro amarelo vivo do cigarro sobre o aro vermelho, idêntico à captura original do MSX2.
+    - **Fundo do Sinal de Chamada CALL**:
+      - Em `logic/loadfont.asm:57` (`colorsCALL: db 6, 8, 0Eh, 0Fh`) e `gfx/font.asm:87`, os 6 tiles de `gfxCALL` decodificam apenas para os índices 8 (letras) e 15 (fundo).
+      - No extrator `extract_hud_assets.py`, ajustado para renderizar estritamente os pixels da Cor 8 em Vermelho vivo (`#FF0000`), mantendo a Cor 15 (e 0) 100% transparentes (`Alpha = 0`), eliminando o bloco branco atrás da sigla CALL.
+      - Em `godot/scripts/systems/hud.gd`, ajustado o fallback procedural de `_draw_call()` para vermelho vivo sem moldura branca.
+    - **Paginação e Altura da Caixa de Diálogo do Transceptor**:
+      - Em `Banks0123.asm:8344, 8377, 8386`: a moldura ocupa $Y \in [116, 188]$ (altura 72 px). O texto inicia em $Y = 120$ com entrelinha de 12 px (`Banks0123.asm:8118`), comportando estritamente **até 4 linhas por página** ($Y = 120, 132, 144, 156$, terminando em $Y = 164$ e liberando a linha $Y = 168$ para o prompt piscante de Enter `⏎` em $X = 212$).
+      - Implementado `_paginate_text(text, max_w=184.0, max_lines_per_page=4)` em `godot/scripts/systems/radio_dialog.gd`: qualquer diálogo longo é automaticamente particionado em blocos de até 4 linhas, avançando suavemente com Espaço/Enter.
+      - Blindado `_draw_msx_multiline` com teto vertical estrito ($Y_{max} = 168.0$), garantindo que nenhum glifo ultrapasse a borda inferior.
+      - Alinhadas as páginas de `BRIEFING_PAGES` em `godot/scripts/systems/intro_cutscene.gd` para respeitar o limite de 4 linhas.
+    - **Remoção da Barra Antiga de Depuração e Limpeza Visual do Sandbox (`sandbox_gameplay.gd`)**:
+      - Eliminada a antiga `header_bar` contendo título "Metal Gear MSX2", `call_badge` de texto, `status_label` em fonte vetorial ("Sala 000 | ★☆☆☆ | [DESARMADO] | VIDA: [--------] 24/24 | [CIGARETTES]") e botão "PAUSE [ESC]".
+      - Com a maturidade e fidelidade do componente autêntico `GameHUD` ($256 \times 20$ px em $Y = 192 \dots 211$), os elementos de depuração em texto tornaram-se completamente obsoletos.
+      - O `viewport_area` agora preenche a janela via `PRESET_FULL_RECT` com fundo preto, centralizando perfeitamente a resolução canônica de $256 \times 212$ pixels ($256 \times 192$ da sala + $256 \times 20$ do HUD), proporcionando uma apresentação 100% autêntica ao hardware MSX2 original.
+  - **Validação Automatizada Global (`python3 tools/validate.py`)**:
+    - **100% PASS** em todas as 81 suítes Python e 23 suítes de integração do Godot 4.
+
+- **Aplicação dos Sprites Originais dos Itens Encontrados no Mapa (ItemBox)**:
+  - **Evidências Primárias no Z80 (`external/MetalGear/logic/drawitemsinroom.asm:1-75`, `data/weapongfxxy.asm:5-12`, `data/itemgfxxy.asm:4-30`, `logic/items.asm:60-98`)**:
+    - **Rotina Canônica de Desenho na Sala (`DrawRoomItems`)**:
+      - Confirmado que o Metal Gear MSX2 original **não desenha caixas cinzas ou caixas genéricas** para itens no mapa! Ele desenha **o próprio sprite da arma ou item diretamente no chão da sala** via cópia direta de VRAM da Página 1 para a Página 0 (`VDP_Copy_Dot_` com comando LMMM `48h`).
+      - Identificadores de armas (`ID < 9`) buscam coordenadas em `WeaponGfxXY` ($32 \times 16$ px para Handgun, SMG, Grenade Launcher e Rocket Launcher; $16 \times 16$ px para Plastic Bomb, Land Mine, Missile e Silencer).
+      - Identificadores de itens (`ID >= 9`) subtraem 8 e buscam em `ItemGfxXY` ($16 \times 16$ px para Armor, Suit, Flashlight, Goggles, Gas Mask, Cigarettes, Mine Detector, Antenna, Binoculars, Oxygen Tank, Compass, Parachute, Antidote, Cards 1 a 8, Ration, Transceiver, Uniform, Cardboard Box, Bag e Ammo Crate).
+      - No chão das salas, os cartões de acesso utilizam o sprite canônico de cartão chave (`dw 7091h` repetido em `ItemGfxXY:17-24`), sem números sobrepostos na sala.
+    - **Geometria de Colisão e Posição (`ChkTakeItem` em `logic/items.asm:60-98`)**:
+      - Raio horizontal $C = 20$ px para armas largas ($32 \times 16$ px) e $12$ px para itens de $16 \times 16$ px, com cálculo do centro em $X = ItemX + ItemNX/2$.
+      - Em `ItemBox.gd`, `position` representa o centro exato do item. Desenhar armas de 32 px centradas em `Rect2(-16, -8, 32, 16)` e itens de 16 px centrados em `Rect2(-8, -8, 16, 16)` alinha perfeitamente o centro visual e físico do sprite.
+  - **Implementação em `godot/scripts/systems/item_box.gd`**:
+    - Adicionado cache e carregamento estático seguro das texturas autênticas `res://assets/protected/sprites/hud/hud_weapons.png` e `res://assets/protected/sprites/hud/hud_items.png`.
+    - Mapeadas tabelas `WEAPON_TEX_INDICES` (8 armas) e `ITEM_TEX_INDICES` (27 itens) cobrindo todas as variantes textuais do projeto.
+    - Atualizada rotina `_draw()` para renderizar via `draw_texture_rect_region` os sprites fiéis diretamente no chão da sala.
+    - Preservado fallback procedural simplificado para testes e itens não mapeados.
+    - Atualizada rotina `step_tick()` para suporte transparente a `ROCKET_LAUNCHER` e `SUB_MACHINE_GUN`.
+  - **Testes e Verificação Automatizada**:
+    - Criada suíte de testes `godot/tests/item_box_sprites_test.gd` validando o carregamento de texturas, a renderização `_draw()` de todas as 8 armas e 27 itens sem exceções, o fallback procedural e a coleta no mundo.
+    - Integrado teste `godot-item-box-sprites` em `tools/validate.py`.
+    - Executada a suíte global `python3 tools/validate.py`: **100% PASS** (81 testes Python e 24 suítes Godot).
+    - Gerado artefato visual de inspeção `room_items_preview.png` comprovando alinhamento, transparência e paleta exata sobre o piso militar MSX2.
+
+## 2026-09-30 — Recalibração Física e Temporal 1:1 em Tempo Real (Base NTSC 60Hz MSX2)
+
+Implementada a recalibração rigorosa e inegociável de velocidade e temporizadores de todas as entidades do projeto (Snake, soldados inimigos, cães de guarda, projéteis balísticos, míssil teleguiado, boss Shoot Gunner, elevadores, cutscenes, transceptor, HUD, câmeras, lasers, pisos elétricos e telas de abertura), eliminando incrementos discretos fixos por frame e ancorando toda a simulação ao tempo real via `delta` com base de referência de 60 Hz NTSC do MSX2.
+
+### Metodologia Inegociável e Fórmulas de Conversão
+
+1. **Base de Tempo do MSX2 (NTSC)**:
+   - $1\text{ segundo real} = 60\text{ frames no hardware original}$ ($60\text{ Hz}$).
+   - Em Godot: `common/physics_ticks_per_second = 60` e `common/max_physics_steps_per_frame = 8` configurados em `godot/project.godot`.
+2. **Conversão de Movimento (Velocidade)**:
+   - $\text{Velocidade\_Final (px/s)} = \text{Valor\_Assembly (px/frame)} \times 60$.
+   - Movimentação no loop contínuo: `position += velocity_px_per_sec * delta`.
+3. **Conversão de Temporizadores (Timers)**:
+   - $\text{Tempo\_Final (s)} = \frac{\text{Contador\_Frames\_Assembly}}{60.0}$.
+   - Decremento contínuo por `delta`: `timer_sec = maxf(0.0, timer_sec - delta)`.
+   - Propriedades com getters/setters (`int(ceil(timer_sec * 60.0 - 0.0001))`) para preservar 100% de compatibilidade com asserções de testes existentes.
+
+### Evidências Primárias do Disassembly Z80 (`external/MetalGear/`) e Implementação
+
+1. **Player (`PlayerController` em `player.gd`)**:
+   - Velocidade Normal: 2.0 px/frame $\rightarrow$ **120.0 px/s** (`Banks0123.asm:8415: SPEED_NORMAL = 2`).
+   - Velocidade Reduzida: 1.0 px/frame $\rightarrow$ **60.0 px/s** (`Banks0123.asm:9360: SPEED_SLOW = 1`).
+   - Cadência de Animação de Passos: 6 ticks $\rightarrow$ **0.100s** (`Banks0123.asm:9724: cp 6`).
+   - Duração do Soco: 8 ticks $\rightarrow$ **0.133s** ($8/60$s, `Banks0123.asm:8762`).
+   - Invulnerabilidade após Dano: 32 ticks $\rightarrow$ **0.533s** ($32/60$s, `Banks0123.asm:9337`).
+   - Clarão do Disparo: 6 ticks $\rightarrow$ **0.100s** ($6/60$s, `Banks0123.asm:8440`).
+2. **Projéteis Balísticos (`Bullet` em `bullet.gd`)**:
+   - Bala de Snake: 6.0 px/frame $\rightarrow$ **360.0 px/s** (`Banks0123.asm:8440-8450`, `ShootDirSpeeds: 6`).
+   - Bala Inimiga: 4.0 px/frame $\rightarrow$ **240.0 px/s** (`logic/actors/shooterenemy.asm:88: BulletSpeed = 4`).
+   - Vida útil: 16 ticks $\rightarrow$ **0.267s** ($16/60$s, alcance de 96 pixels).
+3. **Inimigos e Cães de Guarda (`EnemyGuard` em `enemy.gd`)**:
+   - Cão de Guarda: 3.0 px/frame $\rightarrow$ **180.0 px/s** (`logic/actors/dog.asm:193-200: DogSpeeds: db 3`).
+   - Guarda Lento: 1.0 px/frame $\rightarrow$ **60.0 px/s** (`logic/actors/guard.asm`).
+   - Guarda Médio: 1.25 px/frame $\rightarrow$ **75.0 px/s**.
+   - Guarda Rápido: 1.5 px/frame $\rightarrow$ **90.0 px/s**.
+   - Temporizador de Atordoamento por Soco: 64 ticks $\rightarrow$ **1.067s** ($64/60$s, `logic/damageguard.asm:45`).
+   - Temporizador de Respawn em Alerta: 24 ticks $\rightarrow$ **0.400s** ($24/60$s, `Banks0123.asm:6576`).
+   - Temporizador de Evasão: 99 ticks $\rightarrow$ **1.650s** ($99/60$s, `Banks0123.asm:6610`).
+4. **Câmeras de Vigilância (`SecurityCamera` em `security_camera.gd`)**:
+   - Velocidade de Deslocamento: 0.5 px/frame $\rightarrow$ **30.0 px/s** (`camera.asm:145-186`).
+   - Pausa nas Extremidades: 60 ticks $\rightarrow$ **1.000s** (`camera.asm:241-248`).
+   - Congelamento com Alarme: 32 ticks $\rightarrow$ **0.533s** (`camera.asm:174`).
+5. **Míssil Teleguiado (`RemoteMissile` em `remote_missile.gd`)**:
+   - Velocidade em Voo: 1.5 px/frame $\rightarrow$ **90.0 px/s** (`missile.asm:150-165`).
+   - Duração da Explosão: 15 ticks $\rightarrow$ **0.250s** (`missile.asm:180`).
+6. **Bomba Plástica C4 (`PlasticBomb` em `plastic_bomb.gd`)**:
+   - Contagem até Detonação: 96 ticks $\rightarrow$ **1.600s** ($96/60$s, `plasticbomb.asm:15-30`).
+   - Duração do Efeito de Explosão: 15 ticks $\rightarrow$ **0.250s** (`plasticbomb.asm:35`).
+7. **Chefe Shoot Gunner (`ShotGunner` e `ShotGunnerBullet`)**:
+   - Velocidade da Rolagem Evasiva: 4.0 px/frame $\rightarrow$ **240.0 px/s** (`shotgunner.asm:18-22`).
+   - Pausa Pré-Rolagem: 11 ticks $\rightarrow$ **0.183s** (`shotgunner.asm:34`).
+   - Pausa Pré-Disparo: 45 ticks $\rightarrow$ **0.750s** (`shotgunner.asm:45`).
+   - Intervalo entre Tiros de Espingarda: 16 ticks $\rightarrow$ **0.267s** (`shotgunner.asm:60`).
+   - Velocidade dos Bagos de Chumbo: 2.0 px/frame $\rightarrow$ **120.0 px/s** (`shotgunner.asm:85`).
+8. **Elevadores (`ElevatorSystem` em `elevator_system.gd`)**:
+   - Velocidade Vertical da Cabine: 1.0 px/frame $\rightarrow$ **60.0 px/s** (`Banks0123.asm:8540-8556`).
+9. **Telescópio / Binóculo (`BinocularSystem` em `binocular_system.gd`)**:
+   - Temporizador de Observação Remota: 128 ticks ($80h$) $\rightarrow$ **2.133s** (`Banks0123.asm:12481`).
+10. **Feixes Laser da Sala 72 (`LaserSystem` em `laser_system.gd`)**:
+    - Ciclo das 5 Sequências Dinâmicas: 192 ticks ($C0h$) $\rightarrow$ **3.200s** (`Banks0123.asm:5797`).
+11. **Pisos Eletrificados (`ElectrifiedFloorSystem` e `PowerPanel`)**:
+    - Intervalo de Choque Elétrico: 8 ticks $\rightarrow$ **0.133s** (`damageelectric.asm:59-60`).
+12. **Cutscene de Abertura (`IntroCutscene` em `intro_cutscene.gd`)**:
+    - Nado Subaquático: 1.0 px/frame $\rightarrow$ **60.0 px/s**.
+    - Nado de Superfície: 2.0 px/frame $\rightarrow$ **120.0 px/s**.
+    - Escalada da Grade: 1.0 px/frame $\rightarrow$ **60.0 px/s**.
+    - Transições e Pausas em segundos calibrados a 60Hz.
+13. **Tela de Título (`TitleScreen` em `title_screen.gd`)**:
+    - Cortina Konami Wipe: 1 linha a cada 2 ticks $\rightarrow$ **30 linhas/s** ($2/60$s).
+    - Scroll do Logotipo Metal Gear: 1 passo a cada 3 ticks $\rightarrow$ **20 passos/s** ($3/60$s).
+    - Piscar de Prompt (Push Space / Press Start): intervalo de 30 ticks $\rightarrow$ **0.500s** ($30/60$s).
+    - Confirmação Play Start: 80 ticks $\rightarrow$ **1.333s** ($80/60$s).
+14. **Loop de Física Global (`SandboxGameplay` em `sandbox_gameplay.gd`)**:
+    - `_physics_process(delta)` repassa `delta` para todos os subsistemas, garantindo movimentação fluida e independente de variações na taxa de quadros.
+
+### Validação Automatizada
+
+- **Suíte Global de Validação (`python3 tools/validate.py`)**:
+  - `python-tests`: **81 testes unitários** PASS.
+  - Todas as **27 suítes de integração headless** Godot 4 PASS (100% de sucesso).
 

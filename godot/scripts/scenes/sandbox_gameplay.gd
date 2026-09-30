@@ -27,6 +27,7 @@ var radio_dialog: RadioDialog
 var cameras: Array[SecurityCamera] = []
 var laser_system: LaserSystem
 var bullets: Array[Bullet] = []
+var hud: GameHUD = null
 var silencer_dropped_room_150: bool = false
 var item_boxes: Array[ItemBox] = []
 var room_doors: Array[RoomDoor] = []
@@ -94,8 +95,19 @@ var elevator_target_y: float = 180.0
 var elevator_state: int = ELEVATOR_STATE_IDLE
 const ELEVATOR_STATE_IDLE: int = 0
 const ELEVATOR_STATE_MOVING: int = 1
-var elevator_spawner_timer: int = 0
-var elevator_guard2_delay: int = 0
+var elevator_spawner_timer_sec: float = 0.0
+var elevator_spawner_timer: int:
+	get:
+		return int(ceil(elevator_spawner_timer_sec * 60.0 - 0.0001))
+	set(v):
+		elevator_spawner_timer_sec = float(v) / 60.0
+
+var elevator_guard2_delay_sec: float = 0.0
+var elevator_guard2_delay: int:
+	get:
+		return int(ceil(elevator_guard2_delay_sec * 60.0 - 0.0001))
+	set(v):
+		elevator_guard2_delay_sec = float(v) / 60.0
 
 var status_label: Label
 var call_badge: Label
@@ -120,59 +132,16 @@ var guard3_exited_lorry: bool = false
 
 func _ready() -> void:
 	print("BOOT_OK: cena principal pronta")
-	# Montar interface
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 12)
-	add_child(margin)
-
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 6)
-	margin.add_child(column)
-
-	# Linha 1: Título, Status de Vida/Alerta e Botão de Pause
-	var header_bar := HBoxContainer.new()
-	header_bar.add_theme_constant_override("separation", 12)
-	column.add_child(header_bar)
-
-	var title := Label.new()
-	title.text = "Metal Gear MSX2"
-	title.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
-	header_bar.add_child(title)
-
-	call_badge = Label.new()
-	call_badge.text = " CALL [R] "
-	call_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	call_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	call_badge.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25))
-	call_badge.modulate = Color(0.0, 0.0, 0.0, 0.0)  # Inicia invisível sem afetar layout
-	header_bar.add_child(call_badge)
-
-	status_label = Label.new()
-	status_label.text = "Carregando..."
-	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	status_label.clip_text = true
-	status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	status_label.custom_minimum_size = Vector2(80, 0)
-	header_bar.add_child(status_label)
-
-	var pause_btn := Button.new()
-	pause_btn.text = "PAUSE [ESC]"
-	pause_btn.focus_mode = Control.FOCUS_NONE
-	pause_btn.pressed.connect(_toggle_pause_menu)
-	header_bar.add_child(pause_btn)
-
-	# Área central de jogo (Control que contém e centraliza o mundo do jogo)
+	# Área central de jogo autêntica MSX2 (256x212: Gameplay 256x192 + GameHUD 256x20)
 	viewport_area = Control.new()
-	viewport_area.custom_minimum_size = Vector2(256, 192)
+	viewport_area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	viewport_area.custom_minimum_size = Vector2(256, 212)
 	viewport_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	viewport_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	viewport_area.clip_contents = true
 	viewport_area.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	viewport_area.resized.connect(_on_viewport_resized)
-	column.add_child(viewport_area)
+	add_child(viewport_area)
 
 	# Overlay flutuante de diálogo do boss (dentro de viewport_area, preservando a altura e o zoom 100%)
 	boss_dialog_label = Label.new()
@@ -237,6 +206,11 @@ func _ready() -> void:
 	# Carregar sala inicial (tenta caminho real exportado, ou fallback sintético)
 	_load_initial_room()
 	reset_player()
+
+	# HUD original do MSX2 (256x20 px em Y=192..211)
+	hud = GameHUD.new()
+	game_world.add_child(hud)
+	hud.bind_systems(player, rank_system, weapon_system, inventory, radio_system)
 
 
 	# Sistema de Rádio Transceptor (Etapa 15)
@@ -333,11 +307,17 @@ func _ready() -> void:
 func _on_weapon_menu_selected(w_name: String) -> void:
 	if player:
 		player.queue_redraw()
+	if hud:
+		hud.update_hud_state()
+		hud.queue_redraw()
 	print("WEAPON_MENU: Arma selecionada: %s" % (w_name if not w_name.is_empty() else "[DESARMADO]"))
 
 func _on_item_menu_selected(i_name: String) -> void:
 	if player:
 		player.queue_redraw()
+	if hud:
+		hud.update_hud_state()
+		hud.queue_redraw()
 	print("ITEM_MENU: Item selecionado: %s" % (i_name if not i_name.is_empty() else "[NENHUM]"))
 	if i_name == InventoryManager.ITEM_BINOCULARS:
 		open_binoculars()
@@ -375,6 +355,9 @@ func _give_debug_arsenal() -> void:
 		player.max_life = 24
 		player.life = 24
 		player.queue_redraw()
+	if hud:
+		hud.update_hud_state()
+		hud.queue_redraw()
 	print("DEBUG_ARSENAL: Arsenal e equipamentos completos concedidos!")
 
 func _on_radio_closed() -> void:
@@ -413,9 +396,9 @@ func _update_world_transform(area_size: Vector2) -> void:
 	if not game_world or area_size.x <= 0.0 or area_size.y <= 0.0:
 		return
 	var zoom_x: float = floorf(area_size.x / 256.0)
-	var zoom_y: float = floorf(area_size.y / 192.0)
+	var zoom_y: float = floorf(area_size.y / 212.0)
 	zoom = maxf(1.0, minf(zoom_x, zoom_y))
-	canvas_origin = ((area_size - Vector2(256, 192) * zoom) / 2.0).floor()
+	canvas_origin = ((area_size - Vector2(256, 212) * zoom) / 2.0).floor()
 	game_world.position = canvas_origin
 	game_world.scale = Vector2(zoom, zoom)
 
@@ -976,7 +959,7 @@ func _on_guard_sleepy_dialog(text: String) -> void:
 	print("SLEEPY_GUARD: %s" % text)
 
 ## Lógica do spawner de sentinelas de revezamento do elevador (MSX: logic/actors/elevatorguardspawner.asm)
-func _process_elevator_spawner() -> void:
+func _process_elevator_spawner(delta: float = 1.0 / 60.0) -> void:
 	# Não gera novos sentinelas durante alarme ativo (MSX: elevatorguardspawner.asm:29)
 	if alert_system.current_state == AlertSystem.AlertState.ALERT:
 		return
@@ -990,15 +973,17 @@ func _process_elevator_spawner() -> void:
 				return
 
 	# Delay para spawn do segundo guarda de revezamento
-	if elevator_guard2_delay > 0:
-		elevator_guard2_delay -= 1
-		if elevator_guard2_delay <= 0:
+	if elevator_guard2_delay_sec > 0.0001:
+		elevator_guard2_delay_sec = maxf(0.0, elevator_guard2_delay_sec - delta)
+		if elevator_guard2_delay_sec <= 0.0001:
+			elevator_guard2_delay_sec = 0.0
 			_spawn_relieve_guard(144.0, false)
 		return
 
-	if elevator_spawner_timer > 0:
-		elevator_spawner_timer -= 1
-		if elevator_spawner_timer <= 0:
+	if elevator_spawner_timer_sec > 0.0001:
+		elevator_spawner_timer_sec = maxf(0.0, elevator_spawner_timer_sec - delta)
+		if elevator_spawner_timer_sec <= 0.0001:
+			elevator_spawner_timer_sec = 0.0
 			# Dispara o ciclo de revezamento: gera guarda 1 rumo a X=80
 			_spawn_relieve_guard(80.0, true)
 			elevator_guard2_delay = 64 # ~1.0s para gerar o guarda 2
@@ -1145,7 +1130,7 @@ func _restore_binocular_home() -> void:
 
 	print("BINOCULARS_HOME_RESTORED: Sala de origem %d restaurada" % home_id)
 
-func _process_binoculars() -> void:
+func _process_binoculars(delta: float = 1.0 / 60.0) -> void:
 	if not binocular_system or not binocular_system.is_active:
 		return
 
@@ -1159,13 +1144,13 @@ func _process_binoculars() -> void:
 		elif Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
 			_binocular_look(PlayerController.Direction.RIGHT)
 	elif binocular_system.state == BinocularSystem.State.LOOKING:
-		var step_res: Dictionary = binocular_system.step_tick()
+		var step_res: Dictionary = binocular_system.step_tick(delta)
 		if step_res.get("returned_home", false):
 			_restore_binocular_home()
 		else:
 			for enemy: EnemyGuard in enemies:
 				if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
-					enemy.step_tick(runtime_collision, Vector2(-1000.0, -1000.0))
+					enemy.step_tick(runtime_collision, Vector2(-1000.0, -1000.0), false, 0, null, delta)
 
 	if binocular_overlay:
 		binocular_overlay.update_state(
@@ -1874,19 +1859,18 @@ func _execute_game_restart() -> void:
 		reset_player()
 
 func _input(event: InputEvent) -> void:
-	# 0. Interceptação de skip durante a cutscene de abertura
+	# 0. Interceptação durante a cutscene de abertura (infiltração na água e escalada)
 	if intro_cutscene and intro_cutscene.is_active:
 		if radio_dialog and radio_dialog.is_active:
 			radio_dialog.handle_input(event)
-			if not event is InputEventMouse:
+			if not event is InputEventMouse and get_viewport():
 				get_viewport().set_input_as_handled()
 			return
-		if event is InputEventKey and event.pressed and not event.echo:
-			if event.keycode in [KEY_SPACE, KEY_ENTER, KEY_ESCAPE]:
-				intro_cutscene.skip_intro(player)
-				if get_viewport():
-					get_viewport().set_input_as_handled()
-				return
+		# Durante o nado e a escalada da grade, o jogador aguarda a cutscene concluir.
+		# Consome inputs para evitar ações acidentais antes de Snake assumir a terra firme.
+		if not event is InputEventMouse and get_viewport():
+			get_viewport().set_input_as_handled()
+		return
 
 	# 1. Repasse para menus modais abertos
 	if radio_dialog and radio_dialog.is_active:
@@ -2165,20 +2149,19 @@ func _input(event: InputEvent) -> void:
 				inventory.use_selected_item(player)
 			get_viewport().set_input_as_handled()
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not player:
 		return
 
 	# Cutscene de Abertura / Infiltração na Água e Escalada da Grade (Sala 121)
 	if intro_cutscene and intro_cutscene.is_active:
 		if not (radio_dialog and radio_dialog.is_active):
-			intro_cutscene.tick(player)
+			intro_cutscene.tick(player, delta)
 		return
 
 	# Modo Binóculo / Telescópio ativo: processa temporizador e atualização de inimigos da sala observada
 	if binocular_system and binocular_system.is_active:
-
-		_process_binoculars()
+		_process_binoculars(delta)
 		return
 
 	# Atualiza a mecânica da Caixa de Papelão e Arma Equipada
@@ -2211,7 +2194,7 @@ func _physics_process(_delta: float) -> void:
 		player.is_moving = false
 		player.queue_redraw()
 
-		var missile_alive: bool = active_missile.step_tick(runtime_collision)
+		var missile_alive: bool = active_missile.step_tick(runtime_collision, Rect2(RemoteMissile.MIN_X, RemoteMissile.MIN_Y, RemoteMissile.MAX_X - RemoteMissile.MIN_X, RemoteMissile.MAX_Y - RemoteMissile.MIN_Y), delta)
 
 		# Colisão do míssil com soldados inimigos (Etapa 20)
 		if is_instance_valid(active_missile) and (active_missile.state == RemoteMissile.MissileState.FLIGHT or active_missile.state == RemoteMissile.MissileState.EXPLODING):
@@ -2247,7 +2230,7 @@ func _physics_process(_delta: float) -> void:
 			# Snake fica imóvel (SetSprIdle) dentro da cabine
 			player.is_moving = false
 			var dir_y: float = -1.0 if elevator_target_y < elevator_y else 1.0
-			elevator_y += dir_y * ElevatorSystem.ELEVATOR_SPEED
+			elevator_y += dir_y * (ElevatorSystem.ELEVATOR_SPEED_PX_PER_SEC * delta)
 			if elevator_cabin:
 				elevator_cabin.elevator_y = elevator_y
 			# Snake é transportado pela cabine (PlayerY dec/inc junto com ElevatorY)
@@ -2291,7 +2274,7 @@ func _physics_process(_delta: float) -> void:
 			# Snake NUNCA se move no eixo Y por comando de pernas no elevador.
 			var walk_dir := Vector2i(input_dir.x, 0)
 			if walk_dir.x != 0:
-				player.step_tick(walk_dir)
+				player.step_tick(walk_dir, delta)
 				# Limite esquerdo da cabine (parede esquerda)
 				if player.position.x < ElevatorSystem.SHAFT_MIN_X:
 					player.position.x = ElevatorSystem.SHAFT_MIN_X
@@ -2310,13 +2293,13 @@ func _physics_process(_delta: float) -> void:
 				player.is_moving = false
 				player.queue_redraw()
 	else:
-		var moved: bool = player.step_tick(input_dir)
+		var moved: bool = player.step_tick(input_dir, delta)
 		if moved:
 			_check_and_handle_room_transition()
 
 	# Atualizar bomba plástica se ativa (logic/weapon/plasticbomb.asm)
 	if is_instance_valid(active_plastic_bomb):
-		active_plastic_bomb.step_tick()
+		active_plastic_bomb.step_tick(delta)
 
 	# Checar evento de captura na Sala 8 (logic/common.asm:26-47)
 	if snapshot and snapshot.room_id == CaptureSystem.ROOM_CAPTURE and capture_system.check_capture_trigger(snapshot.room_id, player.position):
@@ -2376,7 +2359,7 @@ func _physics_process(_delta: float) -> void:
 	var surviving_enemies: Array[EnemyGuard] = []
 	for enemy: EnemyGuard in enemies:
 		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
-			enemy.step_tick(runtime_collision, player.position, player.is_punching, player.current_direction, player)
+			enemy.step_tick(runtime_collision, player.position, player.is_punching, player.current_direction, player, delta)
 			if enemy.is_queued_for_deletion():
 				continue
 			surviving_enemies.append(enemy)
@@ -2400,14 +2383,14 @@ func _physics_process(_delta: float) -> void:
 	for cam: SecurityCamera in cameras:
 		if is_instance_valid(cam):
 			cam.show_debug_vision = show_enemy_vision
-			cam.tick(player.position, runtime_collision, in_box, is_alert_active)
+			cam.tick(player.position, runtime_collision, in_box, is_alert_active, delta)
 			if not in_box and (cam.has_seen_player or cam.alert_flashing):
 				any_enemy_sees_snake = true
 
 	# Atualizar sistema de feixes laser infravermelhos (Etapa 16)
 	if laser_system:
 		var goggles_on: bool = (inventory.get_selected_item() == InventoryManager.ITEM_GOGGLES)
-		laser_system.tick(player.position, goggles_on, is_alert_active)
+		laser_system.tick(player.position, goggles_on, is_alert_active, delta)
 
 	# Atualizar nuvens visuais de gás (Etapa 19)
 	for gc: GasCloud in gas_clouds:
@@ -2420,7 +2403,7 @@ func _physics_process(_delta: float) -> void:
 
 	# Atualizar sistema de pisos eletrificados e choque elétrico (Etapa 22 — logic/damageelectric.asm)
 	if electrified_floor_system and snapshot and not is_in_elevator:
-		var shock_damage: int = electrified_floor_system.check_player_hazard(player.position, snapshot.room_id)
+		var shock_damage: int = electrified_floor_system.check_player_hazard(player.position, snapshot.room_id, delta)
 		if shock_damage > 0:
 			player.apply_damage(shock_damage)
 			is_player_shocked_flash = 4
@@ -2432,11 +2415,11 @@ func _physics_process(_delta: float) -> void:
 			player.modulate = Color(1.0, 1.0, 1.0)
 
 	if is_instance_valid(power_panel):
-		power_panel.tick()
+		power_panel.tick(delta)
 
 	# Atualizar spawner de guardas do elevador (Sala 3 — MSX: logic/actors/elevatorguardspawner.asm)
 	if snapshot and snapshot.room_id == 3:
-		_process_elevator_spawner()
+		_process_elevator_spawner(delta)
 
 	# Se Snake for detectado durante o estado NORMAL, aciona ALERTA
 	if any_enemy_sees_snake and alert_system.current_state == AlertSystem.AlertState.NORMAL:
@@ -2444,14 +2427,14 @@ func _physics_process(_delta: float) -> void:
 		_trigger_alarm()
 
 	# Atualização do subsistema de alerta (respawn, transição para evasão e temporizador regressivo)
-	alert_system.tick(any_enemy_sees_snake, active_guards, snapshot.room_id if snapshot and snapshot.loaded else 0)
+	alert_system.tick(any_enemy_sees_snake, active_guards, snapshot.room_id if snapshot and snapshot.loaded else 0, delta)
 
 	# Atualizar física e colisões dos projéteis balísticos (balas de Snake e de soldados)
 	var surviving_bullets: Array[Bullet] = []
 	for b: Bullet in bullets:
 		if not is_instance_valid(b):
 			continue
-		var alive: bool = b.step_tick(runtime_collision)
+		var alive: bool = b.step_tick(runtime_collision, delta)
 		if not alive:
 			b.queue_free()
 			continue
@@ -2488,7 +2471,7 @@ func _physics_process(_delta: float) -> void:
 	# Tick do Boss Shoot Gunner (Etapa 18)
 	# -----------------------------------------------------------------------
 	if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
-		shot_gunner.step_tick(player.position, runtime_collision)
+		shot_gunner.step_tick(player.position, runtime_collision, delta)
 		shot_gunner.queue_redraw()
 
 		# Dano por contato do boss quando parado (shotgunner.asm:102: COLLISION_CFG = 3, ActorTouchDamage = 4)
@@ -2500,7 +2483,7 @@ func _physics_process(_delta: float) -> void:
 	var surviving_boss_bullets: Array[ShotGunnerBullet] = []
 	for sgb: ShotGunnerBullet in shot_gunner_bullets:
 		if is_instance_valid(sgb) and sgb.is_active:
-			sgb.step_tick(player.position, runtime_collision)
+			sgb.step_tick(player.position, runtime_collision, delta)
 			sgb.queue_redraw()
 			surviving_boss_bullets.append(sgb)
 	shot_gunner_bullets = surviving_boss_bullets
@@ -2534,6 +2517,9 @@ func _physics_process(_delta: float) -> void:
 			game_world.add_child(silencer_box)
 			item_boxes.append(silencer_box)
 			print("SILENCER_DROPPED: 4 guardas silenciadores derrotados! Silenciador liberado em (36, 98)!")
+
+	if not player or (status_label == null and call_badge == null):
+		return
 
 	var blocks: int = maxi(0, player.life / 3)
 	var empty_blocks: int = maxi(0, (player.max_life - player.life) / 3)

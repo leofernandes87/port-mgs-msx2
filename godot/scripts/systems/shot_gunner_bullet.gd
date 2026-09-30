@@ -17,6 +17,7 @@ extends Node2D
 ## - Alcance delimitado: se dissipa no ar após 52 ticks (~0.85s)
 
 const SPEED: float = 2.0
+const SPEED_PX_PER_SEC: float = 120.0 # 2.0 * 60 = 120 px/s
 const PLAYER_DAMAGE: int = 8
 const MAX_LIFETIME_TICKS: int = 52
 
@@ -91,7 +92,7 @@ func setup(origin: Vector2, target: Vector2, grid: Array) -> void:
 	current_radius = SHAPE_RADII[0]
 	is_active = true
 
-func step_tick(player_pos: Vector2, grid: Array) -> void:
+func step_tick(player_pos: Vector2, grid: Array, delta: float = 1.0 / 60.0) -> void:
 	if not is_active:
 		return
 	collision_grid = grid
@@ -116,7 +117,8 @@ func step_tick(player_pos: Vector2, grid: Array) -> void:
 		anim_frame = 4
 		current_radius = SHAPE_RADII[3]
 
-	position += velocity
+	var velocity_px_per_sec: Vector2 = velocity * 60.0
+	position += velocity_px_per_sec * delta
 
 	# Colisão com tiles sólidos da sala
 	if _check_tile_collision():

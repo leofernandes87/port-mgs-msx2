@@ -15,17 +15,19 @@ var damage: int = 2             # BulletDamage da ROM = 2 pontos (derrota soldad
 func _ready() -> void:
 	z_index = 12
 
-func step_tick(collision_grid: Array) -> bool:
+func step_tick(collision_grid: Array, delta: float = 1.0 / 60.0) -> bool:
+	var speed_px_per_sec: float = speed * 60.0
+	var step_dist: float = speed_px_per_sec * delta
 	var step_vec := Vector2.ZERO
 	match direction:
 		PlayerController.Direction.UP:
-			step_vec = Vector2(0.0, -speed)
+			step_vec = Vector2(0.0, -step_dist)
 		PlayerController.Direction.DOWN:
-			step_vec = Vector2(0.0, speed)
+			step_vec = Vector2(0.0, step_dist)
 		PlayerController.Direction.LEFT:
-			step_vec = Vector2(-speed, 0.0)
+			step_vec = Vector2(-step_dist, 0.0)
 		PlayerController.Direction.RIGHT:
-			step_vec = Vector2(speed, 0.0)
+			step_vec = Vector2(step_dist, 0.0)
 
 	position += step_vec
 	ticks_remaining -= 1

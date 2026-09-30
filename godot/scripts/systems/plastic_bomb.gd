@@ -7,13 +7,27 @@ extends Node2D
 signal bomb_exploded(bomb_pos: Vector2, radius: float, damage: int)
 signal bomb_finished(bomb_node: Node2D)
 
-const TIMER_ARMED_TICKS: int = 96    # Calibrado para 60 fps (~1.6s para Snake se afastar com segurança)
+const TIMER_ARMED_TICKS: int = 96    # 96 frames na ROM MSX (~1.6s)
 const TIMER_EXPLOSION_TICKS: int = 15 # 0Fh na ROM MSX (~0.25s)
+const TIMER_ARMED_SEC: float = 96.0 / 60.0        # 1.600s
+const TIMER_EXPLOSION_SEC: float = 15.0 / 60.0    # 0.250s
 const BLAST_RADIUS: float = 24.0     # Raio de detonação para quebra de paredes e dano
 const DAMAGE: int = 10               # Dano letal a guardas e cães
 
-var timer: int = TIMER_ARMED_TICKS
-var explosion_timer: int = TIMER_EXPLOSION_TICKS
+var timer_sec: float = TIMER_ARMED_SEC
+var timer: int:
+	get:
+		return int(ceil(timer_sec * 60.0 - 0.0001))
+	set(v):
+		timer_sec = float(v) / 60.0
+
+var explosion_timer_sec: float = TIMER_EXPLOSION_SEC
+var explosion_timer: int:
+	get:
+		return int(ceil(explosion_timer_sec * 60.0 - 0.0001))
+	set(v):
+		explosion_timer_sec = float(v) / 60.0
+
 var is_exploding: bool = false
 var tick_count: int = 0
 
@@ -34,22 +48,24 @@ static func get_spawn_offset(dir: PlayerController.Direction) -> Vector2:
 func setup(snake_pos: Vector2, dir: PlayerController.Direction) -> void:
 	position = snake_pos + get_spawn_offset(dir)
 	z_index = 8
-	timer = TIMER_ARMED_TICKS
-	explosion_timer = TIMER_EXPLOSION_TICKS
+	timer_sec = TIMER_ARMED_SEC
+	explosion_timer_sec = TIMER_EXPLOSION_SEC
 	is_exploding = false
 	tick_count = 0
 
-func step_tick() -> void:
+func step_tick(delta: float = 1.0 / 60.0) -> void:
 	tick_count += 1
 	if not is_exploding:
-		timer -= 1
+		timer_sec = maxf(0.0, timer_sec - delta)
 		queue_redraw()
-		if timer <= 0:
+		if timer_sec <= 0.0001:
+			timer_sec = 0.0
 			explode()
 	else:
-		explosion_timer -= 1
+		explosion_timer_sec = maxf(0.0, explosion_timer_sec - delta)
 		queue_redraw()
-		if explosion_timer <= 0:
+		if explosion_timer_sec <= 0.0001:
+			explosion_timer_sec = 0.0
 			bomb_finished.emit(self)
 			queue_free()
 

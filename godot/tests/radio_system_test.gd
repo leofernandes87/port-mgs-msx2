@@ -145,6 +145,24 @@ func _run() -> void:
 	if not require(not sandbox.radio_system.has_incoming_call, "Abrir o rádio com CALL deve consumir a chamada"): return
 	if not require(sandbox.radio_system.current_freq == 85, "Rádio deve estar auto-sintonizado em 120.85"): return
 
+	# Validar paginação canônica de no máximo 4 linhas (Banks0123.asm:8344, 8377)
+	if not require(sandbox.radio_dialog.dialog_pages.size() >= 2, "Mensagem longa de Big Boss deve ser auto-paginada em pelo menos 2 páginas"): return
+	for p_idx: int in range(sandbox.radio_dialog.dialog_pages.size()):
+		var page_str: String = sandbox.radio_dialog.dialog_pages[p_idx]
+		var line_count: int = page_str.split("\n").size()
+		if not require(line_count <= 4, "Cada página de rádio deve ter no máximo 4 linhas (Página %d tem %d linhas)" % [p_idx, line_count]): return
+
+	# Testar avanço de página com Enter/Espaço
+	var key_enter := InputEventKey.new()
+	key_enter.keycode = KEY_ENTER
+	key_enter.pressed = true
+	# 1º Enter: conclui digitação da página 0
+	sandbox._input(key_enter)
+	if not require(sandbox.radio_dialog.text_finished, "1º Enter deve concluir digitação da página atual"): return
+	# 2º Enter: avança para a página 1
+	sandbox._input(key_enter)
+	if not require(sandbox.radio_dialog.current_page_index == 1, "2º Enter deve avançar para a próxima página"): return
+
 	# Testar congelamento da física durante o rádio
 	var player_initial_y: float = sandbox.player.position.y
 	sandbox._physics_process(0.016)

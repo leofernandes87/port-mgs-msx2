@@ -50,9 +50,9 @@ func _run_tests() -> void:
 	_assert_true(is_equal_approx(player.position.x, 48.0), "Snake deve alcançar X = 48")
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_4_DIVE_NORTH, "Deve transitar para SCENE_4_DIVE_NORTH")
 
-	for i in range(32): # SCENE_4 (32 ticks)
+	for i in range(16): # SCENE_4 (16 ticks: 184 -> 168)
 		intro.tick(player)
-	_assert_true(is_equal_approx(player.position.y, 152.0), "Snake deve subir até Y = 152")
+	_assert_true(is_equal_approx(player.position.y, 168.0), "Snake deve subir até Y = 168")
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_5_EMERGE_WAIT, "Deve emergir em SCENE_5_EMERGE_WAIT")
 	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake deve emergir (SWIM_SURFACE)")
 	_assert_true(player.current_direction == PlayerController.Direction.RIGHT, "Snake deve olhar para a direita (RIGHT)")
@@ -86,15 +86,15 @@ func _run_tests() -> void:
 	# 7. State 9 & 10: Nadar até a grade em (128, 136)
 	intro.tick(player) # Transita de SCENE_8 para SCENE_9
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_9_SWIM_RIGHT, "Estado de nado à cerca deve ser SCENE_9_SWIM_RIGHT")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.DEEP_WATER, "Snake deve submergir (DEEP_WATER) ao sair do rádio")
+	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake permanece na superfície da água (SWIM_SURFACE) ao sair do rádio")
 
 	for i in range(40):
 		intro.tick(player)
 	_assert_true(is_equal_approx(player.position.x, 128.0), "Snake alcançou o centro em X = 128")
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_10_SWIM_NORTH, "Estado de aproximação vertical deve ser SCENE_10_SWIM_NORTH")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake deve emergir (SWIM_SURFACE) ao virar para o norte")
+	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake continua na superfície da água (SWIM_SURFACE) ao virar para o norte")
 
-	for i in range(24):
+	for i in range(32): # SCENE_10 (32 ticks: 168 -> 136)
 		intro.tick(player)
 	_assert_true(is_equal_approx(player.position.x, 128.0), "Snake permaneceu centralizado em X = 128")
 	_assert_true(is_equal_approx(player.position.y, 136.0), "Snake chegou à base da cerca em Y = 136")

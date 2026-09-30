@@ -17,20 +17,25 @@ const BOSS_HP: int = 20
 ## Precisa de 10 tiros para matar.
 const BULLET_DAMAGE: int = 2
 
-## Velocidade de rolagem lateral: ±4 px/tick (shotgunner.asm:18-22)
+## Velocidade de rolagem lateral: ±4 px/tick (shotgunner.asm:18-22) -> 4 * 60 = 240 px/s
 const ROLL_SPEED: float = 4.0
+const ROLL_SPEED_PX_PER_SEC: float = 240.0
 
 ## Duração máxima da rolagem: Wait = 0x0B = 11 ticks (shotgunner.asm:28, 148)
 const ROLL_WAIT: int = 11
+const ROLL_WAIT_SEC: float = 11.0 / 60.0
 
 ## Pausa após parar antes de atirar: Wait = 0x2D = 45 ticks (shotgunner.asm:100)
 const SHOOT_WAIT: int = 45
+const SHOOT_WAIT_SEC: float = 45.0 / 60.0
 
 ## Intervalo entre disparos: ANIM_CNT & 0x0F → 1 tiro a cada 16 ticks (shotgunner.asm:127)
 const SHOT_INTERVAL: int = 16
+const SHOT_INTERVAL_SEC: float = 16.0 / 60.0
 
 ## Delay de intro para refresh de sprites: IntroDelay = 2 ticks (shotgunner.asm:13)
 const INTRO_DELAY: int = 2
+const INTRO_DELAY_SEC: float = 2.0 / 60.0
 
 # ---------------------------------------------------------------------------
 # Máquina de estados — mapeamento direto das 3 fases de ShotGunnerLogic
@@ -105,7 +110,7 @@ func setup(spawn_pos: Vector2, grid: Array, initial_player_pos: Vector2) -> void
 # Lógica principal por tick — chamada pelo sandbox em _physics_process
 # ---------------------------------------------------------------------------
 
-func step_tick(p_pos: Vector2, grid: Array) -> void:
+func step_tick(p_pos: Vector2, grid: Array, delta: float = 1.0 / 60.0) -> void:
 	if is_dead:
 		return
 	player_pos = p_pos
@@ -122,7 +127,7 @@ func step_tick(p_pos: Vector2, grid: Array) -> void:
 		SGunnerState.INTRO:
 			_tick_intro()
 		SGunnerState.ROLL:
-			_tick_roll()
+			_tick_roll(delta)
 		SGunnerState.SHOOT:
 			_tick_shoot()
 
@@ -149,7 +154,7 @@ func _tick_intro() -> void:
 # Fase ROLL — ShotGunnerRoll (shotgunner.asm:80-103)
 # ---------------------------------------------------------------------------
 
-func _tick_roll() -> void:
+func _tick_roll(delta: float = 1.0 / 60.0) -> void:
 	# Atualiza frame de animação: (ANIM_CNT & 6) >> 1 → 0,1,2,1 (shotgunner.asm:161-162)
 	roll_frame = ((anim_tick & 6) >> 1)
 
@@ -158,7 +163,8 @@ func _tick_roll() -> void:
 
 	if not blocked:
 		wait_timer -= 1
-		position.x += speed_x
+		var step_x: float = (speed_x * 60.0) * delta
+		position.x += step_x
 		position.x = clamp(position.x, 8.0, 248.0)
 
 	# Para ao colidir ou ao wait expirar (ShotGunnerStop)
