@@ -72,6 +72,7 @@ var broken_basement_walls: Dictionary = {} # "room_id_door_id": true
 
 ## Evento de Captura na Sala 8 e Cela da Sala 211 (Etapa 21)
 var capture_system: CaptureSystem = CaptureSystem.new()
+var capture_cutscene: CaptureCutscene = null
 var tilemap_layer: TileMapLayer = null
 
 ## Pisos Eletrificados e Painéis de Força (Etapa 22) — logic/damageelectric.asm e logic/actors/powerswitch.asm
@@ -249,6 +250,12 @@ func _ready() -> void:
 	binocular_system = BinocularSystem.new()
 	binocular_overlay = BinocularOverlay.new()
 	game_world.add_child(binocular_overlay)
+
+	# Sistema da Cutscene Canônica de Captura da Sala 8
+	capture_cutscene = CaptureCutscene.new()
+	game_world.add_child(capture_cutscene)
+	capture_cutscene.teleport_requested.connect(_on_capture_teleport_requested)
+	capture_cutscene.cutscene_finished.connect(_on_capture_cutscene_finished)
 
 	pause_menu = PauseMenu.new()
 	pause_menu.visible = false
@@ -1780,6 +1787,13 @@ func reset_game_state() -> void:
 		gas_hazard_system.reset()
 	if capture_system:
 		capture_system.reset_state()
+	if capture_cutscene:
+		capture_cutscene.is_active = false
+		capture_cutscene.fade_alpha = 0.0
+		capture_cutscene.guard_a_visible = false
+		capture_cutscene.guard_b_visible = false
+		capture_cutscene.show_message_box = false
+		capture_cutscene.queue_redraw()
 	if electrified_floor_system:
 		electrified_floor_system.reset_state()
 	ItemBox.collected_boxes.clear()
@@ -3010,11 +3024,29 @@ func _on_plastic_bomb_finished(bomb_node: Node2D) -> void:
 # ---------------------------------------------------------------------------
 
 func _trigger_capture_event() -> void:
+	if capture_cutscene != null and capture_cutscene.is_active:
+		return
+	if alert_system != null:
+		alert_system.reset()
+	if status_label != null:
+		status_label.text = "[EMBOSCADA NA SALA 8!]"
+	if capture_cutscene != null:
+		capture_cutscene.start_cutscene(player)
+	else:
+		_on_capture_teleport_requested()
+		_on_capture_cutscene_finished()
+
+func _on_capture_teleport_requested() -> void:
 	capture_system.execute_capture(inventory, weapon_system)
 	change_to_room(CaptureSystem.ROOM_PRISON, CaptureSystem.SPAWN_PRISON, PlayerController.Direction.UP)
-	if status_label:
-		status_label.text = "[EMBOSCADA! CAPTURADO!]"
+	if status_label != null:
+		status_label.text = "[CELA 211: DESARMADO!]"
 	print("CAPTURE_SPAWN: Snake transportado para a cela da Sala 211 sem armas nem itens.")
+
+func _on_capture_cutscene_finished() -> void:
+	if player != null:
+		player.can_control = true
+	print("CAPTURE_FINISHED: Snake recuperou a consciência na Cela 211. Controles liberados.")
 
 func break_prison_wall() -> void:
 	capture_system.wall_broken = true

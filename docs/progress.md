@@ -2751,3 +2751,74 @@ Identificado e removido o resíduo procedural ("corpo caído", "capacete", "esco
   - `python-tests`: **90 testes unitários** PASS
   - Todas as **27 suítes de integração headless** Godot 4 PASS
 
+
+## 2026-10-01 — Implementação da Animação Canônica de Captura na Sala 8 e Transporte para Cela 211
+
+Implementação fiel da cutscene de captura de Solid Snake que ocorre na Sala 8 de Outer Heaven, conforme desmontagem das rotinas assembly Z80 originais da ROM MSX2 RC750.
+
+### Evidências Primárias no Z80 (`external/MetalGear/`)
+
+1. **Gatilho de Captura (`logic/common.asm:26-47`)**:
+   - `Room == 8`, `EquipBagTaken == 0`, `PlayerX ∈ [0xC0, 0xD0]` (192.0 a 208.0).
+   - Bloqueio imediato dos controles do jogador (`GameMode = GAME_MODE_CAPTURED`, 0x0B).
+2. **Máquina de Estados da Captura (`logic/capturescene.asm:1-280`)**:
+   - `AddCaptureGuard:27-36`: Guarda A surge em `(240, PlayerY)` virado para a esquerda (`Direction.LEFT`).
+   - `AddCaptureGuardB:170-201`: Guarda A diz `"DON'T MOVE!"` (TextId 6 em `data/texts.asm:189`) e Guarda B spawna em `X=240` (em `Y=176` se `PlayerY < 152`, ou `Y=136` se `PlayerY >= 152`).
+   - `CaptureGuardBX:208-226` e `CaptureGuardBY:232-245`: Guarda B marcha a 120 px/s (`SetWalkSpeedFast` = 2 px/frame × 60 fps) em X até `X=184` (0xB8), depois em Y até alinhar com o jogador, virando para a esquerda ao parar.
+   - `CaptureGuardBSpeak:251-260`: Guarda B diz `"YOU ARE CAPTURED!"` (TextId 7 em `data/texts.asm:190`).
+   - `CaptureSetup / CaptureWait:38-60`: Muta a música (`MusicToSet = 0x5C`) e pausa de 60 frames (1.0s).
+   - `CaptureFadeOut:69-79`: Fade out gradual para preto (`Banks0123.asm:11672-11743`).
+   - `PutInPrison:87-118`: No ápice da escuridão, remove armas e itens do inventário ativo para o backup (`EquipRemoved = 1`), transporta Snake para a Cela 211 em `(128, 80)` virado para o Norte (`UP`), clareia a tela e devolve o controle ao jogador.
+3. **Janela de Mensagem Type 4 (`Banks0123.asm:8345, 8387`)**:
+   - Dimensões e posicionamento: `X=48, Y=8, NX=160, NY=41`. Fundo preto sólido, borda branca de 1px e texto centralizado em caixa alta.
+
+### Alterações Realizadas
+
+1. **`godot/scripts/systems/capture_cutscene.gd` [NOVO]**:
+   - Componente Node2D dedicado à orquestração dos 12 estados da cutscene.
+   - Renderização dos guardas soldados de Outer Heaven com animação de passada a 120 px/s e fuzil empunhado.
+   - Janela de mensagem MSX2 Type 4 exibindo `"DON'T MOVE!"` e `"YOU ARE CAPTURED!"`.
+   - Efeito de fade out/fade in cobrindo a viewport nativa de 256x192.
+2. **`godot/scripts/scenes/sandbox_gameplay.gd`**:
+   - Instanciação de `capture_cutscene` no `game_world`.
+   - Atualização de `_trigger_capture_event()` para acionar a animação e travar os controles.
+   - Conexão de sinais `teleport_requested` (confisco de equipamentos e troca de sala para Cela 211) e `cutscene_finished` (despertar desarmado e destravamento dos controles).
+   - Limpeza e reset do estado da cutscene em `reset_game()`.
+3. **`godot/tests/capture_prison_test.gd`**:
+   - Adicionados 3 novos testes cobrindo spawns, posições, física de marcha a 120 px/s, diálogos canônicos, fade out e conclusão.
+   - Total de testes na suíte elevado de 142 para 173 testes passando (0 falhas).
+
+### Verificação Automatizada Concluída
+
+- `python3 tools/validate.py`: **100% PASS**
+  - `python-tests`: **90 testes unitários** PASS
+  - Todas as **27 suítes de integração headless** Godot 4 PASS (incluindo `godot-capture-prison` com 173 testes)
+
+
+
+---
+
+## 2026-10-01 — Correção: Assets MSX2 Originais na Cutscene de Captura
+
+### Contexto
+
+Após revisão do usuário, verificou-se que a versão inicial de `capture_cutscene.gd` usava apenas fallback procedural (`ThemeDB.fallback_font`, `draw_string`) para texto e formas geométricas para os guardas, em vez dos assets originais do MSX2 RC750.
+
+### Evidências Assembly (consultadas no PASSO ZERO)
+
+- `external/MetalGear/logic/capturescene.asm` — sprites dos guardas de captura: ID `0x2D` (`ID_CAPTURE_GUARD`, `constants/Enums.asm:214`)
+- Padrão de carregamento de `guard_msx.png` já estabelecido em `godot/scripts/systems/enemy.gd:121-165`
+- Padrão de carregamento de `msx_font.png` já estabelecido em `godot/scripts/systems/hud.gd:132-133`
+
+### Correção Implementada
+
+- `_draw_guard_soldier()`: usa `guard_texture` (asset `guard_msx.png`, 64×128 px, 4×3 células de 16×32) como caminho primário; fallback procedural preservado apenas como contingência.
+- `_draw_msx_glyph()`: usa `font_texture` (asset `msx_font.png`, glifos 8×8, layout `col=ascii%16`, `row=ascii/16`) como caminho primário; fallback `draw_string` preservado apenas como contingência.
+- Fundo da janela de mensagem Type 4 definido como `Color(0,0,0,1.0)` (sólido, sem transparência parcial).
+
+### Verificação Automatizada
+
+- `python3 tools/validate.py`: **100% PASS** (exit code 0)
+  - Todos os testes Python: 90 PASS
+  - Todas as suítes headless Godot 4: 27 PASS (incluindo `godot-capture-prison`: 173 testes)
+
