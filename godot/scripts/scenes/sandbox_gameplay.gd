@@ -604,14 +604,11 @@ func _spawn_room_enemies(room_id: int) -> void:
 				continue
 
 			# Boss Shoot Gunner — ID_SHOT_GUNNER = 0x21 = 33 (Etapa 18)
+			# Fonte: logic/actors/shotgunner.asm:7-10 (InitShotGunner: bit 0, (ShotGunnerStat) -> jp nz, DismissActor)
 			if type_id == 33:
 				if defeated_bosses.get(33, false):
-					var sg_dead: ShotGunner = ShotGunner.new()
-					sg_dead.setup(spawn_pos, runtime_collision, Vector2.ZERO)
-					sg_dead.is_dead = true
-					game_world.add_child(sg_dead)
-					sg_dead.queue_redraw()
-					shot_gunner = sg_dead
+					# No original MSX2, se já derrotado, DismissActor é chamado e nada é gerado na sala
+					shot_gunner = null
 					continue
 				var sg: ShotGunner = ShotGunner.new()
 				var player_initial: Vector2 = player.position if player else Vector2(128.0, 96.0)

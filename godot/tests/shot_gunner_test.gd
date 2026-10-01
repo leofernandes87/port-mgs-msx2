@@ -66,6 +66,7 @@ func _test_10_bullets_kills() -> void:
 	_assert(sg.boss_hp <= 0, "HP <= 0 após 10 tiros")
 	_assert(defeated_signal_received[0], "Sinal boss_defeated emitido")
 	_assert(killed, "apply_bullet_hit retorna true no tiro fatal")
+	_assert(not sg.visible, "Fiel ao MSX2 RemoveActor_: visibilidade desativada ao morrer (sem sprite de corpo)")
 	sg.free()
 
 ## Teste 4: Ciclo de estados INTRO → ROLL (após IntroDelay)

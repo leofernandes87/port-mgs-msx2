@@ -2710,3 +2710,44 @@ Substituição da renderização procedural do Boss Shoot Gunner (`shot_gunner.g
   - `python-tests`: **90 testes unitários** PASS
   - Todas as **27 suítes de integração headless** Godot 4 PASS
 
+
+## 2026-09-30 — Remoção do Desenho Procedural de Shoot Gunner Morto (Conformidade MSX2)
+
+Identificado e removido o resíduo procedural ("corpo caído", "capacete", "escopeta caída") que desenhava retângulos artificiais quando Shoot Gunner morria ou quando a sala 57 era revisitada.
+
+### Evidências Primárias no Z80 (`external/MetalGear/`)
+
+1. **Destruição do Ator ao Morrer (`Banks0123.asm:12996-13003, 13079-13080`)**:
+   - `DismissActor6` seta o bit 0 de `ShotGunnerStat` (Dead), chama `RemoveActorMusic` (restaura a música da área) e cai em `RemoveActor_`:
+     ```z80
+     RemoveActor_:
+         xor a
+         ld (ix+ACTOR.ID), a ; Free actor structure
+     ```
+   - No hardware MSX2 original, a estrutura do ator é liberada imediatamente. Nenhum sprite de cadáver permanece no chão.
+2. **Revisita à Sala 57 (`logic/actors/shotgunner.asm:7-10`)**:
+   - `InitShotGunner`:
+     ```z80
+     InitShotGunner:
+         ld hl, ShotGunnerStat ; Bit 0 = Dead
+         bit 0, (hl)          ; Is he dead?
+         jp nz, DismissActor  ; Yes, remove actor
+     ```
+   - Se o boss já estiver morto, `DismissActor` é chamado imediatamente e a sala fica vazia (sem ator, sem corpo).
+
+### Alterações Realizadas
+
+1. **`godot/scripts/systems/shot_gunner.gd`**:
+   - `_on_defeat()`: define `visible = false`.
+   - `_draw()`: removido completamente o bloco procedural de retângulos de boss caído. Se `is_dead == true`, encerra sem desenhar nada.
+2. **`godot/scripts/scenes/sandbox_gameplay.gd`**:
+   - Ao carregar a sala 57 se `defeated_bosses[33] == true`, nenhum nó `sg_dead` é gerado, em estrita conformidade com `InitShotGunner`.
+3. **`godot/tests/shot_gunner_test.gd`**:
+   - Adicionada verificação de que `visible == false` ao morrer (25 testes passando).
+
+### Verificação Automatizada Concluída
+
+- `python3 tools/validate.py`: **100% PASS**
+  - `python-tests`: **90 testes unitários** PASS
+  - Todas as **27 suítes de integração headless** Godot 4 PASS
+
