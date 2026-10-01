@@ -83,9 +83,17 @@ func _run_tests() -> void:
 	intro.on_radio_finished()
 	_assert_true(intro.current_state == IntroCutscene.State.SCENE_8_RADIO_CLOSED, "Estado após rádio deve ser SCENE_8_RADIO_CLOSED")
 
-	# 7. State 9 & 10: Nadar até a grade em (128, 136)
-	intro.tick(player) # Transita de SCENE_8 para SCENE_9
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_9_SWIM_RIGHT, "Estado de nado à cerca deve ser SCENE_9_SWIM_RIGHT")
+	# 7. State 8: Pausa de 40 frames após fechar o rádio (introscene.asm:227-228: IntroSceneCnt=0x28)
+	_assert_true(intro.state_counter == 0x28, "Pausa pós-rádio deve ser inicializada com 0x28 (40 frames)")
+
+	# Simula 39 ticks: ainda deve estar em SCENE_8
+	for i in range(39):
+		intro.tick(player)
+	_assert_true(intro.current_state == IntroCutscene.State.SCENE_8_RADIO_CLOSED, "Deve permanecer em SCENE_8 durante os 40 frames de pausa")
+
+	# 40º tick: transita para SCENE_9
+	intro.tick(player)
+	_assert_true(intro.current_state == IntroCutscene.State.SCENE_9_SWIM_RIGHT, "Estado de nado à cerca deve ser SCENE_9_SWIM_RIGHT após 40 frames")
 	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake permanece na superfície da água (SWIM_SURFACE) ao sair do rádio")
 
 	for i in range(40):

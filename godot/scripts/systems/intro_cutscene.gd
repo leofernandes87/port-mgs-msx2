@@ -159,12 +159,17 @@ func tick(player: PlayerController, delta: float = 1.0 / 60.0) -> void:
 			pass
 
 		State.SCENE_8_RADIO_CLOSED:
-			current_state = State.SCENE_9_SWIM_RIGHT
-			state_counter = 0x28 # 40 frames
-			player.anim_mode = PlayerController.AnimMode.SWIM_SURFACE
-			player.current_direction = PlayerController.Direction.RIGHT
-			player.queue_redraw()
-			print("INTRO_CUTSCENE: Briefing encerrado. Caminhando pela água rumo ao centro da sala (128, 168)")
+			# logic/introscene.asm:227-228 — IntroScene8: define IntroSceneCnt = 0x28 (40 frames = 0.667s)
+			# antes de avançar. Snake permanece parado olhando para a direita enquanto aguarda.
+			state_timer_sec = maxf(0.0, state_timer_sec - delta)
+			if state_timer_sec <= 0.0001:
+				state_timer_sec = 0.0
+				current_state = State.SCENE_9_SWIM_RIGHT
+				state_counter = 0x28 # 40 frames (IntroScene9: 40 frames a 120 px/s -> 80 px: 48->128)
+				player.anim_mode = PlayerController.AnimMode.SWIM_SURFACE
+				player.current_direction = PlayerController.Direction.RIGHT
+				player.queue_redraw()
+				print("INTRO_CUTSCENE: Briefing encerrado. Caminhando pela água rumo ao centro da sala (128, 168)")
 
 		State.SCENE_9_SWIM_RIGHT:
 			state_timer_sec = maxf(0.0, state_timer_sec - delta)
@@ -227,6 +232,9 @@ func tick(player: PlayerController, delta: float = 1.0 / 60.0) -> void:
 func on_radio_finished() -> void:
 	if current_state in [State.SCENE_6_RADIO_WAIT, State.SCENE_7_RADIO_READING]:
 		current_state = State.SCENE_8_RADIO_CLOSED
+		# logic/introscene.asm:227-228: IntroScene8 define IntroSceneCnt = 0x28 (40 frames = 0.667s)
+		state_counter = 0x28 # Pausa antes de começar a nadar
+
 
 func _finish_intro(player: PlayerController) -> void:
 	current_state = State.FINISHED

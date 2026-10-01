@@ -149,6 +149,11 @@ func revive() -> void:
 	print("PLAYER_REVIVE: Snake revivido e controles liberados (Vida: %d/%d)" % [life, max_life])
 
 static var _msx_texture: Texture2D = null
+## Textura branca para SprWaterShadow/SprWaterShadow2 (AnimMode.DEEP_WATER).
+## Fiel à WaterShadowAttr (data/playersprite.asm:112-116):
+##   cor sprite 1 = 0x0E (cinza claro), cor sprite 2 = 0x0F (branco MSX2 = #FFFFFF).
+## No MSX2 sprites são monocromáticos — o padrão de bits é pintado pela tabela de cores.
+static var _water_shadow_texture: Texture2D = null
 static var _checked_texture: bool = false
 
 static func load_msx_texture() -> void:
@@ -162,6 +167,18 @@ static func load_msx_texture() -> void:
 		if img != null and not img.is_empty():
 			_msx_texture = ImageTexture.create_from_image(img)
 			print("PLAYER: Spritesheet autêntico MSX2 carregado com sucesso! (64x384 px)")
+			# Gera variante branca para SprWaterShadow (WaterShadowAttr: cor 0x0F = branco MSX2).
+			# Converte todos os pixels visíveis para branco (#FFFFFF) preservando o canal alpha.
+			var white_img: Image = img.duplicate()
+			white_img.convert(Image.FORMAT_RGBA8)
+			for wy: int in range(white_img.get_height()):
+				for wx: int in range(white_img.get_width()):
+					var c: Color = white_img.get_pixel(wx, wy)
+					if c.a > 0.0:
+						white_img.set_pixel(wx, wy, Color(1.0, 1.0, 1.0, c.a))
+			_water_shadow_texture = ImageTexture.create_from_image(white_img)
+			print("PLAYER: Textura branca SprWaterShadow gerada (WaterShadowAttr 0x0F).")
+
 
 func _get_msx_sprite_rect() -> Rect2:
 	if is_dead:
@@ -393,9 +410,16 @@ func _draw() -> void:
 		var dest_rect := Rect2(-8.0, -24.0, 16.0, 32.0)
 		if anim_mode == AnimMode.DEEP_WATER:
 			dest_rect = Rect2(-8.0, -8.0, 16.0, 16.0)
+			# SprWaterShadow/SprWaterShadow2: WaterShadowAttr cor 0x0F = branco (data/playersprite.asm:112-116)
+			# Usa _water_shadow_texture (pixels convertidos para branco) se disponível
+			var tex := _water_shadow_texture if _water_shadow_texture != null else _msx_texture
+			draw_texture_rect_region(tex, dest_rect, src_rect)
 		elif anim_mode == AnimMode.SWIM_SURFACE:
 			dest_rect = Rect2(-8.0, -10.0, 16.0, 16.0)
-		draw_texture_rect_region(_msx_texture, dest_rect, src_rect)
+			draw_texture_rect_region(_msx_texture, dest_rect, src_rect)
+		else:
+			draw_texture_rect_region(_msx_texture, dest_rect, src_rect)
+
 
 		# Clarão de disparo (muzzle flash) quando atirando com arma de fogo
 		if shoot_timer > 0:

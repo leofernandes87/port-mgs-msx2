@@ -2822,3 +2822,39 @@ Após revisão do usuário, verificou-se que a versão inicial de `capture_cutsc
   - Todos os testes Python: 90 PASS
   - Todas as suítes headless Godot 4: 27 PASS (incluindo `godot-capture-prison`: 173 testes)
 
+
+---
+
+## 2026-10-01 — Correções na Cena de Abertura (Intro Cutscene)
+
+### Evidências Assembly (PASSO ZERO)
+
+**Bug 1 — Cor branca do sprite de mergulho (DEEP_WATER):**
+- `data/playersprite.asm:112-116` — `WaterShadowAttr`: sprite 2 cor = `0x0F` = **branco MSX2** (`#FFFFFF`). No MSX2, sprites são monocromáticos e pintados pela tabela de cores; o PNG extraído continha pixels azulados por interpretação incorreta de paleta.
+- `data/playersprite.asm:66-69` — `SnakeSprAttIds[37] = 4` → `idxSnakeSprAttr[4]` = `WaterShadowAttr`.
+- `Banks0123.asm:9841` — `SetSprDeepWater`: IDs 37 e 38 (`SprWaterShadow`, `SprWaterShadow2`).
+
+**Bug 2 — Pausa de 40 frames após fechar o rádio (antes de nadar):**
+- `logic/introscene.asm:227-228` — `IntroScene8`: `ld a, 28h` / `ld (IntroSceneCnt), a` → 40 frames (0.667s) de pausa entre fechar o transceptor e Snake começar a nadar para a grade.
+- A implementação anterior transitava de `SCENE_8_RADIO_CLOSED` para `SCENE_9_SWIM_RIGHT` imediatamente, sem pausa.
+
+### Alterações Realizadas
+
+1. **`godot/scripts/systems/player.gd`**:
+   - Adicionada `_water_shadow_texture` (variável estática): cópia do `snake_msx.png` com todos os pixels visíveis convertidos para `Color(1.0, 1.0, 1.0, alpha)` (branco), preservando transparência.
+   - `_draw()` modo `DEEP_WATER`: usa `_water_shadow_texture` ao invés de `_msx_texture` → sprite branco fiel à `WaterShadowAttr` cor `0x0F`.
+
+2. **`godot/scripts/systems/intro_cutscene.gd`**:
+   - `on_radio_finished()`: inicializa `state_counter = 0x28` (40 frames) ao entrar em `SCENE_8_RADIO_CLOSED`.
+   - `SCENE_8_RADIO_CLOSED` no `tick()`: aguarda os 40 frames decotando `state_timer_sec` antes de avançar para `SCENE_9_SWIM_RIGHT`.
+
+3. **`godot/tests/intro_cutscene_test.gd`**:
+   - Testes de `SCENE_8` atualizados: verificam pausa de 40 frames antes da transição para `SCENE_9`.
+
+### Verificação Automatizada
+
+- `python3 tools/validate.py`: **100% PASS** (exit code 0)
+  - `godot-intro-cutscene`: PASS
+  - Todos os 90 testes Python PASS
+  - Todas as 27 suítes Godot PASS
+
