@@ -1,147 +1,98 @@
 extends SceneTree
 
-## Teste de Integração Headless da Cutscene de Abertura / Infiltração na Água e Grade (MSX2 Sala 121)
+var failures: int = 0
 
 func _init() -> void:
-	print("--- TESTE DA CUTSCENE DE ABERTURA / INFILTRAÇÃO NA ÁGUA (MSX2 SALA 121) ---")
 	call_deferred("_run_tests")
 
-func _assert_true(cond: bool, msg: String) -> void:
-	if not cond:
-		printerr("FALHA: %s" % msg)
-		quit(1)
-	print("  PASS: %s" % msg)
+func _assert_true(condition: bool, message: String) -> void:
+	if not condition:
+		failures += 1
+		printerr("FAIL: " + message)
+
+func _advance(intro: IntroCutscene, player: PlayerController, calls: int) -> void:
+	for index: int in range(calls):
+		intro.tick(player, 1.0 / 30.0)
+
+func _synthetic_collision(player: PlayerController) -> void:
+	# Obstáculos próprios: duas barreiras com alturas/colunas distintas.
+	# Exercitam colisão na aproximação, sem incorporar tiles/bytes do jogo.
+	var grid: Array = []
+	grid.resize(768)
+	grid.fill(0)
+	for x: int in [5, 6]: grid[19 * 32 + x] = 1
+	for x: int in [15, 16]: grid[15 * 32 + x] = 1
+	player.set_collision_grid(grid)
 
 func _run_tests() -> void:
-	# 1. Configuração do Player e IntroCutscene
 	var player := PlayerController.new()
 	var intro := IntroCutscene.new()
-
-	_assert_true(intro.current_state == IntroCutscene.State.INACTIVE, "Estado inicial deve ser INACTIVE")
-	_assert_true(not intro.is_active, "Intro não deve estar ativa inicialmente")
-
-	# 2. Iniciar Intro
-	intro.start_intro(player)
-	_assert_true(intro.is_active, "Intro deve estar ativa após start_intro")
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_1_DIVE_LEFT, "Estado inicial deve ser SCENE_1_DIVE_LEFT")
-	_assert_true(player.position == Vector2(192.0, 184.0), "Spawn de mergulho inicial em (192, 184)")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.DEEP_WATER, "Modo de animação inicial deve ser DEEP_WATER")
-	_assert_true(not player.can_control, "Controles do jogador devem estar bloqueados")
-
-	# 3. Execução de State 1: Nado submerso para Oeste (64 ticks)
-	for i in range(64):
-		intro.tick(player)
-
-	_assert_true(is_equal_approx(player.position.x, 128.0), "Snake deve ter nadado até X = 128")
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_2_EMERGE_WAIT, "Deve transitar para SCENE_2_EMERGE_WAIT")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake deve emergir (SWIM_SURFACE)")
-	_assert_true(player.current_direction == PlayerController.Direction.UP, "Snake deve encarar o complexo ao Norte (UP)")
-
-	# 4. State 2: Espera na superfície (48 ticks) e submergir
-	for i in range(48):
-		intro.tick(player)
-
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_3_DIVE_LEFT, "Deve transitar para SCENE_3_DIVE_LEFT")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.DEEP_WATER, "Deve submergir novamente em DEEP_WATER")
-
-	# 5. State 3 & 4: Nado submerso até (48, 152)
-	for i in range(80): # SCENE_3 (80 ticks)
-		intro.tick(player)
-	_assert_true(is_equal_approx(player.position.x, 48.0), "Snake deve alcançar X = 48")
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_4_DIVE_NORTH, "Deve transitar para SCENE_4_DIVE_NORTH")
-
-	for i in range(16): # SCENE_4 (16 ticks: 184 -> 168)
-		intro.tick(player)
-	_assert_true(is_equal_approx(player.position.y, 168.0), "Snake deve subir até Y = 168")
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_5_EMERGE_WAIT, "Deve emergir em SCENE_5_EMERGE_WAIT")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake deve emergir (SWIM_SURFACE)")
-	_assert_true(player.current_direction == PlayerController.Direction.RIGHT, "Snake deve olhar para a direita (RIGHT)")
-
-	# 6. State 5: Espera e chamada do rádio
-	var captured := {
-		"radio_received": false,
-		"briefing_pages": []
-	}
+	_synthetic_collision(player)
+	var finished: Array[int] = [0]
+	var radio: Array[int] = [0]
+	intro.intro_finished.connect(func() -> void: finished[0] += 1)
 	intro.radio_requested.connect(func(pages: Array[String]) -> void:
-		captured["radio_received"] = true
-		captured["briefing_pages"] = pages
+		radio[0] += 1
+		_assert_true(pages.size() == 4, "Briefing preservado")
 	)
-
-	for i in range(64):
-		intro.tick(player)
-
-	_assert_true(bool(captured["radio_received"]), "Sinal radio_requested deve ser emitido")
-	var pages_res: Array = captured["briefing_pages"]
-	_assert_true(pages_res.size() == 4, "Briefing deve conter 4 páginas autênticas de Big Boss")
-	_assert_true("INTRUDE N313" in String(pages_res[0]), "Página 1 deve conter OPERATION INTRUDE N313")
-	_assert_true("METAL GEAR" in String(pages_res[1]), "Página 2 deve citar METAL GEAR")
-	_assert_true("GREY FOX" in String(pages_res[2]), "Página 3 deve citar GREY FOX")
-	_assert_true("120.85" in String(pages_res[3]), "Página 4 deve citar a frequência 120.85")
-
-
-	# Simula término do rádio
-	intro.on_radio_finished()
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_8_RADIO_CLOSED, "Estado após rádio deve ser SCENE_8_RADIO_CLOSED")
-
-	# 7. State 8: Pausa de 40 frames após fechar o rádio (introscene.asm:227-228: IntroSceneCnt=0x28)
-	_assert_true(intro.state_counter == 0x28, "Pausa pós-rádio deve ser inicializada com 0x28 (40 frames)")
-
-	# Simula 39 ticks: ainda deve estar em SCENE_8
-	for i in range(39):
-		intro.tick(player)
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_8_RADIO_CLOSED, "Deve permanecer em SCENE_8 durante os 40 frames de pausa")
-
-	# 40º tick: transita para SCENE_9
-	intro.tick(player)
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_9_SWIM_RIGHT, "Estado de nado à cerca deve ser SCENE_9_SWIM_RIGHT após 40 frames")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake permanece na superfície da água (SWIM_SURFACE) ao sair do rádio")
-
-	for i in range(40):
-		intro.tick(player)
-	_assert_true(is_equal_approx(player.position.x, 128.0), "Snake alcançou o centro em X = 128")
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_10_SWIM_NORTH, "Estado de aproximação vertical deve ser SCENE_10_SWIM_NORTH")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE, "Snake continua na superfície da água (SWIM_SURFACE) ao virar para o norte")
-
-	for i in range(32): # SCENE_10 (32 ticks: 168 -> 136)
-		intro.tick(player)
-	_assert_true(is_equal_approx(player.position.x, 128.0), "Snake permaneceu centralizado em X = 128")
-	_assert_true(is_equal_approx(player.position.y, 136.0), "Snake chegou à base da cerca em Y = 136")
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_11_CLIMB, "Deve iniciar escalada da cerca (SCENE_11_CLIMB)")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.CLIMB, "Animação de escalada deve estar ativa (CLIMB)")
-
-	# 8. State 11: Escalada da cerca (28 ticks até Y = 102)
-	for i in range(28):
-		intro.tick(player)
-	_assert_true(is_equal_approx(player.position.x, 128.0), "Escalada deve ocorrer estritamente em X = 128")
-	_assert_true(is_equal_approx(player.position.y, 102.0), "Snake deve chegar ao topo da grade em Y = 102")
-	_assert_true(intro.current_state == IntroCutscene.State.SCENE_12_BOUNCE, "Deve iniciar salto para terra firme (SCENE_12_BOUNCE)")
-
-	# 9. State 12: Salto e aterrissagem em terra firme (12 ticks)
-	captured["finished_emitted"] = false
-	intro.intro_finished.connect(func() -> void:
-		captured["finished_emitted"] = true
-	)
-
-	for i in range(12):
-		intro.tick(player)
-
-	_assert_true(bool(captured["finished_emitted"]), "Sinal intro_finished deve ser emitido")
-
-	_assert_true(intro.current_state == IntroCutscene.State.FINISHED, "Estado final deve ser FINISHED")
-	_assert_true(not intro.is_active, "Intro não deve estar mais ativa")
-	_assert_true(player.position == Vector2(128.0, 80.0), "Snake deve aterrissar em terra firme em (128, 80)")
-	_assert_true(player.anim_mode == PlayerController.AnimMode.NORMAL, "Modo de animação deve ser restaurado para NORMAL")
-	_assert_true(player.can_control, "Controle total deve ser entregue ao jogador")
-
-	# 10. Teste de Skip Imediato
 	intro.start_intro(player)
-	_assert_true(intro.is_active, "Intro reativada")
-	_assert_true(player.position == Vector2(192.0, 184.0), "Posição inicial reiniciada em (192, 184)")
+	_assert_true(not player.can_control, "Intro bloqueia controle")
+	# Dois frames de renderização a 60 Hz por chamada lógica.
+	intro.tick(player, 1.0 / 60.0)
+	_assert_true(player.position.x == 192.0 and intro.state_counter == 64, "Meio passo não avança lógica")
+	intro.tick(player, 1.0 / 60.0)
+	_assert_true(player.position.x == 191.0 and intro.state_counter == 63, "Segundo meio passo avança um pixel")
+	_advance(intro, player, 62)
+	_assert_true(player.position == Vector2(129, 184), "63 deslocamentos no primeiro mergulho")
+	_advance(intro, player, 1)
+	_assert_true(player.position == Vector2(129, 184) and intro.state_counter == 48, "Tick de transição não move")
+	_advance(intro, player, 48 + 80)
+	_assert_true(player.position == Vector2(50, 184) and intro.state_counter == 32, "Segundo mergulho e contador norte")
+	_advance(intro, player, 32)
+	_assert_true(player.position == Vector2(50, 165), "Aproximação para na colisão, não em coordenada imposta")
+	_advance(intro, player, 64)
+	_assert_true(radio[0] == 1 and intro.current_state == IntroCutscene.State.SCENE_6_RADIO_WAIT, "Rádio solicitado uma vez")
+	intro.tick(player, 100.0)
+	_assert_true(player.position == Vector2(50, 165), "Tempo no rádio não movimenta Snake")
+	intro.on_radio_finished()
+	_advance(intro, player, 1)
+	_assert_true(intro.current_state == IntroCutscene.State.SCENE_9_SWIM_RIGHT and intro.state_counter == 40, "Saída prepara movimento sem pausa extra")
+	_advance(intro, player, 1)
+	_assert_true(player.position.x == 52.0, "Movimento começa na primeira chamada de Scene9")
+	_advance(intro, player, 39)
+	_assert_true(player.position == Vector2(128, 165) and intro.state_counter == 48, "39 movimentos à direita, 48 chamadas ao norte")
+	_advance(intro, player, 16)
+	_assert_true(player.position == Vector2(128, 133) and intro.state_counter == 32, "Chega à grade com contador ainda ativo")
+	_advance(intro, player, 31)
+	_assert_true(player.position == Vector2(128, 133), "Colisão mantém posição durante a espera")
+	_assert_true(player.anim_mode == PlayerController.AnimMode.SWIM_SURFACE and intro.state_counter == 1, "Não escala antes de zerar contador")
+	_advance(intro, player, 1)
+	_assert_true(player.position == Vector2(128, 136) and intro.state_counter == 28, "Reposicionamento só ao iniciar escalada")
+	_assert_true(player.anim_mode == PlayerController.AnimMode.CLIMB, "Animação da escalada")
+	_advance(intro, player, 27)
+	_assert_true(player.position.y == 109.0, "Escalada: 27 movimentos de um pixel sem colisão")
+	_advance(intro, player, 1)
+	_assert_true(player.position.y == 102.0, "Topo reposicionado pela transição original")
+	# Valores esperados por chamada, independentes do loop de implementação.
+	for y: int in [100, 100, 95, 95, 90, 90, 88, 88, 86, 86, 87, 87]:
+		_advance(intro, player, 1)
+		_assert_true(player.position.y == float(y), "Bounce discreto Y=%d" % y)
+	_assert_true(not player.can_control and finished[0] == 0, "Scene13 ainda deve liberar controle")
+	_advance(intro, player, 1)
+	_assert_true(player.can_control and not intro.is_active and finished[0] == 1, "Fim natural emite uma vez")
+	_assert_true(player.position == Vector2(128, 87), "Fim natural não teleporta")
+	intro.tick(player, 1.0)
+	_assert_true(finished[0] == 1, "Fim não repete sinal")
+	intro.start_intro(player)
+	intro.tick(player, 1.0 / 60.0)
 	intro.skip_intro(player)
-	_assert_true(not intro.is_active, "Intro deve ser desativada após skip")
-	_assert_true(player.position == Vector2(128.0, 80.0), "Skip deve colocar Snake instantaneamente em (128, 80)")
-	_assert_true(player.can_control, "Controles devem estar liberados após skip")
-
+	_assert_true(player.position == Vector2(128, 87) and player.can_control, "Skip usa destino final")
+	intro.start_intro(player)
+	intro.tick(player, 1.0 / 60.0)
+	_assert_true(player.position.x == 192.0, "Replay limpa fração de tempo anterior")
+	intro.skip_intro(player)
+	_test_chunking()
+	_test_collision_controls_wait()
 	# 11. Validação de Renderização Segura do RadioDialog durante Briefing (Evitar 'is_send_mode on Nil')
 	var r_dialog := RadioDialog.new()
 	root.add_child(r_dialog)
@@ -163,7 +114,48 @@ func _run_tests() -> void:
 	r_dialog.queue_free()
 	await process_frame
 
-	print("INTRO_CUTSCENE_INTEGRATION_OK: Todos os 13 estados da abertura, nado, rádio, escalada e skip validados com 100% de sucesso!")
+
 	player.free()
 	intro.free()
+	if failures != 0:
+		printerr("INTRO_TEST_FAILURES: %d" % failures)
+		quit(1)
+		return
+	print("INTRO_CUTSCENE_INTEGRATION_OK: contadores, colisão, espera, tempo e bounce verificados")
 	quit(0)
+
+func _test_chunking() -> void:
+	# Mesmo resultado com 60/120 Hz e chunks grandes; sem perda de tempo residual.
+	var reference: Vector2
+	for rate: int in [30, 60, 120]:
+		var p := PlayerController.new()
+		var cut := IntroCutscene.new()
+		_synthetic_collision(p)
+		cut.start_intro(p)
+		for index: int in range(rate * 3): cut.tick(p, 1.0 / float(rate))
+		if rate == 30: reference = p.position
+		_assert_true(p.position == reference and cut.state_counter == 22, "Cadência independe de fps %d" % rate)
+		p.free()
+		cut.free()
+	var player := PlayerController.new()
+	var intro := IntroCutscene.new()
+	_synthetic_collision(player)
+	intro.start_intro(player)
+	intro.tick(player, 3.0)
+	_assert_true(player.position == reference and intro.state_counter == 22, "Chunk atravessa transição sem descartar tempo")
+	player.free()
+	intro.free()
+
+func _test_collision_controls_wait() -> void:
+	var player := PlayerController.new()
+	var intro := IntroCutscene.new()
+	intro.start_intro(player)
+	player.position = Vector2(128, 165)
+	player.anim_mode = PlayerController.AnimMode.SWIM_SURFACE
+	intro.current_state = IntroCutscene.State.SCENE_10_SWIM_NORTH
+	intro.state_counter = 48
+	_advance(intro, player, 20)
+	_assert_true(player.position.y == 125.0, "Sem obstáculo, não existe pausa hardcoded em Y=133/136")
+	_assert_true(intro.current_state == IntroCutscene.State.SCENE_10_SWIM_NORTH, "Transição depende do contador, não da chegada")
+	player.free()
+	intro.free()

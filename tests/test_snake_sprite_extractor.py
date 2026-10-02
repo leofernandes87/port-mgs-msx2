@@ -60,21 +60,20 @@ class SnakeSpriteExtractorTests(unittest.TestCase):
         self.assertEqual(grid[0][3], PALETTE[0])
 
     def test_decode_shadow_to_pixels(self):
-        # Cria 64 bytes sintéticos para sombra subaquática
+        # Synthetic pixels: overlapping sprites, first only, second only, neither.
+        # No CC flag in WaterShadowAttr: overlap must keep sprite 0 white.
         raw = [0] * 64
-        raw[0] = 0b11000000  # p0
-        raw[32] = 0b10100000 # p1
+        raw[0] = raw[16] = 0b11000000
+        raw[32] = raw[48] = 0b10100000
         grid = decode_shadow_to_pixels(raw)
-        self.assertEqual(len(grid), 32)
-        self.assertEqual(len(grid[0]), 16)
-        # Pixel 0: b0=1, b1=1 -> Cor 16 (Color Compare)
-        self.assertEqual(grid[0][0], WATER_SHADOW_PALETTE[16])
-        # Pixel 1: b0=1, b1=0 -> Cor 14 (Ondulação ciano)
-        self.assertEqual(grid[0][1], WATER_SHADOW_PALETTE[14])
-        # Pixel 2: b0=0, b1=1 -> Cor 15 (Silhueta escura)
-        self.assertEqual(grid[0][2], WATER_SHADOW_PALETTE[15])
-        # Linha inferior (16..31) deve ser transparente
-        self.assertEqual(grid[20][0], (0, 0, 0, 0))
+        self.assertEqual((len(grid), len(grid[0])), (32, 16))
+        expected = [(255, 255, 255, 255), (255, 255, 255, 255),
+                    (0, 0, 0, 255), (0, 0, 0, 0)]
+        for start in (0, 8):
+            self.assertEqual(grid[0][start:start + 4], expected)
+        self.assertTrue(all(pixel == (0, 0, 0, 0)
+                            for row in grid[16:] for pixel in row))
+        self.assertEqual(set(WATER_SHADOW_PALETTE), {0, 14, 15})
 
     def test_decode_water_to_pixels(self):
         # Cria 64 bytes sintéticos para Snake nadando na superfície

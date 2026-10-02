@@ -166,11 +166,14 @@ def decode_frame_to_pixels(unpacked_bytes: list) -> list:
 
     return grid
 
+# external/MetalGear/data/playersprite.asm:112-116: colors 0x0E/0x0F,
+# both with CC=0. The first sprite wins overlap (VDP sprite priority).
+# Banks0123.asm:11914-11916 applies PalMenuWeapon before room/sprite patches;
+# data/palettes.asm:8-9 maps 14 to RGB3 (7,7,7), 15 to (0,0,0).
 WATER_SHADOW_PALETTE = {
-    0: (0, 0, 0, 0),             # Transparente
-    14: (38, 111, 147, 220),     # Ondulação ciano da água (translúcido)
-    15: (18, 30, 40, 230),       # Silhueta escura de mergulho
-    16: (10, 16, 22, 255),       # Color Compare (14 e 15 = Preto azulado subaquático)
+    0: (0, 0, 0, 0),
+    14: (255, 255, 255, 255),
+    15: (0, 0, 0, 255),
 }
 
 def decode_shadow_to_pixels(unpacked_bytes: list) -> list:
@@ -187,13 +190,13 @@ def decode_shadow_to_pixels(unpacked_bytes: list) -> list:
             x = 7 - bit
             b0 = (lb0 >> bit) & 1
             b1 = (lb1 >> bit) & 1
-            col = 16 if (b0 and b1) else (14 if b0 else (15 if b1 else 0))
+            col = 14 if b0 else (15 if b1 else 0)
             grid[y][x] = WATER_SHADOW_PALETTE[col]
         for bit in range(8):
             x = 15 - bit
             b0 = (rb0 >> bit) & 1
             b1 = (rb1 >> bit) & 1
-            col = 16 if (b0 and b1) else (14 if b0 else (15 if b1 else 0))
+            col = 14 if b0 else (15 if b1 else 0)
             grid[y][x] = WATER_SHADOW_PALETTE[col]
     return grid
 

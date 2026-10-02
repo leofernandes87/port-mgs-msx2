@@ -2858,3 +2858,45 @@ Após revisão do usuário, verificou-se que a versão inicial de `capture_cutsc
   - Todos os 90 testes Python PASS
   - Todas as 27 suítes Godot PASS
 
+
+## 2026-10-01 — Correção fundamentada das cores do mergulho
+
+Revisada a queixa de cores na chegada de Snake. A afirmação da entrada anterior (“0x0F = branco MSX2” nesta cena) estava errada: os índices são programáveis. `data/playersprite.asm:112–116` usa cores 14/15 com CC=0, e `data/palettes.asm:8–9`, aplicada por `Banks0123.asm:11914–11916`, define **14 branco e 15 preto**. Detalhes, linhas, revisão e offsets binários em [intro-water-colors.md](reverse_engineering/intro-water-colors.md).
+
+Removida recoloração global para branco em `player.gd`. Corrigido `decode_shadow_to_pixels` para cores opacas e prioridade do primeiro sprite, sem OR/cor 16 inventada. Teste sintético atualizado para valores RGBA explícitos e sobreposição. Regenerado somente o asset privado existente; backup em `data/extracted/intro-water-colors-20261001/`. Dos pixels da folha, apenas 206 nos dois quadros de mergulho mudaram; todo o restante ficou idêntico. Nenhuma mecânica/temporização alterada.
+
+Validação real: 6 testes específicos OK; `python3 tools/validate.py` código 0, **90 testes Python OK**, importação e todas as etapas Godot PASS. Renderização gráfica dos dois quadros: **512 pixels coincidentes** com a extração, preservando branco/preto e transparência apenas fora da figura. Log e screenshots privados em reports/, descritos no relatório. Primeiro run do validador falhou no sandbox por acesso a Library; tentativa gráfica encerrou em 134; repetições autorizadas passaram. Não realizada nova captura da intro no openMSX.
+
+Blocos de sprites/atributos coincidiram em ocorrência única na ROM principal; hashes das duas ROMs preservados. Git iniciou limpo; apenas código próprio, teste e documentação alterados, sem commit. Asset/backup/logs continuam ignorados. Próxima verificação possível: frame sincronizado da abertura no emulador e paleta do nado na superfície, sem declarar a cutscene inteira 100% fiel com estes testes.
+
+## 2026-10-01 — Análise original da pausa antes de escalar a grade
+
+Atendida a solicitação de verificar a abertura após desligar o transceptor. Consultado assembly antes de instrumentar; **nenhuma alteração de gameplay nesta análise**. Relatório: [intro-fence-timing.md](reverse_engineering/intro-fence-timing.md).
+
+Confirmado em openMSX 21.0/C-BIOS_MSX2_JP, ROM principal preservada: Snake chega por colisão a (128,133), permanece cerca de **1,069 s**, e somente ao zerar IntroSceneCnt é reposicionado para Y=136 e entra em escalada. `logic/introscene.asm:264–299` programa 48 chamadas para aproximação; a colisão interrompe o deslocamento sem encerrar o contador. O Godot usa 32 chamadas e transita ao chegar, suprimindo a espera.
+
+Descobertas adicionais: `IntroScene8:224–235` prepara 0x28 para o movimento à direita, não uma pausa de 40 chamadas parado (corrige a interpretação registrada anteriormente). Cadência medida perto de 30 Hz nessa sequência, não os 60 Hz pressupostos pelo GDScript: direita 1,335 s, norte 1,603 s, escalada 0,935 s, bounce 0,401 s. Original chega ao rádio em (50,165), termina bounce em (128,87); implementação usa (48,168)/(128,80). Não generalizar a cadência medida a todo o jogo/hardware.
+
+Captura somente leitura na entrada de IntroSceneLogic, CPU 0xAE8F/banco 9/offset 0x12E8F, âncora binária única conferida. Teclado usado apenas para início/texto; sem escrita em RAM/VRAM/ROM/PC. Evidências ignoradas em `data/extracted/intro-timing-20261001/`; hashes das duas ROMs permaneceram iguais. Referência externa permanece no commit fixado e sem diff rastreado.
+
+`python3 tools/validate.py`: código 0, **90 testes Python e todas as etapas Godot PASS** (log `reports/intro-timing-validation.log`). Os testes da intro ainda validam os tempos/posições atuais incorretos, portanto PASS não comprova fidelidade. `git diff --check` passou. Alterações preexistentes da correção de cores preservadas; nenhum commit.
+
+Próxima tarefa: corrigir o sequenciamento discreto e colisão da intro a partir deste traço, revisar os testes que perpetuam a pausa artificial/32 chamadas/arco interpolado, e comparar posição e tempo novamente. Não acrescentar um atraso arbitrário em (128,136).
+
+## 2026-10-01 — Implementada correção do ritmo e da espera da abertura
+
+Após autorização “Pode implementar a correção”, reconsultado `logic/introscene.asm:32–166,224–391` e rotinas de movimento/colisão/animação em Banks0123.asm. `IntroCutscene` passou a usar contadores inteiros e acumulador nominal de 30 Hz restrito à abertura, conforme a captura anterior. Implementados decremento antes de movimento, colisão durante aproximação, 48 chamadas no trecho norte, subida de 1 pixel por chamada e bounce discreto. Removidas pausa artificial pós-rádio, interpolação da subida e aterrissagem imposta em Y=80. Fim natural em (128,87); skip acompanha esse destino.
+
+A posição de espera emerge da colisão da sala: (128,133) por cerca de 1,067 s nominais; somente depois ajusta Y=136 para escalar. Aproximação pré-rádio também corrigida para alimentar o trecho seguinte com as coordenadas reais. Relatório atualizado: [intro-fence-timing.md](reverse_engineering/intro-fence-timing.md).
+
+Testes sintéticos revisados, incluindo barreiras próprias, ausência de pausa hardcoded em sala sem colisão, contadores, bounce por chamada, skip/replay, equivalência 30/60/120 Hz e recuperação de tempo em deltas grandes. Criada integração opcional `godot/tests/intro_trace_integration.gd` com UID: **417 entradas da sala real coincidiram com o traço openMSX em estado, contador, posição e modo de animação**. Rádio/UI excluído explicitamente dessa comparação.
+
+`python3 tools/validate.py`: código 0, **90 testes Python e todas as etapas Godot PASS**. Depois do ajuste final do indicador de movimento bloqueado, testes focados e integração repetidos com sucesso. Logs em reports/intro-correction-*.log. Rodada focada inicial no sandbox encontrou erros de logger/certificados; repetições autorizadas sem esses erros. `git diff --check` passou.
+
+Limite: 30 Hz é aproximação nominal da cadência medida desta intro; não emula custo por ciclo do MSX. Fechamento/restauração do rádio segue a UI existente. Não alteradas ROMs, assets privados ou mecânicas globais nesta implementação. Alterações anteriores de cores preservadas; nenhum commit. Próxima verificação possível: fidelidade visual/temporal do transceptor, sons e quadros individuais, separada desta correção de movimento e espera.
+
+## 2026-10-01 — Registro das correções da abertura
+
+Autorizado commit e tag pelo usuário. Consolidado o escopo das entregas anteriores: cores dos dois quadros submersos, temporização/colisão/espera na grade, testes sintéticos, integração opcional e evidências. Mensagem escolhida no padrão Conventional Commits do histórico: `fix(intro): corrige cores e temporização da abertura MSX2`; versão local `v0.1.46` como próxima tag anotada da série v0.1.x.
+
+Validações aproveitadas das entregas imediatamente anteriores, sem novas mudanças de código: 90 testes Python e etapas Godot PASS; 417 entradas comparadas ao openMSX; 512 pixels dos quadros de mergulho conferidos. Revisão de candidatos e índice para excluir conteúdo protegido; ROMs, PNG privado, capturas e relatórios permanecem ignorados. Nenhum push solicitado. Próxima tarefa técnica permanece a verificação de transceptor/áudio/quadros individuais descrita acima.
