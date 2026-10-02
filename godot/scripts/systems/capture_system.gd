@@ -5,8 +5,8 @@ extends RefCounted
 ## Fundamentado na engenharia reversa da ROM MSX2 RC750:
 ## - logic/common.asm:26-47 (Gatilho de captura na Sala 8, PlayerX entre 0xC0 e 0xD0)
 ## - logic/capturescene.asm:87-118 (Confisco de equipamentos e spawn na cela 0x80, 0x50)
-## - logic/doors/opendoor.asm:300-320 (Detecção de 4 socos na parede oca)
-## - logic/doors/erasedoor.asm:380-384 (Quebra da parede e liberação de passagem)
+## - logic/doors/opendoor.asm:285-319 (Resistência decrementada durante o soco)
+## - logic/doors/erasedoor.asm:25,365-367,399-414 (Restauração do fundo da parede)
 ## - logic/items.asm:120-124, 295-325 e data/itemsinrooms.asm:155 (Item BAG e restituição)
 
 signal captured
@@ -22,23 +22,11 @@ const ROOM_PRISON: int = 211
 const ROOM_ADJACENT: int = 212
 const SPAWN_PRISON: Vector2 = Vector2(128.0, 80.0)  # 0x80, 0x50
 
-const HITS_REQUIRED: int = 4
-
-# Coordenadas dos tiles que compõem a parede quebrável (colunas 0-5, linhas 8-11 até a borda esquerda)
-const WALL_TILES: Array = [
-	Vector2i(0, 8), Vector2i(1, 8), Vector2i(2, 8), Vector2i(3, 8), Vector2i(4, 8), Vector2i(5, 8),
-	Vector2i(0, 9), Vector2i(1, 9), Vector2i(2, 9), Vector2i(3, 9), Vector2i(4, 9), Vector2i(5, 9),
-	Vector2i(0, 10), Vector2i(1, 10), Vector2i(2, 10), Vector2i(3, 10), Vector2i(4, 10), Vector2i(5, 10),
-	Vector2i(0, 11), Vector2i(1, 11), Vector2i(2, 11), Vector2i(3, 11), Vector2i(4, 11), Vector2i(5, 11)
-]
-
-# Coordenadas dos tiles correspondentes na borda direita da Sala 212 (colunas 26-31, linhas 8-11)
-const ADJACENT_WALL_TILES: Array = [
-	Vector2i(26, 8), Vector2i(27, 8), Vector2i(28, 8), Vector2i(29, 8), Vector2i(30, 8), Vector2i(31, 8),
-	Vector2i(26, 9), Vector2i(27, 9), Vector2i(28, 9), Vector2i(29, 9), Vector2i(30, 9), Vector2i(31, 9),
-	Vector2i(26, 10), Vector2i(27, 10), Vector2i(28, 10), Vector2i(29, 10), Vector2i(30, 10), Vector2i(31, 10),
-	Vector2i(26, 11), Vector2i(27, 11), Vector2i(28, 11), Vector2i(29, 11), Vector2i(30, 11), Vector2i(31, 11)
-]
+# Banks0123.asm:11797-11799; opendoor.asm:300-319 decrements each
+# qualifying game iteration, not once per button press.
+const WALL_LIFE: int = 0x28
+const WALL_TICK_SEC: float = 1.0 / 60.0 # Existing player punch clock (8 ticks).
+var wall_tick_accumulator: float = 0.0
 
 # Estado global da mecânica
 var is_captured: bool = false
@@ -46,7 +34,10 @@ var capture_occurred: bool = false
 var equip_bag_taken: bool = false
 var wall_hit_counter: int = 0
 var wall_broken: bool = false
-var wall_punch_active: bool = false
+# Separate PrisonWall2Life for Door 12: opendoor.asm:307-316.
+var south_wall_hit_counter: int = 0
+var south_wall_broken: bool = false
+var south_wall_tick_accumulator: float = 0.0
 
 # Vetores de backup do inventário e arsenal
 var backup_items: Array[String] = []
@@ -72,7 +63,7 @@ func execute_capture(inventory: InventoryManager, weapon_system: WeaponSystem) -
 	capture_occurred = true
 	wall_hit_counter = 0
 	wall_broken = false
-	wall_punch_active = false
+	wall_tick_accumulator = 0.0
 
 	# Backup do inventário
 	backup_items.clear()
@@ -106,51 +97,50 @@ func execute_capture(inventory: InventoryManager, weapon_system: WeaponSystem) -
 	captured.emit()
 	print("CAPTURE_EVENT: Solid Snake foi emboscado e capturado na Sala 8! Equipamentos confiscados.")
 
-## Monitora se o soco de Snake atinge as coordenadas da parede oca da Sala 211
-## Suporta chamada flexível: (pos, dir, is_punching, timer) ou compatibilidade com (pos, dir, timer)
-func check_wall_punch(player_pos: Vector2, direction: int, is_punching_or_timer: Variant = true, legacy_timer: int = 8) -> bool:
-	if wall_broken:
+## One original ChkPrisonWalls invocation; right side uses render type 15.
+## DoorOpenEnterDat: data/doors.asm:28-29,724-728; half-open bounds.
+func check_wall_punch(player_pos: Vector2, direction: int, punching: bool, render_type: int = 14) -> bool:
+	var south: bool = render_type in [12, 13]
+	if (south_wall_broken if south else wall_broken) or not punching:
 		return false
-
-	var punching: bool = false
-	var timer: int = 8
-	if typeof(is_punching_or_timer) == TYPE_BOOL:
-		punching = bool(is_punching_or_timer)
-		timer = legacy_timer
-	elif typeof(is_punching_or_timer) == TYPE_INT:
-		timer = int(is_punching_or_timer)
-		punching = (timer > 0)
-
-	if not punching:
-		wall_punch_active = false
+	var expected_dir: int = PlayerController.Direction.LEFT if render_type == 14 else PlayerController.Direction.RIGHT
+	var area := Rect2(32, 64, 26, 16) if render_type == 14 else Rect2(198, 64, 26, 16)
+	if south:
+		expected_dir = PlayerController.Direction.DOWN if render_type == 13 else PlayerController.Direction.UP
+		area = Rect2(104, 142, 16, 18) if render_type == 13 else Rect2(104, 160, 16, 8)
+	if direction != expected_dir or not area.has_point(player_pos):
 		return false
-
-	if wall_punch_active:
-		return false
-
-	# Snake deve estar de frente para a parede esquerda (Direction.LEFT = 3)
-	if direction != PlayerController.Direction.LEFT:
-		return false
-
-	# Posição de Snake adjacente à parede oca interna da cela
-	# Cobre confortavelmente a aproximação de Snake na parede esquerda
-	if player_pos.x < 32.0 or player_pos.x > 76.0:
-		return false
-	if player_pos.y < 56.0 or player_pos.y > 96.0:
-		return false
-
-	wall_punch_active = true
+	if south:
+		south_wall_hit_counter += 1
+		south_wall_broken = south_wall_hit_counter == WALL_LIFE
+		return true
 	wall_hit_counter += 1
-	if wall_hit_counter >= HITS_REQUIRED:
+	if wall_hit_counter == WALL_LIFE:
 		wall_broken = true
 		wall_broken_signal.emit()
-		print("PRISON_WALL_BROKEN: Parede oca destruída após %d acertos! Caminho de fuga aberto." % wall_hit_counter)
 	else:
-		var remaining: int = HITS_REQUIRED - wall_hit_counter
-		wall_damaged.emit(wall_hit_counter, remaining)
-		print("PRISON_WALL_HIT: Parede oca atingida! Acerto %d de %d (restam %d)." % [wall_hit_counter, HITS_REQUIRED, remaining])
-
+		wall_damaged.emit(wall_hit_counter, WALL_LIFE - wall_hit_counter)
 	return true
+
+## Consume only the active part of the punch, using the player's existing clock.
+## Called before player.step_tick so the initial PunchCnt=8 also contributes.
+func step_wall_punch(player_pos: Vector2, direction: int, remaining_sec: float, delta: float, render_type: int = 14) -> void:
+	var south: bool = render_type in [12, 13]
+	var accumulator: float = south_wall_tick_accumulator if south else wall_tick_accumulator
+	if remaining_sec <= 0.0:
+		accumulator = 0.0
+	else:
+		accumulator += minf(delta, remaining_sec)
+		while accumulator + 0.000001 >= WALL_TICK_SEC:
+			accumulator -= WALL_TICK_SEC
+			check_wall_punch(player_pos, direction, true, render_type)
+	if south:
+		south_wall_tick_accumulator = accumulator
+	else:
+		wall_tick_accumulator = accumulator
+
+func is_wall_broken(door_id: int) -> bool:
+	return south_wall_broken if door_id == 12 else wall_broken
 
 ## Restitui todo o inventário e armas a partir do vetor de backup ao coletar a bolsa
 func restore_equipment(inventory: InventoryManager, weapon_system: WeaponSystem) -> void:
@@ -200,7 +190,10 @@ func reset_state() -> void:
 	equip_bag_taken = false
 	wall_hit_counter = 0
 	wall_broken = false
-	wall_punch_active = false
+	south_wall_hit_counter = 0
+	south_wall_broken = false
+	south_wall_tick_accumulator = 0.0
+	wall_tick_accumulator = 0.0
 	backup_items.clear()
 	backup_rations_count = 0
 	backup_selected_item_index = -1

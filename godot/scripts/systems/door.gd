@@ -77,6 +77,9 @@ const PLAYER_IN_DOOR_DAT = {
 	11: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT}, # Parede Sala 63
 	12: {"offset_y": 40.0, "offset_x": 16.0, "direction": PlayerController.Direction.DOWN}, # Cela Basement (Sala 54 / 172)
 	13: {"offset_y": -8.0, "offset_x": 16.0, "direction": PlayerController.Direction.UP},    # Porta Saída Sul Cela (Sala 212/164)
+	# PlayerInDoorDat: logic/nextroom.asm:476-477.
+	14: {"offset_y": 48.0, "offset_x": 24.0, "direction": PlayerController.Direction.RIGHT},
+	15: {"offset_y": 48.0, "offset_x": -8.0, "direction": PlayerController.Direction.LEFT},
 	17: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT}, # Saída Sala 169
 	18: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT},
 	19: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT},

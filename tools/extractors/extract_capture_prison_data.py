@@ -32,17 +32,15 @@ SPAWN_X = 128        # 0x80
 SPAWN_Y = 80         # 0x50
 
 # Hollow wall trigger area (DoorOpenEnterDat render type 14)
-HITS_REQUIRED = 4
+WALL_LIFE = 0x28  # Banks0123.asm:11797-11799; decremented per punching iteration
 TRIGGER_X_MIN = 32   # 0x20
 TRIGGER_X_MAX = 58   # 0x20 + 0x1A
 TRIGGER_Y_MIN = 64   # 0x20 + 0x20
 TRIGGER_Y_MAX = 80   # 0x40 + 0x10
 
-# Tiles to clear when wall breaks (tile columns 4-5, rows 8-11)
-WALL_TILES = [
-    [4, 8], [4, 9], [4, 10], [4, 11],
-    [5, 8], [5, 9], [5, 10], [5, 11]
-]
+# The 3x13 block is restored from saved background, not cleared to floor.
+# data/doors.asm:1001-1015; erasedoor.asm:25,365-367,399-414.
+WALL_RECT = [32, 32, 24, 104]
 
 # Adjacent room and item bag
 ADJACENT_ROOM_ID = 212
@@ -87,12 +85,13 @@ def extract_capture_prison_data(rom_path: Path) -> dict:
             "spawn_direction": "UP"
         },
         "hollow_wall": {
-            "hits_required": HITS_REQUIRED,
+            "life_ticks": WALL_LIFE,
             "trigger_x_min": TRIGGER_X_MIN,
             "trigger_x_max": TRIGGER_X_MAX,
             "trigger_y_min": TRIGGER_Y_MIN,
             "trigger_y_max": TRIGGER_Y_MAX,
-            "wall_tiles": WALL_TILES
+            "wall_rect": WALL_RECT,
+            "on_break": "restore_saved_background"
         },
         "restitution_bag": {
             "room_id": ADJACENT_ROOM_ID,

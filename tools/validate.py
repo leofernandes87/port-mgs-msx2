@@ -43,6 +43,7 @@ def main():
         ("godot-gas-hazard", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/gas_hazard_test.gd"]),
         ("godot-remote-missile", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/remote_missile_test.gd"]),
         ("godot-capture-prison", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/capture_prison_test.gd"]),
+        ("godot-prison-wall", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/prison_wall_integration_test.gd"]),
         ("godot-electrified-floor", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/electrified_floor_test.gd"]),
         ("godot-elevator-guards", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/elevator_guard_test.gd"]),
         ("godot-room-007-patrol", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/room_007_patrol_test.gd"]),
@@ -100,6 +101,8 @@ def main():
             raise RuntimeError("Teste de míssil teleguiado não confirmou conclusão")
         if name == "godot-capture-prison" and "CAPTURE_PRISON_OK:" not in result.stdout:
             raise RuntimeError("Teste de captura e prisão não confirmou conclusão")
+        if name == "godot-prison-wall" and "PRISON_WALL_INTEGRATION_OK:" not in result.stdout:
+            raise RuntimeError("Teste da parede da prisão não confirmou conclusão")
         if name == "godot-electrified-floor" and "ELECTRIFIED_FLOOR_TEST_OK:" not in result.stdout:
             raise RuntimeError("Teste de pisos eletrificados não confirmou conclusão")
         if name == "godot-elevator-guards" and "ELEVATOR_GUARD_OK:" not in result.stdout:

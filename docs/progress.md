@@ -2900,3 +2900,35 @@ Limite: 30 Hz é aproximação nominal da cadência medida desta intro; não emu
 Autorizado commit e tag pelo usuário. Consolidado o escopo das entregas anteriores: cores dos dois quadros submersos, temporização/colisão/espera na grade, testes sintéticos, integração opcional e evidências. Mensagem escolhida no padrão Conventional Commits do histórico: `fix(intro): corrige cores e temporização da abertura MSX2`; versão local `v0.1.46` como próxima tag anotada da série v0.1.x.
 
 Validações aproveitadas das entregas imediatamente anteriores, sem novas mudanças de código: 90 testes Python e etapas Godot PASS; 417 entradas comparadas ao openMSX; 512 pixels dos quadros de mergulho conferidos. Revisão de candidatos e índice para excluir conteúdo protegido; ROMs, PNG privado, capturas e relatórios permanecem ignorados. Nenhum push solicitado. Próxima tarefa técnica permanece a verificação de transceptor/áudio/quadros individuais descrita acima.
+
+## 2026-10-02 — Parede original da cela de captura
+
+**Última tarefa executada:** substituir a parede ausente e a abertura artificial da passagem por implementação da porta 103 fundamentada no assembly. Evidências, offsets, comandos e limites em [prison-wall.md](reverse_engineering/prison-wall.md). A cela mantém o alias local 211 (original 165); a sala adjacente mantém 212 (original 164). “ROOM 2100” não é ID do contrato de salas.
+
+- Criado extrator reproduzível `tools/extractors/extract_prison_wall.py`; blocos da parede conferidos binariamente na ROM principal, incluindo gráficos, paleta e colisão. Dados reais somente em `data/extracted/prison-walls/`, ignorado. Nenhum desenho substituto criado.
+- `PrisonWallDoor` desenha o bloco original 24×104 na cela e 16×96 no lado oposto, salva a colisão do fundo e a restaura ao abrir. Removidos a pintura de retângulos com cor sólida e o corredor artificial até a borda.
+- Porta 103 deixa de ser excluída pelo filtro; travessia usa os retângulos originais e o emparelhamento por ID, com spawns (200,80) e (56,80). Estado de quebra compartilhado entre os lados e mantido na reentrada; reset recompõe a parede.
+- **Retificação de registros anteriores:** não há regra original de quatro pressionamentos. `PrisonWall1Life` inicia em 40 e perde um ponto a cada iteração válida no modo soco. Implementados os limites exatos de posição/direção. Cinco socos completos de oito iterações esgotam a resistência no teste integrado. O relógio de soco existente do jogador foi preservado.
+- Atualizados o exportador legado de metadados, seus testes e o resumo corrente de `docs/HANDOFF.md`; os relatos históricos da etapa 21 não servem como evidência da regra de quatro socos.
+
+**Validação real:** `python3 tools/validate.py` passou com 92 testes Python, importação Godot 4.7.2, todas as suítes Godot e boot. Captura/prisão: 190 verificações, zero falhas. Integração nova: aproximação caminhando, colisão, resistência, travessia, retorno, persistência e reset, zero falhas. Dados sintéticos verificam montagem de pixels/colisão, rejeição de dados incompletos, restauração do fundo e resultados em 30/60/120 Hz. Renderizador OpenGL: zero diferenças em 49.152 pixels de cada estado (fechado/aberto), contra a composição da extração; PNGs inspecionados visualmente em `reports/prison-wall-{closed,open}.png`. Log completo: `reports/prison-wall-validation.log`.
+
+Falhas intermediárias resolvidas: a primeira importação sob sandbox encontrou erros de certificados/configurações macOS; a execução autorizada fora da sandbox passou. A primeira suíte completa encontrou o teste legado que exigia `hits_required=4`; a expectativa foi corrigida para o contrato `life_ticks=40`/restauração do fundo e a suíte inteira foi repetida com sucesso.
+
+ROM principal preservada, SHA-256 `254ffcd94d9ba2322c00df88b21b33b338e3238b90962820bbcaa2bb621e18cf`. Git revisado, `git diff --check` sem problemas; ROM, JSONs extraídos e imagens de diagnóstico ignorados. Sem commit nesta entrega.
+
+**Próxima tarefa:** se for solicitado completar a fidelidade audiovisual desta interação, validar a cadência com captura dinâmica no openMSX e integrar os SFX originais 0x0A/0x1E à infraestrutura de áudio. Os sons não são reproduzidos atualmente; não foi feita nova captura de emulador nesta entrega. A posição da bolsa no alias 212 e a outra parede de Grey Fox não foram revalidadas por esta correção.
+
+## 2026-10-02 — Parede sul da sala 212
+
+**Última tarefa executada:** aplicada a mecânica original à parede sul da sala 212 (original 164), porta 12/tipo 13. Bloco original 32×8 em (96,152), extraído e conferido na ROM. Socos DOWN somente em X=[104,120), Y=[142,160); resistência `PrisonWall2Life=40` independente da parede lateral. Removida a abertura automática dessa porta e o atalho pela borda sul. O lado externo na sala 54 compartilha o estado da porta 12. Quebra restaura o fundo, passagem usa o retângulo original e permanece aberta na ida/volta. Evidências e offsets acrescentados em [prison-wall.md](reverse_engineering/prison-wall.md).
+
+**Validação:** `python3 tools/validate.py` passou (92 testes Python e todas as etapas Godot); teste integrado confirmou bloqueio, cinco socos completos, independência das paredes, restauração da colisão, saída para 54 em (112,168), retorno para 212 em (112,144), persistência e reset. Renderização OpenGL: zero diferenças em 49.152 pixels por estado da parede sul, fechada/aberta; a regressão visual da lateral também permaneceu sem diferenças. Log: `reports/prison-wall-validation.log`. Captura sul fechada inspecionada visualmente.
+
+ROM principal com hash inalterado; novos dados extraídos apenas em diretórios privados ignorados, sem substituir arquivos existentes. Alterações anteriores preservadas. `git diff --check` passou; nenhum commit realizado.
+
+**Próxima tarefa:** permanecem pendentes a integração dos SFX originais e a medição dinâmica da cadência no openMSX, se solicitadas. A correção de visual, colisão, resistência e travessia agora cobre as duas paredes da prisão.
+
+## 2026-10-02 — Registro das correções das paredes
+
+Commit e tag autorizados pelo usuário para o trabalho pendente. Mensagem: `fix(prison): restaura paredes e fuga canônicas da prisão`; tag anotada escolhida: `v0.1.47`. Validação reaproveitada da entrega anterior: 92 testes Python, todas as etapas Godot e renderização das duas paredes sem divergências. Arquivos candidatos revisados; extrações, imagens privadas e ROM permanecem ignoradas. Próxima tarefa autorizada: janela canônica do diálogo de Grey Fox, incluindo texto, fonte e paginação.

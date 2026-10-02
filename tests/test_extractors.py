@@ -349,7 +349,9 @@ class ExportRoomDataTests(unittest.TestCase):
             self.assertEqual(res['capture_trigger']['min_x'], 192)
             self.assertEqual(res['capture_trigger']['max_x'], 208)
             self.assertEqual(res['prison_cell']['room_id'], 211)
-            self.assertEqual(res['hollow_wall']['hits_required'], 4)
+            self.assertEqual(res['hollow_wall']['life_ticks'], 40)
+            self.assertEqual(res['hollow_wall']['wall_rect'], [32, 32, 24, 104])
+            self.assertEqual(res['hollow_wall']['on_break'], 'restore_saved_background')
             self.assertEqual(res['restitution_bag']['room_id'], 212)
             self.assertEqual(res['restitution_bag']['item_id'], 'BAG')
         finally:

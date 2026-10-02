@@ -483,43 +483,6 @@ func _apply_snapshot() -> void:
 	if base_img:
 		room_texture = ImageTexture.create_from_image(base_img)
 	runtime_collision = Array(snapshot.collision)
-	if snapshot.room_id == CaptureSystem.ROOM_PRISON and capture_system.wall_broken:
-		for tile_coord: Vector2i in CaptureSystem.WALL_TILES:
-			var idx: int = tile_coord.y * 32 + tile_coord.x
-			if idx >= 0 and idx < runtime_collision.size():
-				runtime_collision[idx] = 0
-			if tilemap_layer != null:
-				tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
-		if room_texture != null:
-			var img: Image = room_texture.get_image()
-			var floor_col: Color = img.get_pixel(64, 80)
-			for py in range(64, 96):
-				for px in range(0, 48):
-					img.set_pixel(px, py, floor_col)
-			room_texture.update(img)
-	elif snapshot.room_id == CaptureSystem.ROOM_ADJACENT and capture_system.wall_broken:
-		for tile_coord: Vector2i in CaptureSystem.ADJACENT_WALL_TILES:
-			var idx: int = tile_coord.y * 32 + tile_coord.x
-			if idx >= 0 and idx < runtime_collision.size():
-				runtime_collision[idx] = 0
-			if tilemap_layer != null:
-				tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
-		if room_texture != null:
-			var img: Image = room_texture.get_image()
-			var floor_col: Color = img.get_pixel(192, 80)
-			for py in range(64, 96):
-				for px in range(208, 256):
-					img.set_pixel(px, py, floor_col)
-			room_texture.update(img)
-		
-		# A porta sul da Sala 212 não tem portão físico nos arquivos de door.asm
-		# mas possui colisão de tiles preenchida que impede a transição.
-		# Vamos desobstruir a passagem (X=12 a 15, Y=19 a 23)
-		for ty in range(19, 24):
-			for tx in range(12, 16):
-				var idx: int = ty * 32 + tx
-				if idx >= 0 and idx < runtime_collision.size():
-					runtime_collision[idx] = 0
 	if player:
 		player.set_collision_grid(runtime_collision)
 	_spawn_room_enemies(snapshot.room_id)
@@ -1385,15 +1348,16 @@ func _spawn_room_doors(room_id: int) -> void:
 		# - Destino à Sala 204 (o limbo: tela 100% de parede sólida)
 		# - Portas bloqueadas explicitamente na ROM (Door ID 64 na Sala 6 dos cães e Door ID 108 na Sala 5)
 		# - Portas com destino à própria sala, EXCETO paredes quebráveis do Basement (r_type in [7, 8, 9, 10, 11])
+		var is_prison_wall: bool = rule_id == 15 and ((d_id == 103 and r_type in [14, 15]) or (d_id == 12 and r_type in [12, 13]))
 		var is_breakable: bool = (r_type in [7, 8, 9, 10, 11] or rule_id == 16)
 		if dest_room == -1 or dest_room == 204 or d_id in [64, 108] or r_type == 6:
 			continue
 		if dest_room == room_id and not is_breakable:
 			continue
-		if r_type >= 6 and not is_breakable and r_type not in [12, 13]:
+		if r_type >= 6 and not is_breakable and not is_prison_wall and r_type not in [12, 13]:
 			continue
 
-		var d: RoomDoor = RoomDoor.new()
+		var d: RoomDoor = PrisonWallDoor.new() if is_prison_wall else RoomDoor.new()
 		d.door_id = d_id
 		d.room_id = room_id
 		d.render_type_id = r_type
@@ -1492,6 +1456,8 @@ func _spawn_room_doors(room_id: int) -> void:
 				d.is_open = false
 				d.required_card = "LOCKED_BOSS"
 
+		if is_prison_wall:
+			d.is_open = capture_system.is_wall_broken(d_id)
 		game_world.add_child(d)
 		d.inject_collision(runtime_collision)
 		room_doors.append(d)
@@ -2304,6 +2270,7 @@ func _physics_process(delta: float) -> void:
 				player.is_moving = false
 				player.queue_redraw()
 	else:
+		_update_prison_wall(delta)
 		var moved: bool = player.step_tick(input_dir, delta)
 		if moved:
 			_check_and_handle_room_transition()
@@ -2316,15 +2283,6 @@ func _physics_process(delta: float) -> void:
 	if snapshot and snapshot.room_id == CaptureSystem.ROOM_CAPTURE and capture_system.check_capture_trigger(snapshot.room_id, player.position):
 		_trigger_capture_event()
 		return
-
-	# Checar socos contra a parede oca na Cela da Sala 211 (logic/doors/opendoor.asm:300-320)
-	if snapshot and snapshot.room_id == CaptureSystem.ROOM_PRISON and not capture_system.wall_broken:
-		var hit: bool = capture_system.check_wall_punch(player.position, player.current_direction, player.is_punching, player.punch_timer)
-		if hit:
-			if capture_system.wall_broken:
-				break_prison_wall()
-			elif status_label != null:
-				status_label.text = "[PAREDE OCA! ACERTO %d/4]" % capture_system.wall_hit_counter
 
 	# Checar socos contra paredes ocas quebráveis do Basement (logic/doors/opendoor.asm:350-373)
 	if player.is_punching and player.punch_timer == 7:
@@ -2611,7 +2569,7 @@ func _physics_process(delta: float) -> void:
 				gas_tag = " [GÁS TÓXICO!]"
 		elif snapshot.room_id == CaptureSystem.ROOM_PRISON:
 			if not capture_system.wall_broken:
-				gas_tag = " [CELA: SOQUE A PAREDE ESQUERDA (%d/4)]" % capture_system.wall_hit_counter
+				gas_tag = " [CELA: SOQUE A PAREDE ESQUERDA]"
 			else:
 				gas_tag = " [CELA: PAREDE QUEBRADA - FUGA ABERTA]"
 		elif snapshot.room_id == CaptureSystem.ROOM_ADJACENT:
@@ -3048,34 +3006,28 @@ func _on_capture_cutscene_finished() -> void:
 		player.can_control = true
 	print("CAPTURE_FINISHED: Snake recuperou a consciência na Cela 211. Controles liberados.")
 
-func break_prison_wall() -> void:
-	capture_system.wall_broken = true
-	# 1. Limpa a colisão dos tiles da parede na grade runtime_collision
-	for tile_coord: Vector2i in CaptureSystem.WALL_TILES:
-		var idx: int = tile_coord.y * 32 + tile_coord.x
-		if idx >= 0 and idx < runtime_collision.size():
-			runtime_collision[idx] = 0
-		if tilemap_layer != null:
-			tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
+func _update_prison_wall(delta: float) -> void:
+	# ChkPrisonWalls uses separate life for Door 12: opendoor.asm:307-316.
+	for door: RoomDoor in room_doors:
+		if door is PrisonWallDoor and not door.is_open:
+			capture_system.step_wall_punch(player.position, player.current_direction,
+				player.punch_timer_sec, delta, door.render_type_id)
+			if capture_system.is_wall_broken(door.door_id):
+				break_prison_wall(door.door_id)
 
+func break_prison_wall(door_id: int = 103) -> void:
+	if door_id == 12:
+		capture_system.south_wall_broken = true
+	else:
+		capture_system.wall_broken = true
+	for door: RoomDoor in room_doors:
+		if door is PrisonWallDoor and door.door_id == door_id:
+			door.open_door(runtime_collision)
 	if player != null:
 		player.set_collision_grid(runtime_collision)
-
-	# 2. Atualiza a textura da sala abrindo o buraco de passagem
-	if room_texture != null:
-		var img: Image = room_texture.get_image()
-		var floor_col: Color = img.get_pixel(64, 80)
-		for py in range(64, 96):
-			for px in range(0, 48):
-				img.set_pixel(px, py, floor_col)
-		room_texture.update(img)
-
-	if room_display != null:
-		room_display.queue_redraw()
-
 	if status_label != null:
 		status_label.text = "[PAREDE QUEBRADA - FUGA ABERTA!]"
-	print("PRISON_WALL_BROKEN: Parede oca destruída após 4 acertos! Caminho de fuga aberto.")
+	print("PRISON_WALL_BROKEN: Door %d aberta; fundo e colisão restaurados." % door_id)
 
 func _on_equipment_restored() -> void:
 	if status_label != null:

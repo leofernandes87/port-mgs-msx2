@@ -198,16 +198,11 @@ var _actors_cache: Dictionary = {}
 
 ## Consulta o ID da próxima sala com base na direção de saída (GetNextRoomNum em Banks0123.asm:889).
 static func get_next_room(room_id: int, dir: PlayerController.Direction) -> int:
-	# Conexões da Cela e Sala Adjacente de Prisão (Salas 211 e 212)
+	# Aliases locais da prisão: saídas via portas 103/12, não pelas bordas.
+	# Original: data/doors.asm:724-728; enterdoor.asm:64-88.
 	if room_id == 211:
-		if dir == PlayerController.Direction.LEFT:
-			return 212
 		return NO_ROOM
 	elif room_id == 212:
-		if dir == PlayerController.Direction.RIGHT:
-			return 211
-		if dir == PlayerController.Direction.DOWN:
-			return 54
 		return NO_ROOM
 
 	var index: int = -1
