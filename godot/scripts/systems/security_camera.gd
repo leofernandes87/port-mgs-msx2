@@ -14,7 +14,7 @@ enum Direction {
 	RIGHT = 3
 }
 
-## Mapeamento canônico da ROM (RoomCamTypes / CamDirs em camera.asm:93-121)
+## Mapeamento canônico da ROM (RoomCamTypes / CamDirs em logic/actors/camera.asm:93-121)
 ## 0=Up, 1=Down, 2=Left, 3=Right
 const ROOM_CAM_DIRS: Dictionary = {
 	14: [Direction.RIGHT, Direction.LEFT, Direction.LEFT],  # CamDirs7: 3, 2, 2
@@ -30,7 +30,7 @@ const ROOM_CAM_DIRS: Dictionary = {
 	149: [Direction.DOWN, Direction.DOWN],                 # CamDirs1: 1, 1
 }
 
-## CameraDrawOffsets (camera.asm:234-238)
+## CameraDrawOffsets (logic/actors/camera.asm:234-238)
 ## Offset em pixels para a posição focal da lente/sensor
 const CAMERA_DRAW_OFFSETS: Dictionary = {
 	Direction.UP: Vector2(0.0, -12.0),
@@ -44,8 +44,8 @@ signal player_detected(camera: SecurityCamera)
 var room_id: int = 0
 # Velocidade canônica de 0.5 px/frame (logic/actors/camera.asm:145-186) -> 0.5 * 60 = 30 px/s
 const SPEED_PX_PER_SEC: float = 30.0
-const WAIT_DURATION_SEC: float = 60.0 / 60.0 # 1.000s de pausa (SetCamRndWait em camera.asm:241-248)
-const ALERT_DURATION_SEC: float = 32.0 / 60.0 # 0.5333s de alarme (Wait = 20h em camera.asm:174)
+const WAIT_DURATION_SEC: float = 60.0 / 60.0 # 1.000s de pausa (SetCamRndWait em logic/actors/camera.asm:241-248)
+const ALERT_DURATION_SEC: float = 32.0 / 60.0 # 0.5333s de alarme (Wait = 20h em logic/actors/camera.asm:174)
 
 var camera_index: int = 0
 var facing_direction: int = Direction.DOWN
@@ -95,7 +95,7 @@ func setup(p_room_id: int, p_camera_index: int, p_waypoints: Array[Vector2], p_i
 	queue_redraw()
 
 func tick(player_pos: Vector2, collision_grid: Array, is_box_idle: bool = false, in_alert_mode: bool = false, delta_time: float = 1.0 / 60.0) -> void:
-	# No MSX2, durante o modo de alerta as câmeras param de se mover (camera.asm:146-148)
+	# No MSX2, durante o modo de alerta as câmeras param de se mover (logic/actors/camera.asm:146-148)
 	if in_alert_mode and not alert_flashing:
 		is_moving = false
 		queue_redraw()
@@ -218,7 +218,7 @@ func _draw() -> void:
 	# LED indicador de vigilância / alarme
 	var led_color: Color = Color("20e040") # Verde vigilância
 	if alert_flashing:
-		# Pisca vermelho a cada 4 ticks (camera.asm:206-210)
+		# Pisca vermelho a cada 4 ticks (logic/actors/camera.asm:206-210)
 		var is_red: bool = ((alert_timer / 4) % 2) == 1
 		led_color = Color("ff2020") if is_red else Color("404850")
 	elif has_seen_player:

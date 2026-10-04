@@ -1,65 +1,57 @@
 ---
 name: inspect-msx-disassembly
 description: >-
-  Mandatory procedure to inspect the original MSX2 Metal Gear disassembly in external/MetalGear/
-  before implementing, fixing, or modifying any gameplay mechanics, cutscenes, sprites, animations,
-  or physics.
+  Passo zero obrigatório: localizar e citar a rotina Z80 original em external/MetalGear/ antes de
+  implementar, corrigir ou alterar qualquer mecânica, cutscene, sprite, animação, temporizador,
+  velocidade, colisão, texto ou física. Use também para achar endereços de RAM, constantes e quem
+  já cita um trecho do assembly.
 ---
 
-# Inspeção Mandatória da Desmontagem Original MSX2 (external/MetalGear/)
+# Inspecionar a desmontagem original
 
-Este procedimento é o **Passo Zero Não-Negociável** de qualquer tarefa de reimplementação fiel do Metal Gear MSX2 (RC750, Konami 1987).
+`external/MetalGear/` (revisão `30d1b940`, `JAPANESE equ 0` em `MetalGear.asm:38`) é a fonte de
+verdade. O diretório é ignorado pelo Git, pela busca padrão e pela indexação do Cursor.
 
-## Regra de Ouro
-**NUNCA adivinhe, estime ou deduza comportamentos por memória ou intuição.**
-Todo o código-fonte original em assembly Z80 está extraído e disponível localmente no repositório na pasta `external/MetalGear/`. Qualquer mecânica deve ser comprovada com arquivo e número de linha antes de ser escrita.
+## 1. Localizar (uma chamada, sem ler arquivos inteiros)
 
----
+```sh
+python3 -m tools.context.lookup asm ChkRadioCalls -n 60   # definição + 60 linhas; sem match, sugere nomes
+python3 -m tools.context.lookup ram TextId                # endereço/tamanho em Variables.asm
+python3 -m tools.context.lookup mech radio                # cadeia asm → dados → Godot → teste → docs
+python3 -m tools.context.lookup cites logic/items.asm:399 # quem no projeto já cita o trecho
+```
 
-## 1. Mapa de Arquivos da Desmontagem
+- Índices locais (refeitos sozinhos quando a fonte muda): `data/extracted/index/asm-symbols.tsv`
+  (rótulos e `equ` com arquivo:linha, grupo de bancos e ramo) e `ram-map.tsv`.
+  Consulta direta: `rg "^Simbolo\t" data/extracted/index/asm-symbols.tsv`.
+- Busca textual: `rg --no-ignore -n 'padrão' external/MetalGear` (sem `--no-ignore` não acha nada).
+- Constantes e enums: `constants/Enums.asm`; RAM: `Variables.asm` (`map #c000`).
+- Nunca leia `Banks0123.asm` (13,8 mil linhas) inteiro: use `lookup asm` ou `Read` com offset/limit.
 
-Pasta / Arquivo | Conteúdo Principal
----|---
-`Banks0123.asm` | Núcleo da engine: loop principal, animações do jogador (`AnimatePlayer`), rotinas de colisão (`ChkPlayerColl`), transceptor/rádio (`DrawRadio`), sprites e comandos VDP.
-`Variables.asm` | Mapa de variáveis na RAM (`0xC000..0xDFFF`): `PlayerAnimation`, `PlayerDirection`, `PlayerMovSpeed`, `IntroSceneStatus`, etc.
-`logic/introscene.asm` | Máquina de estados completa da abertura, infiltração na água, chamada do rádio, nado até a grade, escalada e salto para terra firme.
-`logic/weapon/*.asm` | Balística e lógica de armas (`handgun.asm`, `smg.asm`, `grenade.asm`, `missile.asm`, `plasticbomb.asm`, `landmine.asm`).
-`logic/actors/*.asm` | Inteligência artificial e lógica de atores (`guard.asm`, `dog.asm`, `camera.asm`, `laser.asm`, `powerswitch.asm`).
-`logic/damagegas.asm` | Perigo de gás tóxico e máscara de gás.
-`logic/damageelectric.asm` | Pisos eletrificados e painéis de força.
-`logic/elevator.asm` | Elevadores e transições entre andares.
-`data/rooms.asm` | Conexões e definições de salas.
-`data/tileblocks.asm` | Mapeamento de blocos de tiles de salas, portas e transceptor (`RadioTilesMap`, `SnakeTilesMap`).
-`data/palettes.asm` | Paletas de cores do VDP (`DefaultPalette`, `RadioPalette`).
-`data/texts.asm` e `radiocalls.asm` | Banco de diálogos e chamadas do Codec.
-`gfx/*.asm` | Dados brutos de sprites e tiles (`radio.asm`, `snakeportrait.asm`, `font.asm`, etc.).
+## 2. Ler com cuidado
 
----
+- **Ramos regionais:** blocos `IF (JAPANESE)` / `ELSE` / `ENDIF` (e `IF (!JAPANESE)`). Siga só o ramo
+  inglês; o índice marca `jp`/`en` e `lookup asm` oculta o ramo `jp` (use `--jp` só para relatório).
+- **Comentários do desmontador podem estar errados.** Ex.: o cabeçalho de `data/radiocalls.asm`
+  inverte `RADIO_WAITCALL`/`RADIO_AUTOREPLY`; confirme no código que consome a tabela.
+- Confira valores exatos: registradores, flags, contadores por tick (60 Hz), velocidades 8.8
+  (`100h` = 1 px/tick), máscaras de bits e a rotina chamadora (ordem dentro de `PlayModeLogic`).
+- Rotinas em bancos paginados: o grupo no índice diz qual `BanksXXX.asm` as inclui.
 
-## 2. Procedimento Operacional Passo a Passo
+## 3. Citar
 
-Sempre que uma nova tarefa ou correção for solicitada:
+Formato: `arquivo.asm:início-fim` relativo a `external/MetalGear/`, com o caminho completo quando o
+nome se repete (`logic/actors/camera.asm`, não `camera.asm`). Exemplo em GDScript:
 
-1. **Localizar a rotina no Assembly**:
-   Execute busca com `grep_search` em `external/MetalGear/` para o termo ou mecânica:
-   - Exemplo: `IntroScene8`, `SetSprWater`, `PlayerAnimation`, `ChkPlayerColl`.
+```gdscript
+# ChkRadioCalls (Banks0123.asm:1689-1743): CALL só quando RoomsMusic tem o bit 3.
+```
 
-2. **Ler a lógica Z80**:
-   Verifique os registradores e flags exatas:
-   - Qual é o valor atribuído a `PlayerAnimation`? (0=Normal, 1=Punch, 2=Water, 4=Deep water, 5=Ladder/Climb).
-   - Qual é o contador de frames (`IntroSceneCnt`)?
-   - Qual é a velocidade (`PlayerMovSpeed`)? (ex: `100h` = 1.0 px/tick, `200h` = 2.0 px/tick).
-   - Quais controles virtuais estão ativos (`ControlsHold`, `PlayerDirection`)?
+`python3 -m tools.context.build_index --check` (também no `validate.py`) falha com citação para
+arquivo inexistente/ambíguo ou linha além do fim. Sem evidência no asm: registre como hipótese ou
+pendência e não implemente.
 
-3. **Documentar a Evidência**:
-   No raciocínio e no código, cite explicitamente o arquivo e linhas:
-   ```gdscript
-   # Conforme external/MetalGear/logic/introscene.asm:224-245 (IntroScene8 / IntroScene9)
-   # Snake permanece em PlayerAnimation = 2 (Water / SWIM_SURFACE) a 2.0 px/tick.
-   ```
+## 4. Próximo passo
 
-4. **Implementar a Lógica Fiel**:
-   Escreva o GDScript ou Python mapeando exatamente a máquina de estados Z80.
-
-5. **Validar com Testes**:
-   Execute `python3 tools/validate.py` e garanta 100% de aprovação.
+Implementação: skill `implement-faithful-mechanic`. Dados da ROM: skill `rom-extraction`.
+Comportamento dinâmico que o asm não resolve: skill `openmsx-probe`.

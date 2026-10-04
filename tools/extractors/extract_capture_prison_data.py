@@ -3,7 +3,7 @@
 Symbols resolved from verified source segments (load_reference), never fixed offsets:
 - DoorsRoom165 (data/doors.asm:728; Door 103, render type 14 breakable wall)
 - ItemBag (data/itemsinrooms.asm; Item 0x22 / BAG at X=0x88, Y=0x20)
-- Logic: common.asm:26-47, capturescene.asm:87-118, opendoor.asm:300-320, items.asm:120-124, 295-325.
+- Logic: common.asm:26-47, capturescene.asm:87-118, opendoor.asm:300-320, logic/items.asm:120-124, 295-325.
 
 Inputs are opened strictly read-only.
 """
