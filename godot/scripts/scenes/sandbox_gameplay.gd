@@ -65,6 +65,9 @@ var defeated_bosses: Dictionary = {}
 var gas_hazard_system: GasHazardSystem = GasHazardSystem.new()
 var gas_clouds: Array[GasCloud] = []
 
+## Barris Rolantes (ID_ROLLING_BARREL = 15) — logic/actors/rollingbarrels.asm
+var rolling_barrels: Array[RollingBarrel] = []
+
 ## Míssil Teleguiado por Controle Remoto (Etapa 20) — logic/weapon/missile.asm
 var active_missile: RemoteMissile = null
 
@@ -519,6 +522,11 @@ func _spawn_room_enemies(room_id: int) -> void:
 			gc.queue_free()
 	gas_clouds.clear()
 
+	for rb: RollingBarrel in rolling_barrels:
+		if is_instance_valid(rb):
+			rb.queue_free()
+	rolling_barrels.clear()
+
 	# Limpa boss anterior ao trocar de sala
 	if is_instance_valid(shot_gunner):
 		shot_gunner.queue_free()
@@ -596,6 +604,16 @@ func _spawn_room_enemies(room_id: int) -> void:
 				game_world.add_child(sg)
 				shot_gunner = sg
 				print("BOSS_SPAWNED: Shoot Gunner na sala %d em %s (HP: %d)" % [room_id, spawn_pos, sg.boss_hp])
+				continue
+
+			# Barril Rolante — ID_ROLLING_BARREL = 15 (logic/actors/rollingbarrels.asm)
+			if type_id == RollingBarrel.ACTOR_ID:
+				var barrel: RollingBarrel = RollingBarrel.new()
+				var player_initial_x: int = int(player.position.x) if player else 0
+				barrel.setup(int(spawn_pos.x), int(spawn_pos.y), player_initial_x, room_id)
+				game_world.add_child(barrel)
+				rolling_barrels.append(barrel)
+				print("BARREL_SPAWNED: Barril rolante na sala %d em %s (Vel: %d, Dir: %d)" % [room_id, spawn_pos, barrel.signed_speed_x(), barrel.direction])
 				continue
 
 			if not type_id in valid_enemy_types:
@@ -1759,6 +1777,11 @@ func reset_game_state() -> void:
 			gc.queue_free()
 	gas_clouds.clear()
 
+	for rb: RollingBarrel in rolling_barrels:
+		if is_instance_valid(rb):
+			rb.queue_free()
+	rolling_barrels.clear()
+
 	if is_instance_valid(active_missile):
 		active_missile.queue_free()
 		active_missile = null
@@ -2422,6 +2445,22 @@ func _physics_process(delta: float) -> void:
 	if is_instance_valid(power_panel):
 		power_panel.tick(delta)
 
+	# Barris rolantes: EnemiesLogic antes de ChkTouchEnemies (Banks0123.asm:12190-12191)
+	var surviving_barrels: Array[RollingBarrel] = []
+	for rb: RollingBarrel in rolling_barrels:
+		if not is_instance_valid(rb):
+			continue
+		rb.step_tick(delta)
+		if rb.is_dismissed:
+			rb.queue_free()
+			continue
+		surviving_barrels.append(rb)
+		# ActorTouchDamage FFh esgota a vida; o atraso de dano fica em player.apply_damage (touchenemy.asm:148-189)
+		if player and not player.is_dead and player.can_control and rb.touches_player(player.position):
+			if player.apply_damage(RollingBarrel.TOUCH_DAMAGE):
+				print("BARREL_HIT_PLAYER: Snake atingido pelo barril rolante (dano %d)" % RollingBarrel.TOUCH_DAMAGE)
+	rolling_barrels = surviving_barrels
+
 	# Atualizar spawner de guardas do elevador (Sala 3 — MSX: logic/actors/elevatorguardspawner.asm)
 	if snapshot and snapshot.room_id == 3:
 		_process_elevator_spawner(delta)
@@ -2464,6 +2503,14 @@ func _physics_process(delta: float) -> void:
 			if power_panel.collides_with_point(b.position, 8.0):
 				power_panel.take_hit("BULLET", 0)
 				hit = true
+
+		# Barril rolante absorve o tiro sem perder vida (damagetoenemy.asm:159-228, BulletDamage[14] = 0)
+		if not hit and not b.is_enemy:
+			for rb: RollingBarrel in rolling_barrels:
+				if is_instance_valid(rb) and rb.shot_hits(b.position):
+					rb.apply_weapon_hit(RollingBarrel.Weapon.HAND_GUN)
+					hit = true
+					break
 
 
 		if hit:
@@ -3008,6 +3055,11 @@ func _on_plastic_bomb_exploded(bomb_pos: Vector2, radius: float, damage: int) ->
 		if shot_gunner.position.distance_to(bomb_pos) <= radius:
 			for _i in range(5):
 				shot_gunner.apply_bullet_hit()
+
+	# 5. Barris rolantes: ActorShapeExpl 11h, PlasBombDamage[14] = 0 (weapondamage.asm:42)
+	for rb: RollingBarrel in rolling_barrels:
+		if is_instance_valid(rb) and rb.explosive_hits(bomb_pos):
+			rb.apply_weapon_hit(RollingBarrel.Weapon.PLASTIC_BOMB)
 
 func _on_plastic_bomb_finished(bomb_node: Node2D) -> void:
 	if active_plastic_bomb == bomb_node:

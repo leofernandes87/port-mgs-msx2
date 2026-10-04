@@ -5,29 +5,29 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 ## Onde estamos
 
-- Última tag: `v0.2.1` (inventário de atores/bosses e interface de contexto).
-- Conteúdo da entrega: commit `e408782`, sobre `0c268ca`; registro da versão em `v0.2.1`.
-- Auditoria de weapons-items concluída a pedido do usuário; sem tag ou push.
+- Última tag: `v0.2.2` (barris rolantes fiéis à ROM).
+- Último commit: `feat(actors)` dos barris rolantes (confira com `git log --oneline -1`).
+- Implementação recente: `rolling-barrels` (ID 15) revisado contra a ROM, com sprites extraídos por
+  `tools/extractors/extract_rolling_barrel.py`; toque na coluna inteira mata Snake
+  (linha de `ImpactAreasInfo` = shape); salas 141, 153, 191 e 205.
 - ROM canônica `en-eu-rc750` por SHA-256 (`tools/rom.py`); o Godot só aceita dados de
   `data/extracted/en-eu-rc750/` com essa proveniência. Godot em 60 Hz.
 - Sandbox jogável a partir da sala 121; catálogo progressivo e cadeias em
   `python3 -m tools.context.lookup mech` (`docs/index/mechanics.json`).
-- Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 37 etapas PASS,
-  146 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
+- Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 38 etapas PASS,
+  159 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
 - `godot/project.godot` tem alteração local do usuário: nunca incluir em commits.
 
 ## Auditoria atual
 
+- `actors-bosses`: `rolling-barrels` (ID 15) promovido a IMPLEMENTED (1 IMPLEMENTED,
+  20 PARTIAL, 12 PROVISIONAL, 16 NOT_STARTED, 2 UNMAPPED; total 51).
 - `weapons-items`: 38 features — IMPLEMENTED 1, PARTIAL 20, PROVISIONAL 8,
   NOT_STARTED 9; DEFERRED/UNMAPPED/INVESTIGATING 0. Catálogo via `lookup domain weapons-items`.
-- As 51 entradas de `actors-bosses` e suas classificações foram preservadas.
-- Apenas catálogo, documentação, índices e suporte/testes de namespaces foram alterados;
-  gameplay preservado. `coverage.md` é relatório humano gerado, não contexto de agentes.
 - Divergências registradas: armas substituídas por bala genérica, foguete recusado, recarga
   indevida de míssil, timers/velocidades, cartões por posse e reposição de consumíveis.
-- Próxima tarefa sugerida, só após pedido: priorizar `rocket-launcher`/`ammo-crates` e
-  especificar testes de aquisição real antes de corrigir gameplay. Esta auditoria termina aqui.
-- Pendências de actors-bosses: uso alcançável do ID 56 e produtores do ID 65, sem nova investigação.
+- Próxima tarefa sugerida, só após pedido: priorizar `pitfalls` (ID 16) ou `rocket-launcher`.
+- Pendências de actors-bosses: uso alcançável do ID 56 e produtores do ID 65.
 
 ## Decisões pendentes do usuário
 

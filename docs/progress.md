@@ -3,38 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Auditoria regional da implementação contra a edição inglesa
-
-**Critério:** ausência de implementação não é bug; só o que já existe e diverge da
-edição inglesa foi corrigido. Classificação completa em
-`docs/reverse_engineering/en-eu-reextraction.md` ("Auditoria regional").
-
-**Semântica confirmada:** `RADIO_WAITCALL` (4) = Snake precisa pedir resposta;
-`RADIO_AUTOREPLY` (8) = auto tune (`UpdateRadio`, `Banks0123.asm:2413-2425`;
-`ChkRadioReceiv`, `:10993-11006`); CALL = bit 3 de `RoomsMusic` (`ChkRadioCalls`,
-`:1689-1743`). O cabeçalho de `radiocalls.asm` inverte esses nomes.
-
-**Corrigido (`radio_system.gd`):** sala 5 não dispara mais CALL/auto-resposta
-(`RADIO_WAITCALL`, sem bit 3); entrada inventada da sala 138 removida (`NoRadio`,
-`radiocalls.asm:188`); removida a resposta genérica do Big Boss em salas sem ouvintes
-(texto inexistente na ROM; `ChkRadioReceiv` não responde); cabeçalho deixou de citar
-`radiocallsjp.asm`.
-
-**Registrado sem correção:** textos hardcoded com redação diferente da ROM (intro texto
-2; rádio 3, 60, 64, 88, 92) — corrigir exige extração em runtime para não versionar
-texto protegido; decisão pendente. Parciais: 15/60 salas de rádio, condições de
-`ChkRadioCalls`, resposta automática ao sintonizar, texto 62 da bolsa, textos de
-interface provisórios. Backlog: tela de menu original com `weaponnames`/`itemnames`,
-música por sala, demo. Ignorados por serem só JP: `flagTxtItem`, descrições de itens,
-sala 31 com CALL, chamadas extras de `radiocallsjp.asm`.
-
-**Testes:** `radio_system_test.gd` ampliado (sala 5, salas 2 e 138 mudas);
-`tests/test_region_tools.py::GodotRadioFollowsEnglishEdition` confere cada sala
-portada contra `radiocalls.asm` e `RoomsMusic` ingleses (falha na versão anterior nas
-salas 5 e 138). `python3 tools/validate.py`: exit 0, 36 etapas PASS, 120 testes Python.
-
-**Git:** sem commit, conforme pedido. `godot/project.godot` preservado.
-
 ## 2026-10-04 — Infraestrutura de contexto: regras enxutas, STATUS, progresso arquivado e índices
 
 **Feito:** `AGENTS.md` só com regras permanentes (mapa do repositório e ambiente em
@@ -96,4 +64,32 @@ relatório humano regenerado. Limites de escopo e sobreposições documentados n
 37 etapas PASS, 146 testes Python; importação, boot e suítes Godot 4.7.2 aprovados.
 **Pendências:** divergências registradas sem correção; próxima tarefa sugerida, após pedido,
 priorizar aquisição do foguete/recarga e respectivos testes. Gameplay e configuração local preservados.
-**Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
+**Git:** commit `b68b8f7` a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
+
+## 2026-10-04 — Barris rolantes revisados: sprites canônicos e comportamento da ROM
+
+**Revisão:** a versão anterior (não commitada) divergia da ROM: hitbox 16x16 e barril
+destruído por tiro/bomba (o índice 14 de `data/weapondamage.asm:18-58` é 0, granada FFh), direção
+inicial escolhida pelo jogador (`SetupActor`, `Banks0123.asm:6358-6402`, deixa `Direction`=0 e
+`InitRollingBarrel` não a define), X em float e desenho procedural.
+**Feito:** `tools/extractors/extract_rolling_barrel.py` lê só a ROM canônica e gera
+`data/extracted/en-eu-rc750/rolling-barrel/` (JSON com proveniência e PNG 32x144 por sala). Segmentos
+binary_verified de `spritesets`/`sprites`, `actorspriteattr`, `shapes`/`weapondamage` e `palettes`,
+mais 6 assinaturas Z80 únicas de `rollingbarrels.asm`. O sprite é uma coluna de 9 barris (18 sprites,
+`SprOffsets7`, Color Compare 2|13, `SprsetPal19`). `rolling_barrel.gd` foi reescrito: X 8.8 em 16 bits,
+`Xdec` preservado no ricochete, aceleração por bit 0 de `Direction`, `MoveActor`/`ChkActorExitRoom`,
+`ChkArea` de 8 bits, dano FFh por toque e indestrutível. Sandbox: absorve tiro, bomba sem efeito,
+dismiss, textura por sala. `png_indexed` ganhou tRNS opcional.
+**Correção pós-teste em jogo:** Snake não sofria dano. `touchenemy.asm:87-93` e
+`damagetoenemy.asm:98-102` fazem `inc a` antes de `GetShapeInfo`, então a linha de `ImpactAreasInfo`
+é o próprio shape (toque 10h = 48h,48h,0,0Ch; tiro 11h = 48h,48h,0,10h): a coluna inteira mata.
+Captura com janela confirmou textura canônica carregada (a "barra cinza" é a coluna de barris
+cinza de `SprsetPal19`) e Snake à frente (plano 0, `Banks0123.asm:5414-5424`).
+**Sala 153:** `idxActorsRooms` reutiliza `ActorsRoom141` nas salas 153 e 191
+(`data/actorsinrooms.asm:1167-1231`, `Banks0123.asm:6141-6147`); o extrator só gerava PNG para 141 e
+205, e nessas salas aparecia o retângulo cinza provisório. Agora gera as 4 salas (spriteset 19
+conferido), o Godot avisa quando falta textura e o teste cobre as quatro salas.
+**Testes:** `tests/test_rolling_barrel_extractor.py` (13, fixtures sintéticas); `rolling_barrel_test.gd`
+com valores calculados do asm, conferência cruzada com o JSON extraído e contato fatal no sandbox.
+**Pendências:** SFX 1Dh só como sinal (sem subsistema de áudio); paleta dos óculos não aplicada.
+**Git:** commit `feat(actors)` com tag `v0.2.2`, sem push; `godot/project.godot` preservado.

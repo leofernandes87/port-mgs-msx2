@@ -38,6 +38,7 @@ marcador aparecer e não houver `ERROR:`. Suíte nova: acrescentar a `GODOT_TEST
 - `godot-intro-cutscene` · `intro_cutscene_test.gd` · `INTRO_CUTSCENE_INTEGRATION_OK:` · scripts/systems/intro_cutscene.gd, scripts/systems/player.gd, scripts/systems/radio_dialog.gd, scripts/systems/radio_system.gd
 - `godot-hud` · `hud_test.gd` · `HUD_INTEGRATION_TEST_OK:` · scripts/systems/hud.gd, scripts/systems/inventory.gd, scripts/systems/player.gd, scripts/systems/radio_system.gd, scripts/systems/rank_system.gd, scripts/systems/weapon_system.gd
 - `godot-item-box-sprites` · `item_box_sprites_test.gd` · `ITEM_BOX_SPRITES_TEST_OK:` · scripts/systems/inventory.gd, scripts/systems/item_box.gd, scripts/systems/weapon_system.gd
+- `godot-rolling-barrels` · `rolling_barrel_test.gd` · `ROLLING_BARREL_TEST_OK:` · scenes/sandbox_gameplay.tscn, scripts/systems/player.gd, scripts/systems/rolling_barrel.gd
 
 ## Python (`python3 -m unittest discover -s tests`)
 
@@ -54,6 +55,7 @@ marcador aparecer e não houver `ERROR:`. Suíte nova: acrescentar a `GODOT_TEST
 - `tests/test_region_tools.py` · LocalAliases, TraceRelocation, RegionClassifier, GodotRadioFollowsEnglishEdition · tools.emulation.run_trace, tools.extractors.export_local_aliases, tools.reverse_engineering.compare_regions, tools.rom
 - `tests/test_repository.py` · RepositoryPolicyTests · —
 - `tests/test_reverse_engineering.py` · AnalysisTests · tools.reverse_engineering.analyze
+- `tests/test_rolling_barrel_extractor.py` · RollingBarrelExtractorTests · tools.extractors.codecs, tools.extractors.extract_rolling_barrel
 - `tests/test_rom.py` · SyntheticProfiles, RealProfileFile, CanonicalProvenance, ConsumedDataProvenance, RomPolicyLint · tools.rom
 - `tests/test_shoot_gunner_sprite_extractor.py` · ShootGunnerSpriteExtractorTests · tools.extractors.extract_shoot_gunner_sprites
 - `tests/test_snake_sprite_extractor.py` · SnakeSpriteExtractorTests · tools.extractors.extract_snake_sprites

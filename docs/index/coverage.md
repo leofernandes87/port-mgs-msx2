@@ -23,10 +23,10 @@ Inventário original primeiro: enums, SetupActor e RunEnemyLogic via índices/lo
 
 | Status | Features |
 | --- | ---: |
-| `IMPLEMENTED` | 0 |
+| `IMPLEMENTED` | 1 |
 | `PARTIAL` | 20 |
 | `PROVISIONAL` | 12 |
-| `NOT_STARTED` | 17 |
+| `NOT_STARTED` | 16 |
 | `DEFERRED` | 0 |
 | `UNMAPPED` | 2 |
 | `INVESTIGATING` | 0 |
@@ -59,7 +59,7 @@ Inventário original primeiro: enums, SetupActor e RunEnemyLogic via índices/lo
 | [jetpack-guards](#jetpack-guards) — Soldados com jetpack e decolagem | ator: 20, 21, 22 | `PROVISIONAL` |
 | [bridges](#bridges) — Pontes e controlador de trechos | ator: 1, 2 | `NOT_STARTED` |
 | [enemy-mines](#enemy-mines) — Minas do cenário | ator: 7 | `NOT_STARTED` |
-| [rolling-barrels](#rolling-barrels) — Barris rolantes | ator: 15 | `NOT_STARTED` |
+| [rolling-barrels](#rolling-barrels) — Barris rolantes | ator: 15 | `IMPLEMENTED` |
 | [pitfalls](#pitfalls) — Alçapões de ator | ator: 16 | `NOT_STARTED` |
 | [shell-barrage](#shell-barrage) — Bombardeio e gerador de projéteis aéreos | ator: 12, 39 | `NOT_STARTED` |
 | [actor-camera](#actor-camera) — Câmera de vigilância comum | ator: 6 | `PARTIAL` |
@@ -832,33 +832,33 @@ Inventário original primeiro: enums, SetupActor e RunEnemyLogic via índices/lo
 <a id="rolling-barrels"></a>
 ### Barris rolantes
 
-`rolling-barrels` · **NOT_STARTED**
+`rolling-barrels` · **IMPLEMENTED**
 
-**Original:** Rolagem, animação, aceleração e ricochete em paredes.
+**Original:** Coluna de 9 barris (18 sprites, SpriteId 36h/37h) que rola horizontalmente com aceleração, ricocheteia nas paredes X=200/56, mata por toque e absorve tiros e explosivos sem ser destruída.
 
-**Classificação:** Rotina original identificada; IDs sem criação específica no dispatcher/geradores Godot inspecionados e nenhum sistema de comportamento correspondente no conjunto atual.
+**Classificação:** RollingBarrel reproduz InitRollingBarrel, RollingBarrelLogic, MoveActor, ChkActorExitRoom, ChkTouchEnemy e ChkEneHitByShot com aritmética de 8/16 bits; o sandbox usa o spritesheet extraído da ROM canônica e a suíte compara constantes e áreas com o JSON extraído.
 
-**Assembly:** logic/actors/rollingbarrels.asm:8-37 RollingBarrelLogic
+**Assembly:** logic/actors/rollingbarrels.asm:8-132 RollingBarrelLogic; Banks0123.asm:6358-6402 SetupActor; Banks0123.asm:12612-12672 EnemiesLogic; Banks0123.asm:12875-12919 MoveActor; logic/touchenemy.asm:54-189 ChkTouchEnemy; logic/damagetoenemy.asm:92-228 ChkEneHitByShot
 
-**Extractors:** tools/extractors/extract.py; tools/extractors/export_room_data.py
+**Extractors:** tools/extractors/extract_rolling_barrel.py; tools/extractors/extract.py; tools/extractors/export_room_data.py
 
-**Dados canônicos locais:** rooms/
+**Dados canônicos locais:** rolling-barrel/; rooms/
 
-**Godot relacionado:** godot/scripts/scenes/sandbox_gameplay.gd
+**Godot relacionado:** godot/scripts/systems/rolling_barrel.gd; godot/scripts/scenes/sandbox_gameplay.gd
 
-**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_enemies
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_enemies; godot/scripts/scenes/sandbox_gameplay.gd::_physics_process; godot/scripts/scenes/sandbox_gameplay.gd::_on_plastic_bomb_exploded
 
-**Testes existentes:** tests/test_extractors.py
+**Testes existentes:** godot-rolling-barrels; tests/test_rolling_barrel_extractor.py; tests/test_extractors.py
 
 **Documentação:** docs/reverse_engineering/enemies.md; docs/reverse_engineering/stage-12b-actors-and-items-evidence.md
 
 **Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 12b concluída: Spawn de Inimigos, Itens e Portas Canônicas da ROM
 
-**Implementado:** Nenhum localizado neste recorte.
+**Implementado:** Init: velocidade ±80h por PlayerX, Direction 0 herdada da EnemyList zerada, SpriteId 36h, MOVING=1.; RollingBarrelLogic: Anim2FramesActor máscara 3, ChkBarrelBounce (X=199/57 preservando Xdec, DIR_DOWN/DIR_LEFT, SFX 1Dh) e RB_IncrementSpeed ±8 por bit 0 de Direction.; MoveActor 8.8 em 16 bits e ChkActorExitRoom na ordem de EnemiesLogic.; ChkArea de toque na coluna inteira (ImpactAreasInfo linha 10h = 48h,48h,0,0Ch) com dano FFh; tiro e explosivos na linha 11h (48h,48h,0,10h); dano 0/FFh de todas as armas; não socável; Snake desenhado à frente (plano 0).; Sprites canônicos extraídos da ROM (SprRollingBarrel, RollBarrels1/2, SprOffsets7, ActorSprColors3 com Color Compare, SprsetPal19 sobre a paleta das salas 141, 153, 191 e 205).
 
-**Faltante / não comprovado:** Rolagem, animação, aceleração e ricochete em paredes.
+**Faltante / não comprovado:** Nenhum localizado neste recorte.
 
-**Notas de evidência:** Somente metadados genéricos do ator são exportáveis; tests/test_extractors.py cobre o contrato de dados, não este comportamento. Busca cruzada em scripts/sistemas, cenas, testes, extractors e histórico de spawn: sem implementação específica; o filtro do sandbox descarta estes IDs.
+**Notas de evidência:** Revisão de 2026-10-04 corrigiu a versão anterior: hitbox 16x16 e destruição por tiro/bomba contrariavam data/weapondamage.asm:18-58 (índice 14 = 0, granada FFh) e ImpactAreasInfo linha 11h (48h,48h,0,10h); direção inicial pelo jogador contrariava SetupActor/InitRollingBarrel.; Extrator localiza todas as tabelas como segmentos binary_verified e confere 6 assinaturas Z80 únicas de rollingbarrels.asm; spawn (128,8) em data/actorsinrooms.asm:860-866; spriteset 19 em SpritesetRooms.; Salas: idxActorsRooms reutiliza ActorsRoom141 nas salas 153 e 191 (data/actorsinrooms.asm:1167, 1179, 1217, 1231; indexada por Room em Banks0123.asm:6141-6147); as quatro salas usam spriteset 19 e têm spritesheet extraído. touchenemy.asm:87-93 e damagetoenemy.asm:98-102 fazem inc a antes de GetShapeInfo (DEC_A_HL_4xA), logo a linha de ImpactAreasInfo é o próprio valor de shape; a leitura shape-1 anterior deixava o toque restrito ao barril superior e Snake nunca era atingido. Snake usa SprAttRAM (plano 0, Banks0123.asm:5414-5424) e fica à frente da coluna.; SFX 1Dh é emitido pelo sinal sfx_requested; o projeto ainda não tem subsistema de áudio. Paleta cinza dos óculos (SetRoomPal/ChkGogglesPal) não foi aplicada ao sprite.
 
 
 <a id="pitfalls"></a>

@@ -42,6 +42,7 @@ GODOT_TESTS = [
     ("godot-intro-cutscene", "intro_cutscene_test.gd", "INTRO_CUTSCENE_INTEGRATION_OK:", "Teste de cutscene de abertura"),
     ("godot-hud", "hud_test.gd", "HUD_INTEGRATION_TEST_OK:", "Teste do HUD original MSX2"),
     ("godot-item-box-sprites", "item_box_sprites_test.gd", "ITEM_BOX_SPRITES_TEST_OK:", "Teste de sprites de itens no mapa"),
+    ("godot-rolling-barrels", "rolling_barrel_test.gd", "ROLLING_BARREL_TEST_OK:", "Teste de barris rolantes"),
 ]
 
 def find_godot():

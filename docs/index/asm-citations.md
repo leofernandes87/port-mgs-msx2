@@ -5,7 +5,7 @@ citado como `arquivo.asm:linhas`, os arquivos do projeto que o citam (histórico
 excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic/items.asm" -A20`.
 
 ## Banks0123.asm
-- arquivo: .agents/skills/delivery/SKILL.md, .agents/skills/implement-faithful-mechanic/SKILL.md, .agents/skills/inspect-msx-disassembly/SKILL.md, AGENTS.md, docs/index/README.md, docs/reverse_engineering/architecture.md, docs/reverse_engineering/enemies.md, docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/movement-and-collision.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-19-gas-hazard.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-5-movement-and-collision.md, godot/scripts/systems/elevator_system.gd, godot/scripts/systems/radio_system.gd, godot/scripts/systems/room_manager.gd, tests/test_region_tools.py, tools/extractors/extract.py, tools/extractors/extract_hud_assets.py, tools/extractors/extract_transceiver_sprites.py, tools/extractors/reference.py
+- arquivo: .agents/skills/delivery/SKILL.md, .agents/skills/implement-faithful-mechanic/SKILL.md, .agents/skills/inspect-msx-disassembly/SKILL.md, AGENTS.md, docs/index/README.md, docs/reverse_engineering/architecture.md, docs/reverse_engineering/enemies.md, docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/movement-and-collision.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-19-gas-hazard.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-5-movement-and-collision.md, godot/scripts/systems/elevator_system.gd, godot/scripts/systems/radio_system.gd, godot/scripts/systems/room_manager.gd, tests/test_region_tools.py, tools/extractors/extract.py, tools/extractors/extract_hud_assets.py, tools/extractors/extract_rolling_barrel.py, tools/extractors/extract_transceiver_sprites.py, tools/extractors/reference.py
 - 7: docs/reference.md
 - 8: docs/reverse_engineering/architecture.md
 - 440: docs/index/mechanics.json, docs/reverse_engineering/architecture.md
@@ -61,15 +61,19 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 5305-5391: docs/reverse_engineering/grey-fox-dialogue.md, tools/extractors/extract_grey_fox_dialogue.py
 - 5353: docs/reverse_engineering/en-eu-reextraction.md
 - 5405-5457: docs/reverse_engineering/intro-water-colors.md
+- 5414-5424: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd
 - 5543-5580: tools/extractors/extract_enemy_sprites.py, tools/extractors/extract_prisoner_sprites.py, tools/extractors/extract_shoot_gunner_sprites.py, tools/extractors/extract_snake_sprites.py
 - 5653-5680: docs/index/mechanics.json
 - 5653-5847: docs/index/mechanics.json, godot/scripts/systems/laser_system.gd
 - 5797: godot/scripts/systems/laser_system.gd
+- 5961: tools/extractors/extract_rolling_barrel.py
 - 6088-6150: docs/index/mechanics.json
 - 6117: godot/scripts/scenes/sandbox_gameplay.gd
+- 6141-6147: docs/index/mechanics.json, tools/extractors/extract_rolling_barrel.py
 - 6145: docs/reverse_engineering/stage-3-results.md
-- 6358-6402: docs/index/mechanics.json
+- 6358-6402: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd
 - 6358-6468: docs/index/mechanics.json
+- 6359-6402: godot/scripts/systems/rolling_barrel.gd
 - 6404: docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, godot/scripts/scenes/sandbox_gameplay.gd
 - 6409: godot/scripts/systems/security_camera.gd
 - 6458-6459: docs/index/mechanics.json
@@ -169,6 +173,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 12015: docs/reverse_engineering/architecture.md
 - 12072-12087: docs/reverse_engineering/grey-fox-dialogue.md
 - 12151: .agents/skills/implement-faithful-mechanic/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/architecture.md
+- 12190-12191: godot/scripts/scenes/sandbox_gameplay.gd
 - 12193-12195: docs/index/mechanics.json
 - 12223-12224: godot/tests/prisoner_dialog_test.gd
 - 12250: godot/scripts/scenes/sandbox_gameplay.gd
@@ -177,10 +182,13 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 12402-12528: docs/index/mechanics.json
 - 12481: godot/scripts/systems/binocular_system.gd
 - 12513-12515: godot/tests/binocular_test.gd
+- 12553-12554: tools/extractors/extract_rolling_barrel.py
 - 12572-12604: godot/scripts/systems/binocular_overlay.gd
 - 12599: godot/scripts/systems/binocular_overlay.gd
 - 12612: docs/reverse_engineering/enemies.md
 - 12612-12648: docs/index/mechanics.json
+- 12612-12672: docs/index/mechanics.json
+- 12635-12638: godot/scripts/systems/rolling_barrel.gd
 - 12657-12739: docs/index/mechanics.json
 - 12729-12730: docs/index/mechanics.json
 - 12739: docs/index/mechanics.json
@@ -188,6 +196,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 12819: godot/scripts/systems/enemy.gd
 - 12822: godot/scripts/systems/enemy.gd
 - 12832-12865: docs/index/mechanics.json
+- 12875-12919: docs/index/mechanics.json
 - 12996-13003: docs/reverse_engineering/stage-18-shoot-gunner.md, godot/scripts/systems/shot_gunner.gd
 - 13192-13241: docs/index/mechanics.json
 
@@ -257,14 +266,21 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 ## data/actorsinrooms.asm
 - arquivo: docs/reverse_engineering/enemies.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-19-gas-hazard.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-7-enemy-patrols.md, godot/tests/dog_patrol_test.gd, tools/extractors/extract_electrified_floor_data.py, tools/extractors/reference.py
 - 370-372: docs/reverse_engineering/stage-18-shoot-gunner.md
+- 860-866: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd, tools/extractors/extract_rolling_barrel.py
+- 1167: docs/index/mechanics.json, tools/extractors/extract_rolling_barrel.py
+- 1167-1231: godot/scripts/systems/rolling_barrel.gd
 
 ## data/actorspriteattr.asm
-- arquivo: godot/scripts/systems/shot_gunner.gd, tools/extractors/extract_enemy_sprites.py, tools/extractors/extract_prisoner_sprites.py, tools/extractors/extract_shoot_gunner_sprites.py
+- arquivo: godot/scripts/systems/shot_gunner.gd, tools/extractors/extract_enemy_sprites.py, tools/extractors/extract_prisoner_sprites.py, tools/extractors/extract_rolling_barrel.py, tools/extractors/extract_shoot_gunner_sprites.py
+- 6: tools/extractors/extract_rolling_barrel.py
 - 40: godot/scripts/systems/enemy.gd
+- 87: tools/extractors/extract_rolling_barrel.py
 - 127-130: docs/reverse_engineering/stage-18-shoot-gunner.md
 - 129: godot/scripts/systems/shot_gunner.gd
+- 361-372: tools/extractors/extract_rolling_barrel.py
 - 378-380: tools/extractors/extract_prisoner_sprites.py
 - 434-437: godot/scripts/systems/shot_gunner_bullet.gd
+- 593-610: tools/extractors/extract_rolling_barrel.py
 
 ## data/doors.asm
 - arquivo: docs/reverse_engineering/maps.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-9-doors-and-inventory.md, godot/scripts/systems/door.gd, tools/extractors/reference.py
@@ -340,6 +356,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 8-9: godot/scripts/systems/player.gd, tools/extractors/extract_snake_sprites.py
 - 15: tools/extractors/extract_transceiver_sprites.py
 - 70-168: docs/reverse_engineering/intro-water-colors.md
+- 284-286: tools/extractors/extract_rolling_barrel.py
 
 ## data/paths.asm
 - arquivo: docs/reverse_engineering/enemies.md, docs/reverse_engineering/intermediate-data-model.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-7-enemy-patrols.md, godot/scripts/systems/enemy.gd, tools/extractors/extract.py, tools/extractors/reference.py
@@ -381,9 +398,13 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 10: docs/reverse_engineering/maps.md
 
 ## data/shapes.asm
-- arquivo: godot/scripts/systems/plastic_bomb.gd
+- arquivo: godot/scripts/systems/plastic_bomb.gd, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd, tools/extractors/extract_rolling_barrel.py
 - 36: docs/reverse_engineering/stage-8-combat-and-health.md, godot/scripts/systems/enemy.gd
 - 37: godot/scripts/systems/enemy.gd, godot/tests/dog_patrol_test.gd
+
+## data/spritesets.asm
+- arquivo: tools/extractors/extract_rolling_barrel.py
+- 183-185: tools/extractors/extract_rolling_barrel.py
 
 ## data/texts.asm
 - arquivo: docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md, docs/reverse_engineering/inventory-and-events.md, tools/extractors/extract_grey_fox_dialogue.py
@@ -401,9 +422,12 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - arquivo: tools/extractors/extract_transceiver_sprites.py
 
 ## data/weapondamage.asm
-- arquivo: docs/reverse_engineering/inventory-and-events.md, godot/scripts/systems/shot_gunner.gd
+- arquivo: docs/reverse_engineering/inventory-and-events.md, godot/scripts/systems/shot_gunner.gd, tools/extractors/extract_rolling_barrel.py
 - 4-58: docs/index/mechanics.json
+- 4-62: tools/extractors/extract_rolling_barrel.py
 - 18: docs/reverse_engineering/stage-18-shoot-gunner.md, godot/scripts/systems/enemy.gd, godot/scripts/systems/shot_gunner.gd
+- 18-58: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd
+- 42: godot/scripts/scenes/sandbox_gameplay.gd
 - 58: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/remote_missile.gd
 
 ## data/weapongfxxy.asm
@@ -412,6 +436,9 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## data/weaponnames.asm
 - arquivo: docs/reverse_engineering/en-eu-reextraction.md
+
+## data/weaponspratt.asm
+- arquivo: tools/extractors/extract_rolling_barrel.py
 
 ## gfx/doors.asm
 - arquivo: godot/scripts/systems/door.gd, tools/extractors/extract_door_sprites.py
@@ -441,8 +468,9 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - arquivo: tools/extractors/extract_transceiver_sprites.py
 
 ## gfx/sprites.asm
-- arquivo: tools/extractors/extract_enemy_sprites.py, tools/extractors/extract_prisoner_sprites.py, tools/extractors/extract_shoot_gunner_sprites.py, tools/extractors/extract_snake_sprites.py
+- arquivo: tools/extractors/extract_enemy_sprites.py, tools/extractors/extract_prisoner_sprites.py, tools/extractors/extract_rolling_barrel.py, tools/extractors/extract_shoot_gunner_sprites.py, tools/extractors/extract_snake_sprites.py
 - 365-372: docs/reverse_engineering/intro-water-colors.md
+- 837: tools/extractors/extract_rolling_barrel.py
 
 ## logic/actors.asm
 - arquivo: docs/reverse_engineering/enemies.md
@@ -649,7 +677,11 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 8-42: docs/index/mechanics.json
 
 ## logic/actors/rollingbarrels.asm
-- 8-37: docs/index/mechanics.json
+- arquivo: docs/index/mechanics.json, godot/scripts/scenes/sandbox_gameplay.gd, godot/tests/rolling_barrel_test.gd, tools/extractors/extract_rolling_barrel.py
+- 8-132: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd
+- 14-56: godot/scripts/systems/rolling_barrel.gd
+- 101-107: godot/scripts/systems/rolling_barrel.gd
+- 115-132: godot/scripts/systems/rolling_barrel.gd
 
 ## logic/actors/scorpion.asm
 - 26-74: docs/index/mechanics.json
@@ -781,9 +813,14 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - arquivo: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/power_panel.gd, godot/scripts/systems/remote_missile.gd, godot/tests/electrified_floor_test.gd, tools/extractors/extract_electrified_floor_data.py
 - 7: docs/reverse_engineering/inventory-and-events.md
 - 7-77: docs/index/mechanics.json
+- 92-131: godot/scripts/systems/rolling_barrel.gd
 - 92-225: docs/index/mechanics.json
+- 92-228: docs/index/mechanics.json
+- 98-102: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, tools/extractors/extract_rolling_barrel.py
 - 108-132: godot/scripts/systems/enemy.gd
 - 129-152: docs/index/mechanics.json
+- 159-223: godot/scripts/systems/rolling_barrel.gd
+- 159-228: godot/scripts/scenes/sandbox_gameplay.gd
 - 189-223: docs/index/mechanics.json
 - 216: godot/scripts/systems/enemy.gd
 
@@ -976,9 +1013,11 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## logic/punchenemy.asm
 - arquivo: docs/reverse_engineering/inventory-and-events.md, godot/scripts/systems/enemy.gd, godot/tests/combat_and_health_test.gd
+- 6-17: godot/scripts/systems/rolling_barrel.gd
 - 6-87: docs/index/mechanics.json
 - 29-87: godot/scripts/systems/enemy.gd, godot/tests/sleepy_guard_test.gd
 - 46-87: docs/reverse_engineering/stage-8-combat-and-health.md
+- 101-126: godot/scripts/systems/rolling_barrel.gd
 
 ## logic/regionlock.asm
 - 28: docs/reverse_engineering/en-eu-reextraction.md
@@ -1011,9 +1050,13 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 ## logic/touchenemy.asm
 - arquivo: godot/tests/combat_and_health_test.gd
 - 8: docs/reverse_engineering/inventory-and-events.md
+- 54-189: docs/index/mechanics.json
 - 55-57: godot/scripts/systems/prisoner.gd, godot/tests/prisoner_dialog_test.gd
+- 83-107: godot/scripts/systems/rolling_barrel.gd
+- 87-93: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, tools/extractors/extract_rolling_barrel.py
 - 137: godot/scripts/systems/enemy.gd
 - 137-189: docs/reverse_engineering/stage-8-combat-and-health.md
+- 148-189: godot/scripts/scenes/sandbox_gameplay.gd
 - 155: godot/scripts/systems/player.gd
 - 181-189: docs/index/mechanics.json
 

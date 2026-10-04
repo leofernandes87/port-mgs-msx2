@@ -98,16 +98,20 @@ def rgb_palette(register_pairs):
             for rb,g in register_pairs]
 
 
-def png_indexed(width, height, pixels, palette):
+def png_indexed(width, height, pixels, palette, transparent=None):
     if len(pixels) != width*height or not 0 < len(palette) <= 256:
         raise ValueError('Invalid PNG dimensions/palette')
     if any(p < 0 or p >= len(palette) for p in pixels):
         raise ValueError('Pixel outside palette')
+    if transparent is not None and not 0 <= transparent < len(palette):
+        raise ValueError('Transparent index outside palette')
     def chunk(kind, payload):
         return struct.pack('>I',len(payload)) + kind + payload + struct.pack('>I',zlib.crc32(kind+payload)&0xffffffff)
     scan = b''.join(b'\0'+bytes(pixels[y*width:(y+1)*width]) for y in range(height))
+    alpha = b'' if transparent is None else chunk(b'tRNS', bytes(0 if i == transparent else 255
+                                                                for i in range(transparent + 1)))
     return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR',struct.pack('>IIBBBBB',width,height,8,3,0,0,0)) +
-            chunk(b'PLTE',bytes(v for color in palette for v in color)) +
+            chunk(b'PLTE',bytes(v for color in palette for v in color)) + alpha +
             chunk(b'IDAT',zlib.compress(scan,9)) + chunk(b'IEND',b''))
 
 
