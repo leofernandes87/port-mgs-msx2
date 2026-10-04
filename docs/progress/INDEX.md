@@ -100,4 +100,4 @@ Gerado por `tools/context/progress_archive.py`; não editar. Leia uma entrada: `
 | docs/progress.md:61 | 2026-10-04 — Auditoria regional da implementação contra a edição inglesa |
 | docs/progress.md:93 | 2026-10-04 — Infraestrutura de contexto: regras enxutas, STATUS, progresso arquivado e índices |
 | docs/progress.md:112 | 2026-10-04 — Inventário progressivo: atores e bosses |
-| docs/progress.md:126 | 2026-10-04 — Interface enxuta de contexto para agentes |
+| docs/progress.md:127 | 2026-10-04 — Interface enxuta de contexto para agentes |

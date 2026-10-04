@@ -121,7 +121,8 @@ PARTIAL 20, PROVISIONAL 12, NOT_STARTED 17, UNMAPPED 2; demais statuses 0.
 sandbox: exit 0, 37 etapas PASS, 134 testes Python; importação/boot Godot 4.7.2 aprovados.
 **Pendências:** UNMAPPED: uso alcançável do prisioneiro ID 56 e correspondência da explosão
 ID 65; demais divergências no catálogo, sem correção nesta entrega.
-**Git:** sem commit; alteração preexistente em `godot/project.godot` preservada.
+**Git:** commit `e408782`; entrega registrada na tag anotada `v0.2.1`.
+`godot/project.godot` preservado fora do commit; sem push.
 
 ## 2026-10-04 — Interface enxuta de contexto para agentes
 
@@ -134,5 +135,5 @@ como relatório humano, não contexto padrão de agentes; catálogo e gameplay p
 `python3 tools/validate.py` fora do sandbox: exit 0, 37 etapas PASS, 142 testes Python;
 importação/boot Godot 4.7.2 aprovados. Conferência real dos filtros e hashes preservados.
 **Pendências:** auditoria não avançou; lacunas anteriores permanecem no catálogo.
-**Git:** commit único com a entrega anterior (inventário de atores e bosses), a pedido do
-usuário, sem push e sem tag; `godot/project.godot` fora do commit.
+**Git:** commit `e408782`; entrega registrada na tag anotada `v0.2.1`.
+`godot/project.godot` preservado fora do commit; sem push.

@@ -5,9 +5,9 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 ## Onde estamos
 
-- Última tag `v0.2.0` (minor: ROM canônica inglesa com dados incompatíveis com os anteriores,
-  auditoria regional e infraestrutura de contexto).
-- Auditoria de atores/bosses e interface de contexto commitadas sobre `0c268ca` (sem push, sem tag).
+- Última tag: `v0.2.1` (inventário de atores/bosses e interface de contexto).
+- Conteúdo da entrega: commit `e408782`, sobre `0c268ca`; registro da versão em `v0.2.1`.
+- Sem push. O commit de conteúdo existente foi preservado.
 - ROM canônica `en-eu-rc750` por SHA-256 (`tools/rom.py`); o Godot só aceita dados de
   `data/extracted/en-eu-rc750/` com essa proveniência. Godot em 60 Hz.
 - Sandbox jogável a partir da sala 121; catálogo progressivo e cadeias em
