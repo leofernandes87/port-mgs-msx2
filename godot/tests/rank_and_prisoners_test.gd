@@ -182,8 +182,7 @@ func _test_key_story_hostages() -> void:
 	_assert(fox.prisoner_name == "GREY FOX", "ID 51 identificado como GREY FOX")
 	_assert(fox.is_vital, "Grey Fox é personagem vital")
 	fox.rescue_prisoner()
-	_assert(fox.message_text.contains("Grey Fox"), "Diálogo do Grey Fox contém sua identificação")
-	_assert(fox.message_text.contains("Metal Gear"), "Diálogo do Grey Fox menciona Metal Gear")
+	_assert(fox.message_text.is_empty(), "Grey Fox usa texto 59 paginado, sem resumo inventado")
 	fox.free()
 
 	# Ellen Madnar (ID 50) na Sala 167
@@ -282,4 +281,3 @@ func _test_prisoner_sprites_and_animation() -> void:
 	fox.free()
 	ellen.free()
 	madnar.free()
-

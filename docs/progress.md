@@ -2932,3 +2932,96 @@ ROM principal com hash inalterado; novos dados extraídos apenas em diretórios 
 ## 2026-10-02 — Registro das correções das paredes
 
 Commit e tag autorizados pelo usuário para o trabalho pendente. Mensagem: `fix(prison): restaura paredes e fuga canônicas da prisão`; tag anotada escolhida: `v0.1.47`. Validação reaproveitada da entrega anterior: 92 testes Python, todas as etapas Godot e renderização das duas paredes sem divergências. Arquivos candidatos revisados; extrações, imagens privadas e ROM permanecem ignoradas. Próxima tarefa autorizada: janela canônica do diálogo de Grey Fox, incluindo texto, fonte e paginação.
+
+## Estado mais recente — 2026-10-03: diálogo canônico inglês de Grey Fox
+
+**Última tarefa executada:** concluído o commit pendente das paredes
+`b8a3275` (`fix(prison): restaura paredes e fuga canônicas da prisão`) com tag
+anotada `v0.1.47`. Em seguida implementada a janela do texto 59 de Grey Fox,
+na versão inglesa original escolhida pelo usuário. São dez páginas, fonte bitmap
+extraída corrigida, moldura 160×41, impressão progressiva, prompt piscante e avanço
+por Enter/M/N. Pular durante a impressão descarta o restante daquela página,
+conforme o assembly. A última página exige confirmação; eliminado timeout de 6 s.
+O mundo e as ações ficam suspensos, com restauração ao fechar/resetar. Promoção
+simultânea não substitui a fala; reentrada não repete o resgate.
+
+**Correção da fonte:** parser concatenava os ramos japonês e inglês de
+`gfx/font.asm`, deslocando pontuação. Agora seleciona somente inglês e mapeia
+corretamente vírgula/apóstrofo. Atlas privado compartilhado regenerado.
+Texto completo fica no JSON privado; resumo anterior removido do código.
+
+**Evidência e limites:** [grey-fox-dialogue.md](reverse_engineering/grey-fox-dialogue.md).
+O diálogo japonês foi encontrado na ROM principal; o inglês não foi localizado
+nas duas ROMs disponíveis. Implementação inglesa deriva da desmontagem fixada,
+por escolha expressa do usuário, sem alegar correspondência binária à ROM local.
+Nenhuma nova captura openMSX; SFX de digitação ainda não integrado.
+
+**Validação real:** 98 testes Python e todas as etapas Godot passaram no validador.
+Novo teste da janela: 75 verificações sem falha; execução gráfica: 86 sem falha.
+Dez páginas renderizadas coincidiram pixel a pixel com composição independente
+da fonte e dos dados ingleses (49.152 pixels por página). Conferida visualmente
+a janela na sala 212. Logs e screenshots ignorados em `reports/grey-fox-*`.
+
+**Git:** alterações do diálogo ainda sem commit, separadas de `v0.1.47`.
+Alteração local preexistente em `godot/project.godot` preservada. ROMs com hashes
+originais; texto, atlas e imagens protegidos continuam ignorados. Sem push.
+
+**Próxima tarefa:** aguardar solicitação após esta entrega. Para aprofundar a
+fidelidade audiovisual do diálogo: integrar SFX `0x23` e validar a cadência em
+uma edição inglesa correspondente no openMSX. Isso não foi iniciado.
+
+## 2026-10-03 — Correções de fidelidade do resgate e da janela de Grey Fox
+
+**Última tarefa executada:** aplicadas as divergências comprovadas na revisão do
+diálogo contra o assembly. Detalhes e tabela de evidências em
+[grey-fox-dialogue.md](reverse_engineering/grey-fox-dialogue.md#correções-de-fidelidade-revisão-contra-o-assembly).
+
+- **Atraso do resgate:** `Prisoner` ganhou os estados amarrado/espera/resgatado/inativo
+  (`prisoner.asm:63–67`). O toque só arma `touch_flag`, e o ator o lê no tick seguinte,
+  espera `TIMER=2` e resgata em T+4 (`prisoner.asm:90–95,199–203,244–256`;
+  ordem `EnemiesLogic`→`ChkTouchEnemies`, `Banks0123.asm:12072–12087`). O soco continua
+  matando no toque.
+- **Continuidade do tick:** o sandbox não interrompe mais o tick quando o diálogo
+  abre. Tiros e colisões terminam esse tick e o congelamento começa no seguinte
+  (`Banks0123.asm:7824–7829`).
+- **HUD na promoção:** classe e vida são redesenhadas no próprio tick
+  (`Banks0123.asm:9656,9675–9677`).
+- **Prompt:** surge só a partir do 1.º tick de TW_Wait e só se houver próxima página.
+  Na fase apagada, a célula `(196,36)` é coberta de preto
+  (`Banks0123.asm:4726–4744,8102–8107,8179–8185,8207–8218`).
+- **Camada:** a janela usa `z_index=7`, ficando abaixo de inimigos, Snake e tiros
+  (sprites de hardware sobre o bitmap: `textboxappear.asm:51–62`,
+  `hudspritemask.asm:37–41`, `nextroom.asm:90`).
+
+**openMSX:** sonda somente leitura (openMSX 21.0, C-BIOS MSX2 JP) com saída ignorada
+em `data/extracted/textbox-probe-20261004/`. Registrou 33 passos VDP da abertura do
+texto 2 gravando no bitmap. Não cobriu Grey Fox, e o fundo preto anterior à caixa
+impediu concluir sobre os pixels inferiores da moldura.
+
+**Validação real:** `prisoner_dialog_test.gd` headless: 101 verificações, 0 falhas.
+Com `--render`: 115 verificações, 0 falhas, incluindo os pixels da célula do prompt
+nas fases apagada e acesa. `rank_and_prisoners_test.gd`: 77 testes, 0 falhas.
+`tests.test_grey_fox_dialogue`: 6 testes OK. `python3 tools/validate.py`: exit 0,
+35 etapas PASS e 98 testes Python. Houve uma falha intermediária esperada: o teste
+antigo verificava o prompt no próprio tick de TW_TextEnd. A expectativa foi ajustada
+à regra do assembly.
+
+**Pendências:** pixels da última linha interna da moldura e possível coluna x=206
+do HMMV; botão B do joystick; SFX `0x23` e de promoção; fase do TickCounter;
+prisioneiro abaixo das portas e DismissActor0 na reentrada. **Tarefa separada:**
+`RESCUED_PER_RANK=4` versus `cp 5` em IncRescued (`Banks0123.asm:9593,9634–9641`),
+não alterada nesta entrega.
+
+**Git:** sem commit. ROM principal com SHA-256 inalterado; `git diff --check` limpo;
+alteração preexistente em `godot/project.godot` preservada.
+
+**Próxima tarefa:** aguardar solicitação (candidata: `RESCUED_PER_RANK`).
+
+## 2026-10-04 — Registro do diálogo de Grey Fox
+
+Commit e tag autorizados pelo usuário: diálogo inglês paginado de Grey Fox,
+correção da fonte extraída e correções de fidelidade do resgate/janela, tag anotada
+`v0.1.48`. Validação reaproveitada da entrega anterior (validador completo, testes
+Grey Fox headless e gráfico). Arquivos candidatos revisados; texto, atlas, extrações
+e ROMs permanecem ignorados. A alteração local preexistente em `godot/project.godot`
+ficou fora do commit e continua preservada. Sem push.

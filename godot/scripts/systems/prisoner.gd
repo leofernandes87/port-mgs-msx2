@@ -24,8 +24,6 @@ const PRISONER_TEXTS: Dictionary = {
 	152: "I'm saved! Watch out for infrared laser traps in the corridors.",
 	159: "I'm saved! Diane of the Resistance supports you on frequency 120.33...",
 	161: "I'm saved! Use a Parachute to dive between the fences.",
-	164: "Glad you arrived, rookie... I'm Grey Fox... Metal Gear is an armored walking battle tank equipped with nuclear missiles... Only Dr. Pettrovich knows how to destroy it.",
-	212: "Glad you arrived, rookie... I'm Grey Fox... Metal Gear is an armored walking battle tank equipped with nuclear missiles... Only Dr. Pettrovich knows how to destroy it.",
 	167: "Thank you. I'm the daughter of Dr. Pettrovich, Ellen. My father was forced to develop Metal Gear... please save him!",
 	180: "I'm saved! The water channel goes to building 3.",
 	182: "I'm Dr. Pettrovich... To destroy Metal Gear, attach plastic explosives to the right and left feet in sequence!",
@@ -48,6 +46,10 @@ static var _checked_textures: bool = false
 ## Anim2FramesActor com máscara 0x0F alterna o sprite a cada 16 frames NTSC (16/60 = 0.2667s)
 const ANIM_INTERVAL_SEC: float = 16.0 / 60.0
 
+## ACTOR2.Status: PrisonerIdle, PrisonerWait, PrisonerRescued, PrisonerDummy (prisoner.asm:63-67).
+enum Status { IDLE, WAIT, RESCUED, DONE }
+const RESCUE_WAIT_TICKS: int = 2 # ACTOR2.TIMER (prisoner.asm:94)
+
 var room_id: int = 0
 var actor_type_id: int = TYPE_PRISONER
 var prisoner_name: String = "PRISIONEIRO"
@@ -55,6 +57,9 @@ var message_text: String = "I'm saved!"
 var is_rescued: bool = false
 var is_dead: bool = false
 var is_vital: bool = false # Grey Fox ou Ellen: morte causa falha crítica
+var status: Status = Status.IDLE
+var touch_flag: bool = false # TOUCH_INFO bit 7, written by ChkTouchEnemies
+var wait_timer: int = 0
 
 var anim_frame: int = 0
 var anim_timer: float = 0.0
@@ -81,7 +86,7 @@ func _process(delta: float) -> void:
 
 ## Avança o ciclo temporal calibrado a 60Hz NTSC.
 func step_tick(delta: float = 1.0 / 60.0) -> void:
-	if is_dead or is_rescued:
+	if is_dead or is_freed():
 		return
 
 	anim_timer += delta
@@ -114,7 +119,8 @@ func _configure_prisoner() -> void:
 			prisoner_name = "PRISIONEIRO"
 			is_vital = false
 
-	message_text = PRISONER_TEXTS.get(room_id, "I'm saved! Thank you, Snake!")
+	# Grey Fox uses private text 59 and its pages, not the old prose summary.
+	message_text = "" if actor_type_id == TYPE_GREY_FOX else PRISONER_TEXTS.get(room_id, "I'm saved! Thank you, Snake!")
 
 ## Obtém a região retangular exata no spritesheet MSX2 (48x128 px).
 func _get_sprite_rect() -> Rect2:
@@ -130,16 +136,39 @@ func _get_sprite_rect() -> Rect2:
 			row = 0
 
 	var col: int = 0
-	if is_rescued:
+	if is_freed():
 		col = 2 # SpriteId 0x40 (PrisonerFree)
 	else:
 		col = anim_frame # SpriteId 0x3E (col 0) ou 0x3F (col 1)
 
 	return Rect2(col * 16.0, row * 32.0, 16.0, 32.0)
 
-## Verifica toque do jogador desarmado ou soco.
-func check_touch(player_pos: Vector2, is_punching: bool) -> bool:
+## Sprite 40h already shown: from the touch read in PrisonerIdle onward, or after a rescue.
+func is_freed() -> bool:
+	return is_rescued or status != Status.IDLE
+
+## PrisonerLogic, run with the other actors before the touch check of the same tick.
+## Touch read at T+1, two TIMER ticks, SetText at T+4 (prisoner.asm:90-95,199-203,244-256).
+func actor_tick() -> void:
 	if is_dead or is_rescued:
+		return
+	match status:
+		Status.IDLE:
+			if touch_flag:
+				wait_timer = RESCUE_WAIT_TICKS
+				status = Status.WAIT
+				queue_redraw()
+		Status.WAIT:
+			wait_timer -= 1
+			if wait_timer == 0:
+				status = Status.RESCUED
+		Status.RESCUED:
+			rescue_prisoner()
+
+## ChkTouchEnemies: clears and sets TOUCH_INFO bit 7 every tick (touchenemy.asm:55-57,107).
+func check_touch(player_pos: Vector2, is_punching: bool) -> bool:
+	touch_flag = false
+	if is_dead or is_freed():
 		return false
 
 	var touch_box := Rect2(position.x - 12.0, position.y - 12.0, 24.0, 24.0)
@@ -151,8 +180,7 @@ func check_touch(player_pos: Vector2, is_punching: bool) -> bool:
 		kill_prisoner()
 		return false
 
-	# Resgate bem-sucedido
-	rescue_prisoner()
+	touch_flag = true
 	return true
 
 ## Aplica tiro de arma de fogo no prisioneiro.
@@ -166,6 +194,7 @@ func rescue_prisoner() -> void:
 	if is_rescued or is_dead:
 		return
 	is_rescued = true
+	status = Status.DONE
 	queue_redraw()
 	rescued.emit(self)
 
@@ -210,7 +239,7 @@ func _draw() -> void:
 	draw_circle(Vector2(0, -6), 5, c_skin)
 	draw_arc(Vector2(0, -7), 5, -PI, 0, 8, c_hair, 2.0)
 
-	if not is_rescued:
+	if not is_freed():
 		# Prisioneiro amarrado (joelhos dobrados, cordas no peito e braços)
 		draw_rect(Rect2(-5, -1, 10, 10), c_cloth)
 		draw_line(Vector2(-5, 2), Vector2(5, 2), c_ropes, 1.5)

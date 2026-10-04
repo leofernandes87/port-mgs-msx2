@@ -40,6 +40,7 @@ def main():
         ("godot-alert-system", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/alert_system_test.gd"]),
         ("godot-boss-shoot-gunner", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/shot_gunner_test.gd"]),
         ("godot-rank-and-prisoners", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/rank_and_prisoners_test.gd"]),
+        ("godot-prisoner-dialog", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/prisoner_dialog_test.gd"]),
         ("godot-gas-hazard", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/gas_hazard_test.gd"]),
         ("godot-remote-missile", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/remote_missile_test.gd"]),
         ("godot-capture-prison", [godot, "--headless", "--path", str(ROOT / "godot"), "--script", "res://tests/capture_prison_test.gd"]),
@@ -95,6 +96,8 @@ def main():
             raise RuntimeError("Teste do Boss Shoot Gunner não confirmou conclusão")
         if name == "godot-rank-and-prisoners" and "RANK_AND_PRISONERS_OK:" not in result.stdout:
             raise RuntimeError("Teste de prisioneiros e patente militar não confirmou conclusão")
+        if name == "godot-prisoner-dialog" and "PRISONER_DIALOG_OK:" not in result.stdout:
+            raise RuntimeError("Teste de diálogo paginado não confirmou conclusão")
         if name == "godot-gas-hazard" and "GAS_HAZARD_OK:" not in result.stdout:
             raise RuntimeError("Teste de perigo de gás e máscara não confirmou conclusão")
         if name == "godot-remote-missile" and "REMOTE_MISSILE_OK:" not in result.stdout:

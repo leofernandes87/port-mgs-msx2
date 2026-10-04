@@ -62,6 +62,11 @@ def parse_asm_symbols(asm_path: str) -> dict:
     with open(asm_path, "r", encoding="utf-8", errors="ignore") as f:
         content = f.read()
 
+    # gfx/font.asm:29-33,63-67: mutually exclusive regional glyphs.
+    # Concatenating both branches shifts every tile after the question mark.
+    content = re.sub(r"(?im)^\s*IF\s*\(JAPANESE\)\s*$.*?^\s*ELSE\s*$(.*?)^\s*ENDIF\s*$",
+                     lambda match: match[1], content, flags=re.DOTALL)
+
     pattern = re.compile(r"([A-Za-z0-9_]+):\s+(.*?)(?=\n[A-Za-z0-9_]+:|\Z)", re.DOTALL)
     syms = {}
     for match in pattern.finditer(content):
@@ -272,11 +277,11 @@ def generate_msx_font(font_syms: dict, out_path: str) -> None:
         elif ascii_code == ord("#"):
             tile_bytes = raw_tiles.get(15, [0] * 8)
         elif ascii_code == ord("'"):
-            tile_bytes = raw_tiles.get(47, [0] * 8)
+            tile_bytes = raw_tiles.get(103, [0] * 8)
         elif ascii_code == ord("*"):
             tile_bytes = raw_tiles.get(11, [0] * 8)  # Estrela ★
         elif ascii_code == ord(","):
-            tile_bytes = raw_tiles.get(46, [0] * 8)
+            tile_bytes = raw_tiles.get(47, [0] * 8)
         elif ascii_code == ord("-"):
             tile_bytes = raw_tiles.get(16, [0] * 8)
         elif ascii_code == ord("."):

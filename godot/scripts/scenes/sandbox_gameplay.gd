@@ -50,6 +50,8 @@ var alert_system: AlertSystem = AlertSystem.new()
 var rank_system: RankSystem = RankSystem.new()
 var prisoners: Array[Prisoner] = []
 var dialog_banner_label: Label = null
+var prisoner_dialog: PrisonerDialog
+var _world_process_before_dialog: ProcessMode = Node.PROCESS_MODE_INHERIT
 var is_game_over: bool = false
 var game_over_banner: Label = null
 
@@ -183,6 +185,11 @@ func _ready() -> void:
 	# Nó container 2D escalado (mundo nativo 256x192)
 	game_world = Node2D.new()
 	viewport_area.add_child(game_world)
+	prisoner_dialog = PrisonerDialog.new()
+	game_world.add_child(prisoner_dialog)
+	prisoner_dialog.closed.connect(func() -> void:
+		game_world.process_mode = _world_process_before_dialog
+	)
 
 	# Fundo da sala
 	room_display = Node2D.new()
@@ -1488,18 +1495,7 @@ func _spawn_room_prisoners(room_id: int) -> void:
 			if rank_system.is_room_rescued(room_id):
 				pris.is_rescued = true
 
-			pris.rescued.connect(func(p_node: Prisoner):
-				var ranked_up: bool = rank_system.register_rescue(p_node.room_id, p_node.prisoner_name, p_node.message_text)
-				if ranked_up:
-					player.set_rank_life(rank_system.get_max_life(), true)
-					weapon_system.update_rank_capacities(rank_system.current_rank)
-					inventory.update_rank_capacities(rank_system.current_rank)
-					show_dialog_message("PROMOÇÃO MILITAR!", "Solid Snake promovido para Rank ★%d (%s)!" % [
-						rank_system.current_rank, rank_system.get_rank_stars()
-					], 5.0)
-				else:
-					show_dialog_message(p_node.prisoner_name, p_node.message_text, 6.0)
-			)
+			pris.rescued.connect(_on_prisoner_rescued)
 
 			pris.killed.connect(func(p_node: Prisoner):
 				rank_system.register_kill(p_node.room_id, p_node.is_vital)
@@ -1516,6 +1512,34 @@ func _spawn_room_prisoners(room_id: int) -> void:
 
 			game_world.add_child(pris)
 			prisoners.append(pris)
+
+func _on_prisoner_rescued(prisoner: Prisoner) -> void:
+	# prisoner.asm:244-256,277: text 59 still opens when this rescue raises rank.
+	var ranked_up: bool = rank_system.register_rescue(prisoner.room_id, prisoner.prisoner_name, prisoner.message_text)
+	if ranked_up:
+		player.set_rank_life(rank_system.get_max_life(), true)
+		weapon_system.update_rank_capacities(rank_system.current_rank)
+		inventory.update_rank_capacities(rank_system.current_rank)
+		# IncRescued redraws class and life in this tick (Banks0123.asm:9656,9675-9677);
+		# the HUD's own _process stops once the world is frozen below.
+		if hud:
+			hud.update_hud_state()
+			hud.queue_redraw()
+	if prisoner.actor_type_id == Prisoner.TYPE_GREY_FOX:
+		if prisoner_dialog.open_grey_fox():
+			if dialog_banner_label:
+				dialog_banner_label.hide()
+			# SetText switches GameMode; restore it at TextBoxExit (:7824-7828,8301-8303).
+			_world_process_before_dialog = game_world.process_mode
+			game_world.process_mode = Node.PROCESS_MODE_DISABLED
+		else:
+			show_dialog_message("DIÁLOGO INDISPONÍVEL", prisoner_dialog.last_error)
+	elif ranked_up:
+		show_dialog_message("PROMOÇÃO MILITAR!", "Solid Snake promovido para Rank ★%d (%s)!" % [
+			rank_system.current_rank, rank_system.get_rank_stars()
+		], 5.0)
+	else:
+		show_dialog_message(prisoner.prisoner_name, prisoner.message_text, 6.0)
 
 func _spawn_room_power_panel(room_id: int) -> void:
 	if is_instance_valid(power_panel):
@@ -1691,6 +1715,8 @@ func reset_player() -> void:
 
 ## Reseta e limpa absolutamente todas as variáveis de estado, inventário e atores (evita vazamento de memória)
 func reset_game_state() -> void:
+	if prisoner_dialog:
+		prisoner_dialog.close()
 	# 1. Limpar e liberar projéteis e entidades dinâmicas
 	for b: Bullet in bullets:
 		if is_instance_valid(b):
@@ -1836,6 +1862,10 @@ func _execute_game_restart() -> void:
 		reset_player()
 
 func _input(event: InputEvent) -> void:
+	if prisoner_dialog and prisoner_dialog.is_active:
+		prisoner_dialog.handle_input(event)
+		get_viewport().set_input_as_handled()
+		return
 	# 0. Interceptação durante a cutscene de abertura (infiltração na água e escalada)
 	if intro_cutscene and intro_cutscene.is_active:
 		if radio_dialog and radio_dialog.is_active:
@@ -2127,6 +2157,9 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 func _physics_process(delta: float) -> void:
+	if prisoner_dialog and prisoner_dialog.is_active:
+		prisoner_dialog.step_tick(delta)
+		return
 	if not player:
 		return
 
@@ -2309,8 +2342,10 @@ func _physics_process(delta: float) -> void:
 				break
 
 	# Atualizar prisioneiros / reféns (resgate por toque desarmado ou dano por soco/tiro)
+	# SetText only switches GameMode; the rest of this tick still runs (Banks0123.asm:7824-7829,12072-12087).
 	for pris: Prisoner in prisoners:
 		if is_instance_valid(pris) and not pris.is_dead:
+			pris.actor_tick()
 			pris.check_touch(player.position, player.is_punching)
 			for b: Bullet in bullets:
 				if is_instance_valid(b) and not b.is_enemy:

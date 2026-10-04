@@ -1,5 +1,22 @@
 # Transferência — Handoff Atualizado 2026-09-21
 
+> **Atualização corrente — 2026-10-03:** paredes da prisão registradas no commit
+> `b8a3275`, tag `v0.1.47`. Trabalho posterior ainda sem commit: janela inglesa
+> original de Grey Fox, dez páginas, fonte extraída corrigida e jogo suspenso
+> durante a fala. Gerar dados locais com
+> `python3 -m tools.extractors.extract_grey_fox_dialogue` antes de executar.
+> Inglês escolhido pelo usuário; fonte textual é a desmontagem fixada, não o
+> texto japonês encontrado na ROM principal. Validação: 98 testes Python,
+> todas as etapas Godot e dez páginas sem divergência no teste de pixels.
+> Ver [relatório](reverse_engineering/grey-fox-dialogue.md) e o estado mais recente
+> ao final de `docs/progress.md`. Preservar alteração preexistente em
+> `godot/project.godot`. Próxima tarefa depende de solicitação; SFX/captura
+> dinâmica do diálogo permanecem pendentes.
+> **2026-10-04:** diálogo e revisão registrados na tag `v0.1.48`;
+> `godot/project.godot` segue local, fora do commit. Revisão incluída: atraso de resgate T→T+4, tick contínuo, HUD
+> imediato na promoção, prompt/célula e janela abaixo dos sprites (z=7).
+> Tarefa separada registrada: `RESCUED_PER_RANK=4` vs `cp 5`.
+
 > **Regra de continuidade**: atualizar este arquivo a cada commit, antes de avançar
 > para o próximo bloco de trabalho. Assim, qualquer nova sessão retoma exatamente
 > do ponto correto, mesmo que o contexto da conversa anterior tenha se esgotado.
