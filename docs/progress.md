@@ -3,25 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Infraestrutura de contexto: regras enxutas, STATUS, progresso arquivado e índices
-
-**Feito:** `AGENTS.md` só com regras permanentes (mapa do repositório e ambiente em
-`docs/README.md`); `GEMINI.md` de uma linha; `docs/STATUS.md` substitui o HANDOFF (original
-preservado em `docs/history/`). Histórico de `progress.md` movido sem edição para
-`docs/progress/AAAA-MM.md` (94 entradas reconstruídas byte a byte; 309 KB → 12 KB) com índice.
-`tools/context/`: `build_index` (símbolos asm, RAM, citações reversas, esboço Godot, testes,
-rotação do progresso, validação de `mechanics.json`, `rooms.md`, caminhos e skills) e `lookup`.
-`validate.py` com tabela `GODOT_TESTS` e etapa `context-indexes`. Skills novas:
-`implement-faithful-mechanic`, `rom-extraction`, `godot-testing`, `openmsx-probe`, `delivery`;
-`inspect-msx-disassembly` atualizada. Citações ambíguas qualificadas (`logic/actors/camera.asm`,
-`logic/items.asm`), só em comentários.
-**Achado registrado (não corrigido):** 211/212 são aliases da prisão no Godot e salas reais do
-canal de água na ROM (`data/roomsconnections.asm:113-114,136-137`).
-**Testes:** `tests/test_context_index.py` (7, fixtures sintéticas). `python3 tools/validate.py`:
-exit 0, 37 etapas PASS (nova `context-indexes`), 127 testes Python.
-**Git:** commit a pedido do usuário com tag `v0.2.0` (minor: desde `v0.1.48`, ROM canônica
-inglesa com dados incompatíveis, auditoria regional `0ffde16` e esta entrega).
-
 ## 2026-10-04 — Inventário progressivo: atores e bosses
 
 **Feito:** `docs/index/mechanics.json` ampliado como catálogo único, com 51 features da edição
@@ -93,3 +74,17 @@ conferido), o Godot avisa quando falta textura e o teste cobre as quatro salas.
 com valores calculados do asm, conferência cruzada com o JSON extraído e contato fatal no sandbox.
 **Pendências:** SFX 1Dh só como sinal (sem subsistema de áudio); paleta dos óculos não aplicada.
 **Git:** commit `feat(actors)` com tag `v0.2.2`, sem push; `godot/project.godot` preservado.
+
+## 2026-10-04 — Inventário progressivo: rádio, diálogos e caixas de texto
+
+**Feito:** inventário Z80 da edição inglesa antes do cruzamento com Godot, extrações e testes.
+32 features em `radio-dialogue`: PARTIAL 20, PROVISIONAL 5, NOT_STARTED 6, UNMAPPED 1 (`radio-chk-reply-madnar-text15`).
+Evidência: `Banks0123.asm:1689-1745,2379-2448,5305-5345,7790-8350,10695-11350`, `logic/incomingcall.asm:10-36`,
+`logic/textboxappear.asm:10-70`, `data/radiocalls.asm:1-447`, `data/texts.asm:1-350`.
+Divergências registradas: inversão SEND/WAITCALL vs AUTOREPLY, 45 salas omitidas, condições do Edifício 2
+(antena, rank de Jennifer, Big Boss traidor), textos hardcoded/resumidos e fragmentação do motor `TextBoxLogic`.
+Nenhum arquivo de gameplay alterado.
+**Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 159 testes Python; `build_index --check`: exit 0.
+**Pendências:** correções de gameplay e de texto preservadas para etapas de implementação sob demanda.
+**Git:** commit `6bbad2a` a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
+

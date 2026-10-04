@@ -3012,3 +3012,1092 @@ Nenhuma entrada.
 **Faltante / não comprovado:** Adicionar transmissor original; distinguir restauração de equipamento real do fallback inventado quando não há snapshot anterior.
 
 **Notas de evidência:** restore_equipment:146-184 não inclui transmissor; caminho sem captura anterior concede loadout fixo (cartões/cigarros/ração/HG), não uma restauração comprovada. Suíte não exige transmissor.
+
+## Sistema de rádio/transceptor, chamadas, mensagens e diálogos
+
+Auditoria: 2026-10-04; HEAD de partida: `b68b8f7`; referência inglesa: `30d1b940bede10fdabbaf9767ad4f0ad8dd33291`.
+
+Inventário do sistema de rádio/transceptor (GAME_MODE_RADIO), sintonia, contatos e frequências da edição inglesa RC750 (JAPANESE equ 0), modos SEND/RECV, WAITCALL vs AUTOREPLY, chamadas automáticas/indicador CALL no HUD, despacho de chamadas por sala (idxRoomRadio), regras e condições de contato (antena, rank, mortes, grampos, MSX switch off), sistema unificado de caixas de texto (TextBoxLogic, geometrias, animação de abertura, modos de controle de avanço skippable/unskippable, typewriter, ícone enter, métricas de caracteres), decodificação de textos da ROM (DecodeText e dicionário), diálogos de prisioneiros/reféns, diálogos de chefes/inimigos, briefing da introdução e mensagens contextuais. Exclui lógica física de combate já coberta em actors-bosses, inventário/armas/itens já cobertos em weapons-items, áudio/música como domínio separado e cutscenes completas.
+
+Inventário original primeiro a partir da desmontagem canônica inglesa (Banks0123.asm, logic/incomingcall.asm, data/radiocalls.asm, data/texts.asm, logic/textboxappear.asm, logic/capturescene.asm, logic/introscene.asm, logic/actors/prisoner.asm, logic/actors/*.asm, Variables.asm, constants/Enums.asm). Cruzamento estático com extratores existentes (extract_grey_fox_dialogue.py, extract_transceiver_sprites.py), sistemas Godot (radio_system.gd, radio_dialog.gd, prisoner_dialog.gd, capture_cutscene.gd, hud.gd, sandbox_gameplay.gd, prisoner.gd), testes automatizados (radio_system_test.gd, prisoner_dialog_test.gd, capture_prison_test.gd, intro_cutscene_test.gd), documentação e histórico. Classificação segundo os 7 statuses formais sem promover a IMPLEMENTED suítes verdes com divergências de fidelidade. Sem alterações de código de gameplay nesta tarefa.
+
+- Domínio estritamente focado no sistema de comunicação por rádio, seleção/despacho de mensagens e motor de caixas de texto.
+- Não possui IDs numéricos de entidade (actor_ids, weapon_ids, etc.); cada feature cobre uma mecânica ou subsistema funcional transversal.
+- Nenhuma feature foi promovida a IMPLEMENTED porque todos os sistemas de diálogo e rádio atuais possuem pendências concretas: strings hardcoded parafraseadas, ausência de motor unificado de caixas de texto ou ausência de condições canônicas do Z80.
+- Features legadas 'radio' e 'text-window' foram integradas ao domínio radio-dialogue para manter referências cruzadas existentes de outros domínios intactas.
+- Status UNMAPPED atribuído à verificação de Text ID 15 e MadnarMoved em ChkReplyMadnar por ser código anômalo/morto sem correspondência em radiocalls.asm.
+
+| Status | Features |
+| --- | ---: |
+| `IMPLEMENTED` | 0 |
+| `PARTIAL` | 20 |
+| `PROVISIONAL` | 5 |
+| `NOT_STARTED` | 6 |
+| `DEFERRED` | 0 |
+| `UNMAPPED` | 1 |
+| `INVESTIGATING` | 0 |
+| Total | 32 |
+
+### Entradas
+
+| Feature | IDs | Status |
+| --- | --- | --- |
+| [radio](#radio) — Transceptor: tela, modo de jogo e interface central | transversal | `PARTIAL` |
+| [text-window](#text-window) — Motor de janela de texto: TextBoxLogic e despacho central | transversal | `PROVISIONAL` |
+| [radio-tuning-frequency](#radio-tuning-frequency) — Sintonia de frequências e display digital BCD | transversal | `PARTIAL` |
+| [radio-contacts-frequencies](#radio-contacts-frequencies) — Contatos e frequências canônicas da edição inglesa | transversal | `PARTIAL` |
+| [radio-transmission-modes](#radio-transmission-modes) — Modos de transmissão: envio (SEND) vs escuta (RECV) | transversal | `PARTIAL` |
+| [radio-auto-reply-waitcall](#radio-auto-reply-waitcall) — Despacho de resposta: AUTO-REPLY vs WAIT-CALL | transversal | `PROVISIONAL` |
+| [radio-auto-tune](#radio-auto-tune) — Sintonia automática ao atender chamadas (Auto-Tune) | transversal | `PARTIAL` |
+| [radio-signal-led-bars](#radio-signal-led-bars) — Animação e temporização das 12 barras de sinal LED | transversal | `PARTIAL` |
+| [radio-incoming-call-detection](#radio-incoming-call-detection) — Detecção e ciclo de vida de chamadas recebidas (Incoming Calls) | transversal | `PROVISIONAL` |
+| [radio-hud-call-indicator](#radio-hud-call-indicator) — Indicador CALL no HUD e sinal sonoro do buzzer | transversal | `PARTIAL` |
+| [radio-room-dispatch-table](#radio-room-dispatch-table) — Tabela canônica de despachos de rádio por sala (idxRoomRadio) | transversal | `PARTIAL` |
+| [radio-cond-antenna](#radio-cond-antenna) — Condição de rádio: exigência da antena no Edifício 2 | transversal | `NOT_STARTED` |
+| [radio-cond-schneider](#radio-cond-schneider) — Condições de rádio: Schneider (chamadas ativas e captura) | transversal | `PARTIAL` |
+| [radio-cond-jennifer](#radio-cond-jennifer) — Condições de rádio: Jennifer (Rank 4 e vingança pelo irmão) | transversal | `NOT_STARTED` |
+| [radio-cond-bigboss-bug](#radio-cond-bigboss-bug) — Condição de rádio: aviso de grampo/transmissor por Big Boss | transversal | `NOT_STARTED` |
+| [radio-cond-bigboss-switch-off](#radio-cond-bigboss-switch-off) — Condição de rádio: ordem de desligar o MSX por Big Boss | transversal | `NOT_STARTED` |
+| [radio-chk-reply-madnar-text15](#radio-chk-reply-madnar-text15) — Checagem anômala de Text ID 15 e MadnarMoved no rádio | transversal | `UNMAPPED` |
+| [text-box-geometry-types](#text-box-geometry-types) — Tipos e geometrias de caixas de texto (TextBoxType) | transversal | `PARTIAL` |
+| [text-appearance-animation](#text-appearance-animation) — Animação de abertura e fechamento da caixa de texto | transversal | `PARTIAL` |
+| [text-skip-control-modes](#text-skip-control-modes) — Controle de avanço e pulo de texto: skippable vs unskippable | transversal | `PARTIAL` |
+| [text-typewriter-audio](#text-typewriter-audio) — Efeito de digitação (Typewriter) e áudio de fala | transversal | `PARTIAL` |
+| [text-prompt-enter-blink](#text-prompt-enter-blink) — Ícone de ENTER piscante no fim da página | transversal | `PARTIAL` |
+| [text-char-metrics-widths](#text-char-metrics-widths) — Métricas de caracteres e espaçamento proporcional | transversal | `PARTIAL` |
+| [text-decoder-rom-dictionary](#text-decoder-rom-dictionary) — Decodificador de texto da ROM e dicionário de tokens | transversal | `PARTIAL` |
+| [text-event-triggers](#text-event-triggers) — Disparo de eventos e flags ao término do diálogo | transversal | `NOT_STARTED` |
+| [radio-portrait-snake-animation](#radio-portrait-snake-animation) — Animação do retrato de Solid Snake durante a fala | transversal | `PARTIAL` |
+| [hostage-dialogue-system](#hostage-dialogue-system) — Diálogos de reféns e prisioneiros (Hostages/Prisoners) | transversal | `PARTIAL` |
+| [boss-enemy-speech-dialogue](#boss-enemy-speech-dialogue) — Diálogos e falas de chefes e inimigos | transversal | `PARTIAL` |
+| [intro-mission-briefing](#intro-mission-briefing) — Briefing da missão na introdução (Operação Intrude N313) | transversal | `PARTIAL` |
+| [gameplay-contextual-messages](#gameplay-contextual-messages) — Mensagens contextuais de gameplay e avisos de perigo | transversal | `PROVISIONAL` |
+| [ending-broadcast-dialogue](#ending-broadcast-dialogue) — Diálogo final e transmissão de notícias do encerramento | transversal | `NOT_STARTED` |
+| [fake-madnar-trap-dialogue](#fake-madnar-trap-dialogue) — Diálogo do Falso Madnar e armadilha de alçapão | transversal | `PROVISIONAL` |
+
+### UNMAPPED
+
+- **radio-chk-reply-madnar-text15**: Classificado como UNMAPPED porque a rotina original testa um Text ID que o despachador de rádio nunca gera, tratando-se de código anômalo ou resquício de desenvolvimento.
+
+<a id="radio"></a>
+### Transceptor: tela, modo de jogo e interface central
+
+`radio` · **PARTIAL**
+
+**Original:** GAME_MODE_RADIO (0x04) em Enums.asm:51. DrawRadio (Banks0123.asm:10695-10731): limpa tela e sprites, define paleta do rádio Screen 5, renderiza blocos de tiles do chassi (RadioTilesMap 18x9 tiles) e retrato de Snake (SnakeTilesMap 4x4 tiles), imprime TRANSCEIVER e RECV, renderiza HUD inferior, toca ruído estático SFX 50h, para flag de chamada pendente (RadioCallFlag = 2). Pausa o gameplay e retorna via ExitRadio (Banks0123.asm:11343-11350).
+
+**Classificação:** Interface visual e ciclo de pausa existem e funcionam, mas com máquina de estados simplificada, textos provisórios inexistentes na ROM e ausência do modo formal da engine.
+
+**Assembly:** Banks0123.asm:10695-10731 DrawRadio; Banks0123.asm:11343-11350 ExitRadio; constants/Enums.asm:51 GAME_MODE_RADIO
+
+**Extractors:** tools/extractors/extract_transceiver_sprites.py
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_dialog.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_on_radio_closed; godot/scripts/systems/radio_dialog.gd::open_radio; godot/scripts/systems/radio_dialog.gd::close_radio
+
+**Testes existentes:** godot-radio-system; tests/test_region_tools.py
+
+**Documentação:** docs/reverse_engineering/en-eu-reextraction.md
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** Overlay visual em radio_dialog.gd e sandbox_gameplay.gd que desenha chassi e retrato extraídos de Screen 5, pausa o mundo do jogo via process_mode, exibe HUD, e encerra emitindo sinal radio_closed ao pressionar F4/ESC.
+
+**Faltante / não comprovado:** Não utiliza o modo de jogo do motor (GAME_MODE_RADIO = 4); exibe textos de instruções inventados ('TRANSCEIVER ONLINE...', 'RECEIVER MODE...'); não reproduz o ruído contínuo SFX 50h de estática; fechamento não restaura VRAM via rotinas originais.
+
+**Notas de evidência:** Substituto provisório da tela de rádio inclui textos 'TRANSCEIVER ONLINE...' não presentes na ROM; SFX 50h e 5Ch não acionados; ausência de modo formal GAME_MODE_RADIO.
+
+
+<a id="text-window"></a>
+### Motor de janela de texto: TextBoxLogic e despacho central
+
+`text-window` · **PROVISIONAL**
+
+**Original:** Modo de jogo central GAME_MODE_TEXT_BOX (0x0A) acionado por SetText/SetTextUnskippable (Banks0123.asm:7808-7829). TextBoxLogic (Banks0123.asm:7837-7860) despacha a máquina de estados: TW_Init, TextBoxAppear, TW_PrintChar, TW_Wait, TW_GetTextPage, TextBox_End. Ao terminar, restaura PrevGameMode.
+
+**Classificação:** As implementações locais funcionam para seus casos específicos, mas constituem substitutos provisórios em vez da arquitetura centralizada do motor original.
+
+**Assembly:** Banks0123.asm:7798-7816 SetTextUnskippable; Banks0123.asm:7808-7860 SetText; Banks0123.asm:8301-8304 TextBoxExit
+
+**Extractors:** tools/extractors/extract_grey_fox_dialogue.py
+
+**Dados canônicos locais:** dialogues/
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd; godot/scripts/systems/radio_dialog.gd; godot/scripts/systems/capture_cutscene.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::show_dialog_message
+
+**Testes existentes:** godot-prisoner-dialog; tests/test_grey_fox_dialogue.py
+
+**Documentação:** docs/reverse_engineering/grey-fox-dialogue.md
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** Implementações locais desconectadas: PrisonerDialog para Grey Fox, CaptureCutscene para sala 8, RadioDialog para transceptor, dialog_banner_label e boss_dialog_label para gameplay.
+
+**Faltante / não comprovado:** Não existe um motor de texto unificado no Godot; a lógica está duplicada e fragmentada entre múltiplos scripts sem compartilhar a máquina de estados canônica do Z80.
+
+**Notas de evidência:** PrisonerDialog implementa os estados TW_* para caixa tipo 1 com fidelidade, mas permanece restrito a Grey Fox; o restante do jogo usa banners e labels.
+
+
+<a id="radio-tuning-frequency"></a>
+### Sintonia de frequências e display digital BCD
+
+`radio-tuning-frequency` · **PARTIAL**
+
+**Original:** Sintonia com botões esquerda/direita via ChgRadioFreq (Banks0123.asm:10906-10957): decremento/incremento de frequência com aritmética BCD pura (add 1; daa / sub 1; daa), limites 120.00 a 120.99. Renderização dos dígitos em 7 segmentos vermelhos em (120, 33) via DrawRadioFreq (Banks0123.asm:11180-11270). A cada alteração de frequência, chama ChkRadioReceiv para checagem contínua de contatos.
+
+**Classificação:** Sintonia funcional com limites e exibição gráfica presente, mas sem avaliação reativa contínua de sintonia em tempo real a cada passo.
+
+**Assembly:** Banks0123.asm:10906-10957 ChgRadioFreq; Banks0123.asm:11180-11270 DrawRadioFreq
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd; godot/scripts/systems/radio_dialog.gd
+
+**Integração inspecionada:** godot/scripts/systems/radio_dialog.gd::_on_frequency_changed
+
+**Testes existentes:** godot-radio-system
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** Métodos tune_up(), tune_down(), set_frequency() e get_frequency_string() em radio_system.gd com limites 0 a 99; renderização dos dígitos em display vermelho em radio_dialog.gd.
+
+**Faltante / não comprovado:** Aritmética opera em inteiros decimais comuns em vez de BCD; ao sintonizar, o Godot não avalia ChkRadioReceiv continuamente (apenas exibe 'TUNING: 120.XX MHz...' e limpa o contato atual).
+
+**Notas de evidência:** radio_system_test.gd valida tune_up e tune_down em 120.00..120.99; falta despacho automático de ChkRadioReceiv ao trocar frequência.
+
+
+<a id="radio-contacts-frequencies"></a>
+### Contatos e frequências canônicas da edição inglesa
+
+`radio-contacts-frequencies` · **PARTIAL**
+
+**Original:** 8 frequências canônicas da edição inglesa RC750 (constants/Enums.asm:14-23, Banks0123.asm:2455-2462): Big Boss Edifício 1 (120.85 / 0x85), Big Boss Edifício 2 (120.13 / 0x13), Schneider Edifício 1 (120.79 / 0x79), Schneider Edifício 2 (120.26 / 0x26), Diane Edifício 1 (120.33 / 0x33), Diane Edifício 2 (120.91 / 0x91), Jennifer (120.48 / 0x48) e Rádio de Notícias do final (120.77 / 0x77).
+
+**Classificação:** As frequências estão declaradas como constantes nominais, mas sem integração com as salas e eventos posteriores do jogo.
+
+**Assembly:** constants/Enums.asm:14-23; constants/Enums.asm:27-36; Banks0123.asm:11043-11175 ChkRadioReply
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-radio-system
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** radio_system.gd declara constantes para as 7 frequências dos personagens nos edifícios 1 e 2; mapeamento por nome de contato em get_contact_name_for_freq.
+
+**Faltante / não comprovado:** Frequência 120.77 (FREQ_NEWS) não mapeada; contatos do Edifício 2 (120.13, 120.26, 120.91) e Jennifer (120.48) não possuem salas correspondentes implementadas em ROOM_CALLS.
+
+**Notas de evidência:** Constantes conferem com a tabela RadioFreqs de Banks0123.asm; ausência de consumidores para as frequências do Edifício 2 e notícias.
+
+
+<a id="radio-transmission-modes"></a>
+### Modos de transmissão: envio (SEND) vs escuta (RECV)
+
+`radio-transmission-modes` · **PARTIAL**
+
+**Original:** Alternância entre RECV e SEND ao pressionar cima (ControlsTrigger bit 0, Banks0123.asm:10757-10779): apaga RECV e imprime SEND (ErasePrintTxt), silencia ruído estático (SFX 5Ch), envia texto fixo de Snake ID 10 ('THIS IS SOLID SNAKE... YOUR REPLY, PLEASE.') via SetText, e seta ReplyRequested = 1 para aguardar resposta em frequências com WAITCALL.
+
+**Classificação:** O mecanismo de alternância de modo existe no Godot, mas sua semântica foi invertida ao exigir SEND para quem tem auto-reply.
+
+**Assembly:** Banks0123.asm:10742-10779; Banks0123.asm:10993-11020 ChkRadioReceiv4
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd; godot/scripts/systems/radio_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-radio-system
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** radio_system.gd e radio_dialog.gd suportam modo SEND ao pressionar cima/W, exibindo mensagem de Snake e requisitando resposta.
+
+**Faltante / não comprovado:** Exige pressionar SEND para obter resposta em todas as salas, ignorando que contatos em auto-reply respondem sem chamada; áudio não comuta SFX 5Ch de silêncio; não comuta tiles VDP txtSend/txtRecv.
+
+**Notas de evidência:** Texto ID 10 confere com texts.asm:191; divergência de comportamento ao exigir SEND para contatos de auto-resposta.
+
+
+<a id="radio-auto-reply-waitcall"></a>
+### Despacho de resposta: AUTO-REPLY vs WAIT-CALL
+
+`radio-auto-reply-waitcall` · **PROVISIONAL**
+
+**Original:** Diferença formal entre RADIO_AUTOREPLY (bit 3 da tabela / bit 0 invertido em RAM) e RADIO_WAITCALL (bit 2 da tabela / bit 0 em RAM) em Banks0123.asm:10993-11020: contatos com auto-reply respondem assim que a frequência é sintonizada; contatos com wait-call exigem que Snake envie chamada (ReplyRequested = 1). Flag AutoReplyDone (Variables.asm:351, Banks0123.asm:10842, 10924-10925) previne disparo repetido na mesma frequência até que a sintonia mude.
+
+**Classificação:** A propriedade foi aproveitada para um propósito divergente (gatilho de CALL) em vez de seu comportamento original de resposta automática de sintonia.
+
+**Assembly:** Banks0123.asm:10993-11020 ChkRadioReceiv4; data/radiocalls.asm:1-11; Variables.asm:351 AutoReplyDone
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd; godot/scripts/systems/radio_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-radio-system; tests/test_region_tools.py
+
+**Documentação:** docs/reverse_engineering/en-eu-reextraction.md
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa
+
+**Implementado:** radio_system.gd declara campo booleano 'is_autoreply' em cada registro de ROOM_CALLS.
+
+**Faltante / não comprovado:** Implementação invertida/divergente: no Godot is_autoreply foi interpretado como 'ativa indicador CALL no mapa ao entrar na sala', enquanto na tela de rádio o contato com auto-reply não responde automaticamente ao sintonizar. A flag AutoReplyDone não existe no Godot.
+
+**Notas de evidência:** Registrado em en-eu-reextraction.md: 'Resposta automática ao sintonizar ainda exige SEND no Godot; AutoReplyDone não portado.'
+
+
+<a id="radio-auto-tune"></a>
+### Sintonia automática ao atender chamadas (Auto-Tune)
+
+`radio-auto-tune` · **PARTIAL**
+
+**Original:** Flag RADIO_AUTOTUNE (bit 2 da tabela em data/radiocalls.asm:9 / bit 1 em RAM RadioPersonsDat em Banks0123.asm:2421-2426): ao inicializar o rádio com chamada recebida ou sintonizar chamada do jogo, ajusta imediatamente RadioFreq para a frequência do interlocutor.
+
+**Classificação:** Efeito prático de auto-sintonia foi implementado para chamadas atendidas, mas através de lógica estática sem o pipeline canônico de flags.
+
+**Assembly:** Banks0123.asm:2427-2435 UpdateRadio3; data/radiocalls.asm:9
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-radio-system
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** radio_system.gd::answer_call define current_freq diretamente para a frequência do contato quando uma chamada automática é atendida.
+
+**Faltante / não comprovado:** Sintonia forçada por dicionário local em vez de ler a flag canônica da estrutura de salas; ausente nos contatos que não utilizam answer_call.
+
+**Notas de evidência:** answer_call(room_id) atribui current_freq = call_info['freq']; verificação indireta em radio_system_test.gd.
+
+
+<a id="radio-signal-led-bars"></a>
+### Animação e temporização das 12 barras de sinal LED
+
+`radio-signal-led-bars` · **PARTIAL**
+
+**Original:** Animação de intensidade de sinal do transceptor (Banks0123.asm:10787-10809 RadioSignalUp e 11271-11340 DrawRadioLeds): atraso inicial de 16 ticks (RadioLedDelay = 10h), seguido pelo acendimento de 1 LED a cada 2 ticks até totalizar 12 barras ligadas, avançando para o estado SetupRadioReply; apagamento de todos os LEDs em RadioSignalOFF (Banks0123.asm:10837-10850).
+
+**Classificação:** Efeito visual existe e exibe as 12 barras de LED, mas opera por temporizador arbitrário desvinculado da temporização de 16+24 ticks do MSX2.
+
+**Assembly:** Banks0123.asm:10787-10809 RadioSignalUp; Banks0123.asm:10837-10850 RadioSignalOFF; Banks0123.asm:11271-11340 DrawRadioLeds
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_dialog.gd; godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-radio-system
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** radio_dialog.gd implementa animação visual de subida e descida dos 12 LEDs a cada 0.033s (led_anim_timer), renderizando as texturas de LEDs.
+
+**Faltante / não comprovado:** radio_system.gd define signal_leds = 12 instantaneamente; inexiste o atraso inicial canônico de 16 ticks antes da primeira barra acender; falta sincronização com os ticks do motor.
+
+**Notas de evidência:** led_anim_timer usa float 0.033s em radio_dialog.gd; atraso inicial 10h ausente.
+
+
+<a id="radio-incoming-call-detection"></a>
+### Detecção e ciclo de vida de chamadas recebidas (Incoming Calls)
+
+`radio-incoming-call-detection` · **PROVISIONAL**
+
+**Original:** Gatilho de chamada pelo bit 3 de RoomsMusic (and 8 em ChkRadioCalls, Banks0123.asm:1729-1743); temporizador pré-chamada de 32 ticks (IncomingCallTimer = 32); disparo de RadioCallFlag = 1 com duração de 88 ticks (58h) em logic/incomingcall.asm:10-36; expiração da chamada com RadioCallFlag = 2 se não atendida a tempo.
+
+**Classificação:** O disparo da chamada recebida foi simplificado em uma checagem booleana permanente, divergindo do ciclo dinâmico com expiração do Z80.
+
+**Assembly:** Banks0123.asm:1729-1743 ChkRadioCalls4; logic/incomingcall.asm:10-36 ChkIncomingCall
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-radio-system
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** radio_system.gd possui check_incoming_call(room_id) que marca has_incoming_call = true.
+
+**Faltante / não comprovado:** Detecção no Godot é baseada no campo is_autoreply de ROOM_CALLS e não no bit 3 de RoomsMusic; não há atraso de 32 ticks antes do alerta; não há timeout de 88 ticks (a chamada permanece indefinidamente até ser atendida); não é possível perder a chamada.
+
+**Notas de evidência:** Falta de temporizadores de 32 e 88 ticks gera divergência com ChkIncomingCall; chamada nunca expira no Godot.
+
+
+<a id="radio-hud-call-indicator"></a>
+### Indicador CALL no HUD e sinal sonoro do buzzer
+
+`radio-hud-call-indicator` · **PARTIAL**
+
+**Original:** Quando RadioCallFlag == 1, o letreiro CALL pisca no HUD em ciclos de 8 ticks (TickCounter bit 3, logic/hud.asm:25-56) e toca o buzzer SFX 22h a cada 8 ticks; suprimido quando menus de armas/itens estão abertos; sobreposto pelo cronômetro de autodestruição (DestructionTimerOn); limpo ao abrir o rádio (RadioCallFlag = 2).
+
+**Classificação:** A alternância gráfica do letreiro CALL funciona fielmente a 8 frames no HUD, mas falta a camada de áudio e as prioridades com outras camadas de HUD.
+
+**Assembly:** logic/hud.asm:25-56 DrawCallTimer; Banks0123.asm:10701-10702
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/hud.gd; godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-hud; godot-radio-system
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** hud.gd (_draw_call_signal) renderiza 'CALL' piscando em ciclos de 8 frames de engine, sincronizado com o estado has_incoming_call de radio_system.gd.
+
+**Faltante / não comprovado:** Sinal sonoro contínuo do buzzer SFX 22h não é tocado; sobreposição pelo cronômetro de destruição não implementada; supressão por menus de inventário divergente.
+
+**Notas de evidência:** hud_test.gd valida alternância de 8 frames do sinal CALL; áudio do buzzer SFX 22h pendente.
+
+
+<a id="radio-room-dispatch-table"></a>
+### Tabela canônica de despachos de rádio por sala (idxRoomRadio)
+
+`radio-room-dispatch-table` · **PARTIAL**
+
+**Original:** Tabela de 256 ponteiros idxRoomRadio (data/radiocalls.asm:195-447) mapeando cada sala para um dos 41 blocos RadioRoom_XXX ou NoRadio; rotina UpdateRadio em Banks0123.asm:2380-2448 preenche RadioPersonsDat e NumRadioPersons para a sala atual.
+
+**Classificação:** As 15 salas portadas conferem com a edição inglesa após correções regionais, mas cobrem apenas 25% do conteúdo total de rádio do jogo.
+
+**Assembly:** data/radiocalls.asm:195-447 idxRoomRadio; Banks0123.asm:2379-2448 UpdateRadio
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-radio-system; tests/test_region_tools.py
+
+**Documentação:** docs/reverse_engineering/en-eu-reextraction.md
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa
+
+**Implementado:** radio_system.gd define ROOM_CALLS com 15 salas portadas do Prédio 1, com interlocutores, frequências e textos correspondentes à edição inglesa.
+
+**Faltante / não comprovado:** 45 salas com chamadas no original inglês permanecem não portadas (todas as do Prédio 2 e Prédio 3); mais de 200 salas dependem de chave ausente em vez do ponteiro NoRadio; múltiplos contatos por sala usam lista Godot sem limitar a NumRadioPersons.
+
+**Notas de evidência:** Auditado em en-eu-reextraction.md: '15 das 60 salas inglesas portadas; 45 salas restantes pendentes.'
+
+
+<a id="radio-cond-antenna"></a>
+### Condição de rádio: exigência da antena no Edifício 2
+
+`radio-cond-antenna` · **NOT_STARTED**
+
+**Original:** A partir do Edifício 2 (MapZone >= 5), qualquer comunicação de rádio requer a Antena (AntennaTaken != 0): sem ela, chamadas recebidas não tocam (ChkRadioCalls3, Banks0123.asm:1720-1727) e chamadas do jogador falham com NoRadioReply (Banks0123.asm:11049-11055).
+
+**Classificação:** Mecânica original crítica de progressão que bloqueia o transceptor no Edifício 2 até o jogador obter a antena; ainda não implementada no Godot.
+
+**Assembly:** Banks0123.asm:1720-1727 ChkRadioCalls3; Banks0123.asm:11043-11055 ChkRadioReply
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** tests/test_region_tools.py
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa
+
+**Implementado:** Nenhuma verificação de antena ou zona de mapa em radio_system.gd.
+
+**Faltante / não comprovado:** Totalmente ausente no Godot; não há checagem de MapZone nem de AntennaTaken; o transceptor funciona identicamente em qualquer área do jogo.
+
+**Notas de evidência:** MapZone >= 5 e AntennaTaken são verificadas em ChkRadioCalls3 e ChkRadioReply; o Godot não possui essas condicionais.
+
+
+<a id="radio-cond-schneider"></a>
+### Condições de rádio: Schneider (chamadas ativas e captura)
+
+`radio-cond-schneider` · **PARTIAL**
+
+**Original:** Schneider nunca emite chamadas recebidas ativas (ChkRadioCalls suprime FREQ_SCHNEIDER e FREQ_SCHNEIDER_BUILDING2, Banks0123.asm:1696-1701); quando capturado (SchneiderCaptured != 0), qualquer tentativa de contato falha com NoRadioReply (Banks0123.asm:1692-1694, 11124-11128).
+
+**Classificação:** A ausência de chamadas ativas de Schneider está correta nas salas existentes, mas a condição de supressão pós-captura não foi implementada.
+
+**Assembly:** Banks0123.asm:1689-1701 ChkRadioCalls; Banks0123.asm:11115-11130 ChkReplySchneider
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-radio-system
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** Nas salas portadas de radio_system.gd, Schneider está configurado exclusivamente com is_autoreply = false.
+
+**Faltante / não comprovado:** A flag SchneiderCaptured não existe nem é checada no Godot; Schneider continuaria respondendo após sua captura.
+
+**Notas de evidência:** Schneider nunca chama no Z80; flag SchneiderCaptured liga no texto 138 (Banks0123.asm:8318-8324) e silencia o rádio.
+
+
+<a id="radio-cond-jennifer"></a>
+### Condições de rádio: Jennifer (Rank 4 e vingança pelo irmão)
+
+`radio-cond-jennifer` · **NOT_STARTED**
+
+**Original:** Jennifer só estabelece contato se Snake tiver patente de 4 estrelas (Class == 3, Banks0123.asm:1708-1710, 11140-11142); se Snake tiver menos de 4 estrelas, ela não chama e não responde. Se o irmão de Jennifer for morto pelo jogador (JennifBrotherDead != 0, Banks0123.asm:1712-1714, 11144-11146), Jennifer se recusa terminantemente a responder até o fim do jogo.
+
+**Classificação:** Condição canônica essencial da trama onde o suporte de Jennifer depende de mérito militar (Rank 4) e moral (não matar seu irmão refém).
+
+**Assembly:** Banks0123.asm:1703-1715 ChkRadioCalls2; Banks0123.asm:11135-11149 ChkReplyJeniffer
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhuma verificação de patente ou vida do irmão de Jennifer em radio_system.gd.
+
+**Faltante / não comprovado:** Totalmente ausente no Godot; não há checagem de Class == 3 nem de JennifBrotherDead; Jennifer não possui chamadas portadas no sandbox.
+
+**Notas de evidência:** Class == 3 (4 estrelas) e JennifBrotherDead == 0 são pré-requisitos absolutos em ChkRadioCalls2 e ChkReplyJeniffer.
+
+
+<a id="radio-cond-bigboss-bug"></a>
+### Condição de rádio: aviso de grampo/transmissor por Big Boss
+
+`radio-cond-bigboss-bug` · **NOT_STARTED**
+
+**Original:** Se o jogador coletar a bolsa com o transmissor/grampo (TransmiTaken != 0) e estiver fora de MapZone == 4, qualquer contato com Big Boss substitui sua fala pelo Texto ID 50: 'THIS IS BIG BOSS... CHECK YOUR EQUIPMENTS! CHECK IF YOU HAVE BEEN BUGGED BY THE ENEMY. ...OVER' (Banks0123.asm:11095-11108).
+
+**Classificação:** Comportamento canônico de narrativa que revela ao jogador por que os guardas o estão perseguindo continuamente.
+
+**Assembly:** Banks0123.asm:11095-11108 ChkReplyBigBoss4
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhuma verificação de transmissor em radio_system.gd.
+
+**Faltante / não comprovado:** Transmissor existe como item no inventário, mas a lógica de sobreposição de mensagem do Big Boss avisando sobre o grampo não está implementada no Godot.
+
+**Notas de evidência:** TransmiTaken != 0 e MapZone != 4 desviam o texto de Big Boss para Texto 50 em Banks0123.asm:11107.
+
+
+<a id="radio-cond-bigboss-switch-off"></a>
+### Condição de rádio: ordem de desligar o MSX por Big Boss
+
+`radio-cond-bigboss-switch-off` · **NOT_STARTED**
+
+**Original:** Quando a flag SwitchOffMSXF é ativada no porão do Edifício 3 (sala 111), qualquer chamada a Big Boss nas frequências 120.85 ou 120.13 substitui sua fala pelo Texto ID 136: 'Stop operation. Switch off your MSX' (Banks0123.asm:11071-11080).
+
+**Classificação:** Momento icônico da quebra de quarta parede do jogo original MSX2; mecânica ainda não iniciada.
+
+**Assembly:** Banks0123.asm:11071-11080 ChkReplyBigBoss2
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhuma menção a SwitchOffMSXF ou Texto 136 no Godot.
+
+**Faltante / não comprovado:** Totalmente ausente no Godot; a sala 111 e a flag de traição de Big Boss não foram implementadas.
+
+**Notas de evidência:** SwitchOffMSXF != 0 força texto 136 para Big Boss em Banks0123.asm:11079.
+
+
+<a id="radio-chk-reply-madnar-text15"></a>
+### Checagem anômala de Text ID 15 e MadnarMoved no rádio
+
+`radio-chk-reply-madnar-text15` · **UNMAPPED**
+
+**Original:** Em ChkReplyMadnar (Banks0123.asm:11156-11164), o código compara o Text ID a ser exibido com 15 ('LISTEN! SOLID SNAKE... I'LL NEVER DIE...') e verifica se MadnarMoved está setada para silenciar o rádio com NoRadioReply. No entanto, o Texto 15 nunca é atribuído a nenhuma sala de rádio em data/radiocalls.asm.
+
+**Classificação:** Classificado como UNMAPPED porque a rotina original testa um Text ID que o despachador de rádio nunca gera, tratando-se de código anômalo ou resquício de desenvolvimento.
+
+**Assembly:** Banks0123.asm:11156-11164 ChkReplyMadnar; data/radiocalls.asm:188 NoRadio
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhuma correspondência no Godot.
+
+**Faltante / não comprovado:** Código morto/anômalo no Z80 original; o propósito exato (se era protótipo de chamada com Dr. Madnar antes de sua transferência para o prédio 2) não está mapeado no catálogo.
+
+**Notas de evidência:** Anotação na desmontagem: '(!?) Why is this text checked? It is not a radio reply.' Texto 15 é txtFinalThread (texts.asm:15), fala final de Big Boss.
+
+
+<a id="text-box-geometry-types"></a>
+### Tipos e geometrias de caixas de texto (TextBoxType)
+
+`text-box-geometry-types` · **PARTIAL**
+
+**Original:** 5 geometrias canônicas de caixas de texto (TextBoxType nibble inferior, Banks0123.asm:8338-8387): Tipo 0 (1 linha x 7 caracteres 'RELIEVE'), Tipo 1 (3 linhas x 19 caracteres, reféns, 160x41 px em 48, 8), Tipo 2 (5 linhas x 16 caracteres), Tipo 3 (5 linhas x 23 caracteres, exclusivo do transceptor), Tipo 4 (2 linhas x 17 caracteres, 160x41 px, guardas da sala 8).
+
+**Classificação:** Alguns tipos foram implementados com fidelidade milimétrica em subsistemas isolados, mas a tabela completa de geometrias não foi unificada.
+
+**Assembly:** Banks0123.asm:8338-8387 GetTextBoxXYSize
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd; godot/scripts/systems/capture_cutscene.gd; godot/scripts/systems/radio_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-prisoner-dialog; godot-capture-prison
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** PrisonerDialog implementa Tipo 1 (160x41 px em 48, 8); CaptureCutscene implementa Tipo 4 (160x41 px em 48, 8); RadioDialog usa layout aproximado de 5 linhas.
+
+**Faltante / não comprovado:** Tabela de geometrias TextBoxXYSize não centralizada; Tipos 0 e 2 não implementados; caixas de outros reféns e chefes usam banners arbitrários.
+
+**Notas de evidência:** Tabela original define caixas de 1 a 5 linhas em Screen 5; no Godot cada cena calcula suas próprias coordenadas.
+
+
+<a id="text-appearance-animation"></a>
+### Animação de abertura e fechamento da caixa de texto
+
+`text-appearance-animation` · **PARTIAL**
+
+**Original:** Animação de crescimento da moldura da caixa de texto de dentro para fora antes de iniciar a digitação (TextBoxAppear e DrawTextBoxIn em logic/textboxappear.asm:10-70, 19 passos de expansão); salvamento do fundo via cópia VDP entre páginas 0 e 1 (VDP_Copy_Byte, Banks0123.asm:7915-7920) e restauração no encerramento (Banks0123.asm:8286-8289); redesenho de pitfalls abertos após fechar (DrawOpenPitfalls, Banks0123.asm:8290).
+
+**Classificação:** Fielmente implementado e testado em PrisonerDialog, mas ausente no restante dos pontos de exibição de texto do jogo.
+
+**Assembly:** logic/textboxappear.asm:10-70 DrawTextBoxIn; Banks0123.asm:7932-7945 TextBoxAppear; Banks0123.asm:8271-8304 TextBox_End
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-prisoner-dialog
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** PrisonerDialog reproduz a expansão exata de 19 passos (APPEAR com _appear_remaining = 19) e o retângulo inicial (120, 26, 16, 5) até 160x41 px.
+
+**Faltante / não comprovado:** Efeito de expansão ausente em RadioDialog, CaptureCutscene e nos banners do sandbox (abrem instantaneamente); cópia de VDP não necessária em engine moderna, mas o timing correspondente não é compartilhado.
+
+**Notas de evidência:** prisoner_dialog_test.gd testa 18 growth steps e estado APPEAR; ausente em outras caixas de diálogo.
+
+
+<a id="text-skip-control-modes"></a>
+### Controle de avanço e pulo de texto: skippable vs unskippable
+
+`text-skip-control-modes` · **PARTIAL**
+
+**Original:** Três modos formais de avanço em SkipTextMode (Banks0123.asm:7813-7816): Modo 0 (SetText): skippable — teclas M/N e Enter pulam a digitação e avançam páginas; Modo 1 (SetTextUnskip2): unskippable com espera de tecla — não permite pular digitação, mas aguarda comando para virar página; Modo 2 (SetTextUnskippable): unskippable temporizado — não aceita pulo e avança automaticamente após pausa fixa de 96 ticks (1.6s, WaitTextCnt = 60h) sem exigir tecla.
+
+**Classificação:** Diferentes scripts reimplementaram subconjuntos de avanço/espera de tecla, mas sem os 3 modos canônicos da rotina Z80.
+
+**Assembly:** Banks0123.asm:7798-7816 SetTextUnskippable; Banks0123.asm:7952-7969 TW_PrintChar; Banks0123.asm:8143-8174 TW_Wait
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd; godot/scripts/systems/capture_cutscene.gd; godot/scripts/systems/radio_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-prisoner-dialog; godot-capture-prison
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** PrisonerDialog implementa modo 0 com avanço de página; CaptureCutscene implementa avanço temporizado fixo; RadioDialog implementa avanço por tecla e trava durante cutscene.
+
+**Faltante / não comprovado:** Os 3 modos de SkipTextMode não existem como despachador formal; teclas M/N do MSX2 não são mapeadas de forma uniforme; temporizador de 96 ticks não é generalizado.
+
+**Notas de evidência:** Modo 2 (WaitTextCnt = 60h) usado nas capturas e bosses; no Godot cada sistema inventou seus próprios timers.
+
+
+<a id="text-typewriter-audio"></a>
+### Efeito de digitação (Typewriter) e áudio de fala
+
+`text-typewriter-audio` · **PARTIAL**
+
+**Original:** Digitação de caracteres a cada 8 ticks (TickCounter and 7) no modo normal e a cada 4 ticks (TickCounter and 3) no modo rápido (Banks0123.asm:7988-7997). Emissão do som de clique de texto SFX 23h para cada caractere impresso que não seja espaço (Banks0123.asm:8037-8044), suprimido durante a equipe de encerramento.
+
+**Classificação:** O efeito visual de máquina de escrever foi portado em partes, mas o componente auditivo SFX 23h e a cadência de 8 ticks estão incompletos.
+
+**Assembly:** Banks0123.asm:7994-8045 TW_PrintChar3
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd; godot/scripts/systems/radio_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-prisoner-dialog
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** Digitação progressiva de texto existe em PrisonerDialog (baseada em ticks) e RadioDialog (timer float 0.045s).
+
+**Faltante / não comprovado:** O áudio SFX 23h de caractere não é tocado em nenhum sistema de texto do Godot; velocidade de digitação em RadioDialog diverge da máscara de 8 ticks do MSX2; banners exibem texto instantâneo.
+
+**Notas de evidência:** SFX 23h disparado via SetSoundEntry em Banks0123.asm:8043; nenhum script Godot toca esse efeito.
+
+
+<a id="text-prompt-enter-blink"></a>
+### Ícone de ENTER piscante no fim da página
+
+`text-prompt-enter-blink` · **PARTIAL**
+
+**Original:** Ao término da impressão de uma página que aguarda comando do jogador (TW_Wait), exibe o caractere especial de seta/enter (código 0x3F) na coordenada PromptXY, alternando visibilidade a cada 16 ticks (TickCounter bit 4, Banks0123.asm:8207-8219 DrawEnterIcon).
+
+**Classificação:** Implementado e validado em testes unitários para PrisonerDialog e RadioDialog, mas ausente nas demais caixas do sandbox.
+
+**Assembly:** Banks0123.asm:8183-8186; Banks0123.asm:8207-8220 DrawEnterIcon
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd; godot/scripts/systems/radio_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-prisoner-dialog
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** PrisonerDialog desenha o prompt piscante em PROMPT_ORIGIN (196, 36); RadioDialog desenha bitmap equivalente de 8x8 pixels em (212, 168).
+
+**Faltante / não comprovado:** Ausente nas mensagens de reféns e chefes exibidas via banners no gameplay; não integrado a um despachador geral de caixas.
+
+**Notas de evidência:** Código 0x3F desenhado quando TextBoxType tem bit alto de prompt icon; prisoner_dialog_test.gd testa o ciclo do prompt.
+
+
+<a id="text-char-metrics-widths"></a>
+### Métricas de caracteres e espaçamento proporcional
+
+`text-char-metrics-widths` · **PARTIAL**
+
+**Original:** Glifos de fonte MSX2 com largura nominal de 8 pixels, exceto apóstrofo (0x97) e dakuten (0x98) que possuem avanço de 4 pixels (Banks0123.asm:8024-8035); quebra de linha com avanço vertical de 12 pixels e retorno à margem esquerda (Banks0123.asm:8117-8125 TW_PrintNewLine).
+
+**Classificação:** Métrica perfeitamente fiel em PrisonerDialog, mas ausente nos outros três renderizadores de texto do projeto.
+
+**Assembly:** Banks0123.asm:8024-8036 TW_PrintChar5; Banks0123.asm:8113-8125 TW_PrintNewLine
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-prisoner-dialog
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** PrisonerDialog implementa o avanço de 4 pixels para apóstrofo (código 0x97) e 12 pixels para nova linha, com asserções exatas em testes headless.
+
+**Faltante / não comprovado:** RadioDialog, CaptureCutscene e banners de gameplay utilizam avanço fixo de 8 pixels ou fontes de sistema sem a métrica de 4px do apóstrofo.
+
+**Notas de evidência:** prisoner_dialog_test.gd verifica: 'Apostrophe advances four pixels' e 'Explicit newline advances twelve pixels'.
+
+
+<a id="text-decoder-rom-dictionary"></a>
+### Decodificador de texto da ROM e dicionário de tokens
+
+`text-decoder-rom-dictionary` · **PARTIAL**
+
+**Original:** Descompressão dos textos indexados em idxTexts (158 textos da edição inglesa) através do dicionário de palavras e tokens em data/texts.asm (Banks0123.asm:5305-5345 DecodeText); suporte a marcadores de controle 0xFF (fim), 0xFE (nova linha) e 0xFD (nova página).
+
+**Classificação:** O decodificador canônico foi implementado em Python e comprovado contra a ROM canônica, mas seu pipeline ainda não foi estendido aos outros textos do jogo.
+
+**Assembly:** Banks0123.asm:5305-5345 DecodeText; data/texts.asm idxTexts
+
+**Extractors:** tools/extractors/extract_grey_fox_dialogue.py
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-prisoner-dialog; tests/test_grey_fox_dialogue.py
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** Extractor tools/extractors/extract_grey_fox_dialogue.py implementa decodificação fiel com dicionário da ROM para o Texto 59; PrisonerDialog consome o JSON resultante.
+
+**Faltante / não comprovado:** No runtime do Godot, apenas o Texto 59 é consumido via extração de dicionário; os outros 157 textos da ROM permanecem não extraídos e utilizam strings soltas hardcoded em scripts.
+
+**Notas de evidência:** extract_grey_fox_dialogue.py valida segmento completo de texts.asm byte a byte contra a ROM canônica; runtime só carrega grey-fox-en.json.
+
+
+<a id="text-event-triggers"></a>
+### Disparo de eventos e flags ao término do diálogo
+
+`text-event-triggers` · **NOT_STARTED**
+
+**Original:** Ao encerrar a leitura de textos específicos sem pular (SkipTextF == 0 em Banks0123.asm:8305-8324 TextBoxExit): Texto 117 liga JeniRocketF = 1 (disponibiliza rocket launcher); Texto 118 liga JeniOpenDoorF = 1 (abre porta da bússola); Texto 138 liga SchneiderCaptured = 1 (Schneider capturado). Se o texto for pulado, as flags não são ligadas.
+
+**Classificação:** Ponto crítico de acoplamento entre leitura de diálogos e progressão do mapa/equipamentos que ainda não existe no Godot.
+
+**Assembly:** Banks0123.asm:8301-8325 TextBoxExit
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhuma integração em radio_system.gd ou sandbox_gameplay.gd.
+
+**Faltante / não comprovado:** O encerramento de textos no Godot não atualiza flags de eventos nem verifica se a mensagem foi pulada pelo jogador.
+
+**Notas de evidência:** TextBoxExit2 escreve 1 na flag correspondente após comparar TextId com 117, 118 e 138; SkipTextF impede a ativação.
+
+
+<a id="radio-portrait-snake-animation"></a>
+### Animação do retrato de Solid Snake durante a fala
+
+`radio-portrait-snake-animation` · **PARTIAL**
+
+**Original:** Durante a fala de Snake no rádio (exclusivamente nos textos 10 e 155), o retrato de Snake anima boca e olhos sincronizado com TickCounter (DrawSnakeFrame, Banks0123.asm:8058-8097), alternando entre SnakePicture0, 1 e 2; quando outro personagem fala ou o texto termina, a boca permanece fechada (DrawSnakeFrame1).
+
+**Classificação:** O efeito visual foi reproduzido, mas sua regra de ativação está desregulada e ativa para qualquer fala em vez de apenas falas de Snake.
+
+**Assembly:** Banks0123.asm:8058-8097 DrawSnakeFrame; Banks0123.asm:8102-8108 TW_TextEnd
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+
+**Implementado:** RadioDialog desenha boca e olhos animados no retrato de Snake via anim_timer.
+
+**Faltante / não comprovado:** Animação roda continuamente por timer delta mesmo quando outros personagens falam; não é restrita aos textos de Snake (10 e 155); não usa a máscara canônica de TickCounter.
+
+**Notas de evidência:** cp 10 e cp 155 condicionam a fala em Banks0123.asm:8059-8064; em radio_dialog.gd anim_timer anima continuamente.
+
+
+<a id="hostage-dialogue-system"></a>
+### Diálogos de reféns e prisioneiros (Hostages/Prisoners)
+
+`hostage-dialogue-system` · **PARTIAL**
+
+**Original:** Sequência de resgate de prisioneiros em logic/actors/prisoner.asm:112-250: exibe primeiro Texto 1 ('RELIEVE') ou Texto 28 ('I'M SAVED!'), seguido pelo texto informativo específico do refém (data/texts.asm); casos essenciais: Grey Fox (Texto 59), Dr. Madnar (Texto 182), Ellen Madnar (Texto 167), Irmão de Jennifer (Texto 193).
+
+**Classificação:** Grey Fox está implementado de forma exemplar, mas os demais 22 reféns utilizam textos provisórios e banner genérico.
+
+**Assembly:** logic/actors/prisoner.asm:112-250; data/texts.asm:1; data/texts.asm:28; data/texts.asm:59; data/texts.asm:167; data/texts.asm:182; data/texts.asm:193
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd; godot/scripts/systems/prisoner.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-prisoner-dialog; godot-rank-and-prisoners
+
+**Documentação:** docs/reverse_engineering/grey-fox-dialogue.md
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** Grey Fox usa PrisonerDialog autêntico; prisoner.gd possui tabela PRISONER_TEXTS com 22 salas mapeadas e dispara resgates.
+
+**Faltante / não comprovado:** Todos os outros 22 reféns utilizam strings em inglês parafraseadas, exibidas através de banner provisório dialog_banner_label na parte inferior da tela, sem usar a janela de texto oficial MSX2.
+
+**Notas de evidência:** PRISONER_TEXTS em prisoner.gd possui 22 textos hardcoded; dialog_banner_label usa temporizador de 4.0s.
+
+
+<a id="boss-enemy-speech-dialogue"></a>
+### Diálogos e falas de chefes e inimigos
+
+`boss-enemy-speech-dialogue` · **PARTIAL**
+
+**Original:** Falas de inimigos e chefes antes de combates ou eventos especiais: Guardas da Sala 8 (Texto 6 'DON'T MOVE!' e Texto 7 'YOU ARE CAPTURED!'), Shot Gunner (Texto 66), Machinegun Kid (Texto 81), Fire Trooper (Texto 98), Coward Duck (Texto 125), Guardas do Deserto (Texto 35), Big Boss (Textos 149, 150). Exibidos via SetTextUnskippable ou SetTextUnskip2.
+
+**Classificação:** A cutscene de captura possui falas inimigas autênticas, mas os diálogos de bosses utilizam rótulos provisórios ou ainda não foram iniciados.
+
+**Assembly:** logic/capturescene.asm:174; logic/capturescene.asm:259; logic/actors/shotgunner.asm:66; logic/actors/machinegunkid.asm:54; logic/actors/firetropper.asm:32; logic/actors/cowardduck.asm:41; logic/actors/bigboss.asm:59
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/capture_cutscene.gd; godot/scripts/systems/shot_gunner.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-capture-prison
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 18 concluída: Boss Fight Canônica — Shoot Gunner (Sala 57)
+
+**Implementado:** Cutscene da Sala 8 implementa Textos 6 e 7 com caixa Tipo 4 e fonte autêntica; Shot Gunner possui texto em shot_gunner.gd.
+
+**Faltante / não comprovado:** Shot Gunner exibe texto em banner amarelo flutuante boss_dialog_label no topo da tela; chefes Machinegun Kid, Fire Trooper, Coward Duck e Big Boss não possuem caixas de diálogo no Godot.
+
+**Notas de evidência:** boss_dialog_label em sandbox_gameplay.gd é Label amarelo com offset flutuante; diverge da caixa de texto do Z80.
+
+
+<a id="intro-mission-briefing"></a>
+### Briefing da missão na introdução (Operação Intrude N313)
+
+`intro-mission-briefing` · **PARTIAL**
+
+**Original:** Texto ID 2 em data/texts.asm:58, 203-228: briefing em 4 páginas com quebras explícitas FD/FE transmitido por Big Boss ao transceptor de Snake na Sala 121 ('OPERATION INTRUDE N313... SINTONIZE 120.85'); controles de Snake congelados (CONTROL_INTRO) e liberados na conclusão.
+
+**Classificação:** A cena e o briefing funcionam perfeitamente na experiência de jogo, mas com texto hardcoded paráfraseado e sem a paginação binária da ROM.
+
+**Assembly:** data/texts.asm:58; data/texts.asm:203-228; logic/introscene.asm:170-205
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/intro_cutscene.gd; godot/scripts/systems/radio_dialog.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-intro-cutscene
+
+**Documentação:** docs/reverse_engineering/en-eu-reextraction.md
+
+**Histórico consultado:** docs/progress/2026-09.md::Cutscene de Infiltração Aquática e Escalada da Grade (Abertura Pré-Jogo MSX2) (2026-09-29)
+
+**Implementado:** intro_cutscene.gd aciona start_briefing em radio_dialog.gd, exibindo 4 páginas de briefing transmitidas por Big Boss com avanço por tecla e trava de sintonia.
+
+**Faltante / não comprovado:** O texto inglês está hardcoded em intro_cutscene.gd com paráfrases leves em relação à ROM (corrigindo 'DESTOROY' e espaçamento); a paginação é feita dinamicamente por wrap de pixels em vez de respeitar os bytes FD/FE da ROM.
+
+**Notas de evidência:** Registrado na auditoria regional: intro texto 2 possui diferenças textuais (DESTOROY vs DESTROY); paginação original usa FD.
+
+
+<a id="gameplay-contextual-messages"></a>
+### Mensagens contextuais de gameplay e avisos de perigo
+
+`gameplay-contextual-messages` · **PROVISIONAL**
+
+**Original:** Mensagens disparadas pelo sistema durante eventos ou perigos específicos: aviso de gás sem máscara (Texto 25), aviso de piso eletrificado e painel de força (Texto 38); mensagem de coleta de item (na edição japonesa Texto 62 'Gear taken!!', na edição inglesa suprimida exceto caso do transmissor na BAG).
+
+**Classificação:** Estão cadastradas como entradas estáticas de rádio por sala, mas sem o comportamento reativo a estados de perigo do jogador.
+
+**Assembly:** logic/damagegas.asm; logic/items.asm:399-414; data/radiocalls.asm:45; data/radiocalls.asm:63
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** godot-radio-system
+
+**Documentação:** docs/reverse_engineering/en-eu-reextraction.md
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa
+
+**Implementado:** Textos 25 e 38 estão mapeados no dicionário ROOM_CALLS de radio_system.gd para as salas 29 e 37.
+
+**Faltante / não comprovado:** Não são disparadas contextualmente pela reação do jogador aos perigos (ex: ao tomar dano de gás sem máscara); a mensagem 62 da bolsa com transmissor não foi portada.
+
+**Notas de evidência:** Falta de texto 62 na BAG registrada em en-eu-reextraction.md; mensagens de perigo só existem como salas de rádio estáticas.
+
+
+<a id="ending-broadcast-dialogue"></a>
+### Diálogo final e transmissão de notícias do encerramento
+
+`ending-broadcast-dialogue` · **NOT_STARTED**
+
+**Original:** Sequência final pós-destruição de Metal Gear (logic/ending.asm:170-200, 304): Snake reporta sucesso da missão pelo rádio (Texto 155: 'THIS IS SOLID SNAKE... I DESTROYED METAL GEAR. OPERATION INTRUDE N313 ACCOMPLISHED!'); sintonia automática incrementa até 120.77 (FREQ_NEWS), disparando boletim de notícias pelo rádio (Texto 156), seguido pelos créditos finais.
+
+**Classificação:** Fase final de encerramento do jogo ainda não iniciada.
+
+**Assembly:** logic/ending.asm:170-200; logic/ending.asm:304; Banks0123.asm:8063-8064; data/texts.asm:155; data/texts.asm:156
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhuma implementação no Godot.
+
+**Faltante / não comprovado:** Toda a sequência de rádio do encerramento, o canal 120.77 e os diálogos finais estão ausentes no projeto.
+
+**Notas de evidência:** FREQ_NEWS (77h / 120.77) é sintonizada automaticamente no ending e aciona os leds de sinal (logic/ending.asm:181-189).
+
+
+<a id="fake-madnar-trap-dialogue"></a>
+### Diálogo do Falso Madnar e armadilha de alçapão
+
+`fake-madnar-trap-dialogue` · **PROVISIONAL**
+
+**Original:** Diálogo do impostor (ator ID 55, sala 189) em logic/actors/fakemadnar.asm:30-45: dispara Texto ID 189 ('HEHEHE... I'M AN IMPOSTOR! THE REAL DR. PETTROVICH IS ELSEWHERE!') via SetTextUnskippable, acionando simultaneamente a abertura do alçapão/pitfall sob os pés de Snake.
+
+**Classificação:** A fala está registrada em dicionário de texto, mas o despachador original de diálogo e o gatilho da armadilha não foram implementados.
+
+**Assembly:** logic/actors/fakemadnar.asm:30-45
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/prisoner.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** String presente em PRISONER_TEXTS[189] dentro de prisoner.gd.
+
+**Faltante / não comprovado:** O ator do Falso Madnar não existe; a fala é exibida como refém comum em dialog_banner_label; não utiliza caixa unskippable nem aciona a armadilha de alçapão sincronizada.
+
+**Notas de evidência:** SetTextUnskippable acionado em fakemadnar.asm:41; abertura de alçapão ocorre durante a fala.

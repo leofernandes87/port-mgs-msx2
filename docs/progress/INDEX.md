@@ -98,8 +98,9 @@ Gerado por `tools/context/progress_archive.py`; não editar. Leia uma entrada: `
 | docs/progress/2026-10.md:279 | 2026-10-04 — ROM inglesa oficial como única canônica (fases 1–3) |
 | docs/progress/2026-10.md:333 | 2026-10-04 — Fase 4: reextração completa da ROM canônica `en-eu-rc750` |
 | docs/progress/2026-10.md:388 | 2026-10-04 — Auditoria regional da implementação contra a edição inglesa |
-| docs/progress.md:6 | 2026-10-04 — Infraestrutura de contexto: regras enxutas, STATUS, progresso arquivado e índices |
-| docs/progress.md:25 | 2026-10-04 — Inventário progressivo: atores e bosses |
-| docs/progress.md:40 | 2026-10-04 — Interface enxuta de contexto para agentes |
-| docs/progress.md:54 | 2026-10-04 — Inventário progressivo: armas, itens e equipamentos |
-| docs/progress.md:69 | 2026-10-04 — Barris rolantes revisados: sprites canônicos e comportamento da ROM |
+| docs/progress/2026-10.md:420 | 2026-10-04 — Infraestrutura de contexto: regras enxutas, STATUS, progresso arquivado e índices |
+| docs/progress.md:6 | 2026-10-04 — Inventário progressivo: atores e bosses |
+| docs/progress.md:21 | 2026-10-04 — Interface enxuta de contexto para agentes |
+| docs/progress.md:35 | 2026-10-04 — Inventário progressivo: armas, itens e equipamentos |
+| docs/progress.md:50 | 2026-10-04 — Barris rolantes revisados: sprites canônicos e comportamento da ROM |
+| docs/progress.md:78 | 2026-10-04 — Inventário progressivo: rádio, diálogos e caixas de texto |

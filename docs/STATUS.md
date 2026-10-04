@@ -6,7 +6,7 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 ## Onde estamos
 
 - Última tag: `v0.2.2` (barris rolantes fiéis à ROM).
-- Último commit: `feat(actors)` dos barris rolantes (confira com `git log --oneline -1`).
+- Último commit: `docs(context)` de rádio e diálogos (confira com `git log --oneline -1`).
 - Implementação recente: `rolling-barrels` (ID 15) revisado contra a ROM, com sprites extraídos por
   `tools/extractors/extract_rolling_barrel.py`; toque na coluna inteira mata Snake
   (linha de `ImpactAreasInfo` = shape); salas 141, 153, 191 e 205.
@@ -24,8 +24,10 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
   20 PARTIAL, 12 PROVISIONAL, 16 NOT_STARTED, 2 UNMAPPED; total 51).
 - `weapons-items`: 38 features — IMPLEMENTED 1, PARTIAL 20, PROVISIONAL 8,
   NOT_STARTED 9; DEFERRED/UNMAPPED/INVESTIGATING 0. Catálogo via `lookup domain weapons-items`.
-- Divergências registradas: armas substituídas por bala genérica, foguete recusado, recarga
-  indevida de míssil, timers/velocidades, cartões por posse e reposição de consumíveis.
+- `radio-dialogue`: 32 features — IMPLEMENTED 0, PARTIAL 20, PROVISIONAL 5,
+  NOT_STARTED 6, UNMAPPED 1; DEFERRED/INVESTIGATING 0. Catálogo via `lookup domain radio-dialogue`.
+- Divergências registradas: WAITCALL vs AUTOREPLY, 45 salas omitidas, condições do Edifício 2
+  (antena, rank Jennifer, Big Boss traidor), textos hardcoded e fragmentação de TextBoxLogic.
 - Próxima tarefa sugerida, só após pedido: priorizar `pitfalls` (ID 16) ou `rocket-launcher`.
 - Pendências de actors-bosses: uso alcançável do ID 56 e produtores do ID 65.
 
