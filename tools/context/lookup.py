@@ -129,6 +129,7 @@ def cmd_mech(args):
     for item in data['mechanics']:
         if item['id'] == args.id:
             for key in ('id', 'title', 'domain', 'status', 'original_scope', 'rationale', 'actor_ids',
+                        'weapon_ids', 'pickup_ids', 'equipment_ids',
                         'asm', 'extractor', 'data', 'godot', 'integration', 'tests', 'docs', 'history',
                         'implemented_scope', 'missing_scope', 'evidence_notes', 'related_features'):
                 if key in item:

@@ -3,61 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Fase 4: reextração completa da ROM canônica `en-eu-rc750`
-
-**Escopo:** reextrair todos os dados derivados da ROM a partir só de `en-eu-rc750`,
-comparar com os dados antigos do dump japonês, classificar as diferenças, trocar o
-pipeline para os dados canônicos e remover a aceitação legada. Sem correções de
-gameplay. Relatório completo: `docs/reverse_engineering/en-eu-reextraction.md`.
-
-**Dados:** gerados em diretório novo `data/extracted/en-eu-rc750/` (pacote e
-repetição idênticos, 235 salas + atores, aliases 211/212/54, cinco JSONs de
-mecânica, paredes 12–15, Grey Fox, capturas de emulador demo e gameplay, trace da
-introdução, sonda da caixa de texto). Os antigos foram comparados primeiro e depois
-apenas movidos para `data/extracted/legacy-jp-rc750-local/` (nada apagado).
-
-**Ferramentas novas:** `tools/reverse_engineering/compare_regions.py` (monta EN e JP
-com Sjasm só para símbolos; deslocamento é estrutural somente se igual ao delta do
-símbolo), `tools/extractors/export_local_aliases.py` (celas 211/212 como cópias de
-165/164 com portas remapeadas), `tools/emulation/run_trace.py` (trace Tcl na ROM
-canônica com relocação de endereços e conferência de opcodes). `tools/rom.py`:
-`canonical_data_dir()` e `require_canonical_provenance()`; `batch_snapshots`,
-`export_room_data`, `compare.py` e os extratores exigem a proveniência canônica.
-Schema de snapshot: `rom_profile` obrigatório, `local_alias_of` opcional.
-
-**Relatório antes/depois:** 461 artefatos idênticos, 38 estruturais (173 achados:
-relocação −13/−76/−79 bytes entre os ramos `JAPANESE`, `respawn_info` 189→188,
-arquivo raiz obsoleto, salas 208–226 nunca exportadas antes, ordem de portas,
-50 Hz na captura), 2 achados regionais esperados (glifos 44 e 103,
-`gfx/font.asm:29-33,63-67`) e 1 sem explicação (RAM `0xF29C–0xF2D9` da sonda, fora
-das variáveis do jogo e do BIOS; hipótese: área do C-BIOS). Nenhuma diferença de
-conteúdo de gameplay nos dados extraídos.
-
-**Godot:** `RomProvenance` sem `LEGACY_PENDING_REEXTRACTION` nem hash japonês; exige
-o par `rom_profile` + `input_sha256` (canônico ou sintético) e oferece
-`load_canonical_json()`. `RoomManager` (local-aliases → rooms), gás, respawn, piso
-elétrico, paredes da prisão e diálogo de Grey Fox leem só de `en-eu-rc750` com
-verificação de proveniência; os fallbacks `res://data/*.json` foram removidos (os
-fallbacks em código continuam). Scripts de mapa `tools/assemble_*.gd` apontam para
-`en-eu-rc750/rooms`. Frequência continua 60 Hz; `godot/project.godot` intocado.
-
-**Divergências de gameplay registradas para a próxima etapa (não corrigidas):**
-texto 62 ao pegar `BAG` ausente; `ROOM_CALLS` com 16 de 60 salas EN e sala 138
-inexistente; indicador de chamada derivado de `is_autoreply` (sala 5 indevida, 12
-salas EN faltando) em vez do bit 3 de `RoomsMusic`; nomes de menu inventados em vez de
-`weaponnames.asm`/`itemnames.asm`; `flagTxtItem` (só JP, ausente no Godot = EN);
-demo não implementada (usar ramo `ELSE`); textos de rádio hardcoded a conferir.
-
-**Validação real:** testes de extractors/emulação/proveniência/regiões: 58 OK.
-`tests/test_rom.py`: 13 OK, incluindo espelho Godot sem hash estrangeiro, lint que
-proíbe caminhos legados e conferência real de 485 arquivos consumidos (todos
-`en-eu-rc750` + SHA canônico). `python3 tools/validate.py`: exit 0, 36 etapas PASS
-(119 testes Python); `godot-room-snapshot` carregou as salas 0, 126, 240 e 211 de
-`en-eu-rc750` e recusou snapshot japonês, perfil japonês e perfil ausente.
-
-**Git:** commit `ac7cd60` a pedido do usuário (sem push, sem tag);
-`godot/project.godot` fora do commit.
-
 ## 2026-10-04 — Auditoria regional da implementação contra a edição inglesa
 
 **Critério:** ausência de implementação não é bug; só o que já existe e diverge da
@@ -137,3 +82,18 @@ importação/boot Godot 4.7.2 aprovados. Conferência real dos filtros e hashes 
 **Pendências:** auditoria não avançou; lacunas anteriores permanecem no catálogo.
 **Git:** commit `e408782`; entrega registrada na tag anotada `v0.2.1`.
 `godot/project.godot` preservado fora do commit; sem push.
+
+## 2026-10-04 — Inventário progressivo: armas, itens e equipamentos
+
+**Feito:** inventário inglês antes do cruzamento com extração, Godot, integração, testes e histórico.
+38 features `weapons-items` no catálogo canônico: IMPLEMENTED 1, PARTIAL 20, PROVISIONAL 8,
+NOT_STARTED 9; DEFERRED/UNMAPPED/INVESTIGATING 0. Entradas de outros domínios preservadas.
+Evidência: `constants/Enums.asm:4-10,83-108,127-155`, `logic/items.asm:333-356,490-516`,
+`logic/weaponuse.asm:8-40`, `logic/maxammo.asm:112-147`; detalhes via `lookup mech ID`.
+Gerador/lookup/validação suportam IDs de armas, pickups e equipamentos separados dos atores;
+relatório humano regenerado. Limites de escopo e sobreposições documentados no próprio catálogo.
+**Testes:** 26 testes focados de contexto; `python3 tools/validate.py` fora do sandbox: exit 0,
+37 etapas PASS, 146 testes Python; importação, boot e suítes Godot 4.7.2 aprovados.
+**Pendências:** divergências registradas sem correção; próxima tarefa sugerida, após pedido,
+priorizar aquisição do foguete/recarga e respectivos testes. Gameplay e configuração local preservados.
+**Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.

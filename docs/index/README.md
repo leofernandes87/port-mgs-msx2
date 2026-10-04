@@ -57,9 +57,11 @@ quando precisar de declarações adjacentes, leia apenas a faixa localizada pelo
 
 ## Cobertura progressiva
 
-O catálogo inclui features originais mesmo sem implementação. A primeira auditoria cobre
-**atores e bosses**: famílias do despacho, NPCs, perigos/geradores e projéteis associados,
-além de comportamentos transversais. As cadeias legadas sem `domain` ainda não foram auditadas;
+O catálogo inclui features originais mesmo sem implementação. Os domínios auditados são
+**actors-bosses** (famílias do despacho e comportamentos transversais) e **weapons-items**
+(armas do jogador, soco, inventários, coleta, consumo, equipamentos e limites por rank).
+Consulte `python3 -m tools.context.lookup domain weapons-items` para o resumo do segundo.
+As cadeias legadas sem `domain` ainda não foram auditadas;
 não possuem status implícito e não entram nas contagens. Contagem de famílias não é percentual
 de conclusão do jogo. Agentes usam as consultas acima; para leitura humana, [coverage.md](coverage.md).
 
@@ -69,12 +71,19 @@ catálogo. Uma busca sem match não justifica `NOT_STARTED`: é preciso cruzar o
 original com os fluxos de criação, sistemas, extração, testes e histórico. Incerteza de
 correspondência permanece `UNMAPPED`. Testes verdes não comprovam fidelidade integral.
 
-Cada feature auditada registra `domain`, `actor_ids`, `original_scope`, `rationale`,
+Cada feature auditada registra `domain`, `original_scope`, `rationale`,
 `implemented_scope`, `missing_scope`, `evidence_notes` e as cadeias existentes. `godot` e
 `tests` podem apontar código relacionado ou testes de contrato, sem significar implementação
 da feature; o escopo e as notas distinguem esses casos. `history` usa arquivo + `::` + título
 exato da entrada; `related_features` referencia IDs do catálogo. `audits` registra recorte,
-revisões, método, IDs esperados e exclusões justificadas. Nenhum domínio seguinte foi auditado.
+revisões, método, IDs esperados e exclusões justificadas. Os namespaces de IDs são
+`actor_ids` (1–65), `weapon_ids` (1–7), `pickup_ids` (1–35) e `equipment_ids` (1–25);
+cada entrada contém as listas declaradas na auditoria de seu domínio, vazias para aspectos
+transversais. IDs de namespaces distintos não são intercambiáveis. Outros domínios não foram auditados.
+
+Os limites de escopo e possíveis sobreposições com cadeias legadas estão em `audits` e nas
+relações de cada feature: por exemplo, cartões versus portas, máscara versus gás e bolsa
+versus captura. Não somar essas cadeias como funcionalidades independentes já concluídas.
 
 O validador confere status, campos obrigatórios, relações entre features, cobertura dos IDs,
 arquivos, etapas de testes, funções de integração, títulos históricos e referências asm

@@ -90,6 +90,18 @@ class MechanicsLookupTests(unittest.TestCase):
         self.write_catalog()
         self.assertEqual(self.run_lookup('unmapped'), (0, '', ''))
 
+    def test_weapon_ids_are_detail_only_and_new_domain_keeps_summary_contract(self):
+        self.catalog['audits']['weapons-items'] = {}
+        self.catalog['mechanics'][0].update(domain='weapons-items', weapon_ids=[1],
+                                             pickup_ids=[2], equipment_ids=[3])
+        self.write_catalog()
+        self.assertEqual(self.run_lookup('domain', 'weapons-items'),
+                         (0, 'watcher\tVigia sintético\tPARTIAL\n', ''))
+        code, output, errors = self.run_lookup('mech', 'watcher')
+        self.assertEqual((code, errors), (0, ''))
+        for field in ('weapon_ids', 'pickup_ids', 'equipment_ids'):
+            self.assertIn(field, output)
+
     def test_unknown_domain_and_feature_fail_without_dumping_catalog(self):
         for command, error in [('domain', 'domínio desconhecido'), ('mech', 'mecânica desconhecida')]:
             with self.subTest(command=command):

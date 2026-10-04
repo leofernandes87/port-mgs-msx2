@@ -108,6 +108,49 @@ def coverage_fixture():
 
 
 class CoverageTests(unittest.TestCase):
+    def equipment_catalog(self):
+        catalog = coverage_fixture()
+        audit = dict(catalog['audits']['actors-bosses'])
+        audit.pop('actor_ids')
+        audit.update(title='Equipment fixture', weapon_ids=[1], pickup_ids=[1, 2],
+                     equipment_ids=[1], exclusions=[])
+        catalog['audits']['weapons-items'] = audit
+        item = dict(catalog['mechanics'][0])
+        item.pop('actor_ids')
+        item.update(id='equipment', domain='weapons-items', weapon_ids=[1],
+                    pickup_ids=[1, 2], equipment_ids=[1])
+        catalog['mechanics'].append(item)
+        return catalog
+
+    def test_independent_id_namespaces_and_multi_domain_report(self):
+        catalog = self.equipment_catalog()
+        self.assertEqual(coverage.check_classifications(catalog), [])
+        rendered = coverage.render(catalog)
+        self.assertIn('## Equipment fixture', rendered)
+        self.assertIn('arma: 1; pickup: 1, 2; equipamento: 1', rendered)
+        self.assertIn('ator: 1', rendered)
+
+    def test_equipment_inventory_cannot_hide_missing_or_invalid_ids(self):
+        for field, limit in [('weapon_ids', 7), ('pickup_ids', 35), ('equipment_ids', 25)]:
+            for values, expected in [([], 'sem entrada/exclusão'), ([limit + 1], 'inválidos'),
+                                     ([True], 'inválidos'), (None, 'inválidos')]:
+                with self.subTest(field=field, values=values):
+                    catalog = self.equipment_catalog()
+                    catalog['mechanics'][1][field] = values
+                    problems = coverage.check_classifications(catalog)
+                    self.assertTrue(any(field in p and expected in p for p in problems), problems)
+            catalog = self.equipment_catalog()
+            del catalog['mechanics'][1][field]
+            self.assertTrue(any(f'{field} ausente' in p for p in coverage.check_classifications(catalog)))
+
+    def test_equipment_exclusion_does_not_cover_weapon_with_same_number(self):
+        catalog = self.equipment_catalog()
+        catalog['mechanics'][1].update(weapon_ids=[], equipment_ids=[])
+        catalog['audits']['weapons-items']['exclusions'] = [{'equipment_id': 1, 'reason': 'Fixture'}]
+        problems = coverage.check_classifications(catalog)
+        self.assertEqual(len(problems), 1, problems)
+        self.assertIn('weapon_ids: IDs sem entrada/exclusão', problems[0])
+
     def test_all_seven_statuses_are_accepted_and_legacy_is_not_classified(self):
         for status in coverage.STATUSES:
             with self.subTest(status=status):

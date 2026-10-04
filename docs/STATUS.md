@@ -7,25 +7,27 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 - Última tag: `v0.2.1` (inventário de atores/bosses e interface de contexto).
 - Conteúdo da entrega: commit `e408782`, sobre `0c268ca`; registro da versão em `v0.2.1`.
-- Sem push. O commit de conteúdo existente foi preservado.
+- Auditoria de weapons-items concluída a pedido do usuário; sem tag ou push.
 - ROM canônica `en-eu-rc750` por SHA-256 (`tools/rom.py`); o Godot só aceita dados de
   `data/extracted/en-eu-rc750/` com essa proveniência. Godot em 60 Hz.
 - Sandbox jogável a partir da sala 121; catálogo progressivo e cadeias em
   `python3 -m tools.context.lookup mech` (`docs/index/mechanics.json`).
-- Validação desta entrega: `python3 tools/validate.py`, exit 0; 37 etapas PASS,
-  142 testes Python, importação/boot Godot 4.7.2 e suítes existentes aprovados.
+- Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 37 etapas PASS,
+  146 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
 - `godot/project.godot` tem alteração local do usuário: nunca incluir em commits.
 
-## Em andamento
+## Auditoria atual
 
-- Interface de contexto: `lookup domain DOMÍNIO`, `lookup status STATUS` e `lookup unmapped`
-  retornam resumos; detalhes somente por `lookup mech ID`. Gameplay preservado.
-- Catálogo canônico: `docs/index/mechanics.json`, acessado via lookup. `docs/index/coverage.md`
-  é relatório humano, não contexto padrão de agentes. Auditoria de cobertura não avançou.
-- 51 features: PARTIAL 20, PROVISIONAL 12, NOT_STARTED 17, UNMAPPED 2;
-  IMPLEMENTED/DEFERRED/INVESTIGATING 0. Contagem por família, não percentual do jogo.
-- Próxima investigação deste domínio: uso alcançável do ID 56 e produtores/equivalentes
-  Godot da explosão ID 65. Demais lacunas ficam no catálogo; não iniciar sem pedido.
+- `weapons-items`: 38 features — IMPLEMENTED 1, PARTIAL 20, PROVISIONAL 8,
+  NOT_STARTED 9; DEFERRED/UNMAPPED/INVESTIGATING 0. Catálogo via `lookup domain weapons-items`.
+- As 51 entradas de `actors-bosses` e suas classificações foram preservadas.
+- Apenas catálogo, documentação, índices e suporte/testes de namespaces foram alterados;
+  gameplay preservado. `coverage.md` é relatório humano gerado, não contexto de agentes.
+- Divergências registradas: armas substituídas por bala genérica, foguete recusado, recarga
+  indevida de míssil, timers/velocidades, cartões por posse e reposição de consumíveis.
+- Próxima tarefa sugerida, só após pedido: priorizar `rocket-launcher`/`ammo-crates` e
+  especificar testes de aquisição real antes de corrigir gameplay. Esta auditoria termina aqui.
+- Pendências de actors-bosses: uso alcançável do ID 56 e produtores do ID 65, sem nova investigação.
 
 ## Decisões pendentes do usuário
 

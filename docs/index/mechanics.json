@@ -118,104 +118,253 @@
     },
     {
       "id": "items",
-      "title": "Itens no mapa, coleta e inventário",
+      "title": "Coleta de pickups e despacho dos IDs originais",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "Até três slots de item; toque usa tamanho original, offsets e limites estritos; despacha IDs 1–35 para arma, equipamento, supressor, bolsa ou munição. Esta entrada cobre aquisição, não os efeitos individuais.",
+      "implemented_scope": [
+        "Exportação por sala de tipo e coordenadas; ItemBox encaminha diversos IDs a inventário/arsenal."
+      ],
+      "missing_scope": [
+        "Mapear sem substituição IDs 4, 11, 16, 18–21 e os casos sem pickup estático 14/31; preservar regras de disponibilidade no caminho de exportação/runtime.",
+        "Reproduzir colisão por tamanho: X com centro +8/+16 e raio 12/20, Y com centro +16 e raio 16, em vez do quadrado <=20."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
       "asm": [
-        "logic/items.asm:60-98 ChkTakeItem",
-        "logic/items.asm:333-356 PickAmmoCrate",
-        "logic/drawitemsinroom.asm:7 DrawRoomItems",
-        "logic/maxammo.asm:112-147 MaxAmmoLv1"
+        "logic/items.asm:7-129",
+        "logic/addroomitems.asm:8-75",
+        "constants/Enums.asm:127-155"
       ],
       "extractor": [
+        "tools/extractors/extract.py",
         "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-183-actors.json"
       ],
       "godot": [
         "godot/scripts/systems/item_box.gd",
         "godot/scripts/systems/inventory.gd",
-        "godot/scripts/systems/item_menu.gd",
-        "godot/scripts/systems/weapon_menu.gd"
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
       ],
       "integration": [
-        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items",
+        "godot/scripts/systems/item_box.gd::step_tick"
       ],
       "tests": [
         "godot-doors-inventory",
-        "godot-item-box-sprites"
+        "godot-item-box-sprites",
+        "tests/test_extractors.py"
       ],
       "docs": [
         "docs/reverse_engineering/inventory-and-events.md",
         "docs/reverse_engineering/stage-10-lorries-and-canonical-items.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "export_room_data.py:79-83 retém apenas ID/Y/X; _spawn_room_items:1253-1317 mapeia desconhecidos para RATION e também ID 21 explicitamente para RATION.",
+        "Os testes de proximidade validam a aproximação atual; não cobrem os limites estritos do original. IDs pertencem às entradas específicas; esta é transversal."
+      ],
+      "related_features": [
+        "pickup-persistence",
+        "weapons",
+        "equipment-inventory"
       ]
     },
     {
       "id": "weapons",
-      "title": "Armas, balística e soco",
+      "title": "Inventário e seleção das sete armas",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "Arsenal de sete tipos, seleção e WeaponInUse; primeiras armas exceto granada são selecionadas automaticamente; retorno do menu limpa tiros ativos. Exclui apresentação visual dos menus.",
+      "implemented_scope": [
+        "Seis tipos aceitos por WeaponSystem; posse, seleção, munição e menu integrados."
+      ],
+      "missing_scope": [
+        "Sétimo tipo ROCKET_LAUNCHER; não selecionar granada quando primeira arma; reproduzir limpeza de tiros/WeaponInUse na troca."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
       "asm": [
-        "logic/weapon/handgun.asm:8 ChkHandGunShot",
-        "logic/weaponuse.asm:365-375 ChkShotBoundaries",
-        "logic/punchenemy.asm:29-87 ChkPunchEnemy"
+        "logic/items.asm:199-285",
+        "Banks0123.asm:11485-11524",
+        "logic/shrinkitems.asm:8-28"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json"
       ],
       "godot": [
         "godot/scripts/systems/weapon_system.gd",
-        "godot/scripts/systems/bullet.gd",
-        "godot/scripts/systems/player.gd"
+        "godot/scripts/systems/weapon_menu.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
       ],
       "integration": [
-        "godot/scripts/scenes/sandbox_gameplay.gd::_physics_process"
+        "godot/scripts/systems/weapon_system.gd::add_weapon",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input",
+        "godot/scripts/systems/weapon_menu.gd::_confirm_selection",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_on_weapon_menu_selected"
       ],
       "tests": [
         "godot-weapon-combat",
-        "godot-combat-health"
+        "godot-remote-missile"
       ],
       "docs": [
-        "docs/reverse_engineering/stage-8-combat-and-health.md"
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "add_weapon:88-102 rejeita foguete e o elif seleciona a primeira granada apesar do comentário contrário.",
+        "As cadeias legadas weapons/items foram delimitadas para não contar novamente os efeitos específicos; inicialização por arsenal de debug não comprova progressão original."
+      ],
+      "related_features": [
+        "rank-capacities",
+        "player-attack-rules",
+        "consumable-lifecycle"
       ]
     },
     {
       "id": "remote-missile",
-      "title": "Míssil teleguiado",
+      "title": "Míssil teleguiado do jogador",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [
+        7
+      ],
+      "pickup_ids": [
+        7
+      ],
+      "equipment_ids": [],
+      "original_scope": "Consumível ID 7: um míssil, direção controlável, Snake imobilizado, velocidade 4 px/tick, duas verificações verticais de colisão, limites e explosão de 15 ticks. Pacotes de cinco e limites 5/10/15/20.",
+      "implemented_scope": [
+        "Entidade própria, controle, congelamento de Snake, colisões, explosão e dano; extractor de velocidades/capacidades."
+      ],
+      "missing_scope": [
+        "Runtime usa SPEED=1.5 em vez de 4; não carrega missile_weapon.json para esse parâmetro. Remoção quando acaba e recarga original de pickups."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
       "asm": [
-        "logic/weapon/missile.asm:8 ChkMissileShot",
-        "logic/weapon/missile.asm:112-133 ControlMissile",
-        "logic/weapon/missile.asm:150-165 MissileExplode"
+        "logic/weapon/missile.asm:8-51",
+        "logic/weapon/missile.asm:80-86",
+        "logic/weapon/missile.asm:112-172"
       ],
       "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py",
         "tools/extractors/extract_missile_data.py"
       ],
       "data": [
-        "missile_weapon.json"
+        "missile_weapon.json",
+        "rooms/room-147-actors.json"
       ],
       "godot": [
-        "godot/scripts/systems/remote_missile.gd"
+        "godot/scripts/systems/remote_missile.gd",
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
       ],
       "integration": [
+        "godot/scripts/systems/remote_missile.gd::step_tick",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input",
         "godot/scripts/scenes/sandbox_gameplay.gd::_on_missile_exploded"
       ],
       "tests": [
-        "godot-remote-missile"
+        "godot-remote-missile",
+        "tests/test_extractors.py"
       ],
       "docs": [
         "docs/reverse_engineering/stage-20-rc-missile.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::Calibração e Refinamento do Subsolo, Míssil Teleguiado e Explosivo Plástico (2026-09-28)"
+      ],
+      "evidence_notes": [
+        "Calibração explícita no histórico de 2026-09-28; teste compara velocidade à própria constante do runtime, sem comparar com a tabela extraída.",
+        "Uso contra painel está relacionado, mas sua lógica não foi reclassificada."
+      ],
+      "related_features": [
+        "ammo-crates",
+        "consumable-lifecycle",
+        "pickup-persistence",
+        "actor-power-switch"
       ]
     },
     {
       "id": "plastic-bomb",
-      "title": "Bomba plástica e paredes quebráveis do subsolo",
+      "title": "Bomba plástica do jogador",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [
+        5
+      ],
+      "pickup_ids": [
+        5
+      ],
+      "equipment_ids": [],
+      "original_scope": "Consumível ID 5 em pacotes de cinco; uma bomba armada, posicionamento conforme direção, espera 48 ticks antes da explosão de 15 ticks e consumo/removal. Interação com paredes e bosses é externa a esta entrada.",
+      "implemented_scope": [
+        "Entidade própria, posicionamento, consumo, explosão e integração com dano/paredes."
+      ],
+      "missing_scope": [
+        "Timer está em 96, não 48; dano/shape e alerta devem seguir resolução original; ciclo de esgotamento/reposição."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
       "asm": [
-        "logic/weapon/plasticbomb.asm:7 ChkPBombShot",
-        "logic/weapon/plasticbomb.asm:80-84 PBombDirOffset",
-        "logic/doors/opendoor.asm:331-348 ChkBasementWall"
+        "logic/weapon/plasticbomb.asm:7-83",
+        "logic/weapon/plasticbomb.asm:108-134"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-142-actors.json",
+        "rooms/room-153-actors.json"
       ],
       "godot": [
         "godot/scripts/systems/plastic_bomb.gd",
-        "godot/scripts/systems/door.gd"
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
       ],
       "integration": [
-        "godot/scripts/scenes/sandbox_gameplay.gd::_on_plastic_bomb_exploded"
+        "godot/scripts/systems/plastic_bomb.gd::setup",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_on_plastic_bomb_exploded",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input"
       ],
       "tests": [
         "godot-basement-and-plastic-bomb"
       ],
-      "docs": []
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::Calibração e Refinamento do Subsolo, Míssil Teleguiado e Explosivo Plástico (2026-09-28)"
+      ],
+      "evidence_notes": [
+        "Histórico de 2026-09-28 registra aumento para 96 por conforto; não é inferência baseada em comentário. Testes atuais validam a calibração.",
+        "Antiga cadeia plastic-bomb incluía paredes; mantida a relação doors/metal-gear-boss sem reclassificar esses consumidores."
+      ],
+      "related_features": [
+        "consumable-lifecycle",
+        "pickup-persistence",
+        "player-hit-resolution",
+        "doors",
+        "metal-gear-boss"
+      ]
     },
     {
       "id": "guards",
@@ -700,23 +849,63 @@
     },
     {
       "id": "binoculars",
-      "title": "Binóculo",
+      "title": "Binóculos e observação de salas adjacentes",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        17
+      ],
+      "equipment_ids": [
+        9
+      ],
+      "original_scope": "Selecionar ao sair do menu abre observação se sala não isolada; direção consulta vizinha, timer 128 ticks retorna; mantém Snake seguro e restaura cópia de atores, power switch, flags/timer de rádio e alerta.",
+      "implemented_scope": [
+        "Sistema dedicado, bloqueio de salas isoladas, navegação/retorno em 128 ticks, Snake oculto e backup de propriedades de EnemyGuard."
+      ],
+      "missing_scope": [
+        "Backup/restauração integral de todos os atores e flags do original; comprovar efeitos de ida/volta em salas com entidades além de EnemyGuard."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
       "asm": [
-        "Banks0123.asm:12256 BinocularMode",
-        "logic/menuequipment.asm:338-361 BinocularSprAtt"
+        "logic/menuequipment.asm:299-349 ExitEquipMenu",
+        "Banks0123.asm:12402-12528"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-128-actors.json"
       ],
       "godot": [
         "godot/scripts/systems/binocular_system.gd",
-        "godot/scripts/systems/binocular_overlay.gd"
+        "godot/scripts/systems/room_manager.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
       ],
       "integration": [
         "godot/scripts/scenes/sandbox_gameplay.gd::open_binoculars",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_backup_home_enemies",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_restore_home_enemies",
         "godot/scripts/scenes/sandbox_gameplay.gd::_process_binoculars"
       ],
       "tests": [
         "godot-binoculars"
       ],
-      "docs": []
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::[Implementação Canônica] - Binóculo / Modo Telescópio (TELESCOPE MODE)"
+      ],
+      "evidence_notes": [
+        "_backup_home_enemies:1147-1180 armazena subconjunto de campos EnemyGuard; a suíte cobre esse contrato, não cópia de todos os atores/flags. Apresentação do telescópio fica fora."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "actor-runtime"
+      ]
     },
     {
       "id": "hud",
@@ -3024,13 +3213,1909 @@
         "Essas suítes testam armas; não comprovam BigExplosionLogic. Pendente mapear produtores/consumidores do efeito, sem classificá-lo como não iniciado."
       ],
       "related_features": []
+    },
+    {
+      "id": "pickup-persistence",
+      "title": "Disponibilidade e reposição de pickups",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "Persistir itens únicos; não marcar como tomados bombas plásticas, minas, RC missiles, rações e caixas de munição. Disponibilidade depende de flags e do evento de liberação do foguete.",
+      "implemented_scope": [
+        "collected_boxes impede reaparecimento de caixas já coletadas na sessão."
+      ],
+      "missing_scope": [
+        "Exceções renováveis dos IDs 5/6/7/30/35 e flags originais por pickup; gate JeniRocketF para foguete."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/items.asm:490-516 SetItemAsTaken",
+        "logic/addroomitems.asm:8-75"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/item_box.gd::step_tick",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [
+        "godot-doors-inventory"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "A mesma persistência incondicional é usada para todo pickup; não há separação entre item permanente e reposição. Os testes cobrem persistência, não revisita canônica de consumíveis."
+      ],
+      "related_features": [
+        "items",
+        "rocket-launcher",
+        "consumable-lifecycle"
+      ]
+    },
+    {
+      "id": "equipment-inventory",
+      "title": "Inventário e seleção de equipamentos",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "Vinte e cinco IDs selecionáveis em slots de quatro bytes, uma seleção ativa, compactação ao remover, cigarros iniciais; supressor tem estado separado, fora dos 25 equipamentos.",
+      "implemented_scope": [
+        "Lista de equipamentos, seleção/ciclo e cigarros iniciais; contador dedicado de rações."
+      ],
+      "missing_scope": [
+        "Modelar os 25 tipos e suas quantidades/remoção sem substituições; supressor não deve virar equipamento selecionável; preservar seleção vazia após consumo final."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/items.asm:139-189",
+        "logic/menuequipment.asm:186-195",
+        "logic/shrinkitems.asm:30-58",
+        "Banks0123.asm:11775-11780"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/item_menu.gd",
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/inventory.gd::collect_item",
+        "godot/scripts/systems/inventory.gd::use_selected_item",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [
+        "godot-doors-inventory"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "A lista aceita strings sem contrato dos 25 IDs; use_selected_item só implementa RATION. Há ícones para itens sem efeitos. Quantidade de slots em memória não exige copiar o layout em Godot, mas os resultados de uso precisam coincidir."
+      ],
+      "related_features": [
+        "items",
+        "ration",
+        "silencer",
+        "equipment-bag"
+      ]
+    },
+    {
+      "id": "rank-capacities",
+      "title": "Limites de munição e rações por rank",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "Class 0–3: HG/SMG 50/100/200/300; granadas 15/30/60/90; foguetes 5/10/20/30; bombas/minas/mísseis 5/10/15/20; rações 3/6/9/12. Rebaixamento limita quantidades armazenadas.",
+      "implemented_scope": [
+        "Tabelas dos seis tipos aceitos e rações, ajuste por rank e clamp de munição/rações."
+      ],
+      "missing_scope": [
+        "Limites de foguetes e cobertura de teste de todas as colunas; progressão que aciona as tabelas herda divergência de rank-prisoners."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/maxammo.asm:10-147"
+      ],
+      "extractor": [
+        "tools/extractors/extract_missile_data.py"
+      ],
+      "data": [
+        "missile_weapon.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/rank_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/weapon_system.gd::update_rank_capacities",
+        "godot/scripts/systems/inventory.gd::update_rank_capacities"
+      ],
+      "tests": [
+        "godot-rank-and-prisoners",
+        "godot-remote-missile"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "Suítes citadas exercitam HG, míssil e rações por rank; a suíte weapon-combat também verifica o teto básico da SMG. Não cobrem todas as armas/ranks, em particular o foguete ausente.",
+        "Resgate/rebaixamento de reféns pertence a rank-prisoners: não foi reclassificado. Passwords e flags de cheat da rotina ficam fora do domínio de equipamento."
+      ],
+      "related_features": [
+        "weapons",
+        "ration",
+        "rank-prisoners",
+        "rocket-launcher"
+      ]
+    },
+    {
+      "id": "ammo-crates",
+      "title": "Caixas de munição para armas permanentes",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        35
+      ],
+      "equipment_ids": [],
+      "original_scope": "Pickup 35 soma 20 HG, 20 SMG, 6 granadas e 2 foguetes, apenas às armas possuídas e até o limite por rank; não recarrega RC missile.",
+      "implemented_scope": [
+        "Recarga e clamp de HG/SMG/granada já possuídas."
+      ],
+      "missing_scope": [
+        "Trocar a recarga indevida de 5 mísseis pela recarga original de 2 foguetes; reposição da caixa é tratada em pickup-persistence."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/items.asm:333-356 PickAmmoCrate",
+        "logic/items.asm:445-479"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-122-actors.json",
+        "rooms/room-142-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/weapon_system.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/item_box.gd::step_tick",
+        "godot/scripts/systems/weapon_system.gd::add_ammo_crate"
+      ],
+      "tests": [
+        "godot-weapon-combat",
+        "godot-remote-missile"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "remote_missile_test.gd:181-187 exige explicitamente +5 mísseis, uma divergência do original; aprovação da suíte não atesta fidelidade desta recarga."
+      ],
+      "related_features": [
+        "rank-capacities",
+        "pickup-persistence",
+        "remote-missile",
+        "rocket-launcher"
+      ]
+    },
+    {
+      "id": "consumable-lifecycle",
+      "title": "Consumo, esgotamento e remoção do inventário",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "DecItemUnits distingue munição permanente, armas consumíveis (5/6/7) e itens usados no menu. Ao esgotar consumível, remove slot e zera seleção; equipamentos persistentes não são consumidos por seleção.",
+      "implemented_scope": [
+        "Tiros decrementam munição; rações decrementam quantidade e são removidas ao zerar."
+      ],
+      "missing_scope": [
+        "Remover bomba/mina/míssil e limpar SelectedWeapon ao zerar; limpar seleção de equipamento em vez de selecionar implicitamente outro; uso/remoção de cigarros e transmissor."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "Banks0123.asm:1824-1913 DecItemUnits",
+        "logic/shrinkitems.asm:8-58"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/systems/inventory.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/weapon_system.gd::consume_ammo",
+        "godot/scripts/systems/inventory.gd::use_selected_item"
+      ],
+      "tests": [
+        "godot-weapon-combat",
+        "godot-remote-missile",
+        "godot-doors-inventory"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "consume_ammo:173-177 nunca remove owned_weapons. Testes verificam decremento, mas não todo o ciclo de esgotar/recoletar/selecionar."
+      ],
+      "related_features": [
+        "weapons",
+        "equipment-inventory",
+        "pickup-persistence",
+        "cigarettes",
+        "transmitter"
+      ]
+    },
+    {
+      "id": "punch-loot",
+      "title": "Itens temporários deixados por morte a socos",
+      "domain": "weapons-items",
+      "status": "NOT_STARTED",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "ChkDropItem filtra efetivamente ID_GUARD_SLOW; valor derivado de R em 0..3 só cria ração (0) ou munição (1). SpawnItem permite um item temporário e exige primeiro slot livre.",
+      "implemented_scope": [],
+      "missing_scope": [
+        "Produzir, posicionar (X-8,Y-4), coletar e limitar loot temporário conforme fluxo de morte a socos."
+      ],
+      "rationale": "O original está identificado; a cadeia de aquisição, despacho de uso e consumidores inspecionada não inicia este efeito. Ícones e metadados não contam como gameplay.",
+      "asm": [
+        "Banks0123.asm:12832-12865 ChkDropItem",
+        "logic/spawnitem.asm:15-75"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/enemy.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd",
+        "godot/scripts/systems/item_box.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/enemy.gd::receive_punch",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_physics_process",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [
+        "godot-combat-health"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 8: Combate Corpo a Corpo (Soco), Perseguição em Alerta e Vida/Dano"
+      ],
+      "evidence_notes": [
+        "receive_punch só marca morto e o sandbox não cria ração/munição nessa transição; instâncias ItemBox são pickups estáticos/fallback e evento explícito do supressor.",
+        "Exportação de itens de sala não representa spawn de morte. Histórico de combate e testes de morte não registram nem exercitam loot. Não generalizar pelos comentários a guardas médios/rápidos: o salto NZ filtra esses IDs."
+      ],
+      "related_features": [
+        "punch",
+        "items",
+        "guards",
+        "silencer-guards"
+      ]
+    },
+    {
+      "id": "player-attack-rules",
+      "title": "Restrições de ataque e ciclo de tiros do jogador",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "Despacho para sete armas; não disparar em room 204, rooms >=224, água, água profunda ou caixa; pool de seis slots e limites específicos por arma; soco também bloqueado em água/caixa.",
+      "implemented_scope": [
+        "Verificação de controle/vida/munição; um míssil e uma bomba ativos; congelamento ao controlar míssil."
+      ],
+      "missing_scope": [
+        "Guards originais de sala/animação; limite de seis slots em armas comuns; entrada contínua para SMG; limpeza/seleção coordenada de tiros."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/weaponuse.asm:8-73",
+        "Banks0123.asm:8934-8962 chkPunch",
+        "Banks0123.asm:1081-1093 GetWeaponDamages",
+        "data/weapondamage.asm:4-58"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::punch",
+        "godot/scripts/systems/player.gd::fire_weapon",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input"
+      ],
+      "tests": [
+        "godot-weapon-combat"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "Ramo de disparo por evento só separa MISSILE e PLASTIC_BOMB; array de bullets não implementa o pool original. Não há comparação dinâmica em emulador nesta auditoria."
+      ],
+      "related_features": [
+        "weapons",
+        "handgun",
+        "smg",
+        "cardboard-box",
+        "punch"
+      ]
+    },
+    {
+      "id": "player-hit-resolution",
+      "title": "Acerto e dano por arma do jogador",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "ChkPlayerShots escolhe shape de projétil ou explosão, respeita KILL_BY_CONTACT e lê dano por tipo de arma/alvo; rocket/mine/missile passam à explosão no contato. Máquinas de bosses permanecem em actors-bosses.",
+      "implemented_scope": [
+        "Colisões com tiles/inimigos, dano genérico de bala, dano 5 de míssil e explosão radial de bomba."
+      ],
+      "missing_scope": [
+        "Shapes e matriz de dano por arma/alvo; estados que permitem dano; limite específico de tiros e interação canônica sem matar todo EnemyGuard com um hit genérico."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/damagetoenemy.asm:7-77",
+        "logic/damagetoenemy.asm:92-225",
+        "data/weapondamage.asm:4-58",
+        "logic/weaponuse.asm:338-375"
+      ],
+      "extractor": [
+        "tools/extractors/extract_missile_data.py"
+      ],
+      "data": [
+        "missile_weapon.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/bullet.gd",
+        "godot/scripts/systems/enemy.gd",
+        "godot/scripts/systems/remote_missile.gd",
+        "godot/scripts/systems/plastic_bomb.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/enemy.gd::take_bullet_hit",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_on_plastic_bomb_exploded",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_physics_process"
+      ],
+      "tests": [
+        "godot-weapon-combat",
+        "godot-remote-missile",
+        "godot-basement-and-plastic-bomb"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "Matriz não é consumida pelo runtime; take_bullet_hit marca EnemyGuard morto, independentemente do parâmetro de dano. Testes de fixtures de guardas não cobrem a matriz.",
+        "Limite com actor-runtime: esta entrada é o produtor/acerto da arma; reação, resistência e morte do ator pertencem ao domínio já auditado."
+      ],
+      "related_features": [
+        "actor-runtime",
+        "handgun",
+        "land-mine",
+        "plastic-bomb",
+        "remote-missile"
+      ]
+    },
+    {
+      "id": "punch",
+      "title": "Soco e ataque corpo a corpo de Snake",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [],
+      "equipment_ids": [],
+      "original_scope": "Soco de oito ticks com direção e retângulo de alcance, filtro de tipos elegíveis, TOUCH_INFO bit 6; soco proibido em água/caixa. Janelas de novo impacto dependem do estado de stun do alvo.",
+      "implemented_scope": [
+        "Player.punch, animação/timer e testes de alcance; guardas recebem impactos e morrem no terceiro."
+      ],
+      "missing_scope": [
+        "Filtro original (cães não constam de PunchEnemies), geometria e janela de repetição (original permite stun abaixo de 0x38); bloqueios de água/caixa."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "Banks0123.asm:8934-8962 chkPunch",
+        "logic/punchenemy.asm:6-87"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/systems/enemy.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::punch",
+        "godot/scripts/systems/enemy.gd::check_punched",
+        "godot/scripts/systems/enemy.gd::receive_punch"
+      ],
+      "tests": [
+        "godot-combat-health",
+        "godot-weapon-combat"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 8: Combate Corpo a Corpo (Soco), Perseguição em Alerta e Vida/Dano"
+      ],
+      "evidence_notes": [
+        "Godot aceita socos em cães e exige fim completo do stun; isso também consta da fronteira com actors-bosses, cujas entradas permanecem intactas.",
+        "Parede quebrável/porta não são reinventariadas aqui; relações indicam consumidores do soco."
+      ],
+      "related_features": [
+        "guards",
+        "dogs",
+        "punch-loot",
+        "capture-prison",
+        "doors",
+        "player-attack-rules"
+      ]
+    },
+    {
+      "id": "handgun",
+      "title": "Hand Gun",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [
+        1
+      ],
+      "pickup_ids": [
+        1
+      ],
+      "equipment_ids": [],
+      "original_scope": "Arma permanente ID 1, uma unidade por disparo, velocidade axial 6 px/tick e 16 ticks de voo; colisões superior/inferior; ruído condicionado pelo supressor.",
+      "implemented_scope": [
+        "Coleta, seleção, consumo e tiros integrados; protótipo Bullet possui constantes originais."
+      ],
+      "missing_scope": [
+        "player.fire_weapon sobrescreve velocidade para 3 e duração para 32; trajetória/cadência temporal e shape duplo divergem."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/weapon/handgun.asm:8-89",
+        "logic/weaponuse.asm:338-375"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-130-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/systems/bullet.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::fire_weapon",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input"
+      ],
+      "tests": [
+        "godot-weapon-combat"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "Mesmo alcance nominal de 96 px não torna 3×32 equivalente a 6×16. Teste do Bullet isolado não comprova os overrides do Player."
+      ],
+      "related_features": [
+        "weapons",
+        "silencer",
+        "player-hit-resolution",
+        "player-attack-rules"
+      ]
+    },
+    {
+      "id": "smg",
+      "title": "Sub Machine Gun",
+      "domain": "weapons-items",
+      "status": "PROVISIONAL",
+      "weapon_ids": [
+        2
+      ],
+      "pickup_ids": [
+        2
+      ],
+      "equipment_ids": [],
+      "original_scope": "Arma permanente ID 2: manter botão gera sequência de oito direções, gate de dois ticks e velocidades fracionárias; cada bala dura 16 ticks e consome munição, com supressor opcional.",
+      "implemented_scope": [
+        "Coleta, seleção e reserva de munição; disparo genérico do Player."
+      ],
+      "missing_scope": [
+        "Autofire ao segurar, sequência angular/frações e cadência específicas de ChkSMGShot."
+      ],
+      "rationale": "A aquisição ou representação existe, mas o uso corresponde a um substituto ou não possui o efeito específico original.",
+      "asm": [
+        "logic/weapon/smg.asm:25-128"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-137-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/weapon_system.gd::add_weapon",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input",
+        "godot/scripts/systems/player.gd::fire_weapon"
+      ],
+      "tests": [
+        "godot-weapon-combat",
+        "godot-item-box-sprites"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "Não há ramo SMG no disparo; evento de tecla sem echo produz a mesma bala da pistola. Testes de aquisição/contagem não exercitam rajada original."
+      ],
+      "related_features": [
+        "weapons",
+        "silencer",
+        "player-attack-rules"
+      ]
+    },
+    {
+      "id": "grenade-launcher",
+      "title": "Grenade Launcher",
+      "domain": "weapons-items",
+      "status": "PROVISIONAL",
+      "weapon_ids": [
+        3
+      ],
+      "pickup_ids": [
+        3
+      ],
+      "equipment_ids": [],
+      "original_scope": "Arma permanente ID 3 com mira, voo de 24 ticks, velocidade 3 e deslocamento parabólico visual; dano na fase de explosão de 15 ticks, não por contato durante voo.",
+      "implemented_scope": [
+        "Coleta, reserva e seleção; caminho genérico de bullet."
+      ],
+      "missing_scope": [
+        "Mira de lançamento, trajetória/posição lógica, timer e dano por fase; exceção de seleção inicial."
+      ],
+      "rationale": "A aquisição ou representação existe, mas o uso corresponde a um substituto ou não possui o efeito específico original.",
+      "asm": [
+        "logic/weapon/grenade.asm:8-153",
+        "logic/items.asm:253-261"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-151-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input",
+        "godot/scripts/systems/player.gd::fire_weapon"
+      ],
+      "tests": [
+        "godot-weapon-combat"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "GRENADE_LAUNCHER é aceito mas não tem entidade/ramo de granada: mata como bala reta. Testes não exercitam voo/explosão canônicos."
+      ],
+      "related_features": [
+        "weapons",
+        "player-hit-resolution"
+      ]
+    },
+    {
+      "id": "rocket-launcher",
+      "title": "Rocket Launcher e liberação por progressão",
+      "domain": "weapons-items",
+      "status": "NOT_STARTED",
+      "weapon_ids": [
+        4
+      ],
+      "pickup_ids": [
+        4
+      ],
+      "equipment_ids": [],
+      "original_scope": "Arma permanente ID 4: um foguete, velocidade 5, colisão superior/inferior e explosão de 15 ticks; capacidades 5/10/20/30. Pickup exige JeniRocketF; resposta que libera suprimento exige Class 3.",
+      "implemented_scope": [],
+      "missing_scope": [
+        "Aceitar/selecionar/municiar arma; gate de liberação; voo/explosão e uso específico. A conversa de Jennifer em si está fora do domínio."
+      ],
+      "rationale": "O original está identificado; a cadeia de aquisição, despacho de uso e consumidores inspecionada não inicia este efeito. Ícones e metadados não contam como gameplay.",
+      "asm": [
+        "logic/weapon/rocket.asm:8-142",
+        "logic/addroomitems.asm:8-75",
+        "Banks0123.asm:11136-11148",
+        "logic/maxammo.asm:112-147"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-185-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/weapon_system.gd::add_weapon",
+        "godot/scripts/systems/item_box.gd::step_tick",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [
+        "godot-item-box-sprites"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "ID 4 da sala 185 cai no fallback RATION do factory. ItemBox criado manualmente com ROCKET_LAUNCHER marca coleta mesmo quando add_weapon retorna false.",
+        "item_box_sprites_test:78-85 verifica touched/collected, não posse; logo esse teste não comprova aquisição. Não há entidade nem ramo de disparo de foguete no fluxo auditado."
+      ],
+      "related_features": [
+        "rank-capacities",
+        "ammo-crates",
+        "pickup-persistence",
+        "weapons"
+      ]
+    },
+    {
+      "id": "land-mine",
+      "title": "Minas colocadas pelo jogador",
+      "domain": "weapons-items",
+      "status": "PROVISIONAL",
+      "weapon_ids": [
+        6
+      ],
+      "pickup_ids": [
+        6
+      ],
+      "equipment_ids": [],
+      "original_scope": "Consumível ID 6 em pacotes de cinco, colocado nas coordenadas de Snake em slot livre; fica no chão, explode por contato elegível e percorre estados de explosão.",
+      "implemented_scope": [
+        "Coleta, munição e seleção; ao usar, segue o bullet genérico."
+      ],
+      "missing_scope": [
+        "Entidade estacionária, múltiplas minas/pool, contato e explosão; esgotamento/reposição."
+      ],
+      "rationale": "A aquisição ou representação existe, mas o uso corresponde a um substituto ou não possui o efeito específico original.",
+      "asm": [
+        "logic/weapon/mine.asm:7-76",
+        "logic/damagetoenemy.asm:129-152"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-132-actors.json",
+        "rooms/room-140-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input",
+        "godot/scripts/systems/player.gd::fire_weapon"
+      ],
+      "tests": [
+        "godot-weapon-combat"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "Sem ramo LAND_MINE no dispatch; não confundir com minas inimigas ID 9 do domínio actors-bosses. Inventário em string não implementa colocação."
+      ],
+      "related_features": [
+        "enemy-mines",
+        "player-hit-resolution",
+        "consumable-lifecycle",
+        "pickup-persistence"
+      ]
+    },
+    {
+      "id": "silencer",
+      "title": "Supressor para Hand Gun e SMG",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        8
+      ],
+      "equipment_ids": [],
+      "original_scope": "Pickup 8 grava InvSupressor separado do equipamento selecionável e elimina o ramo de ruído de HG/SMG; não altera explosivos. Drop dos guardas é descrito em silencer-guards.",
+      "implemented_scope": [
+        "Flag has_silencer, aquisição e gate de alerta acústico no disparo."
+      ],
+      "missing_scope": [
+        "Retirar do inventário selecionável e limitar efeito às armas originais; distinguir comportamento de inimigos que escutam tiros."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/items.asm:184-189 PickSupressor",
+        "logic/weapon/handgun.asm:8-80",
+        "logic/weapon/smg.asm:25-128"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/weapon_system.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/item_box.gd::step_tick",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input"
+      ],
+      "tests": [
+        "godot-weapon-combat"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "evidence_notes": [
+        "Silenciador suprime todo disparo genérico, inclusive granadas/minas substituídas; como equipamento adicional foge dos 25 IDs. Áudio e máquinas de guardas ficam fora desta auditoria."
+      ],
+      "related_features": [
+        "handgun",
+        "smg",
+        "equipment-inventory",
+        "silencer-guards"
+      ]
+    },
+    {
+      "id": "body-armor",
+      "title": "Body Armor",
+      "domain": "weapons-items",
+      "status": "PROVISIONAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        9
+      ],
+      "equipment_ids": [
+        1
+      ],
+      "original_scope": "Quando selecionada, reduz à metade o dano de contato em ChkUsingArmor.",
+      "implemented_scope": [
+        "Coletável e selecionável como BODY_ARMOR."
+      ],
+      "missing_scope": [
+        "Aplicar seleção e SRL ao dano recebido no caminho apropriado."
+      ],
+      "rationale": "A aquisição ou representação existe, mas o uso corresponde a um substituto ou não possui o efeito específico original.",
+      "asm": [
+        "logic/touchenemy.asm:181-189 ChkUsingArmor"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-171-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/systems/inventory.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items",
+        "godot/scripts/systems/player.gd::apply_damage"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: há apenas representação/posse, sem o efeito descrito.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "actor-runtime"
+      ]
+    },
+    {
+      "id": "bomb-blast-suit",
+      "title": "Bomb Blast Suit",
+      "domain": "weapons-items",
+      "status": "PROVISIONAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        10
+      ],
+      "equipment_ids": [
+        2
+      ],
+      "original_scope": "Seleção impede arrasto pela corrente de ar do terraço; não significa imunidade geral a explosões.",
+      "implemented_scope": [
+        "ID 10 é coletado como BOMB_BLAST_SUIT."
+      ],
+      "missing_scope": [
+        "Consumidor da seleção para proteção contra vento."
+      ],
+      "rationale": "A aquisição ou representação existe, mas o uso corresponde a um substituto ou não possui o efeito específico original.",
+      "asm": [
+        "Banks0123.asm:9280-9295 ChkRoofAirFlow"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-170-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/systems/inventory.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items",
+        "godot/scripts/systems/player.gd::step_tick"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: há apenas representação/posse, sem o efeito descrito.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory"
+      ]
+    },
+    {
+      "id": "flashlight",
+      "title": "Flashlight",
+      "domain": "weapons-items",
+      "status": "NOT_STARTED",
+      "weapon_ids": [],
+      "pickup_ids": [
+        11
+      ],
+      "equipment_ids": [
+        3
+      ],
+      "original_scope": "Selecionar lanterna permite paleta normal nos ambientes escuros 123–125 e 220–221.",
+      "implemented_scope": [],
+      "missing_scope": [
+        "Aquisição fiel de ID 11 e uso da seleção ao definir visibilidade/paleta."
+      ],
+      "rationale": "O original está identificado; a cadeia de aquisição, despacho de uso e consumidores inspecionada não inicia este efeito. Ícones e metadados não contam como gameplay.",
+      "asm": [
+        "Banks0123.asm:2936-2965"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-176-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: não há caminho funcional para este item; IDs estáticos não mapeados caem em RATION.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory"
+      ]
+    },
+    {
+      "id": "cigarettes",
+      "title": "Cigarros e extensão da contagem final",
+      "domain": "weapons-items",
+      "status": "PROVISIONAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        14
+      ],
+      "equipment_ids": [
+        6
+      ],
+      "original_scope": "Cigarros iniciais; uso apenas com contagem final ativa consome unidade e soma 2000 unidades BCD. Não é cura.",
+      "implemented_scope": [
+        "Cigarros adicionados na inicialização e recuperados na bolsa."
+      ],
+      "missing_scope": [
+        "Handler de uso/consumo condicionado à contagem final."
+      ],
+      "rationale": "A aquisição ou representação existe, mas o uso corresponde a um substituto ou não possui o efeito específico original.",
+      "asm": [
+        "Banks0123.asm:11775-11780",
+        "logic/menuequipment.asm:268-284 ChkUseCigarettes"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items",
+        "godot/scripts/systems/inventory.gd::use_selected_item"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: há apenas representação/posse, sem o efeito descrito.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "consumable-lifecycle",
+        "metal-gear-boss"
+      ]
+    },
+    {
+      "id": "mine-detector",
+      "title": "Mine Detector",
+      "domain": "weapons-items",
+      "status": "PROVISIONAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        15
+      ],
+      "equipment_ids": [
+        7
+      ],
+      "original_scope": "Selecionado, revela minas do cenário ao inicializar e redesenhar; as rotinas inspecionadas não concedem recuperação dessas minas como munição.",
+      "implemented_scope": [
+        "Coleta/seleção de MINE_DETECTOR."
+      ],
+      "missing_scope": [
+        "Consumidor que revele minas conforme seleção; depende do ator de mina."
+      ],
+      "rationale": "A aquisição ou representação existe, mas o uso corresponde a um substituto ou não possui o efeito específico original.",
+      "asm": [
+        "logic/actors/mine.asm:7-39 InitMines",
+        "logic/actors/mine.asm:75-103 DrawMines"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-160-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: há apenas representação/posse, sem o efeito descrito.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "enemy-mines",
+        "land-mine"
+      ]
+    },
+    {
+      "id": "antenna",
+      "title": "Antenna",
+      "domain": "weapons-items",
+      "status": "NOT_STARTED",
+      "weapon_ids": [],
+      "pickup_ids": [
+        16
+      ],
+      "equipment_ids": [
+        8
+      ],
+      "original_scope": "Posse libera resposta de rádio em MapZone >=5; aquisição ajusta estado da chamada. É efeito por posse, não por seleção. Diálogos/rádio não são auditados.",
+      "implemented_scope": [],
+      "missing_scope": [
+        "Aquisição ID 16 e flag de elegibilidade por posse para consumidor do rádio."
+      ],
+      "rationale": "O original está identificado; a cadeia de aquisição, despacho de uso e consumidores inspecionada não inicia este efeito. Ícones e metadados não contam como gameplay.",
+      "asm": [
+        "logic/items.asm:159-170",
+        "Banks0123.asm:11043-11056 ChkRadioReply"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-178-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd",
+        "godot/scripts/systems/radio_system.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items",
+        "godot/scripts/systems/radio_system.gd::get_transmission_result"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: não há caminho funcional para este item; IDs estáticos não mapeados caem em RATION. radio_system.get_transmission_result recebe sala/frequência, sem flag de posse da antena.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "radio"
+      ]
+    },
+    {
+      "id": "oxygen-tank",
+      "title": "Oxygen Tank",
+      "domain": "weapons-items",
+      "status": "NOT_STARTED",
+      "weapon_ids": [],
+      "pickup_ids": [
+        18
+      ],
+      "equipment_ids": [
+        10
+      ],
+      "original_scope": "Seleção evita perda de 2 de vida a cada oito ticks em água profunda. Movimento/salas de água não entram neste recorte.",
+      "implemented_scope": [],
+      "missing_scope": [
+        "Aquisição ID 18 e proteção seletiva no caminho de dano em água."
+      ],
+      "rationale": "O original está identificado; a cadeia de aquisição, despacho de uso e consumidores inspecionada não inicia este efeito. Ícones e metadados não contam como gameplay.",
+      "asm": [
+        "Banks0123.asm:9248-9260 SetInWaterMode3",
+        "logic/damagegas.asm:36-46 DecrementLife_C"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-200-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items",
+        "godot/scripts/systems/player.gd::apply_damage"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: não há caminho funcional para este item; IDs estáticos não mapeados caem em RATION.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory"
+      ]
+    },
+    {
+      "id": "compass",
+      "title": "Compass",
+      "domain": "weapons-items",
+      "status": "NOT_STARTED",
+      "weapon_ids": [],
+      "pickup_ids": [
+        19
+      ],
+      "equipment_ids": [
+        11
+      ],
+      "original_scope": "Na sala 103, seleção permite saída sem o redirecionamento do deserto; direção Down é exceção sem bússola.",
+      "implemented_scope": [],
+      "missing_scope": [
+        "Aquisição ID 19 e seleção como entrada da regra de navegação."
+      ],
+      "rationale": "O original está identificado; a cadeia de aquisição, despacho de uso e consumidores inspecionada não inicia este efeito. Ícones e metadados não contam como gameplay.",
+      "asm": [
+        "logic/nextroom.asm:12-51 SetNextRoom"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-184-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/room_manager.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: não há caminho funcional para este item; IDs estáticos não mapeados caem em RATION.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory"
+      ]
+    },
+    {
+      "id": "parachute",
+      "title": "Parachute",
+      "domain": "weapons-items",
+      "status": "NOT_STARTED",
+      "weapon_ids": [],
+      "pickup_ids": [
+        20
+      ],
+      "equipment_ids": [
+        12
+      ],
+      "original_scope": "Seleção converte a saída do terraço em descida por room 204; sem ela há queda livre fatal. A regra de seleção é o recorte, não as salas da queda.",
+      "implemented_scope": [],
+      "missing_scope": [
+        "Aquisição ID 20 e gate que distingue queda com paraquedas."
+      ],
+      "rationale": "O original está identificado; a cadeia de aquisição, despacho de uso e consumidores inspecionada não inicia este efeito. Ícones e metadados não contam como gameplay.",
+      "asm": [
+        "logic/nextroom.asm:204-219 ChkParachute"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-143-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: não há caminho funcional para este item; IDs estáticos não mapeados caem em RATION.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory"
+      ]
+    },
+    {
+      "id": "antidote",
+      "title": "Antidote reutilizável",
+      "domain": "weapons-items",
+      "status": "NOT_STARTED",
+      "weapon_ids": [],
+      "pickup_ids": [
+        21
+      ],
+      "equipment_ids": [
+        13
+      ],
+      "original_scope": "Uso manual limpa Poisoned sem decrementar ou remover o antídoto. Selecionar por si só não executa cura.",
+      "implemented_scope": [],
+      "missing_scope": [
+        "ID 21 não virar ração; handler que limpa envenenamento e mantém o item."
+      ],
+      "rationale": "O original está identificado; a cadeia de aquisição, despacho de uso e consumidores inspecionada não inicia este efeito. Ícones e metadados não contam como gameplay.",
+      "asm": [
+        "logic/menuequipment.asm:255-261 ChkUseAntidote"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-183-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items",
+        "godot/scripts/systems/inventory.gd::use_selected_item"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: não há caminho funcional para este item; IDs estáticos não mapeados caem em RATION.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "scorpions"
+      ]
+    },
+    {
+      "id": "transmitter",
+      "title": "Transmissor recuperado e descarte",
+      "domain": "weapons-items",
+      "status": "NOT_STARTED",
+      "weapon_ids": [],
+      "pickup_ids": [
+        31
+      ],
+      "equipment_ids": [
+        23
+      ],
+      "original_scope": "Bolsa insere transmissor; posse marcada por TransmiTaken causa/sustenta alerta, e uso remove o item e apaga a flag.",
+      "implemented_scope": [],
+      "missing_scope": [
+        "Inserção ao recuperar bolsa, efeito por posse e descarte manual."
+      ],
+      "rationale": "O original está identificado; a cadeia de aquisição, despacho de uso e consumidores inspecionada não inicia este efeito. Ícones e metadados não contam como gameplay.",
+      "asm": [
+        "logic/items.asm:295-320",
+        "logic/menuequipment.asm:238-248 ChkDropTransmitter",
+        "Banks0123.asm:1590-1603",
+        "Banks0123.asm:6635-6640"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/capture_system.gd",
+        "godot/scripts/systems/alert_system.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items",
+        "godot/scripts/systems/capture_system.gd::restore_equipment",
+        "godot/scripts/systems/inventory.gd::use_selected_item"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "restore_equipment restaura arrays, mas não injeta transmissor; use_selected_item só trata ração e alert_system não consulta TransmiTaken. Não há teste específico de posse/descarte.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "equipment-bag",
+        "guard-alert"
+      ]
+    },
+    {
+      "id": "uniform",
+      "title": "Uniform",
+      "domain": "weapons-items",
+      "status": "PROVISIONAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        32
+      ],
+      "equipment_ids": [
+        24
+      ],
+      "original_scope": "Seleção evita o alerta imediato da segurança do acesso ao edifício 2; não basta possuir uniforme. Máquina da segurança é externa.",
+      "implemented_scope": [
+        "IDs 32 viram UNIFORM coletável."
+      ],
+      "missing_scope": [
+        "Consumidor da seleção no acesso do deserto."
+      ],
+      "rationale": "A aquisição ou representação existe, mas o uso corresponde a um substituto ou não possui o efeito específico original.",
+      "asm": [
+        "logic/actors/desertsecurity.asm:65-74 DesertSecurity2"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-169-actors.json",
+        "rooms/room-177-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Factory de itens, inventário e consumidores de uso/dano/navegação foram cruzados: há apenas representação/posse, sem o efeito descrito.",
+        "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "desert-security"
+      ]
+    },
+    {
+      "id": "goggles",
+      "title": "Goggles: visibilidade dos lasers e paleta",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        12
+      ],
+      "equipment_ids": [
+        4
+      ],
+      "original_scope": "Selecionar goggles revela feixes quando fora do alerta e altera a paleta para tons de cinza; não torna Snake imune a laser.",
+      "implemented_scope": [
+        "Seleção alimenta LaserSystem; _draw oculta feixes sem goggles e no alerta."
+      ],
+      "missing_scope": [
+        "Reproduzir efeito de paleta; validação integrada do efeito de seleção, além de fixtures de laser."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/drawlaserbeams.asm:7-24 DrawLaserBeams",
+        "Banks0123.asm:2967-2975 ChkGogglesPal"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-139-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/laser_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/laser_system.gd::tick",
+        "godot/scripts/systems/laser_system.gd::_draw",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_physics_process"
+      ],
+      "tests": [
+        "godot-cameras-and-lasers"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Não há consumidor da seleção que aplique paleta cinza. Feixes e alarmes permanecem em cameras-lasers/actor-lasers, sem reclassificação."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "cameras-lasers",
+        "actor-lasers"
+      ]
+    },
+    {
+      "id": "gas-mask",
+      "title": "Gas Mask: proteção por seleção",
+      "domain": "weapons-items",
+      "status": "IMPLEMENTED",
+      "weapon_ids": [],
+      "pickup_ids": [
+        13
+      ],
+      "equipment_ids": [
+        5
+      ],
+      "original_scope": "Quando SelectedItem é GAS_MASK, o teste de gás não decrementa vida; mera posse sem seleção não protege. Esta feature é só o efeito de equipamento, não geração de nuvens/salas ou apresentação.",
+      "implemented_scope": [
+        "is_player_protected exige item selecionado; tick usa a proteção antes de dano e integração recebe o inventário atual; testes verificam selecionada e não selecionada."
+      ],
+      "missing_scope": [],
+      "rationale": "O efeito declarado é específico, integrado e coberto por testes pertinentes; coleta e sistemas ambientais são auditados separadamente.",
+      "asm": [
+        "logic/damagegas.asm:29-46 ChkGasMask"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py",
+        "tools/extractors/extract_gas_hazard.py"
+      ],
+      "data": [
+        "gas_hazard.json",
+        "rooms/room-138-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/gas_hazard_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/gas_hazard_system.gd::is_player_protected",
+        "godot/scripts/systems/gas_hazard_system.gd::tick",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_physics_process"
+      ],
+      "tests": [
+        "godot-gas-hazard"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md",
+        "docs/reverse_engineering/stage-19-gas-hazard.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "gas_hazard_test.gd:98-136 cobre proteção e ausência de proteção. Coleta/persistência e fidelidade global dos hazards não são inferidas deste status."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "gas",
+        "actor-gas",
+        "items"
+      ]
+    },
+    {
+      "id": "access-cards",
+      "title": "Cartões 1 a 8 e uso por seleção exata",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29
+      ],
+      "equipment_ids": [
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21
+      ],
+      "original_scope": "Oito cartões independentes: pickups 22–29, selected IDs 14–21. ChkCard exige exatamente o cartão selecionado e direção correspondente, sem chave universal por rank ou cartão superior.",
+      "implemented_scope": [
+        "Strings CARD1..8 e posse por inventário; portas verificam cartão exigido."
+      ],
+      "missing_scope": [
+        "Exigir seleção exata em vez de has_item; provar aquisição por eventos dos cartões 7/8 sem presumir pickups estáticos."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "constants/Enums.asm:96-103",
+        "logic/doors/opendoor.asm:121-134 ChkCard",
+        "logic/spawnitem.asm:71-75"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-122-actors.json",
+        "rooms/room-127-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/door.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/door.gd::check_interaction",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items"
+      ],
+      "tests": [
+        "godot-doors-inventory",
+        "godot-building-doors"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "door.gd:373-454 aceita posse, divergindo do assembly e da documentação de inventário. Teste coleta CARD1 como primeira seleção e não distingue posse de seleção.",
+        "6 cartões têm registros estáticos; 7/8 dependem de produtores de eventos/bosses (fora desta auditoria). Não criar oito features idênticas nem reclassificar bosses por essa dependência."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "doors",
+        "coward-duck",
+        "arnold"
+      ]
+    },
+    {
+      "id": "ration",
+      "title": "Rações: uso manual e cura",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        30
+      ],
+      "equipment_ids": [
+        22
+      ],
+      "original_scope": "Pickup 30 adiciona uma ração; uso manual no menu restaura MaxLife, consome unidade e remove ao esgotar, exceto em água profunda. Capacidade 3/6/9/12 conforme Class.",
+      "implemented_scope": [
+        "Quantidade, limites, cura total e remoção da ração vazia; uso rápido integrado."
+      ],
+      "missing_scope": [
+        "Proibição de uso em água profunda e semântica de seleção ao consumir última unidade; comportamento renovável separado."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/menuequipment.asm:208-231 ChkUseItem",
+        "logic/items.asm:425-442",
+        "logic/maxammo.asm:10-103",
+        "Banks0123.asm:1858-1896"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-126-actors.json",
+        "rooms/room-158-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/inventory.gd::use_selected_item",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_input"
+      ],
+      "tests": [
+        "godot-doors-inventory",
+        "godot-rank-and-prisoners"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Não classificar cura automática como faltante: nas rotinas de vida e usos consultadas não há resgate automático por ração. O original confirmado aqui é uso manual."
+      ],
+      "related_features": [
+        "rank-capacities",
+        "consumable-lifecycle",
+        "pickup-persistence"
+      ]
+    },
+    {
+      "id": "cardboard-box",
+      "title": "Caixa de papelão: ocultação e restrições",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        33
+      ],
+      "equipment_ids": [
+        25
+      ],
+      "original_scope": "Seleção ativa animação de caixa, invisibilidade a guardas/câmeras fora do alerta apenas enquanto parada e bloqueia soco/disparo. Mira da granada é escondida.",
+      "implemented_scope": [
+        "Seleção, estado is_in_box e gate de visão quando parada; representação de caixa."
+      ],
+      "missing_scope": [
+        "Bloquear ataques em caixa e sincronizar estados/efeitos com regras do original."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "Banks0123.asm:8499-8511",
+        "logic/actors/chkdiscover.asm:12-47 ChkSeePlayer",
+        "logic/weaponuse.asm:8-30",
+        "Banks0123.asm:8934-8962",
+        "Banks0123.asm:12193-12195"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-156-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::punch",
+        "godot/scripts/systems/player.gd::fire_weapon",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_physics_process"
+      ],
+      "tests": [
+        "godot-cameras-and-lasers"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "evidence_notes": [
+        "Bloqueio visual em sandbox não bloqueia fire_weapon/punch. Teste de câmera/ocultação não comprova restrições de uso de armas."
+      ],
+      "related_features": [
+        "equipment-inventory",
+        "player-attack-rules",
+        "guard-senses",
+        "actor-camera"
+      ]
+    },
+    {
+      "id": "equipment-bag",
+      "title": "Bolsa recuperável e restituição de equipamentos",
+      "domain": "weapons-items",
+      "status": "PARTIAL",
+      "weapon_ids": [],
+      "pickup_ids": [
+        34
+      ],
+      "equipment_ids": [],
+      "original_scope": "Pickup 34 termina remoção de equipamento, marca bolsa recuperada e adiciona transmissor ao primeiro slot livre. Captura, paredes e fala associada não integram este domínio.",
+      "implemented_scope": [
+        "Captura salva/restaura arsenal, munições, itens e seleção; pickup BAG invoca restauração."
+      ],
+      "missing_scope": [
+        "Adicionar transmissor original; distinguir restauração de equipamento real do fallback inventado quando não há snapshot anterior."
+      ],
+      "rationale": "Há comportamento específico integrado, mas as divergências abaixo impedem equivalência ao recorte original.",
+      "asm": [
+        "logic/items.asm:295-320 RecoverEquipment"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py",
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [
+        "package/package.json",
+        "rooms/room-168-actors.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/capture_system.gd",
+        "godot/scripts/systems/item_box.gd",
+        "godot/scripts/systems/inventory.gd",
+        "godot/scripts/systems/weapon_system.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/capture_system.gd::restore_equipment",
+        "godot/scripts/systems/item_box.gd::step_tick"
+      ],
+      "tests": [
+        "godot-capture-prison"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-21 — Etapa 21: Evento de Captura na Sala 8, Cela 211, Parede Oca e Restituição de Inventário"
+      ],
+      "evidence_notes": [
+        "restore_equipment:146-184 não inclui transmissor; caminho sem captura anterior concede loadout fixo (cartões/cigarros/ração/HG), não uma restauração comprovada. Suíte não exige transmissor."
+      ],
+      "related_features": [
+        "capture-prison",
+        "transmitter",
+        "equipment-inventory",
+        "weapons"
+      ]
     }
   ],
   "schema_version": 2,
   "status_definitions": {
     "IMPLEMENTED": "Escopo original declarado coberto por código integrado e testes pertinentes, sem lacuna conhecida nesse recorte; não significa equivalência integral do jogo.",
     "PARTIAL": "Há comportamento específico implementado e verificável, mas o escopo original tem lacunas ou divergências identificadas.",
-    "PROVISIONAL": "O ator existe como substituto genérico, aproximação ou integração que não implementa sua máquina original.",
+    "PROVISIONAL": "A feature existe como substituto genérico, aproximação ou integração que não implementa seu comportamento original.",
     "NOT_STARTED": "Comportamento original confirmado; caminhos de criação, sistemas, extractors, testes e histórico cruzados demonstram que o comportamento específico não foi iniciado. Metadados exportados não contam como gameplay.",
     "DEFERRED": "Adiamento explícito documentado, não mera ausência ou trabalho fora desta tarefa.",
     "UNMAPPED": "Não é possível estabelecer com segurança uso original ou correspondência/ausência na implementação; falta de match isolado não é NOT_STARTED.",
@@ -3130,6 +5215,106 @@
         "Arte procedural, textos resumidos, aproximações e testes que apenas repetem constantes locais impedem promover automaticamente famílias completas a IMPLEMENTED.",
         "Histórico preservado: afirmações antigas de fidelidade ou conclusão são confrontadas com código atual. Nenhuma ausência descoberta é chamada de bug sem demonstrar divergência em comportamento existente.",
         "Validação desta entrega: python3 tools/validate.py fora do sandbox, exit 0, 37 etapas PASS, 134 testes Python; importação, suítes e boot no Godot 4.7.2 aprovados. Os testes de índice usam fixtures sintéticas. Nenhuma comparação dinâmica nova com openMSX foi executada nesta auditoria estática."
+      ]
+    },
+    "weapons-items": {
+      "title": "Armas do jogador, itens e equipamentos",
+      "date": "2026-10-04",
+      "project_revision": "8af26174ac6338949899edc1b6f2356188fffaf5",
+      "reference_revision": "30d1b940bede10fdabbaf9767ad4f0ad8dd33291",
+      "scope": "Inventário inglês RC750 (JAPANESE equ 0): sete armas, supressor, 25 IDs selecionáveis de equipamento em famílias, bolsa e caixa de munição; soco, regras de ataque, coleta, consumo, reposição e limites por rank. Exclui UI/HUD como domínio, áudio, diálogos, máquinas de bosses e hazards/salas; dependências apenas como consumidores do equipamento.",
+      "method": "Primeiro enums e despachos originais (weaponuse/items/menuequipment/maxammo e consumidores de SelectedItem); depois rotinas específicas, package/exports e tabelas extraídas, factory de pickups, sistemas, entradas de uso e consumidores Godot, testes existentes e histórico por índice. Comparação estática de fonte, seguida de validate.py; não houve sonda dinâmica nova no emulador. Ausência de nome isolada nunca fundamenta NOT_STARTED.",
+      "asm": [
+        "constants/Enums.asm:4-10",
+        "constants/Enums.asm:83-108",
+        "constants/Enums.asm:127-155",
+        "logic/weaponuse.asm:8-40",
+        "logic/items.asm:60-129",
+        "logic/menuequipment.asm:208-284",
+        "logic/maxammo.asm:112-147"
+      ],
+      "weapon_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "pickup_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35
+      ],
+      "equipment_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25
+      ],
+      "exclusions": [],
+      "notes": [
+        "IDs de arma, pickup e equipamento são namespaces distintos. ID 0 é vazio, não uma feature. Cartões 1–8 constituem uma família, enquanto aquisição, efeito e ciclo de consumo têm escopos transversais separados; contagem não é percentual de fidelidade.",
+        "Entradas sem implementação exigem evidência de despachos e consumidores ausentes/rejeitados, além de dados/testes/histórico; PROVISIONAL distingue substitutos executáveis ou itens selecionáveis sem efeito. Nenhuma ausência foi elevada a DEFERRED sem decisão explícita.",
+        "Os IDs legados items, weapons, remote-missile, plastic-bomb e binoculars foram auditados e delimitados; nenhuma entrada de actors-bosses foi modificada. Corpo de combate e progressão herdados não foram consertados.",
+        "Fronteiras potencialmente sobrepostas: gas/gas-mask; doors/access-cards; capture-prison/equipment-bag; cameras-lasers/goggles; actor-runtime/player-hit-resolution; rank-prisoners/rank-capacities. Cadeias legadas de outros domínios foram preservadas e relacionadas, não somadas como novas features deste domínio.",
+        "Inventário original inclui fontes não estáticas: cigarros iniciais, transmissor pela bolsa, supressor e cartões 7/8 por eventos. Nenhum evento de boss foi reauditado como feature de equipamento.",
+        "Divergências de alta relevância: SMG/granada/mina usam Bullet genérico; foguete rejeitado e ID 4 vira RATION; caixa dá +5 RC missiles em lugar de +2 foguetes; C4 96 em vez de 48 ticks; míssil 1.5 em vez de 4 px/tick; handgun 3×32 em vez de 6×16; cartões por posse e pickups renováveis persistentes.",
+        "Testes citados podem cobrir somente aquisição, contrato aproximado ou dependência. evidence_notes distingue isso; validate verde não promove automaticamente nenhuma classificação. Um único IMPLEMENTED pode ter escopo estreito explicitamente separado da coleta/hazard."
       ]
     }
   }

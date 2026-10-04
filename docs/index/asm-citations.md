@@ -20,12 +20,16 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 1030: godot/tests/binocular_test.gd
 - 1030-1048: godot/scripts/systems/binocular_system.gd, godot/scripts/systems/room_manager.gd
 - 1038: docs/index/mechanics.json, docs/index/rooms.md
+- 1081-1093: docs/index/mechanics.json
 - 1270: docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/stage-4-results.md
 - 1283: docs/reverse_engineering/stage-3-results.md
 - 1480-1531: docs/reverse_engineering/prison-wall.md, tools/extractors/extract_prison_wall.py
+- 1590-1603: docs/index/mechanics.json
 - 1689-1743: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json
 - 1729-1733: docs/reverse_engineering/en-eu-reextraction.md
 - 1729-1739: godot/scripts/systems/radio_system.gd
+- 1824-1913: docs/index/mechanics.json
+- 1858-1896: docs/index/mechanics.json
 - 2025: docs/reverse_engineering/en-eu-reextraction.md
 - 2092-2141: docs/index/mechanics.json, godot/scripts/systems/hud.gd
 - 2139: godot/scripts/systems/hud.gd
@@ -35,6 +39,8 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 2455-2462: docs/index/mechanics.json, godot/scripts/systems/radio_system.gd
 - 2549: docs/reverse_engineering/stage-4b-vram-inheritance.md
 - 2890: tools/extractors/extract_hud_assets.py
+- 2936-2965: docs/index/mechanics.json
+- 2967-2975: docs/index/mechanics.json
 - 2998-3002: tools/extractors/extract_transceiver_sprites.py
 - 2999: tests/test_hud_extractor.py, tools/extractors/extract_hud_assets.py
 - 3390: docs/reverse_engineering/maps.md
@@ -71,6 +77,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 6550-6720: godot/scripts/systems/alert_system.gd
 - 6559-6628: docs/index/mechanics.json, docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md, godot/scripts/systems/alert_system.gd
 - 6576: godot/scripts/systems/alert_system.gd
+- 6635-6640: docs/index/mechanics.json
 - 6635-6713: docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md
 - 6644-6670: docs/index/mechanics.json, godot/scripts/systems/alert_system.gd
 - 6646: godot/scripts/systems/alert_system.gd, godot/tests/alert_system_test.gd
@@ -114,15 +121,19 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 8422-8438: godot/scripts/systems/intro_cutscene.gd
 - 8468: godot/scripts/scenes/sandbox_gameplay.gd
 - 8468-8470: docs/reverse_engineering/stage-20-rc-missile.md
+- 8499-8511: docs/index/mechanics.json
 - 8540-8556: docs/index/mechanics.json, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/elevator_system.gd
 - 8840: docs/index/mechanics.json
 - 8840-8842: godot/scripts/systems/intro_cutscene.gd
 - 8850-8895: docs/reverse_engineering/intro-fence-timing.md
 - 8934: docs/reverse_engineering/stage-8-combat-and-health.md
+- 8934-8962: docs/index/mechanics.json
 - 8949: godot/scripts/systems/player.gd
 - 8949-8954: docs/reverse_engineering/prison-wall.md
 - 8972: docs/reverse_engineering/movement-and-collision.md
 - 8972-8997: docs/index/mechanics.json, docs/reverse_engineering/intro-fence-timing.md, godot/scripts/systems/intro_cutscene.gd
+- 9248-9260: docs/index/mechanics.json
+- 9280-9295: docs/index/mechanics.json
 - 9360: godot/scripts/systems/player.gd
 - 9418: docs/reverse_engineering/movement-and-collision.md, docs/reverse_engineering/stage-6-room-transitions.md, godot/scripts/systems/room_manager.gd
 - 9549: docs/reverse_engineering/movement-and-collision.md
@@ -146,18 +157,24 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 10968: godot/scripts/systems/radio_system.gd
 - 10968-11006: docs/index/mechanics.json
 - 10971-10990: docs/reverse_engineering/en-eu-reextraction.md, godot/scripts/systems/radio_system.gd
+- 11043-11056: docs/index/mechanics.json
+- 11136-11148: docs/index/mechanics.json
+- 11485-11524: docs/index/mechanics.json
 - 11672-11743: godot/scripts/systems/capture_cutscene.gd
 - 11775: godot/scripts/systems/inventory.gd
+- 11775-11780: docs/index/mechanics.json
 - 11797-11799: docs/reverse_engineering/prison-wall.md, godot/scripts/systems/capture_system.gd, tools/extractors/extract_capture_prison_data.py
 - 11908: docs/reverse_engineering/stage-4-results.md
 - 11914-11916: docs/reverse_engineering/intro-water-colors.md, tools/extractors/extract_snake_sprites.py
 - 12015: docs/reverse_engineering/architecture.md
 - 12072-12087: docs/reverse_engineering/grey-fox-dialogue.md
 - 12151: .agents/skills/implement-faithful-mechanic/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/architecture.md
+- 12193-12195: docs/index/mechanics.json
 - 12223-12224: godot/tests/prisoner_dialog_test.gd
 - 12250: godot/scripts/scenes/sandbox_gameplay.gd
 - 12250-12604: godot/scripts/systems/binocular_system.gd, godot/tests/binocular_test.gd
-- 12256: docs/index/mechanics.json, godot/scripts/scenes/sandbox_gameplay.gd
+- 12256: godot/scripts/scenes/sandbox_gameplay.gd
+- 12402-12528: docs/index/mechanics.json
 - 12481: godot/scripts/systems/binocular_system.gd
 - 12513-12515: godot/tests/binocular_test.gd
 - 12572-12604: godot/scripts/systems/binocular_overlay.gd
@@ -170,6 +187,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 12815: docs/reverse_engineering/stage-8-combat-and-health.md
 - 12819: godot/scripts/systems/enemy.gd
 - 12822: godot/scripts/systems/enemy.gd
+- 12832-12865: docs/index/mechanics.json
 - 12996-13003: docs/reverse_engineering/stage-18-shoot-gunner.md, godot/scripts/systems/shot_gunner.gd
 - 13192-13241: docs/index/mechanics.json
 
@@ -213,9 +231,13 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## constants/Enums.asm
 - arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, godot/scripts/systems/radio_system.gd, tests/test_region_tools.py, tools/extractors/reference.py
+- 4-10: docs/index/mechanics.json
 - 15-22: godot/scripts/systems/radio_system.gd
 - 63: docs/reverse_engineering/movement-and-collision.md
+- 83-108: docs/index/mechanics.json
+- 96-103: docs/index/mechanics.json
 - 113-122: docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, godot/tests/building_doors_test.gd
+- 127-155: docs/index/mechanics.json
 - 169-234: docs/index/mechanics.json
 - 175: godot/scripts/systems/security_camera.gd
 - 202: docs/reverse_engineering/stage-18-shoot-gunner.md
@@ -380,6 +402,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## data/weapondamage.asm
 - arquivo: docs/reverse_engineering/inventory-and-events.md, godot/scripts/systems/shot_gunner.gd
+- 4-58: docs/index/mechanics.json
 - 18: docs/reverse_engineering/stage-18-shoot-gunner.md, godot/scripts/systems/enemy.gd, godot/scripts/systems/shot_gunner.gd
 - 58: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/remote_missile.gd
 
@@ -460,6 +483,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - arquivo: docs/reverse_engineering/stage-7-enemy-patrols.md, godot/scripts/systems/enemy.gd, godot/scripts/systems/security_camera.gd
 - 7: docs/reverse_engineering/enemies.md
 - 7-71: docs/index/mechanics.json
+- 12-47: docs/index/mechanics.json
 - 30-48: godot/scripts/systems/security_camera.gd
 - 212: godot/scripts/systems/enemy.gd
 - 447-491: docs/index/mechanics.json, godot/scripts/systems/enemy.gd
@@ -471,6 +495,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## logic/actors/desertsecurity.asm
 - 29-73: docs/index/mechanics.json
+- 65-74: docs/index/mechanics.json
 
 ## logic/actors/dog.asm
 - arquivo: godot/scripts/systems/enemy.gd
@@ -596,6 +621,8 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## logic/actors/mine.asm
 - 7-27: docs/index/mechanics.json
+- 7-39: docs/index/mechanics.json
+- 75-103: docs/index/mechanics.json
 
 ## logic/actors/pitfall.asm
 - 7-51: docs/index/mechanics.json
@@ -680,6 +707,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 ## logic/addroomitems.asm
 - arquivo: tools/extractors/reference.py
 - 8: docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/maps.md
+- 8-75: docs/index/mechanics.json
 - 15-20: docs/reverse_engineering/stage-3-results.md
 - 19-35: docs/reverse_engineering/stage-10-lorries-and-canonical-items.md
 
@@ -743,14 +771,19 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 9: docs/index/mechanics.json
 - 9-47: docs/reverse_engineering/stage-19-gas-hazard.md
 - 29: docs/index/mechanics.json
+- 29-46: docs/index/mechanics.json
 - 34: godot/scripts/systems/gas_hazard_system.gd, tools/extractors/extract_gas_hazard.py
+- 36-46: docs/index/mechanics.json
 - 45: godot/scripts/systems/gas_hazard_system.gd, godot/tests/gas_hazard_test.gd, tools/extractors/extract_gas_hazard.py
 - 53: docs/index/mechanics.json, docs/reverse_engineering/stage-19-gas-hazard.md, godot/scripts/systems/gas_hazard_system.gd, godot/tests/gas_hazard_test.gd, tools/extractors/extract_gas_hazard.py
 
 ## logic/damagetoenemy.asm
 - arquivo: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/power_panel.gd, godot/scripts/systems/remote_missile.gd, godot/tests/electrified_floor_test.gd, tools/extractors/extract_electrified_floor_data.py
 - 7: docs/reverse_engineering/inventory-and-events.md
+- 7-77: docs/index/mechanics.json
+- 92-225: docs/index/mechanics.json
 - 108-132: godot/scripts/systems/enemy.gd
+- 129-152: docs/index/mechanics.json
 - 189-223: docs/index/mechanics.json
 - 216: godot/scripts/systems/enemy.gd
 
@@ -780,12 +813,13 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 8: docs/reverse_engineering/inventory-and-events.md
 - 68: docs/reverse_engineering/stage-4b-vram-inheritance.md
 - 121: docs/reverse_engineering/inventory-and-events.md
+- 121-134: docs/index/mechanics.json
 - 285-319: docs/index/mechanics.json, docs/reverse_engineering/prison-wall.md, godot/scripts/systems/capture_system.gd
 - 300-319: godot/scripts/systems/capture_system.gd
 - 300-320: tools/extractors/extract_capture_prison_data.py
 - 307-316: docs/reverse_engineering/prison-wall.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/capture_system.gd
 - 325-393: godot/scripts/systems/door.gd
-- 331-348: docs/index/mechanics.json, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/door.gd
+- 331-348: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/door.gd
 - 350-373: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/door.gd
 - 369-372: docs/reverse_engineering/prison-wall.md
 - 384: docs/reverse_engineering/prison-wall.md
@@ -794,12 +828,12 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 ## logic/drawitemsinroom.asm
 - arquivo: godot/tests/item_box_sprites_test.gd
 - 1-75: godot/scripts/systems/item_box.gd
-- 7: docs/index/mechanics.json
 - 17-68: godot/scripts/systems/item_box.gd
 - 21-68: godot/scripts/systems/item_box.gd
 
 ## logic/drawlaserbeams.asm
 - arquivo: godot/scripts/systems/laser_system.gd
+- 7-24: docs/index/mechanics.json
 - 8-10: godot/scripts/systems/laser_system.gd
 
 ## logic/elevatorroom.asm
@@ -851,16 +885,26 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 ## logic/items.asm
 - arquivo: docs/reverse_engineering/inventory-and-events.md, godot/scripts/systems/weapon_system.gd, godot/tests/capture_prison_test.gd, tools/extractors/extract_capture_prison_data.py
 - 7: docs/reverse_engineering/inventory-and-events.md
-- 60-98: docs/index/mechanics.json, godot/scripts/systems/item_box.gd
+- 7-129: docs/index/mechanics.json
+- 60-98: godot/scripts/systems/item_box.gd
+- 60-129: docs/index/mechanics.json
 - 120-124: godot/scripts/systems/capture_system.gd, tools/extractors/extract_capture_prison_data.py
+- 139-189: docs/index/mechanics.json
+- 159-170: docs/index/mechanics.json
+- 184-189: docs/index/mechanics.json
 - 188: godot/scripts/systems/weapon_system.gd
-- 253-261: godot/scripts/systems/weapon_system.gd
+- 199-285: docs/index/mechanics.json
+- 253-261: docs/index/mechanics.json, godot/scripts/systems/weapon_system.gd
 - 295: docs/index/mechanics.json
+- 295-320: docs/index/mechanics.json
 - 333-356: docs/index/mechanics.json, godot/scripts/systems/weapon_system.gd
 - 399: .agents/skills/inspect-msx-disassembly/SKILL.md
 - 399-414: docs/reverse_engineering/en-eu-reextraction.md
 - 409: docs/reverse_engineering/en-eu-reextraction.md
 - 409-413: docs/reverse_engineering/en-eu-reextraction.md
+- 425-442: docs/index/mechanics.json
+- 445-479: docs/index/mechanics.json
+- 490-516: docs/index/mechanics.json
 
 ## logic/konamilogo.asm
 - arquivo: tools/extractors/extract_title_intro_sprites.py
@@ -887,26 +931,37 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## logic/maxammo.asm
 - arquivo: godot/scripts/systems/rank_system.gd, godot/scripts/systems/weapon_system.gd, godot/tests/remote_missile_test.gd, tools/extractors/extract_missile_data.py
+- 10-103: docs/index/mechanics.json
+- 10-147: docs/index/mechanics.json
 - 20-35: godot/scripts/systems/inventory.gd
 - 112-146: tools/extractors/extract_missile_data.py
 - 112-147: docs/index/mechanics.json, godot/scripts/systems/weapon_system.gd
 
 ## logic/menuequipment.asm
 - arquivo: docs/reverse_engineering/stage-9-doors-and-inventory.md, godot/scripts/systems/inventory.gd
+- 186-195: docs/index/mechanics.json
+- 208-231: docs/index/mechanics.json
+- 208-284: docs/index/mechanics.json
 - 228: docs/reverse_engineering/stage-9-doors-and-inventory.md, godot/scripts/systems/inventory.gd
+- 238-248: docs/index/mechanics.json
+- 255-261: docs/index/mechanics.json
+- 268-284: docs/index/mechanics.json
 - 295: godot/scripts/scenes/sandbox_gameplay.gd
 - 295-350: godot/scripts/systems/binocular_system.gd
 - 295-361: godot/tests/binocular_test.gd
+- 299-349: docs/index/mechanics.json
 - 300: godot/scripts/systems/binocular_system.gd, godot/scripts/systems/room_manager.gd
-- 338-361: docs/index/mechanics.json, godot/scripts/systems/binocular_overlay.gd
+- 338-361: godot/scripts/systems/binocular_overlay.gd
 - 355: godot/scripts/systems/binocular_overlay.gd
 
 ## logic/nextroom.asm
 - arquivo: godot/scripts/systems/elevator_system.gd, godot/scripts/systems/room_manager.gd
+- 12-51: docs/index/mechanics.json
 - 13: docs/reverse_engineering/maps.md
 - 64-98: godot/scripts/scenes/sandbox_gameplay.gd
 - 90: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
 - 120-155: docs/reverse_engineering/stage-9-doors-and-inventory.md
+- 204-219: docs/index/mechanics.json
 - 342: docs/reverse_engineering/stage-6-room-transitions.md, godot/scripts/systems/room_manager.gd
 - 362: docs/index/mechanics.json, godot/scripts/systems/room_manager.gd
 - 398-453: docs/reverse_engineering/prison-wall.md, godot/scripts/scenes/sandbox_gameplay.gd
@@ -921,7 +976,8 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## logic/punchenemy.asm
 - arquivo: docs/reverse_engineering/inventory-and-events.md, godot/scripts/systems/enemy.gd, godot/tests/combat_and_health_test.gd
-- 29-87: docs/index/mechanics.json, godot/scripts/systems/enemy.gd, godot/tests/sleepy_guard_test.gd
+- 6-87: docs/index/mechanics.json
+- 29-87: godot/scripts/systems/enemy.gd, godot/tests/sleepy_guard_test.gd
 - 46-87: docs/reverse_engineering/stage-8-combat-and-health.md
 
 ## logic/regionlock.asm
@@ -939,6 +995,15 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 35-39: godot/scripts/systems/alert_system.gd
 - 36: godot/tests/alert_system_test.gd
 
+## logic/shrinkitems.asm
+- 8-28: docs/index/mechanics.json
+- 8-58: docs/index/mechanics.json
+- 30-58: docs/index/mechanics.json
+
+## logic/spawnitem.asm
+- 15-75: docs/index/mechanics.json
+- 71-75: docs/index/mechanics.json
+
 ## logic/textboxappear.asm
 - 10-62: docs/index/mechanics.json, docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
 - 51-62: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
@@ -950,40 +1015,61 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 137: godot/scripts/systems/enemy.gd
 - 137-189: docs/reverse_engineering/stage-8-combat-and-health.md
 - 155: godot/scripts/systems/player.gd
+- 181-189: docs/index/mechanics.json
 
 ## logic/updatesprites.asm
 - arquivo: docs/reverse_engineering/architecture.md
 
+## logic/weapon/grenade.asm
+- 8-153: docs/index/mechanics.json
+
 ## logic/weapon/handgun.asm
 - arquivo: godot/scripts/systems/bullet.gd
-- 8: docs/index/mechanics.json
+- 8-80: docs/index/mechanics.json
+- 8-89: docs/index/mechanics.json
 - 39-65: godot/scripts/systems/player.gd
 - 86-90: godot/scripts/systems/bullet.gd
 
+## logic/weapon/mine.asm
+- 7-76: docs/index/mechanics.json
+
 ## logic/weapon/missile.asm
 - arquivo: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/remote_missile.gd, godot/tests/remote_missile_test.gd, tools/extractors/extract_missile_data.py
-- 8: docs/index/mechanics.json
+- 8-51: docs/index/mechanics.json
 - 23-25: docs/reverse_engineering/stage-20-rc-missile.md
 - 37-47: godot/scripts/systems/remote_missile.gd
 - 80: tools/extractors/extract_missile_data.py
-- 112-133: docs/index/mechanics.json, docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/remote_missile.gd
-- 150-165: docs/index/mechanics.json, godot/scripts/systems/remote_missile.gd
+- 80-86: docs/index/mechanics.json
+- 112-133: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/remote_missile.gd
+- 112-172: docs/index/mechanics.json
+- 150-165: godot/scripts/systems/remote_missile.gd
 - 165: tools/extractors/extract_missile_data.py
 
 ## logic/weapon/plasticbomb.asm
 - arquivo: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/plastic_bomb.gd
-- 7: docs/index/mechanics.json
-- 80-84: docs/index/mechanics.json, godot/scripts/systems/plastic_bomb.gd, godot/tests/basement_and_plastic_bomb_test.gd
+- 7-83: docs/index/mechanics.json
+- 80-84: godot/scripts/systems/plastic_bomb.gd, godot/tests/basement_and_plastic_bomb_test.gd
+- 108-134: docs/index/mechanics.json
 - 144-164: docs/reverse_engineering/stage-20-rc-missile.md
 - 150: godot/scripts/systems/remote_missile.gd
+
+## logic/weapon/rocket.asm
+- 8-142: docs/index/mechanics.json
+
+## logic/weapon/smg.asm
+- 25-128: docs/index/mechanics.json
 
 ## logic/weaponuse.asm
 - arquivo: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/bullet.gd, godot/scripts/systems/remote_missile.gd, godot/scripts/systems/weapon_system.gd
 - 8: docs/reverse_engineering/inventory-and-events.md
+- 8-30: docs/index/mechanics.json
+- 8-40: docs/index/mechanics.json
+- 8-73: docs/index/mechanics.json
 - 52: docs/reverse_engineering/inventory-and-events.md
 - 338: godot/scripts/systems/bullet.gd
+- 338-375: docs/index/mechanics.json
 - 365: godot/scripts/systems/remote_missile.gd
-- 365-375: docs/index/mechanics.json, docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/remote_missile.gd
+- 365-375: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/remote_missile.gd
 - 366-376: godot/scripts/systems/bullet.gd
 
 ## sound/bgmdriver.asm

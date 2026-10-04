@@ -3,6 +3,8 @@ from collections import Counter
 
 STATUSES = ('IMPLEMENTED', 'PARTIAL', 'PROVISIONAL', 'NOT_STARTED', 'DEFERRED',
             'UNMAPPED', 'INVESTIGATING')
+ID_FIELDS = {'actor_ids': (65, 'ator'), 'weapon_ids': (7, 'arma'),
+             'pickup_ids': (35, 'pickup'), 'equipment_ids': (25, 'equipamento')}
 
 
 def actor_ids(value):
@@ -28,7 +30,7 @@ def check_classifications(catalog):
         if item['domain'] not in audits:
             problems.append(f'{mid}: domínio desconhecido {item["domain"]}')
         for field in ('status', 'original_scope', 'implemented_scope', 'missing_scope',
-                      'rationale', 'history', 'evidence_notes', 'actor_ids'):
+                      'rationale', 'history', 'evidence_notes'):
             if field not in item:
                 problems.append(f'{mid}: campo de cobertura {field} ausente')
         if not item.get('asm') or not item.get('rationale'):
@@ -40,27 +42,39 @@ def check_classifications(catalog):
         for related in item.get('related_features', []):
             if related not in ids or related == mid:
                 problems.append(f'{mid}: feature relacionada inexistente/inválida {related}')
-        values = item.get('actor_ids', [])
-        if not isinstance(values, list) or any(type(n) is not int or not 1 <= n <= 65 for n in values):
-            problems.append(f'{mid}: actor_ids inválidos')
+        audit = audits.get(item['domain'], {})
+        for field, (limit, _) in ID_FIELDS.items():
+            if field in audit and field not in item:
+                problems.append(f'{mid}: campo de cobertura {field} ausente')
+            values = item.get(field, [])
+            if not isinstance(values, list) or any(type(n) is not int or not 1 <= n <= limit for n in values):
+                problems.append(f'{mid}: {field} inválidos')
     for domain, audit in audits.items():
-        expected = actor_ids(audit.get('actor_ids', []))
-        covered = {n for item in items if item.get('domain') == domain for n in actor_ids(item.get('actor_ids', []))}
-        excluded = {item['actor_id'] for item in audit.get('exclusions', [])}
-        if expected - covered - excluded:
-            problems.append(f'{domain}: IDs sem entrada/exclusão: {sorted(expected - covered - excluded)}')
-        if covered & excluded or (covered | excluded) - expected:
-            problems.append(f'{domain}: IDs conflitantes com o recorte auditado')
+        for field in ID_FIELDS:
+            if field not in audit:
+                continue
+            expected = actor_ids(audit[field])
+            covered = {n for item in items if item.get('domain') == domain for n in actor_ids(item.get(field, []))}
+            excluded = {item[field[:-1]] for item in audit.get('exclusions', []) if field[:-1] in item}
+            if expected - covered - excluded:
+                problems.append(f'{domain}: {field}: IDs sem entrada/exclusão: {sorted(expected - covered - excluded)}')
+            if covered & excluded or (covered | excluded) - expected:
+                problems.append(f'{domain}: {field}: IDs conflitantes com o recorte auditado')
     return problems
 
 
+def describe_ids(item):
+    return '; '.join(f'{label}: ' + ', '.join(map(str, item[field]))
+                     for field, (_, label) in ID_FIELDS.items() if item.get(field)) or 'transversal'
+
+
 def render(catalog):
-    out = ['# Cobertura progressiva — atores e bosses', '',
+    out = ['# Cobertura progressiva por domínio', '',
            'Gerado por `python3 -m tools.context.build_index` a partir de '
            '[mechanics.json](mechanics.json). Não editar esta visualização.', '',
            '**Relatório para leitura humana; não é contexto padrão de agentes.** '
            'Agentes não devem ler este arquivo integralmente: use '
-           '`python3 -m tools.context.lookup domain actors-bosses`, `lookup status STATUS` '
+           '`python3 -m tools.context.lookup domain DOMÍNIO`, `lookup status STATUS` '
            'ou `lookup unmapped`; detalhes somente com `lookup mech ID`.', '',
            'Contagem por feature/família declarada, não por rotina ou percentual do jogo. '
            'Cadeias sem `domain` estão fora da auditoria e não entram nos totais. '
@@ -77,7 +91,7 @@ def render(catalog):
         out += [f'| Total | {len(items)} |', '', '### Entradas', '',
                 '| Feature | IDs | Status |', '| --- | --- | --- |']
         out += [f'| [{i["id"]}](#{i["id"]}) — {i["title"]} | '
-                f'{", ".join(map(str, i["actor_ids"])) or "transversal"} | `{i["status"]}` |' for i in items]
+                f'{describe_ids(i)} | `{i["status"]}` |' for i in items]
         out += ['', '### UNMAPPED', '']
         unmapped = [i for i in items if i['status'] == 'UNMAPPED']
         out += [f'- **{i["id"]}**: {i["rationale"]}' for i in unmapped] or ['Nenhuma entrada.']
