@@ -8,6 +8,9 @@ Comece por `docs/STATUS.md`. Regras em `AGENTS.md`; procedimentos em `.agents/sk
 - `progress.md`: as 5 entregas mais recentes. `progress/AAAA-MM.md`: histórico completo, sem
   edição; `progress/INDEX.md`: todas as entradas com arquivo e linha.
 - `index/`: índices de contexto (ver `index/README.md`).
+  Agentes usam `python3 -m tools.context.lookup` para domínio/status/feature, código e histórico;
+  leitura integral de arquivos grandes com lookup apropriado é proibida por `AGENTS.md`.
+  `index/coverage.md` é relatório para leitura humana, não contexto padrão de agentes.
 - `reverse_engineering/`: evidências por mecânica e relatórios; `README.md` dali é o índice temático
   das etapas 2–4. Auditoria regional e reextração: `en-eu-reextraction.md`.
 - `history/`: documentos substituídos, preservados sem edição (ex.: handoff até 2026-10-04).

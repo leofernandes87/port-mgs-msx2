@@ -7,16 +7,25 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 - Última tag `v0.2.0` (minor: ROM canônica inglesa com dados incompatíveis com os anteriores,
   auditoria regional e infraestrutura de contexto).
+- Auditoria de atores/bosses e interface de contexto commitadas sobre `0c268ca` (sem push, sem tag).
 - ROM canônica `en-eu-rc750` por SHA-256 (`tools/rom.py`); o Godot só aceita dados de
   `data/extracted/en-eu-rc750/` com essa proveniência. Godot em 60 Hz.
-- Sandbox jogável a partir da sala 121; mecânicas portadas e suas cadeias em
+- Sandbox jogável a partir da sala 121; catálogo progressivo e cadeias em
   `python3 -m tools.context.lookup mech` (`docs/index/mechanics.json`).
-- Validação: `python3 tools/validate.py` (ROM, índices de contexto, unittest, suítes Godot, boot).
+- Validação desta entrega: `python3 tools/validate.py`, exit 0; 37 etapas PASS,
+  142 testes Python, importação/boot Godot 4.7.2 e suítes existentes aprovados.
 - `godot/project.godot` tem alteração local do usuário: nunca incluir em commits.
 
 ## Em andamento
 
-- Nada além das tarefas abaixo. Índices: `python3 -m tools.context.build_index` a cada entrega.
+- Interface de contexto: `lookup domain DOMÍNIO`, `lookup status STATUS` e `lookup unmapped`
+  retornam resumos; detalhes somente por `lookup mech ID`. Gameplay preservado.
+- Catálogo canônico: `docs/index/mechanics.json`, acessado via lookup. `docs/index/coverage.md`
+  é relatório humano, não contexto padrão de agentes. Auditoria de cobertura não avançou.
+- 51 features: PARTIAL 20, PROVISIONAL 12, NOT_STARTED 17, UNMAPPED 2;
+  IMPLEMENTED/DEFERRED/INVESTIGATING 0. Contagem por família, não percentual do jogo.
+- Próxima investigação deste domínio: uso alcançável do ID 56 e produtores/equivalentes
+  Godot da explosão ID 65. Demais lacunas ficam no catálogo; não iniciar sem pedido.
 
 ## Decisões pendentes do usuário
 
@@ -40,9 +49,10 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 | Preciso de | Use |
 |---|---|
 | Regras | `AGENTS.md` |
+| Features e lacunas | `lookup domain DOMÍNIO`, `lookup status STATUS`, `lookup unmapped`, `lookup mech ID` |
 | Rotina, RAM, quem cita | `python3 -m tools.context.lookup asm/ram/cites` |
 | Função em .gd grande | `docs/index/godot-outline.md` ou `lookup gd ARQUIVO FUNÇÃO` |
 | Testes e marcadores | `docs/index/tests.md` |
 | Salas e aliases | `docs/index/rooms.md` |
-| Entrega anterior | `docs/progress.md` (últimas 5) ou `lookup progress "título"` |
+| Entrega anterior | `lookup progress "título"` (sem título: última entrada) |
 | Mapa do repositório e ambiente | `docs/README.md` |

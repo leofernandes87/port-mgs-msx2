@@ -10,6 +10,7 @@ Versionados (só caminhos, nomes e números de linha do próprio projeto):
   docs/index/asm-citations.md   citações reversas arquivo.asm:linhas → quem cita
   docs/index/godot-outline.md   esboço dos .gd grandes com faixa de linhas por função
   docs/index/tests.md           etapa do validate → script → marcador → sistemas usados
+  docs/index/coverage.md        visão de cobertura gerada do catálogo canônico
 Curados e validados aqui:
   docs/index/mechanics.json     mecânica → asm → extrator/dados → Godot → integração → teste → docs
   docs/index/rooms.md           aliases locais de sala (conferidos com export_local_aliases.ALIASES)
@@ -33,7 +34,7 @@ LOCAL_INDEX = ROOT / 'data/extracted/index'
 DOCS_INDEX = ROOT / 'docs/index'
 OUTLINE_MIN_LINES = 300
 CITATION_EXCLUDE = ('docs/progress.md', 'docs/progress/', 'docs/history/', 'docs/index/asm-citations.md',
-                    'tools/context/', 'tests/test_context_index.py')
+                    'docs/index/coverage.md', 'tools/context/', 'tests/test_context_index.py')
 ENTRY_DOCS = ('AGENTS.md', 'GEMINI.md', 'docs/STATUS.md', 'docs/README.md', 'docs/index/README.md')
 SKILLS_DIR = ROOT / '.agents/skills'
 CITATION = re.compile(r'(?<![\w/.-])(?:external/MetalGear/)?((?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\.asm)'
@@ -311,14 +312,19 @@ def render_tests(files):
 ASM_REF = re.compile(r'^((?:[\w-]+/)*[\w-]+\.asm)(?::(\d+)(?:-(\d+))?)?(?:\s+(\w+))?$')
 
 
-def check_mechanics(sources, path=None):
-    problems = []
+def check_mechanics(sources, path=None, root=ROOT):
+    from tools.context.coverage import check_classifications
     data = json.loads((path or DOCS_INDEX / 'mechanics.json').read_text())
+    problems = check_classifications(data)
     from tools.validate import GODOT_TESTS
     stages = {stage for stage, *_ in GODOT_TESTS} | {'python-tests', 'godot-main'}
     table = symbol_table(sources) if sources else {}
     seen = set()
-    for item in data['mechanics']:
+    entries = data['mechanics'] + [
+        {'id': 'audit-' + domain, 'title': audit['title'], 'asm': audit.get('asm', []),
+         'godot': [], 'tests': [], 'docs': []}
+        for domain, audit in data.get('audits', {}).items()]
+    for item in entries:
         mid = item.get('id', '?')
         if mid in seen:
             problems.append(f'{mid}: id duplicado')
@@ -327,20 +333,35 @@ def check_mechanics(sources, path=None):
             if field not in item:
                 problems.append(f'{mid}: campo {field} ausente')
         for rel in item.get('extractor', []) + item.get('godot', []) + item.get('docs', []):
-            if not (ROOT / rel).exists():
+            if not (root / rel).is_file():
                 problems.append(f'{mid}: caminho inexistente {rel}')
         for test in item.get('tests', []):
-            if test not in stages and not (ROOT / test).exists():
+            if test not in stages and not (root / test).is_file():
                 problems.append(f'{mid}: teste desconhecido {test}')
         for ref in item.get('integration', []):
             file, _, func = ref.partition('::')
-            text = (ROOT / file).read_text() if (ROOT / file).exists() else ''
+            text = (root / file).read_text() if (root / file).is_file() else ''
             if not re.search(r'^(?:static\s+)?func\s+' + re.escape(func) + r'\s*\(', text, re.M):
                 problems.append(f'{mid}: integração inexistente {ref}')
-        if not sources:
-            continue
+        for ref in item.get('history', []):
+            file, separator, heading = ref.partition('::')
+            text = (root / file).read_text() if (root / file).is_file() else ''
+            if not separator or not heading or ('## ' + heading) not in text.splitlines():
+                problems.append(f'{mid}: histórico inexistente {ref}')
+        private = root / 'data/extracted/en-eu-rc750'
+        for rel in item.get('data', []):
+            target = private / rel
+            if private.resolve() not in target.resolve().parents:
+                problems.append(f'{mid}: dado fora do diretório canônico {rel}')
+            elif private.is_dir() and not target.exists():
+                problems.append(f'{mid}: dado extraído inexistente {rel}')
         for ref in item.get('asm', []):
-            match = ASM_REF.match(ref)
+            match = ASM_REF.fullmatch(ref)
+            if not match:
+                problems.append(f'{mid}: referência asm inválida {ref}')
+                continue
+            if not sources:
+                continue  # Syntax checked; resolving needs the local third-party checkout.
             resolved = resolve_asm(match.group(1), sources) if match else None
             if not resolved:
                 problems.append(f'{mid}: referência asm inválida {ref}')
@@ -348,6 +369,8 @@ def check_mechanics(sources, path=None):
             first = int(match.group(2) or 0)
             last = int(match.group(3) or first)
             length = sources[resolved].count('\n') + 1
+            if match.group(2) and (first < 1 or last < first):
+                problems.append(f'{mid}: faixa asm inválida {ref}')
             if first and last > length:
                 problems.append(f'{mid}: {ref} além do fim ({length})')
             symbol = match.group(4)
@@ -432,10 +455,13 @@ def check_entry_docs(root=ROOT, skills_dir=None, known_names=None):
 # ---------------------------------------------------------------- orquestração
 
 def generated(files, sources):
+    from tools.context.coverage import render
     outputs = {'godot-outline.md': render_outline(files), 'tests.md': render_tests(files)}
+    outputs['coverage.md'] = render(json.loads((DOCS_INDEX / 'mechanics.json').read_text()))
     broken = []
     if sources:
-        cites, broken = collect_citations(files, sources)
+        # Cite the curated catalog, never last run's generated coverage view.
+        cites, broken = collect_citations(files + ['docs/index/mechanics.json'], sources)
         outputs['asm-citations.md'] = render_citations(cites)
     return outputs, broken
 
@@ -453,6 +479,11 @@ def main(argv=None):
     files = project_files(('.gd', '.py', '.md'))
     if not args.check:
         progress_archive.main([])
+    problems = check_mechanics(sources)
+    if problems:
+        for problem in problems:
+            print('CONTEXT_INDEX_PROBLEM: ' + problem)
+        return 1  # Do not render incomplete/invalid coverage entries.
     outputs, broken = generated(files, sources)
     problems = [f'referência asm quebrada: {b}' for b in broken]
     for name, content in outputs.items():
@@ -463,7 +494,6 @@ def main(argv=None):
         else:
             DOCS_INDEX.mkdir(parents=True, exist_ok=True)
             target.write_text(content)
-    problems += check_mechanics(sources)
     problems += check_rooms()
     problems += check_entry_docs()
     progress_dir = ROOT / 'docs/progress'

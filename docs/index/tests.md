@@ -41,7 +41,8 @@ marcador aparecer e não houver `ERROR:`. Suíte nova: acrescentar a `GODOT_TEST
 
 ## Python (`python3 -m unittest discover -s tests`)
 
-- `tests/test_context_index.py` · AsmSymbolTests, CitationTests, OutlineTests, MechanicsTests, EntryDocTests, ProgressArchiveTests · tools.context
+- `tests/test_context_index.py` · AsmSymbolTests, CitationTests, OutlineTests, MechanicsTests, CoverageTests, EntryDocTests, ProgressArchiveTests · tools.context
+- `tests/test_context_lookup.py` · MechanicsLookupTests · tools.context
 - `tests/test_door_sprite_extractor.py` · DoorSpriteExtractorTests · tools.extractors.extract_door_sprites
 - `tests/test_emulation.py` · CaptureComparisonTests · tools.emulation.compare, tools.extractors.schema
 - `tests/test_enemy_sprite_extractor.py` · EnemySpriteExtractorTests · tools.extractors.extract_enemy_sprites

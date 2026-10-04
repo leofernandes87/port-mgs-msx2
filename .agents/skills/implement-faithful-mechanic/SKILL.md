@@ -11,13 +11,20 @@ description: >-
 
 ## 1. Situar antes de abrir arquivos grandes
 
-1. `python3 -m tools.context.lookup mech` lista as mecânicas; `lookup mech ID` dá asm, extrator,
-   dados, sistema, função de integração, testes e docs. Mecânica nova: siga as vizinhas.
+1. `python3 -m tools.context.lookup domain DOMÍNIO`, `lookup status STATUS` e `lookup unmapped`
+   retornam só ID, título e status. `lookup mech ID` dá os detalhes de uma feature: asm,
+   extrator, dados, sistema, integração, testes e docs. Mecânica nova: siga as vizinhas.
 2. Passo zero: skill `inspect-msx-disassembly` (rotina, ramo inglês, citação com linhas).
 3. Código Godot grande só por faixa: `docs/index/godot-outline.md` dá `início-fim` de cada função
    de `sandbox_gameplay.gd` (3 mil linhas), `enemy.gd`, `player.gd` etc.;
    `python3 -m tools.context.lookup gd ARQUIVO FUNÇÃO` imprime só a função.
 4. Antes de mudar uma rotina já portada: `lookup cites arquivo.asm:linha` mostra quem depende dela.
+
+É proibido ler integralmente arquivos grandes quando houver lookup apropriado: especialmente
+`mechanics.json`, `coverage.md`, `Banks0123.asm`, `sandbox_gameplay.gd`, `enemy.gd` e histórico
+de progresso (`lookup progress "título"`). `coverage.md` é relatório para leitura humana,
+nunca contexto padrão de agentes. Para editar o catálogo, selecione a entrada por ID sem
+despejar o arquivo inteiro no contexto.
 
 ## 2. Implementar
 

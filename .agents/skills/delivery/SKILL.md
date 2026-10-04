@@ -8,6 +8,15 @@ description: >-
 
 # Entrega
 
+## Contexto antes da entrega
+
+Não leia integralmente arquivos grandes quando houver lookup apropriado. Consulte a entrega
+anterior por `python3 -m tools.context.lookup progress "título"`; para cobertura, use
+`lookup domain DOMÍNIO`, `lookup status STATUS`, `lookup unmapped` e depois `lookup mech ID`.
+`mechanics.json` continua sendo o catálogo; `coverage.md` é relatório para leitura humana,
+não contexto padrão de agentes. Para `Banks0123.asm`, `sandbox_gameplay.gd` e `enemy.gd`,
+use `lookup asm`/`lookup gd` e as faixas dos índices, conforme `AGENTS.md`.
+
 ## 1. Verificar
 
 1. `python3 -m tools.context.build_index` (rotaciona o progresso; regenera esboço, citações e testes).

@@ -4,7 +4,10 @@
   python3 -m tools.context.lookup ram TextId                         # endereço/tamanho (aceita trecho)
   python3 -m tools.context.lookup cites logic/items.asm[:399]        # quem cita o trecho
   python3 -m tools.context.lookup gd godot/scripts/systems/enemy.gd _physics_process
-  python3 -m tools.context.lookup mech [radio]                       # cadeia completa da mecânica
+  python3 -m tools.context.lookup mech [radio]                       # resumo; com ID, detalhes da feature
+  python3 -m tools.context.lookup domain actors-bosses                # ID, título e status por domínio
+  python3 -m tools.context.lookup status PARTIAL                      # ID, título e status por classificação
+  python3 -m tools.context.lookup unmapped                            # atalho para status UNMAPPED
   python3 -m tools.context.lookup progress ["Fase 4"]                # última entrada ou por título
 """
 import argparse
@@ -18,6 +21,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.context import build_index, progress_archive  # noqa: E402
+from tools.context.coverage import STATUSES  # noqa: E402
 
 
 def local_index(name):
@@ -93,20 +97,45 @@ def cmd_gd(args):
     return 0
 
 
+def mechanics_catalog():
+    # The tool reads the canonical catalog; agents receive only the requested selection.
+    return json.loads((build_index.DOCS_INDEX / 'mechanics.json').read_text())
+
+
+def print_mechanics_summary(items):
+    """One TSV row per feature, no evidence, history or full audit payload."""
+    for item in items:
+        print('\t'.join((item['id'], item['title'], item.get('status', '—'))))
+    return 0  # A valid filter with no matches is a successful, empty query.
+
+
+def cmd_domain(args):
+    data = mechanics_catalog()
+    if args.domain not in data.get('audits', {}):
+        print('domínio desconhecido; disponíveis: ' + ', '.join(data.get('audits', {})), file=sys.stderr)
+        return 1
+    return print_mechanics_summary(i for i in data['mechanics'] if i.get('domain') == args.domain)
+
+
+def cmd_status(args):
+    data = mechanics_catalog()
+    return print_mechanics_summary(i for i in data['mechanics'] if i.get('status') == args.status)
+
+
 def cmd_mech(args):
-    data = json.loads((build_index.DOCS_INDEX / 'mechanics.json').read_text())
+    data = mechanics_catalog()
     if not args.id:
-        for item in data['mechanics']:
-            print(f'{item["id"]:20} {item["title"]}')
-        return 0
+        return print_mechanics_summary(data['mechanics'])
     for item in data['mechanics']:
         if item['id'] == args.id:
-            for key in ('title', 'asm', 'extractor', 'data', 'godot', 'integration', 'tests', 'docs'):
+            for key in ('id', 'title', 'domain', 'status', 'original_scope', 'rationale', 'actor_ids',
+                        'asm', 'extractor', 'data', 'godot', 'integration', 'tests', 'docs', 'history',
+                        'implemented_scope', 'missing_scope', 'evidence_notes', 'related_features'):
                 if key in item:
                     value = item[key]
-                    print(f'{key:12} ' + (value if isinstance(value, str) else '\n             '.join(value) or '—'))
+                    print(f'{key:12} ' + (value if isinstance(value, str) else '\n             '.join(map(str, value)) or '—'))
             return 0
-    print('mecânica desconhecida')
+    print('mecânica desconhecida: ' + args.id, file=sys.stderr)
     return 1
 
 
@@ -130,7 +159,14 @@ def main(argv=None):
     p = sub.add_parser('ram'); p.add_argument('name'); p.set_defaults(func=cmd_ram)
     p = sub.add_parser('cites'); p.add_argument('target'); p.set_defaults(func=cmd_cites)
     p = sub.add_parser('gd'); p.add_argument('file'); p.add_argument('function'); p.set_defaults(func=cmd_gd)
-    p = sub.add_parser('mech'); p.add_argument('id', nargs='?'); p.set_defaults(func=cmd_mech)
+    p = sub.add_parser('mech', help='lista resumida; detalhes somente com ID')
+    p.add_argument('id', nargs='?'); p.set_defaults(func=cmd_mech)
+    p = sub.add_parser('domain', help='features do domínio: ID, título e status')
+    p.add_argument('domain'); p.set_defaults(func=cmd_domain)
+    p = sub.add_parser('status', help='features por status: ID, título e status')
+    p.add_argument('status', type=str.upper, choices=STATUSES); p.set_defaults(func=cmd_status)
+    p = sub.add_parser('unmapped', help='atalho para status UNMAPPED, somente resumo')
+    p.set_defaults(func=cmd_status, status='UNMAPPED')
     p = sub.add_parser('progress'); p.add_argument('text', nargs='?'); p.set_defaults(func=cmd_progress)
     args = parser.parse_args(argv)
     return args.func(args)

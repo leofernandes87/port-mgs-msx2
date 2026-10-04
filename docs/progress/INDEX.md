@@ -94,8 +94,10 @@ Gerado por `tools/context/progress_archive.py`; não editar. Leia uma entrada: `
 | docs/progress/2026-10.md:182 | 2026-10-02 — Registro das correções das paredes |
 | docs/progress/2026-10.md:186 | Estado mais recente — 2026-10-03: diálogo canônico inglês de Grey Fox |
 | docs/progress/2026-10.md:223 | 2026-10-03 — Correções de fidelidade do resgate e da janela de Grey Fox |
-| docs/progress.md:6 | 2026-10-04 — Registro do diálogo de Grey Fox |
-| docs/progress.md:15 | 2026-10-04 — ROM inglesa oficial como única canônica (fases 1–3) |
-| docs/progress.md:69 | 2026-10-04 — Fase 4: reextração completa da ROM canônica `en-eu-rc750` |
-| docs/progress.md:124 | 2026-10-04 — Auditoria regional da implementação contra a edição inglesa |
-| docs/progress.md:156 | 2026-10-04 — Infraestrutura de contexto: regras enxutas, STATUS, progresso arquivado e índices |
+| docs/progress/2026-10.md:270 | 2026-10-04 — Registro do diálogo de Grey Fox |
+| docs/progress/2026-10.md:279 | 2026-10-04 — ROM inglesa oficial como única canônica (fases 1–3) |
+| docs/progress.md:6 | 2026-10-04 — Fase 4: reextração completa da ROM canônica `en-eu-rc750` |
+| docs/progress.md:61 | 2026-10-04 — Auditoria regional da implementação contra a edição inglesa |
+| docs/progress.md:93 | 2026-10-04 — Infraestrutura de contexto: regras enxutas, STATUS, progresso arquivado e índices |
+| docs/progress.md:112 | 2026-10-04 — Inventário progressivo: atores e bosses |
+| docs/progress.md:126 | 2026-10-04 — Interface enxuta de contexto para agentes |

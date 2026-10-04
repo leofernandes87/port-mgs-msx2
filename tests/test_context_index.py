@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from tools.context import build_index, progress_archive
+from tools.context import build_index, coverage, progress_archive
 
 SYNTH_ASM = """
 Start:\tld a, 1
@@ -82,6 +82,139 @@ class MechanicsTests(unittest.TestCase):
         self.assertTrue(any('fora de' in p and 'Y' in p for p in problems))
         self.assertTrue(any('Z' in p for p in problems))
         self.assertTrue(any('além do fim' in p for p in problems))
+
+
+def coverage_fixture():
+    """Invented actor and source references, with no game data."""
+    return {
+        'status_definitions': dict.fromkeys(coverage.STATUSES, 'Definition'),
+        'audits': {'actors-bosses': {
+            'title': 'Fixture', 'date': '2026-01-01', 'project_revision': 'synthetic',
+            'reference_revision': 'synthetic', 'scope': 'Scope', 'method': 'Method',
+            'actor_ids': [1, 2], 'exclusions': [{'actor_id': 2, 'reason': 'Unused'}],
+            'asm': ['logic/a.asm:1 Start'],
+        }},
+        'mechanics': [{
+            'id': 'sample', 'title': 'Sample', 'domain': 'actors-bosses', 'actor_ids': [1],
+            'status': 'PARTIAL', 'original_scope': 'Original scope', 'rationale': 'Evidence',
+            'implemented_scope': ['Some behavior'], 'missing_scope': ['Remaining behavior'],
+            'evidence_notes': ['Inspected dispatcher'], 'related_features': [],
+            'asm': ['logic/a.asm:1 Start'], 'godot': ['godot/sample.gd'],
+            'extractor': ['tools/sample.py'], 'data': ['actors.json'],
+            'tests': ['tests/test_sample.py'], 'docs': ['docs/sample.md'],
+            'integration': ['godot/sample.gd::step'], 'history': ['docs/sample.md::Delivery'],
+        }],
+    }
+
+
+class CoverageTests(unittest.TestCase):
+    def test_all_seven_statuses_are_accepted_and_legacy_is_not_classified(self):
+        for status in coverage.STATUSES:
+            with self.subTest(status=status):
+                catalog = coverage_fixture()
+                catalog['mechanics'][0].update(status=status, missing_scope=[])
+                catalog['mechanics'].append({'id': 'legacy', 'title': 'Outside audit'})
+                self.assertEqual(coverage.check_classifications(catalog), [])
+
+    def test_invalid_status_missing_fields_and_unknown_domain(self):
+        catalog = coverage_fixture()
+        item = catalog['mechanics'][0]
+        item['status'] = 'DONE'
+        self.assertTrue(any('status inválido' in p for p in coverage.check_classifications(catalog)))
+        del item['status']
+        self.assertTrue(any('status ausente' in p for p in coverage.check_classifications(catalog)))
+        item.update(status='PARTIAL', domain='unknown')
+        self.assertTrue(any('domínio desconhecido' in p for p in coverage.check_classifications(catalog)))
+        del item['domain']
+        self.assertTrue(any('status sem domínio' in p for p in coverage.check_classifications(catalog)))
+
+    def test_classification_requires_evidence_and_valid_relationships(self):
+        catalog = coverage_fixture()
+        item = catalog['mechanics'][0]
+        item.update(status='IMPLEMENTED', related_features=['absent'])
+        problems = coverage.check_classifications(catalog)
+        self.assertTrue(any('IMPLEMENTED exige' in p for p in problems))
+        self.assertTrue(any('relacionada inexistente' in p for p in problems))
+        item.update(status='NOT_STARTED', evidence_notes=[])
+        self.assertTrue(any('exige nota' in p for p in coverage.check_classifications(catalog)))
+        del catalog['status_definitions']['UNMAPPED']
+        self.assertTrue(any('status_definitions' in p for p in coverage.check_classifications(catalog)))
+
+    def test_actor_inventory_holes_conflicts_and_malformed_ids(self):
+        catalog = coverage_fixture()
+        item = catalog['mechanics'][0]
+        for ids, message in [([], 'sem entrada/exclusão'), ([1, 2], 'conflitantes'),
+                             ([1, 66], 'inválidos'), (None, 'inválidos'), ([True], 'inválidos')]:
+            with self.subTest(ids=ids):
+                item['actor_ids'] = ids
+                self.assertTrue(any(message in p for p in coverage.check_classifications(catalog)))
+
+    def test_generated_counts_unmapped_and_legacy_exclusion(self):
+        catalog = coverage_fixture()
+        catalog['mechanics'][0]['status'] = 'UNMAPPED'
+        catalog['mechanics'].append({'id': 'legacy', 'title': 'Outside audit'})
+        rendered = coverage.render(catalog)
+        self.assertIn('| `UNMAPPED` | 1 |', rendered)
+        self.assertIn('| `NOT_STARTED` | 0 |', rendered)
+        self.assertIn('| Total | 1 |', rendered)
+        self.assertIn('### UNMAPPED\n\n- **sample**: Evidence', rendered)
+        self.assertNotIn('Outside audit', rendered)
+        self.assertIn('Relatório para leitura humana; não é contexto padrão de agentes.', rendered)
+        self.assertIn('lookup unmapped', rendered)
+        self.assertEqual(rendered, coverage.render(catalog))
+
+    def test_reference_validation_covers_each_catalog_chain(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            files = {'godot/sample.gd': 'func step() -> void:\n\tpass\n',
+                     'tools/sample.py': '', 'tests/test_sample.py': '',
+                     'docs/sample.md': '# Notes\n\n## Delivery\n',
+                     'data/extracted/en-eu-rc750/actors.json': '{}'}
+            for name, text in files.items():
+                target = root / name
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(text)
+            path = root / 'mechanics.json'
+
+            def check(catalog, sources=None):
+                path.write_text(json.dumps(catalog))
+                return build_index.check_mechanics({'logic/a.asm': 'Start:\tret\n'}
+                                                  if sources is None else sources, path, root)
+
+            self.assertEqual(check(coverage_fixture()), [])
+            cases = [('godot', 'godot/missing.gd', 'caminho inexistente'),
+                     ('extractor', 'tools/missing.py', 'caminho inexistente'),
+                     ('docs', 'docs/missing.md', 'caminho inexistente'),
+                     ('tests', 'godot-nonexistent-stage', 'teste desconhecido'),
+                     ('integration', 'godot/sample.gd::missing', 'integração inexistente'),
+                     ('history', 'docs/sample.md::Missing', 'histórico inexistente'),
+                     ('data', 'missing.json', 'dado extraído inexistente'),
+                     ('data', '../outside.json', 'fora do diretório canônico'),
+                     ('asm', 'logic/missing.asm:1', 'referência asm inválida'),
+                     ('asm', 'logic/a.asm:2-1', 'faixa asm inválida'),
+                     ('asm', 'logic/a.asm:0', 'faixa asm inválida')]
+            for field, ref, expected in cases:
+                with self.subTest(field=field, ref=ref):
+                    catalog = coverage_fixture()
+                    catalog['mechanics'][0][field] = [ref]
+                    self.assertTrue(any(expected in p for p in check(catalog)))
+            catalog = coverage_fixture()
+            catalog['audits']['actors-bosses']['asm'] = ['missing.asm:1']
+            self.assertTrue(any('audit-actors-bosses' in p for p in check(catalog)))
+            catalog['mechanics'][0]['asm'] = ['invalid syntax']
+            self.assertTrue(any('referência asm inválida' in p for p in check(catalog, {})))
+
+    def test_private_data_absence_is_portable_but_cannot_escape_canonical_root(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / 'mechanics.json'
+            catalog = {'mechanics': [{'id': 'legacy', 'title': 'Legacy', 'asm': [],
+                       'godot': [], 'tests': [], 'docs': [], 'data': ['actors.json']}]}
+            path.write_text(json.dumps(catalog))
+            self.assertEqual(build_index.check_mechanics({}, path, root), [])
+            catalog['mechanics'][0]['data'] = ['/tmp/escape.json']
+            path.write_text(json.dumps(catalog))
+            self.assertTrue(any('fora do diretório' in p for p in build_index.check_mechanics({}, path, root)))
 
 
 class EntryDocTests(unittest.TestCase):

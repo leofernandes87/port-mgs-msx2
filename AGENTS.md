@@ -40,9 +40,17 @@ separadas do comportamento fiel.
 
 - Estado atual: `docs/STATUS.md`. Histórico: `docs/progress/INDEX.md` e
   `python3 -m tools.context.lookup progress "título"`.
+- **Proibido ler integralmente arquivos grandes quando houver lookup apropriado.**
+  `docs/index/mechanics.json`: use `lookup domain DOMÍNIO`, `lookup status STATUS` ou
+  `lookup unmapped` (só ID, título e status); detalhes somente por `lookup mech ID`.
+  Todos os comandos abreviados usam `python3 -m tools.context.lookup`.
+- `docs/index/coverage.md` é relatório gerado para leitura humana, não contexto padrão de
+  agentes. Não o leia integralmente nem o use como atalho para despejar o catálogo.
 - Índices: `docs/index/` (mecânicas, citações reversas, testes, esboço Godot, salas) e
   `data/extracted/index/` (símbolos asm, RAM). Regenerar: `python3 -m tools.context.build_index`.
-- `Banks0123.asm`, `sandbox_gameplay.gd`, `enemy.gd`, `docs/progress/*.md` e
-  `data/extracted/**/package.json`: só a faixa indicada pelos índices. Mapa do repositório: `docs/README.md`.
+- `Banks0123.asm`: `lookup asm SÍMBOLO -n N`; `sandbox_gameplay.gd` e `enemy.gd`:
+  `lookup gd ARQUIVO FUNÇÃO`; progresso atual/arquivado: `lookup progress "título"`.
+  Sem leitura integral; consulte faixas pelos índices quando necessário. Isso também vale
+  para `data/extracted/**/package.json`. Mapa do repositório: `docs/README.md`.
 - Skills (`.agents/skills/`): `inspect-msx-disassembly`, `implement-faithful-mechanic`,
   `rom-extraction`, `godot-testing`, `openmsx-probe`, `delivery`.

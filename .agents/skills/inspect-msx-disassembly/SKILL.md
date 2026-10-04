@@ -27,6 +27,11 @@ python3 -m tools.context.lookup cites logic/items.asm:399 # quem no projeto já 
 - Busca textual: `rg --no-ignore -n 'padrão' external/MetalGear` (sem `--no-ignore` não acha nada).
 - Constantes e enums: `constants/Enums.asm`; RAM: `Variables.asm` (`map #c000`).
 - Nunca leia `Banks0123.asm` (13,8 mil linhas) inteiro: use `lookup asm` ou `Read` com offset/limit.
+- A mesma proibição vale para arquivos grandes com lookup apropriado: `mechanics.json` e
+  `coverage.md` via `lookup domain DOMÍNIO`, `lookup status STATUS`, `lookup unmapped` e
+  `lookup mech ID`; `sandbox_gameplay.gd`/`enemy.gd` via `lookup gd ARQUIVO FUNÇÃO`;
+  histórico via `lookup progress "título"`. `coverage.md` é relatório humano, não contexto
+  padrão de agentes. Resumos primeiro; detalhes somente da feature/rotina selecionada.
 
 ## 2. Ler com cuidado
 

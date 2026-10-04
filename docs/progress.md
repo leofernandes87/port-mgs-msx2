@@ -3,69 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Registro do diálogo de Grey Fox
-
-Commit e tag autorizados pelo usuário: diálogo inglês paginado de Grey Fox,
-correção da fonte extraída e correções de fidelidade do resgate/janela, tag anotada
-`v0.1.48`. Validação reaproveitada da entrega anterior (validador completo, testes
-Grey Fox headless e gráfico). Arquivos candidatos revisados; texto, atlas, extrações
-e ROMs permanecem ignorados. A alteração local preexistente em `godot/project.godot`
-ficou fora do commit e continua preservada. Sem push.
-
-## 2026-10-04 — ROM inglesa oficial como única canônica (fases 1–3)
-
-**Decisões do usuário:** ROM inglesa oficial (europeia, CRC32 `E85C5731`) é a única
-canônica; capturas com `C-BIOS_MSX2_EU`; Godot permanece em 60 Hz; ROM
-`[English] [6873]` movida para `../metal-gear-roms-fora-do-pipeline/`; nada
-reextraído nesta entrega.
-
-**Evidência:** montagem Sjasm 0.39j da referência `30d1b940` com `JAPANESE equ 0`
-(`MetalGear.asm:38`) idêntica byte a byte a `en-eu-rc750`
-(`python3 -m tools.rom --verify-build` → `build=identical`).
-
-**Fase 1:** `data/rom-profiles.json` (só metadados: hashes, máquina openMSX,
-endereços de debugger) e `tools/rom.py`: resolução por SHA-256 (`--rom` >
-`$MG_ROM` > busca por conteúdo em `roms/`), recusa nominal dos perfis
-`jp-rc750-local`, `en-nekura-hoka-1.995c`, `en-6873-bitflip`, sem fallback;
-`--check` e `--verify-build`.
-
-**Fase 2:** removidos `DEFAULT_ROM`, `PRIMARY_SHA256`, constantes `*_ROM_OFFSET`
-e o fallback silencioso do piso eletrificado. Extratores localizam offsets por
-símbolo na referência (`Reference.literal/table/signature`) e gravam
-`rom_profile` + `input_sha256`. `extract.py` aceita só a canônica (schema:
-`input_role` = `canonical`, `rom_profile` obrigatório). `capture.py` usa a máquina
-do perfil e breakpoints conferidos por âncoras únicas (EU: 0x4935, 0x4CF0,
-0x7710, 0x4EDB), passados ao Tcl por `config.tcl`. `analyze.py` analisa só a
-canônica; `--inventory-all` lista todas rotuladas por perfil. `verify.py` e
-`extract_prison_wall.py` exigem o hash.
-
-**Correção encontrada:** `extract_respawn_info.py` lia 189 entradas; a tabela
-`RespawnInfo` (`data/respawninfo.asm:13`) tem 564 bytes = 188 entradas de 3 bytes.
-A contagem agora deriva da fonte; a 189ª leitura caía fora da tabela.
-
-**Fase 3:** `tests/test_rom.py` (resolvedor com bytes sintéticos, independência
-de nome/ordem, recusas, `MG_ROM`, guarda de alteração, perfil real, âncoras de
-captura, espelho Godot do hash e lint de política em `tools/` e
-`godot/scripts/`). Godot: `RomProvenance` + guarda em `RoomSnapshot.decode()`:
-aceita canônica e sintética (`0`×64), recusa outras; o hash japonês é aceito só
-como `LEGACY_PENDING_REEXTRACTION`, com aviso único, até a reextração.
-`tools/validate.py` ganhou a etapa `rom-profile` (SKIP sem ROM privada).
-
-**Validação real:** `python3 -m unittest discover -s tests`: 109 testes OK.
-`python3 tools/validate.py`: exit 0, 36 etapas PASS, incluindo `rom-profile`
-(`ROM_CHECK_OK: en-eu-rc750`) e `godot-room-snapshot` com os casos
-canônico/sintético/legado/estrangeiro. Falha intermediária: o lint novo
-apontou READMEs e dois comentários Godot com nome/offsets do dump japonês;
-corrigidos.
-
-**Pendências:** fase 4 (reextração de todos os dados a partir da ROM canônica e
-remoção da exceção legada) aguarda aprovação; depois revalidar diferenças EN×JP
-(`logic/items.asm:409`, `musicradioconfig.asm:16-20`, nomes de armas,
-`flagTxtItem`, demo).
-
-**Git:** commit `7904020` a pedido do usuário (sem push, sem tag). Alteração
-preexistente em `godot/project.godot` preservada fora do commit.
-
 ## 2026-10-04 — Fase 4: reextração completa da ROM canônica `en-eu-rc750`
 
 **Escopo:** reextrair todos os dados derivados da ROM a partir só de `en-eu-rc750`,
@@ -171,3 +108,31 @@ canal de água na ROM (`data/roomsconnections.asm:113-114,136-137`).
 exit 0, 37 etapas PASS (nova `context-indexes`), 127 testes Python.
 **Git:** commit a pedido do usuário com tag `v0.2.0` (minor: desde `v0.1.48`, ROM canônica
 inglesa com dados incompatíveis, auditoria regional `0ffde16` e esta entrega).
+
+## 2026-10-04 — Inventário progressivo: atores e bosses
+
+**Feito:** `docs/index/mechanics.json` ampliado como catálogo único, com 51 features da edição
+inglesa, cruzadas com Godot, extractors, testes, documentos e histórico. Base:
+`constants/Enums.asm:169-234`, `Banks0123.asm:6358-6468,12657-12739`.
+PARTIAL 20, PROVISIONAL 12, NOT_STARTED 17, UNMAPPED 2; demais statuses 0.
+`coverage.md` gerado, `lookup mech` ampliado e validação de status, IDs e referências
+(incluindo histórico, dados locais e relações). Nenhum gameplay alterado.
+**Testes:** índice com 14 testes sintéticos (7 novos). `python3 tools/validate.py` fora do
+sandbox: exit 0, 37 etapas PASS, 134 testes Python; importação/boot Godot 4.7.2 aprovados.
+**Pendências:** UNMAPPED: uso alcançável do prisioneiro ID 56 e correspondência da explosão
+ID 65; demais divergências no catálogo, sem correção nesta entrega.
+**Git:** sem commit; alteração preexistente em `godot/project.godot` preservada.
+
+## 2026-10-04 — Interface enxuta de contexto para agentes
+
+**Feito:** `lookup domain DOMÍNIO`, `lookup status STATUS` e `lookup unmapped` retornam
+somente ID, título e status; `lookup mech ID` expõe os detalhes de uma única feature.
+Regras em `AGENTS.md`, skills de inspeção/implementação/entrega e documentação proíbem
+leitura integral de arquivos grandes com lookup apropriado. `coverage.md` se identifica
+como relatório humano, não contexto padrão de agentes; catálogo e gameplay preservados.
+**Testes:** oito novos testes sintéticos de CLI; 22 testes de contexto aprovados.
+`python3 tools/validate.py` fora do sandbox: exit 0, 37 etapas PASS, 142 testes Python;
+importação/boot Godot 4.7.2 aprovados. Conferência real dos filtros e hashes preservados.
+**Pendências:** auditoria não avançou; lacunas anteriores permanecem no catálogo.
+**Git:** commit único com a entrega anterior (inventário de atores e bosses), a pedido do
+usuário, sem push e sem tag; `godot/project.godot` fora do commit.
