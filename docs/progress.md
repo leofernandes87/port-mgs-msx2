@@ -3132,4 +3132,37 @@ proíbe caminhos legados e conferência real de 485 arquivos consumidos (todos
 (119 testes Python); `godot-room-snapshot` carregou as salas 0, 126, 240 e 211 de
 `en-eu-rc750` e recusou snapshot japonês, perfil japonês e perfil ausente.
 
-**Git:** sem commit, conforme pedido.
+**Git:** commit `ac7cd60` a pedido do usuário (sem push, sem tag);
+`godot/project.godot` fora do commit.
+
+## 2026-10-04 — Auditoria regional da implementação contra a edição inglesa
+
+**Critério:** ausência de implementação não é bug; só o que já existe e diverge da
+edição inglesa foi corrigido. Classificação completa em
+`docs/reverse_engineering/en-eu-reextraction.md` ("Auditoria regional").
+
+**Semântica confirmada:** `RADIO_WAITCALL` (4) = Snake precisa pedir resposta;
+`RADIO_AUTOREPLY` (8) = auto tune (`UpdateRadio`, `Banks0123.asm:2413-2425`;
+`ChkRadioReceiv`, `:10993-11006`); CALL = bit 3 de `RoomsMusic` (`ChkRadioCalls`,
+`:1689-1743`). O cabeçalho de `radiocalls.asm` inverte esses nomes.
+
+**Corrigido (`radio_system.gd`):** sala 5 não dispara mais CALL/auto-resposta
+(`RADIO_WAITCALL`, sem bit 3); entrada inventada da sala 138 removida (`NoRadio`,
+`radiocalls.asm:188`); removida a resposta genérica do Big Boss em salas sem ouvintes
+(texto inexistente na ROM; `ChkRadioReceiv` não responde); cabeçalho deixou de citar
+`radiocallsjp.asm`.
+
+**Registrado sem correção:** textos hardcoded com redação diferente da ROM (intro texto
+2; rádio 3, 60, 64, 88, 92) — corrigir exige extração em runtime para não versionar
+texto protegido; decisão pendente. Parciais: 15/60 salas de rádio, condições de
+`ChkRadioCalls`, resposta automática ao sintonizar, texto 62 da bolsa, textos de
+interface provisórios. Backlog: tela de menu original com `weaponnames`/`itemnames`,
+música por sala, demo. Ignorados por serem só JP: `flagTxtItem`, descrições de itens,
+sala 31 com CALL, chamadas extras de `radiocallsjp.asm`.
+
+**Testes:** `radio_system_test.gd` ampliado (sala 5, salas 2 e 138 mudas);
+`tests/test_region_tools.py::GodotRadioFollowsEnglishEdition` confere cada sala
+portada contra `radiocalls.asm` e `RoomsMusic` ingleses (falha na versão anterior nas
+salas 5 e 138). `python3 tools/validate.py`: exit 0, 36 etapas PASS, 120 testes Python.
+
+**Git:** sem commit, conforme pedido. `godot/project.godot` preservado.

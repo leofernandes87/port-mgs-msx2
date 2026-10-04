@@ -18,7 +18,11 @@
 > Tarefa separada registrada: `RESCUED_PER_RANK=4` vs `cp 5`.
 > **2026-10-04:** ROM inglesa oficial `en-eu-rc750` passou a ser a única canônica,
 > por SHA-256 (fases 1–3, commit `7904020`; §4).
-> **2026-10-04 (fase 4, sem commit):** tudo reextraído para
+> **2026-10-04 (auditoria regional, sem commit):** rádio corrigido contra a edição
+> inglesa (sala 5, sala 138, sem resposta genérica do Big Boss); textos hardcoded
+> divergentes aguardam decisão (extração em runtime). Ver "Auditoria regional" em
+> [en-eu-reextraction.md](reverse_engineering/en-eu-reextraction.md).
+> **2026-10-04 (fase 4, commit `ac7cd60`):** tudo reextraído para
 > `data/extracted/en-eu-rc750/`; Godot aceita só `rom_profile = en-eu-rc750` + SHA
 > canônico (ou sintético). Dados antigos em `data/extracted/legacy-jp-rc750-local/`
 > (só para o relatório). Divergências de gameplay pendentes em

@@ -111,6 +111,21 @@ func _run() -> void:
 	if not require(not rs.has_incoming_call, "has_incoming_call deve ser false após atendimento"): return
 	if not require(rs.signal_leds == 12, "Chamada atendida deve ter 12 LEDs de sinal"): return
 
+	# Edição inglesa: sala 5 é RADIO_WAITCALL e RoomsMusic[5] não tem o bit 3 (sem CALL).
+	rs.answered_rooms.clear()
+	if not require(not rs.check_incoming_call(5) and not rs.has_incoming_call, "Sala 5 não deve gerar chamada recebida"): return
+	rs.set_frequency(85)
+	var r5_send: Dictionary = rs.send_transmission(5)
+	if not require(bool(r5_send.has_signal) and int(rs.ROOM_CALLS[5][0].text_id) == 4, "Sala 5: Big Boss responde ao SEND com o texto 4"): return
+	# Sala 138 é NoRadio (radiocalls.asm:188) e nenhuma sala sem dados responde no 120.85.
+	if not require(not rs.ROOM_CALLS.has(138), "Sala 138 não tem ouvintes de rádio"): return
+	for silent_room: int in [2, 138]:
+		var silent: Dictionary = rs.get_transmission_result(silent_room)
+		if not require(not bool(silent.has_signal) and rs.signal_leds == 0, "Sala %d sem dados de rádio não deve responder" % silent_room): return
+	rs.answered_rooms.clear()
+	rs.check_incoming_call(0)
+	rs.answer_call(0)
+
 	# Segunda checagem na mesma sala não deve redisparar chamada atendida
 	var repeat_call: bool = rs.check_incoming_call(0)
 	if not require(not repeat_call and not rs.has_incoming_call, "Sala já atendida não deve gerar nova chamada"): return

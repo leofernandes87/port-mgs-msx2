@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Sistema de Rádio Transceptor (Codec) autêntico do Metal Gear MSX2 RC750 (Etapa 15).
 ## Lógica revertida de Banks0123.asm (DrawRadio, RadioIdle, ChgRadioFreq, RadioSignalUp, SetupRadioReply)
-## e tabelas canônicas de data/radiocalls.asm, data/radiocallsjp.asm e constants/Enums.asm.
+## e tabelas canônicas de data/radiocalls.asm (edição inglesa) e constants/Enums.asm.
 
 # Identificadores de contatos da ROM (data/radiocalls.asm:15-22)
 const CONTACT_BIG_BOSS: String = "BIG_BOSS"
@@ -36,6 +36,8 @@ var answered_rooms: Array[int] = []     # Salas cujas chamadas autoreply já for
 
 # Banco de dados de chamadas canônicas por sala (data/radiocalls.asm)
 # Cada entrada contém: contact, freq, is_autoreply, text, text_id
+# Porte parcial de idxRoomRadio: salas ausentes ainda não foram portadas. is_autoreply só pode
+# ser true onde RoomsMusic tem o bit 3 (chamada recebida; musicradioconfig.asm:9, Banks0123.asm:1729-1739).
 const ROOM_CALLS: Dictionary = {
 	0: [
 		{
@@ -75,7 +77,7 @@ const ROOM_CALLS: Dictionary = {
 		{
 			"contact": CONTACT_BIG_BOSS,
 			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": true,
+			"is_autoreply": false,
 			"text_id": 4,
 			"text": "THIS IS BIG BOSS... TAKE THE WEAPONS AND EQUIPMENTS FROM THE ENEMY'S LORRY!! YOU SHOULD HAVE AN I.D.CARD TO OPEN THE DOOR. ...OVER"
 		}
@@ -206,15 +208,6 @@ const ROOM_CALLS: Dictionary = {
 			"text_id": 92,
 			"text": "HI. THIS IS DIANE... BEAT THE TANK WITH MINES. ...BYE"
 		}
-	],
-	138: [
-		{
-			"contact": CONTACT_SCHNEIDER,
-			"freq": FREQ_SCHNEIDER_PR1,
-			"is_autoreply": false,
-			"text_id": 156,
-			"text": "THIS IS SCHNEIDER... I SUPPOSE THEY HAVE A SILENCER. ...OVER"
-		}
 	]
 }
 
@@ -303,19 +296,7 @@ func get_transmission_result(room_id: int) -> Dictionary:
 				"is_incoming": false
 			}
 
-	# Se for Big Boss (120.85) em uma sala sem diálogo específico, retorna mensagem padrão
-	if current_freq == FREQ_BIGBOSS_PR1 or current_freq == FREQ_BIGBOSS_PR2:
-		signal_leds = 12
-		return {
-			"has_signal": true,
-			"contact": CONTACT_BIG_BOSS,
-			"contact_name": "BIG BOSS",
-			"freq_str": get_frequency_string(),
-			"text": "THIS IS BIG BOSS... SOLID SNAKE, KEEP UP THE MISSION! REPORT ANY SUSPICIOUS ACTIVITY. ...OVER",
-			"is_incoming": false
-		}
-
-	# Frequência vazia ou com estática
+	# Sem ninguém na frequência não há resposta, nem do Big Boss (ChkRadioReceiv, Banks0123.asm:10971-10990)
 	signal_leds = 0
 	return {
 		"has_signal": false,

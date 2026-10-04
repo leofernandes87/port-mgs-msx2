@@ -1,4 +1,6 @@
 """Re-extraction tools: synthetic documents and symbols only, never game data."""
+from pathlib import Path
+import re
 import unittest
 
 from tools.emulation.run_trace import check_expectations, parse_pairs, rewrite
@@ -85,6 +87,65 @@ class RegionClassifier(unittest.TestCase):
         self.assertEqual(self.classifier.classify('x.json', ('/damage', 'value', 1, 2), {}, {})[0], UNEXPLAINED)
         self.assertEqual(self.classifier.classify('package.json', ('/manifest/rom_profile', 'value', 'a', 'b'),
                                                   {}, {})[0], IDENTICAL)
+
+
+REFERENCE = Path(__file__).resolve().parents[1] / 'external/MetalGear'
+GODOT_RADIO = Path(__file__).resolve().parents[1] / 'godot/scripts/systems/radio_system.gd'
+
+
+def english_branch(source):
+    return re.sub(r'(?ims)^\s*IF\s*\(JAPANESE\)\s*$.*?^\s*ELSE\s*$(.*?)^\s*ENDIF\s*$', r'\1', source)
+
+
+def asm_values(text):
+    return [int(v[:-1], 16) if v.lower().endswith('h') else int(v)
+            for line in re.findall(r'\bdb\s+([^;\n]+)', text) for v in (x.strip() for x in line.split(','))]
+
+
+@unittest.skipUnless(REFERENCE.is_dir(), 'private reference disassembly absent')
+class GodotRadioFollowsEnglishEdition(unittest.TestCase):
+    """The partial Godot port may omit rooms, but what it has must match the English tables."""
+
+    def english_tables(self):
+        enums = (REFERENCE / 'constants/Enums.asm').read_text(encoding='latin-1')
+        const = {k: int(v, 16) for k, v in re.findall(r'^(RADIO_\w+|FREQ_\w+):\s+equ\s+([0-9A-F]+)h?', enums, re.M)}
+        const.update({k: int(v) for k, v in re.findall(r'^(RADIO_\w+):\s+equ\s+(\d+)$', enums, re.M)})
+        banks = (REFERENCE / 'Banks0123.asm').read_text(encoding='latin-1')
+        freqs = re.search(r'^RadioFreqs:(.*?)^;', banks, re.M | re.S)[1]
+        person_freq = [const[name] for name in re.findall(r'\bdb\s+(FREQ_\w+)', freqs)]
+        calls = (REFERENCE / 'data/radiocalls.asm').read_text(encoding='latin-1')
+        blocks = {m[1]: m[2] for m in re.finditer(r'^(\w+):(.*?)(?=^\w+:|\Z)', calls, re.M | re.S)}
+        index = [t.strip() for v in re.findall(r'\bdw\s+([^;\n]+)', blocks['idxRoomRadio']) for t in v.split(',')]
+        rooms = {}
+        for room, label in enumerate(index):
+            values = [sum(const.get(p.strip(), 0) if not p.strip().isdigit() else int(p) for p in tok.split('|'))
+                      for line in re.findall(r'\bdb\s+([^;\n]+)', blocks[label]) for tok in line.split(',')]
+            if values == [0]:
+                continue
+            rooms[room] = [(int(f'{person_freq[(values[i] >> 4) - 1]:02x}'), values[i + 1],
+                            bool(values[i] & const['RADIO_WAITCALL'])) for i in range(0, len(values), 2)]
+        music = (REFERENCE / 'data/musicradioconfig.asm').read_text(encoding='latin-1')
+        music = music[music.index('RoomsMusic:'):music.index('Map zones')]
+        return rooms, asm_values(english_branch(music))
+
+    def godot_table(self):
+        source = GODOT_RADIO.read_text(encoding='utf-8')
+        freq = {k: int(v) for k, v in re.findall(r'const (FREQ_\w+): int = (\d+)', source)}
+        body = source[source.index('const ROOM_CALLS'):]
+        body = body[:body.index('\n}\n')]
+        return {int(m[1]): [(freq[f], int(t), a == 'true') for f, a, t in re.findall(
+            r'"freq": (FREQ_\w+),\s*"is_autoreply": (true|false),\s*"text_id": (\d+)', m[2])]
+            for m in re.finditer(r'^\t(\d+): \[(.*?)^\t\]', body, re.M | re.S)}
+
+    def test_ported_rooms_match_english_calls_and_call_indicator(self):
+        english, rooms_music = self.english_tables()
+        self.assertEqual(len(rooms_music), 251)
+        for room, calls in self.godot_table().items():
+            with self.subTest(room=room):
+                self.assertTrue(room in english, 'room has no radio listeners in the English edition (NoRadio)')
+                self.assertEqual([c[:2] for c in calls], [c[:2] for c in english[room]])
+                incoming = any(c[2] for c in calls)
+                self.assertEqual(incoming, bool(rooms_music[room] & 8), 'CALL indicator must follow RoomsMusic bit 3')
 
 
 if __name__ == '__main__':

@@ -84,48 +84,88 @@ que do europeu, logo a diferença não é regional.
 
 | Local | Efeito EN | Estado no Godot |
 | --- | --- | --- |
-| `Banks456.asm:66` / `:80` | `weaponnames.asm` / `itemnames.asm` | Rótulos inventados nos menus (ver divergências) |
+| `Banks456.asm:66` / `:80` | `weaponnames.asm` / `itemnames.asm` | Rótulos inventados nos menus (ver auditoria) |
 | `BanksABC.asm:24` | `texts.asm` | Textos de rádio escritos à mão em inglês; Grey Fox extraído |
-| `BanksDEF.asm:21` | `radiocalls.asm` | Tabela própria incompleta (ver divergências) |
+| `BanksDEF.asm:21` | `radiocalls.asm` | Tabela própria incompleta (ver auditoria) |
 | `Banks0123.asm:5353,7970,7981,8052,8158,8228` | sem `flagTxtItem` | Não implementado = comportamento EN |
-| `logic/items.asm:409` | só texto 62 ao pegar o último item | Nenhum texto (ver divergências) |
+| `logic/items.asm:409` | só texto 62 ao pegar o último item | Nenhum texto (ver auditoria) |
 | `data/musicradioconfig.asm:16` | sala 31 sem chamada | Sala 31 sem chamada = EN |
 | `logic/gamedemo.asm:216` | entradas de demo EN | Demo não implementada |
 | `gfx/font.asm:29,63` | glifos EN | Fonte EN (`prisoner_dialog.gd`) |
 | `logic/regionlock.asm:28` | sem teste de BIOS | Não se aplica |
 | `logic/actors/guardalert.asm:174` | bytes não usados | Não se aplica |
 
-## Divergências de comportamento para a próxima etapa (não corrigidas)
+## Auditoria regional da implementação (2026-10-04)
 
-1. **Texto ao pegar itens.** EN: `ItemTakeText` (`data/itemtaketextid.asm:7-9`) só é
-   exibido se o valor for 62, "I took back the weapon and equipment" (`logic/items.asm:403-414`);
-   apenas `BAG` (`Enums.asm:154`, ID 22h → índice 33 = 62) e somente quando é o último
-   item da sala (`TempData2`, `:399-401`). JP mostra todas as descrições.
-   Godot: `item_box.gd:145-151` restaura o equipamento sem texto algum. Falta o texto 62.
-2. **Rádio.** `radio_system.gd` tem `ROOM_CALLS` escrito à mão com 16 salas; a tabela
-   EN (`idxRoomRadio`) tem 60. Faltam 45 salas EN (7, 8, 33, 45, 46, 48, 51, 57,
-   59–63, 69, 82, 83, 86, 87, 93, 94, 96, 97, 99, 100, 102–104, 108, 111, 115–117,
-   119, 123–125, 150, 165, 178, 182, 192, 193, 202, 220, 221). A sala 138 do Godot
-   (Schneider, texto 156) não existe na EN (nem na JP, que tem Big Boss 154). Nenhuma
-   entrada exclusiva da JP foi usada (JP tem 52 salas extras, chamadas extras nas
-   salas 31, 54, 57, 150 e texto 111 em vez de 64 na sala 94). O cabeçalho
-   (`radio_system.gd:6`) cita `radiocallsjp.asm` e deve ser corrigido.
-3. **Indicador de chamada / música.** Original: bit 3 de `RoomsMusic`
-   (`musicradioconfig.asm:9`). EN: salas 0, 29, 37, 53, 69, 99, 104, 108, 111, 115,
-   116, 119, 125, 165, 178, 192, 193; JP acrescenta a 31. Godot deriva de
-   `is_autoreply`: 0, 5, 29, 37, 53. A sala 5 não tem bit 3 em nenhuma versão;
-   faltam 12 salas EN. IDs de música (nibble alto) e bits 0–2 não são usados pelo Godot.
-4. **Nomes das armas e itens.** EN: `HAND GUN`, `SMG`, `GRENADE`, `ROCKET`, `P@BOMB`,
-   `L@MAIN`, `MISSILE`, `SILENCER`; itens com 5 letras (`GOGGL`, `SCOPE`, `BOX`,
-   `RATIO`…) (`data/weaponnames.asm:20-34`, `data/itemnames.asm:37-85`). Godot:
-   `item_menu.gd:96-106` usa "CARDBOARD BOX", "INFRARED GOGGLES", "BINOCULARS",
-   "RATION (x/y)"; `weapon_menu.gd` usa identificadores internos.
-5. **`flagTxtItem`.** Existe só nos ramos JP (pular texto de item com direcional,
-   impressão imediata). EN não o tem; Godot também não. Sem ação, salvo registrar.
-6. **Demo.** EN usa `DemoGameplay1` com `42h,0,28h` (JP `70h,0,2Ch`), `DemoTutorial`
-   com `80h,0` extra e `DemoGameplay2` diferente (`logic/gamedemo.asm:216-238`).
-   Godot não implementa demo; quando implementar, usar o ramo `ELSE`.
-7. **Outras descobertas.** Textos de rádio hardcoded precisam ser conferidos com
-   `texts.asm` decodificado; `RESPAWN` agora com 188 entradas (o Godot já usa o
-   arquivo novo); RAM `0xF29C` sem explicação; frequência de captura 50 Hz contra
-   Godot 60 Hz (decisão mantida).
+Ausência de implementação não conta como bug: o projeto é incremental. Cada achado foi
+classificado contra a edição inglesa, com o assembly como evidência.
+
+Semântica do rádio confirmada no código (o cabeçalho de `data/radiocalls.asm:5-10`
+inverte os nomes): `UpdateRadio` copia os bits 3-2 (`Banks0123.asm:2413-2425`);
+`RADIO_WAITCALL` (4) exige que Snake peça resposta, sem ele a resposta é automática ao
+sintonizar (`ChkRadioReceiv`, `:10993-11006`); `RADIO_AUTOREPLY` (8) só faz auto tune.
+O indicador CALL vem do bit 3 de `RoomsMusic` (`ChkRadioCalls`, `:1689-1743`).
+
+### 1. Implementado e divergente — corrigido
+
+| Achado | Evidência inglesa | Correção |
+| --- | --- | --- |
+| Sala 5 disparava CALL e auto-resposta | `RadioRoom_005` = `RADIO_BIGBOSS \| RADIO_WAITCALL`; `RoomsMusic[5]` sem bit 3 (`ChkRadioCalls4`, `Banks0123.asm:1729-1733`) | `is_autoreply = false`; Big Boss responde só ao SEND |
+| Sala 138 tinha Schneider/texto 156 | `idxRoomRadio[138]` = `NoRadio` (`data/radiocalls.asm:188`); texto 156 é de Diane na sala 150 | Entrada removida |
+| Big Boss respondia em qualquer sala sem dados, com texto inventado | `ChkRadioReceiv` retorna sem resposta se `NumRadioPersons = 0` ou sem frequência igual (`Banks0123.asm:10971-10990`); texto ausente de `texts.asm` | Fallback removido |
+| Cabeçalho citava `radiocallsjp.asm` | `BanksDEF.asm:21` (ramo `ELSE`) | Comentário corrigido |
+
+Testes: `godot/tests/radio_system_test.gd` (sala 5 sem CALL e com resposta ao SEND;
+salas 2 e 138 mudas) e `tests/test_region_tools.py::GodotRadioFollowsEnglishEdition`
+(cada sala portada deve existir na tabela inglesa com os mesmos contatos/frequências/
+textos, e o CALL deve seguir o bit 3 de `RoomsMusic`; falha na versão anterior nas
+salas 5 e 138).
+
+### 1. Implementado e divergente — registrado, não corrigido
+
+- **Textos hardcoded com redação diferente da ROM inglesa:** briefing da introdução
+  (texto 2: `DESTOROY`, `12085 FROM NOW ON. ...OVER`) e rádio, textos 3 (`MISION`),
+  60, 64, 88 e 92 (paráfrases). Textos 4, 6, 7, 20, 25 e 38 são idênticos; 10, 23, 26,
+  39, 42, 51 e 80 diferem só em espaços/pontuação. A paginação inglesa usa quebras
+  explícitas `FE`/`FD`, enquanto o Godot pagina automaticamente. Corrigir exige copiar
+  texto protegido para scripts versionados (regra 4); a correção fiel é extrair os textos
+  em runtime como no diálogo de Grey Fox. Decisão pendente do usuário.
+
+### 2. Implementado parcialmente (parte existente correta após as correções)
+
+- `ROOM_CALLS`: 15 das 60 salas inglesas; contatos, frequências e textos conferem.
+- Indicador CALL: só via entradas portadas; faltam as condições de `ChkRadioCalls`
+  (Schneider nunca chama, Jennifer com 4 estrelas e irmão vivo, antena a partir de
+  `MapZone` 5, espera de 32 iterações) e a repetição ao reentrar na sala.
+- Resposta automática ao sintonizar (entradas sem `RADIO_WAITCALL`, ex.: Schneider nas
+  salas 1, 30, 31) ainda exige SEND no Godot; `AutoReplyDone` não portado.
+- Textos de interface do rádio sem equivalente na ROM ("TRANSCEIVER ONLINE...",
+  "TUNING...", "RECEIVER MODE...", `TXT_NO_RESPONSE`): substitutos provisórios da tela
+  de rádio.
+- Coleta de itens: funciona e não mostra descrições (= inglês); falta o texto 62
+  ao pegar `BAG` como último item da sala
+  (`logic/items.asm:399-414`, `data/itemtaketextid.asm:9`). Mensagem ainda não portada.
+
+### 3. Ainda não implementado (backlog)
+
+- Tela de menu de armas/equipamentos original (`DrawWeaponMenu`/`DrawItemMenu`,
+  `Banks0123.asm:2025,2209`) com `data/weaponnames.asm`/`itemnames.asm`. Os menus
+  atuais (`weapon_menu.gd`, `item_menu.gd`) são painéis Godot provisórios; seus rótulos
+  não são divergência regional. O HUD só desenha ícones, como o original.
+- Música por sala (nibble alto de `RoomsMusic`, `SetAreaMusic`) e bits 0–2.
+- 45 salas de rádio inglesas e os contatos do prédio 2 (frequências 13, 26, 91).
+- Demo (`logic/gamedemo.asm:216-238`, usar o ramo `ELSE`).
+
+### 4. Exclusivo da versão japonesa — corretamente ignorado
+
+- `flagTxtItem` (`Banks0123.asm:5353,7970,7981,8052,8158,8228`).
+- Descrições de todos os itens na coleta (`logic/items.asm:409-413`).
+- Chamada na sala 31 (`musicradioconfig.asm:16`), 52 salas de rádio extras e as
+  variações das salas 31, 54, 57, 94 e 150 (`radiocallsjp.asm`).
+- Nomes em katakana (`*namesjp.asm`), `textsjp.asm`, glifos JP da fonte, `RegionLock`
+  (`logic/regionlock.asm:28`) e bytes não usados de `guardalert.asm:174`.
+
+### 5. Diferença regional legítima — Godot segue o ramo inglês
+
+- Fonte (glifos 44 e 103), texto 62 como única descrição de coleta, sala 31 sem CALL,
+  tabela de rádio inglesa, demo inglesa (quando implementada).
