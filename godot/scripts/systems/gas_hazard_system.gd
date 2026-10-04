@@ -2,7 +2,7 @@ class_name GasHazardSystem
 extends RefCounted
 
 ## Gerenciador de perigo ambiental de gás tóxico e proteção por máscara de gás (Etapa 19).
-## Lógica revertida de logic/damagegas.asm (ChkGasRooms, ChkGasMask, GasRooms no offset 0x4C79).
+## Lógica revertida de logic/damagegas.asm (ChkGasRooms, ChkGasMask, GasRooms).
 
 signal gas_damage_taken(damage: int, remaining_life: int)
 signal gas_protection_status_changed(is_protected: bool)

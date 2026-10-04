@@ -1,0 +1,43 @@
+{
+  "format_version": "1.0.0",
+  "canonical": "en-eu-rc750",
+  "profiles": {
+    "en-eu-rc750": {
+      "role": "canonical",
+      "description": "Official English (European) Metal Gear MSX2 RC750 cartridge",
+      "size": 131072,
+      "crc32": "E85C5731",
+      "sha1": "b656bd19df58fc1ba4628342b87beeec5948e0b3",
+      "sha256": "d16fff4a59ce26b570851c7200f67e05f385978598dcad91c83bf9c671a295ae",
+      "openmsx_machine": "C-BIOS_MSX2_EU",
+      "evidence": "Byte-identical to Sjasm 0.39j assembly of external/MetalGear 30d1b940 with JAPANESE equ 0 (MetalGear.asm:38); CRC32 declared in external/MetalGear/README.md:26.",
+      "debugger_cpu": {
+        "LoadRoomTiles": "0x4935",
+        "RenderRoom": "0x4CF0",
+        "WaitVdpCmd": "0x4ED2",
+        "DrawDoors": "0x7710"
+      }
+    },
+    "jp-rc750-local": {
+      "role": "forbidden",
+      "description": "Local Japanese dump; 1 byte differs from the JAPANESE equ 1 assembly (CRC32 FAFE1303) at 0x1322",
+      "size": 131072,
+      "crc32": "BE84C94F",
+      "sha256": "254ffcd94d9ba2322c00df88b21b33b338e3238b90962820bbcaa2bb621e18cf"
+    },
+    "en-nekura-hoka-1.995c": {
+      "role": "forbidden",
+      "description": "Fan translation of the Japanese edition; not an official release",
+      "size": 163840,
+      "crc32": "87EC113E",
+      "sha256": "89cfeee7d990a6bed050dcffa12ddff179e1632f13450247ee8860587adec6f4"
+    },
+    "en-6873-bitflip": {
+      "role": "forbidden",
+      "description": "English variant with two flipped bits (0x7CE1, 0x13272) versus the official ROM; kept outside roms/",
+      "size": 131072,
+      "crc32": "5F3BB2F1",
+      "sha256": "999b5a97488d0dd479aab8c467be14233eb7437cbd1d37cf348765dfeed8429d"
+    }
+  }
+}

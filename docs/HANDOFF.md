@@ -16,6 +16,9 @@
 > `godot/project.godot` segue local, fora do commit. Revisão incluída: atraso de resgate T→T+4, tick contínuo, HUD
 > imediato na promoção, prompt/célula e janela abaixo dos sprites (z=7).
 > Tarefa separada registrada: `RESCUED_PER_RANK=4` vs `cp 5`.
+> **2026-10-04 (sem commit):** ROM inglesa oficial `en-eu-rc750` passou a ser a
+> única canônica, por SHA-256 (fases 1–3; §4). Nada reextraído; snapshots locais
+> ainda derivados do dump japonês e aceitos só como legado temporário.
 
 > **Regra de continuidade**: atualizar este arquivo a cada commit, antes de avançar
 > para o próximo bloco de trabalho. Assim, qualquer nova sessão retoma exatamente
@@ -54,15 +57,19 @@ completo ainda — apenas motor técnico e extração de dados.
 
 ---
 
-## 4. ROM de trabalho
+## 4. ROM canônica
 
-| Arquivo | Bytes | CRC32 | SHA-256 |
-|---------|------:|-------|---------|
-| `roms/Metal Gear - Konami (1987) [Does not work on Non Japanese systems] [RC-750] [1473].rom` | 131072 | BE84C94F | `254ffcd94d9ba2322c00df88b21b33b338e3238b90962820bbcaa2bb621e18cf` |
+| Perfil | Bytes | CRC32 | SHA-256 |
+|--------|------:|-------|---------|
+| `en-eu-rc750` (inglesa oficial, europeia) | 131072 | E85C5731 | `d16fff4a59ce26b570851c7200f67e05f385978598dcad91c83bf9c671a295ae` |
 
-A ROM principal (128 KiB) é a candidata de trabalho. CRC diverge da referência
-japonesa (FAFE1303), mas 18.176 bytes de salas/metatiles são idênticos e 9
-segmentos (45.982 bytes) foram verificados byte-a-byte. **Nunca modificar a ROM.**
+Identidade e perfis recusados em `data/rom-profiles.json`; seleção somente por
+SHA-256 via `tools/rom.py` (`python3 -m tools.rom --check`). Nome do arquivo não
+importa. Montagem `JAPANESE equ 0` da referência é idêntica byte a byte
+(`--verify-build`). Captura com `C-BIOS_MSX2_EU`; Godot em 60 Hz. A ROM japonesa
+é ignorada salvo pedido explícito. Dados locais ainda vêm do dump japonês
+(`LEGACY_PENDING_REEXTRACTION`); reextração aguarda aprovação. Ver
+[compatibilidade](reverse_engineering/rom-compatibility.md). **Nunca modificar a ROM.**
 
 ---
 

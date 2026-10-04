@@ -35,8 +35,7 @@ Foram removidos a pintura com cor sólida, a limpeza indiscriminada de 6×4 tile
 ## Reprodução
 
 ```sh
-python3 tools/extractors/extract_prison_wall.py \
-  --rom 'roms/Metal Gear - Konami (1987) [Does not work on Non Japanese systems] [RC-750] [1473].rom'
+python3 tools/extractors/extract_prison_wall.py   # ROM canônica resolvida por tools/rom.py
 python3 tools/validate.py
 /Applications/Godot.app/Contents/MacOS/Godot --path godot \
   --script res://tests/prison_wall_integration_test.gd -- --render-check

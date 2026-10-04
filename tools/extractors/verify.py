@@ -10,9 +10,11 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0,str(ROOT))
 from tools.extractors.extract import build, encode, previews
 from tools.extractors.schema import validate_package
+from tools.rom import resolve_canonical_rom
 
 
 def verify(rom_path,reference,package_path,repeat=None):
+    rom_path=resolve_canonical_rom(rom_path).path
     original=rom_path.read_bytes()
     package=build(original,reference)
     validate_package(package)
@@ -48,7 +50,7 @@ def verify(rom_path,reference,package_path,repeat=None):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--rom',required=True,type=Path)
+    parser.add_argument('--rom',type=Path,help='Explicit ROM; validated against the canonical hash')
     parser.add_argument('--package',required=True,type=Path)
     parser.add_argument('--repeat-package',type=Path)
     parser.add_argument('--reference',type=Path,default=ROOT/'external/MetalGear')

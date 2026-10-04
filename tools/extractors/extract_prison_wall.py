@@ -4,7 +4,6 @@ Primary evidence: data/doors.asm:992-1031; drawdoors.asm:262-319;
 Banks0123.asm:1480-1531,4789-4809. No graphic bytes are embedded here.
 """
 import argparse
-import hashlib
 from pathlib import Path
 import sys
 
@@ -15,6 +14,7 @@ from tools.extractors.extract import build, encode, publish
 from tools.extractors.reference import load_reference
 from tools.extractors.batch_snapshots import build_palette
 from tools.extractors.codecs import png_indexed
+from tools.rom import resolve_canonical_rom
 
 
 def compose_wall(block, atlas, flags):
@@ -39,13 +39,14 @@ def compose_wall(block, atlas, flags):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--rom', type=Path, required=True)
+    parser.add_argument('--rom', type=Path, help='Explicit ROM; validated against the canonical hash')
     parser.add_argument('--reference', type=Path, default=ROOT / 'external/MetalGear')
     parser.add_argument('--output', type=Path, default=ROOT / 'data/extracted/prison-walls')
     args = parser.parse_args()
     if (ROOT / 'data/extracted').resolve() not in args.output.resolve().parents:
         raise ValueError('Output must be under private data/extracted')
-    rom = args.rom.read_bytes()
+    canonical = resolve_canonical_rom(args.rom)
+    rom = canonical.data
     package = build(rom, args.reference)
     ref = load_reference(args.reference, rom)
     files = {}
@@ -59,12 +60,11 @@ def main():
                             package['collision_profiles'][gfx]['movement_blocked_by_tile'])
         data.update(format_version='1.0.0', render_type=render_type,
                     palette_rgb=build_palette(package, room['palette_ref']),
-                    input_sha256=hashlib.sha256(rom).hexdigest(), evidence=ref.evidence(symbol, size))
+                    **canonical.provenance(), evidence=ref.evidence(symbol, size))
         files[f'wall-{render_type}.json'] = encode(data)
         files[f'wall-{render_type}.png'] = png_indexed(data['width'], data['height'], data['pixels'], data['palette_rgb'])
         print(symbol, ref.evidence(symbol, size))
-    if args.rom.read_bytes() != rom:
-        raise ValueError('Input changed during extraction')
+    canonical.assert_unchanged()
     publish(args.output, files)
     print('PRISON_WALL_EXPORT_OK: ROM unchanged; output', args.output)
 

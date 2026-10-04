@@ -8,6 +8,7 @@ Projeto de aprendizagem: engenharia reversa do Metal Gear original MSX2 RC750, r
    - **Passo zero não-negociável**: Antes de escrever ou alterar qualquer linha de código em GDScript ou Python para qualquer mecânica, cutscene, animação, temporizador, velocidade, colisão ou comportamento, é OBRIGATÓRIO inspecionar a rotina assembly Z80 correspondente e citar o arquivo e linhas exatas como evidência primária.
    - **Zero suposições**: É terminantemente proibido supor, estimar ou inferir comportamentos por intuição ou memória quando o código-fonte original está presente no projeto.
 3. Nunca modificar a ROM original. Ferramentas devem abrir entradas em modo somente leitura e escrever em outro destino.
+ - A única ROM canônica é a inglesa oficial definida em `data/rom-profiles.json`, obtida sempre por `tools/rom.py` (identificação por SHA-256, nunca por nome, ordem ou offset fixo). A ROM japonesa é ignorada salvo pedido explícito: não misturar, traduzir nem usar como fallback.
 4. Não versionar ROMs, código de terceiros ou assets protegidos sem verificar permissões. Referências externas ficam isoladas em external/, ignoradas. Não usar git add -f para contornar essa política.
 5. Priorizar ferramentas automáticas reutilizáveis em Python 3.
 6. Usar Godot 4 e GDScript com tipagem estática; sistemas pequenos e independentes.

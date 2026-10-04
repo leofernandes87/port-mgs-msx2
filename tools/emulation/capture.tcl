@@ -6,8 +6,10 @@ set save_settings_on_exit false
 set root [file dirname [info script]]
 
 set capture_mode "demo"
-if {[file exists [file join $root config.tcl]]} {
-    source [file join $root config.tcl]
+# capture.py writes the breakpoint addresses verified for the canonical ROM profile.
+source [file join $root config.tcl]
+foreach required {bp_load_tiles bp_room bp_doors bp_vdp_settled} {
+    if {![info exists $required]} {error "config.tcl lacks $required"}
 }
 
 set captured [dict create]
@@ -44,7 +46,7 @@ proc load_tiles_entry {} {
 }
 
 proc room_return {room} {
-    global root captured pending
+    global root captured pending bp_vdp_settled
     if {[dict exists $captured $room]} {return}
     dict set captured $room true
     set prefix [format "room-%03d" $room]
@@ -59,7 +61,7 @@ proc room_return {room} {
     puts $stream "capture_point RenderRoom_return_before_DrawDoors"
     close $stream
     if {[debug read {VDP status regs} 2] & 1} {
-        debug breakpoint create -address 0x4edb -once true -command [list settled $room]
+        debug breakpoint create -address $bp_vdp_settled -once true -command [list settled $room]
     } else {
         settled $room
     }
@@ -83,11 +85,11 @@ proc doors_entry {} {
 }
 
 proc doors_return {room} {
-    global doors_captured
+    global doors_captured bp_vdp_settled
     if {[dict exists $doors_captured $room]} {return}
     dict set doors_captured $room true
     if {[debug read {VDP status regs} 2] & 1} {
-        debug breakpoint create -address 0x4edb -once true -command [list doors_settled $room]
+        debug breakpoint create -address $bp_vdp_settled -once true -command [list doors_settled $room]
     } else {
         doors_settled $room
     }
@@ -116,9 +118,9 @@ proc room_entry {} {
     debug breakpoint create -address $target -once true -command [list room_return $room]
 }
 
-debug breakpoint create -address 0x4935 -command load_tiles_entry
-debug breakpoint create -address 0x4cf0 -command room_entry
-debug breakpoint create -address 0x775f -command doors_entry
+debug breakpoint create -address $bp_load_tiles -command load_tiles_entry
+debug breakpoint create -address $bp_room -command room_entry
+debug breakpoint create -address $bp_doors -command doors_entry
 
 # Gameplay navigation state machine (used when capture_mode is "gameplay")
 set gp_state 0

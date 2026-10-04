@@ -56,7 +56,7 @@ Os testes atuais afirmam explicitamente a pausa artificial, o percurso de 32 atu
 
 ## Reproduzir e continuar
 
-Evidências privadas preservadas em `data/extracted/intro-timing-20261001/{trace.tcl,trace.csv,manifest.json}`; log `reports/intro-timing-emulator.log`. O Tcl abre trace.csv para escrita: usar uma cópia em **novo diretório** ao repetir para preservar esta captura. Comando utilizado:
+Evidências privadas preservadas em `data/extracted/intro-timing-20261001/{trace.tcl,trace.csv,manifest.json}`; log `reports/intro-timing-emulator.log`. O Tcl abre trace.csv para escrita: usar uma cópia em **novo diretório** ao repetir para preservar esta captura. Comando utilizado na época, com o dump japonês (histórico; capturas novas usam a ROM canônica de `tools/rom.py` e `-machine C-BIOS_MSX2_EU`):
 
 ```sh
 /Applications/openMSX.app/Contents/MacOS/openmsx -machine C-BIOS_MSX2_JP -cart 'roms/Metal Gear - Konami (1987) [Does not work on Non Japanese systems] [RC-750] [1473].rom' -script data/extracted/intro-timing-20261001/trace.tcl

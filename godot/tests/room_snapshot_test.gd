@@ -34,6 +34,18 @@ func _run() -> void:
 	if not require(image.get_pixel(0, 0) == Color.RED and image.get_pixel(255, 191) == Color.GREEN,
 		"Pixel orientation or palette mapping failed"): return
 	if not require(model.collision[33] == 1, "Collision data lost"): return
+	if not require(model.provenance == RomProvenance.Status.SYNTHETIC, "Synthetic fixture not classified"): return
+	var foreign: Dictionary = fixture.duplicate(true)
+	foreign["input_sha256"] = "89cfeee7d990a6bed050dcffa12ddff179e1632f13450247ee8860587adec6f4"
+	if not require(model.decode(foreign) != OK and not model.loaded, "Non-canonical ROM provenance accepted"): return
+	foreign["input_sha256"] = "a".repeat(64)
+	if not require(model.decode(foreign) != OK, "Unknown ROM provenance accepted"): return
+	foreign["input_sha256"] = RomProvenance.CANONICAL_SHA256
+	if not require(model.decode(foreign) == OK and model.provenance == RomProvenance.Status.CANONICAL,
+		"Canonical ROM provenance rejected"): return
+	foreign["input_sha256"] = RomProvenance.LEGACY_PENDING_REEXTRACTION_SHA256
+	if not require(model.decode(foreign) == OK and model.provenance == RomProvenance.Status.LEGACY_PENDING_REEXTRACTION,
+		"Legacy snapshot not flagged as pending re-extraction"): return
 	var malformed: Dictionary = fixture.duplicate(true)
 	var invalid_pixels: Array = []
 	invalid_pixels.assign(pixels)
@@ -69,6 +81,8 @@ func _run() -> void:
 		if not require(real_snap.pixels.size() == 49152, "pixels size incorreto"): return
 		if not require(real_snap.collision.size() == 768, "collision size incorreto"): return
 		if not require(real_snap.colors.size() == 18, "palette size incorreto"): return
+		if not require(real_snap.provenance in [RomProvenance.Status.CANONICAL, RomProvenance.Status.LEGACY_PENDING_REEXTRACTION],
+			"snapshot real com proveniência inesperada"): return
 		print("ROOM_SNAPSHOT_OK: stage5-batch room-000 carregado com sucesso (real ROM data)")
 	else:
 		# stage5-batch não disponível neste ambiente; testar apenas sintético

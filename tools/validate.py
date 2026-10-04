@@ -15,6 +15,22 @@ def find_godot():
             return candidate
     raise RuntimeError("Godot ausente: defina GODOT_BIN com o caminho do executável")
 
+def check_rom_profile(reports):
+    """Private ROM is optional; when present it must be exactly the canonical profile."""
+    roms = ROOT / "roms"
+    private = [p for p in roms.iterdir() if p.is_file() and not p.name.startswith(".")
+               and p.name != "README.md"] if roms.is_dir() else []
+    if not private and not os.environ.get("MG_ROM"):
+        print("rom-profile: SKIP (nenhuma ROM privada disponível)")
+        return
+    result = subprocess.run([sys.executable, "-m", "tools.rom", "--check"], cwd=ROOT, text=True,
+                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120)
+    (reports / "rom-profile.log").write_text(result.stdout)
+    print(result.stdout, end="")
+    if result.returncode or "ROM_CHECK_OK:" not in result.stdout:
+        raise RuntimeError("rom-profile falhou: ROM canônica ausente ou divergente; consulte reports/")
+    print("rom-profile: PASS")
+
 def main():
     godot = find_godot()
     version = subprocess.check_output([godot, "--version"], text=True).strip()
@@ -22,6 +38,7 @@ def main():
         raise RuntimeError("Godot 4 obrigatório: " + version)
     reports = ROOT / "reports"
     reports.mkdir(exist_ok=True)
+    check_rom_profile(reports)
     commands = [
         ("python-tests", [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"]),
         ("godot-import", [godot, "--headless", "--path", str(ROOT / "godot"), "--editor", "--quit"]),

@@ -312,97 +312,91 @@ class ExportRoomDataTests(unittest.TestCase):
         self.assertEqual(data0['doors'][0]['destination_room_id'], 4)
 
     def test_extract_respawn_info_synthetic(self):
-        from tools.extractors.extract_respawn_info import extract_respawn_info, RESPAWN_INFO_ROM_OFFSET, TOTAL_ROOMS
-        # Create synthetic buffer with header padding up to RESPAWN_INFO_ROM_OFFSET
-        raw = bytearray(RESPAWN_INFO_ROM_OFFSET + TOTAL_ROOMS * 3)
+        from tools.extractors.extract_respawn_info import extract_respawn_info
+        offset, rooms = 37, 4
+        raw = bytearray(offset + rooms * 3)
         # Room 0: enemy 10, loc1=0x19 (Y=16, X=144), loc2=0xAF (Y=160, X=240)
-        raw[RESPAWN_INFO_ROM_OFFSET:RESPAWN_INFO_ROM_OFFSET + 3] = bytes([10, 0x19, 0xAF])
-        with tempfile.NamedTemporaryFile(suffix='.rom', delete=False) as tf:
-            tf.write(raw)
-            tmp_path = Path(tf.name)
-        try:
-            res = extract_respawn_info(tmp_path)
-            self.assertEqual(res['format_version'], '1.0.0')
-            self.assertEqual(len(res['rooms']), 189)
-            room0 = res['rooms'][0]
-            self.assertEqual(room0['room_id'], 0)
-            self.assertEqual(room0['enemy_id'], 10)
-            self.assertEqual(room0['enemy_name'], 'GUARD_ALERT')
-            self.assertEqual(room0['spawn_points'], [{'x': 144, 'y': 16}, {'x': 240, 'y': 160}])
-        finally:
-            tmp_path.unlink(missing_ok=True)
+        raw[offset:offset + 3] = bytes([10, 0x19, 0xAF])
+        res = extract_respawn_info(bytes(raw), offset, rooms)
+        self.assertEqual(res['format_version'], '1.0.0')
+        self.assertEqual(len(res['rooms']), rooms)
+        room0 = res['rooms'][0]
+        self.assertEqual(room0['room_id'], 0)
+        self.assertEqual(room0['enemy_id'], 10)
+        self.assertEqual(room0['enemy_name'], 'GUARD_ALERT')
+        self.assertEqual(room0['spawn_points'], [{'x': 144, 'y': 16}, {'x': 240, 'y': 160}])
+        with self.assertRaises(ValueError):
+            extract_respawn_info(bytes(raw), offset, rooms + 1)
 
     def test_extract_capture_prison_data_synthetic(self):
-        from tools.extractors.extract_capture_prison_data import (
-            extract_capture_prison_data, DOOR_165_ROM_OFFSET, ITEM_BAG_ROM_OFFSET
-        )
-        raw = bytearray(DOOR_165_ROM_OFFSET + 10)
-        raw[DOOR_165_ROM_OFFSET:DOOR_165_ROM_OFFSET + 5] = bytes([0x67, 0x0E, 0x20, 0x20, 0xA4])
-        raw[ITEM_BAG_ROM_OFFSET:ITEM_BAG_ROM_OFFSET + 4] = bytes([0x22, 0x20, 0x88, 0xFF])
-        with tempfile.NamedTemporaryFile(suffix='.rom', delete=False) as tf:
-            tf.write(raw)
-            tmp_path = Path(tf.name)
-        try:
-            res = extract_capture_prison_data(tmp_path)
-            self.assertEqual(res['format_version'], '1.0.0')
-            self.assertEqual(res['capture_trigger']['room_id'], 8)
-            self.assertEqual(res['capture_trigger']['min_x'], 192)
-            self.assertEqual(res['capture_trigger']['max_x'], 208)
-            self.assertEqual(res['prison_cell']['room_id'], 211)
-            self.assertEqual(res['hollow_wall']['life_ticks'], 40)
-            self.assertEqual(res['hollow_wall']['wall_rect'], [32, 32, 24, 104])
-            self.assertEqual(res['hollow_wall']['on_break'], 'restore_saved_background')
-            self.assertEqual(res['restitution_bag']['room_id'], 212)
-            self.assertEqual(res['restitution_bag']['item_id'], 'BAG')
-        finally:
-            tmp_path.unlink(missing_ok=True)
+        from tools.extractors.extract_capture_prison_data import extract_capture_prison_data
+        door, bag = 100, 20
+        raw = bytearray(door + 10)
+        raw[door:door + 5] = bytes([0x67, 0x0E, 0x20, 0x20, 0xA4])
+        raw[bag:bag + 4] = bytes([0x22, 0x20, 0x88, 0xFF])
+        with self.assertRaises(ValueError):
+            extract_capture_prison_data(bytes(raw), door, bag + 1)
+        res = extract_capture_prison_data(bytes(raw), door, bag)
+        self.assertEqual(res['format_version'], '1.0.0')
+        self.assertEqual(res['capture_trigger']['room_id'], 8)
+        self.assertEqual(res['capture_trigger']['min_x'], 192)
+        self.assertEqual(res['capture_trigger']['max_x'], 208)
+        self.assertEqual(res['prison_cell']['room_id'], 211)
+        self.assertEqual(res['hollow_wall']['life_ticks'], 40)
+        self.assertEqual(res['hollow_wall']['wall_rect'], [32, 32, 24, 104])
+        self.assertEqual(res['hollow_wall']['on_break'], 'restore_saved_background')
+        self.assertEqual(res['restitution_bag']['room_id'], 212)
+        self.assertEqual(res['restitution_bag']['item_id'], 'BAG')
 
     def test_extract_electrified_floor_data_synthetic(self):
         from tools.extractors.extract_electrified_floor_data import (
             extract_electrified_floor_data,
-            CHK_ELECTRIC_FLOOR_ROM_OFFSET,
             CHK_ELECTRIC_FLOOR_SIGNATURE,
         )
-        raw = bytearray(CHK_ELECTRIC_FLOOR_ROM_OFFSET + len(CHK_ELECTRIC_FLOOR_SIGNATURE) + 10)
-        raw[CHK_ELECTRIC_FLOOR_ROM_OFFSET : CHK_ELECTRIC_FLOOR_ROM_OFFSET + len(CHK_ELECTRIC_FLOOR_SIGNATURE)] = (
-            CHK_ELECTRIC_FLOOR_SIGNATURE
-        )
-
+        offset = 50
+        raw = bytearray(offset + len(CHK_ELECTRIC_FLOOR_SIGNATURE) + 10)
+        raw[offset:offset + len(CHK_ELECTRIC_FLOOR_SIGNATURE)] = CHK_ELECTRIC_FLOOR_SIGNATURE
         synthetic_pkg = {
             "rooms": [
                 {"id": i, "expanded_tiles": [0x60 if (i == 37 and idx == 100) else 0 for idx in range(768)]}
                 for i in range(120)
             ]
         }
+        with self.assertRaises(ValueError):
+            extract_electrified_floor_data(bytes(raw), offset + 1, synthetic_pkg)
+        with self.assertRaises(ValueError):
+            extract_electrified_floor_data(bytes(raw), offset, {"rooms": synthetic_pkg["rooms"][:20]})
 
-        with tempfile.NamedTemporaryFile(suffix=".rom", delete=False) as tf, tempfile.NamedTemporaryFile(
-            suffix=".json", mode="w", delete=False, encoding="utf-8"
-        ) as pf:
-            tf.write(raw)
-            tmp_rom_path = Path(tf.name)
-            json.dump(synthetic_pkg, pf)
-            tmp_pkg_path = Path(pf.name)
+        res = extract_electrified_floor_data(bytes(raw), offset, synthetic_pkg)
+        self.assertEqual(res["format_version"], "1.0.0")
+        self.assertEqual(res["damage_per_shock"], 2)
+        self.assertEqual(res["shock_delay_ticks"], 8)
+        self.assertEqual(res["sfx_id"], 24)
+        self.assertEqual(res["total_electrified_rooms"], 5)
 
-        try:
-            res = extract_electrified_floor_data(tmp_rom_path, tmp_pkg_path)
-            self.assertEqual(res["format_version"], "1.0.0")
-            self.assertEqual(res["damage_per_shock"], 2)
-            self.assertEqual(res["shock_delay_ticks"], 8)
-            self.assertEqual(res["sfx_id"], 24)
-            self.assertEqual(res["total_electrified_rooms"], 5)
+        r37 = next(r for r in res["rooms"] if r["room_id"] == 37)
+        self.assertEqual(r37["hazard_tile_ids"], [96, 97])
+        self.assertEqual(r37["power_panel"]["x"], 100)
+        self.assertEqual(r37["power_panel"]["y"], 16)
+        self.assertEqual(r37["power_panel"]["hp"], 2)
+        self.assertIn("MISSILE", r37["power_panel"]["vulnerable_to"])
+        self.assertIn("HANDGUN", r37["power_panel"]["immune_to"])
+        self.assertEqual(r37["hazard_tiles_count"], 1)
+        self.assertEqual(r37["hazard_tile_coords"], [[100 % 32, 100 // 32]])
 
-            # Check room 37
-            r37 = next(r for r in res["rooms"] if r["room_id"] == 37)
-            self.assertEqual(r37["hazard_tile_ids"], [96, 97])
-            self.assertEqual(r37["power_panel"]["x"], 100)
-            self.assertEqual(r37["power_panel"]["y"], 16)
-            self.assertEqual(r37["power_panel"]["hp"], 2)
-            self.assertIn("MISSILE", r37["power_panel"]["vulnerable_to"])
-            self.assertIn("HANDGUN", r37["power_panel"]["immune_to"])
-            self.assertEqual(r37["hazard_tiles_count"], 1)
-            self.assertEqual(r37["hazard_tile_coords"], [[100 % 32, 100 // 32]])
-        finally:
-            tmp_rom_path.unlink(missing_ok=True)
-            tmp_pkg_path.unlink(missing_ok=True)
+    def test_gas_and_missile_decoders_synthetic(self):
+        from tools.extractors.extract_gas_hazard import extract_gas_hazard, CANONICAL_GAS_ROOMS
+        from tools.extractors.extract_missile_data import extract_missile_data, CANONICAL_SPEEDS
+        raw = bytearray(200)
+        raw[11:20] = bytes(CANONICAL_GAS_ROOMS)
+        self.assertEqual(extract_gas_hazard(bytes(raw), 11)['gas_rooms'], CANONICAL_GAS_ROOMS)
+        with self.assertRaises(ValueError):
+            extract_gas_hazard(bytes(raw), 12)
+        raw[30:38] = bytes(v & 0xFF for v in CANONICAL_SPEEDS)
+        for rank, units in enumerate((0x05, 0x10, 0x15, 0x20)):
+            raw[100 + rank * 16 + 12] = units
+        data = extract_missile_data(bytes(raw), 30, 100)
+        self.assertEqual(data['ammo_capacity_per_rank'], {'rank_1': 5, 'rank_2': 10, 'rank_3': 15, 'rank_4': 20})
+        self.assertEqual(data['rom_offsets'], {'speed_table': '0x001E', 'max_ammo_table': '0x0064'})
 
 

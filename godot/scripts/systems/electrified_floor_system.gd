@@ -3,7 +3,7 @@ extends RefCounted
 
 ## Gerenciador do perigo ambiental de Pisos Eletrificados e Painéis de Força (Etapa 22).
 ## Lógica revertida de logic/damageelectric.asm (ChkElectricFloor, ChkElectricFloor2, ChkElectricFloor3),
-## logic/actors/powerswitch.asm e offset 0x4C0D na ROM MSX2 RC750.
+## e logic/actors/powerswitch.asm.
 
 const ROOM_SOLDIER: int = 16
 const ROOM_SWITCH_1: int = 37

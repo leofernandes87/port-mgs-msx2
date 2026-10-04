@@ -8,9 +8,12 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import sys
 import zlib
 
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 REFERENCE = ROOT / 'external/MetalGear'
 PINNED_REVISION = '30d1b940bede10fdabbaf9767ad4f0ad8dd33291'
 EXPECTED = {'FAFE1303': 'Japanese (reference README)', 'E85C5731': 'English (reference README)'}
@@ -146,7 +149,7 @@ def expand_metatiles(room, definitions):
     return bytes(output)
 
 
-def run():
+def run(inventory_all=False):
     revision = subprocess.check_output(['git', '-C', str(REFERENCE), 'rev-parse', 'HEAD'], text=True).strip()
     if revision != PINNED_REVISION:
         raise ValueError('Reference revision changed; review the documented layout first')
@@ -168,13 +171,20 @@ def run():
               'segment': {'files': source_files, 'bytes': len(segment), 'expected_offset': expected_offset,
                           'sha256': hashlib.sha256(segment).hexdigest()},
               'roms': [], 'ram_symbols': ram_map((REFERENCE / 'Variables.asm').read_text())}
-    for p in sorted((ROOT / 'roms').iterdir()):
-        if p.suffix.lower() != '.rom' or not p.is_file():
-            continue
+    from tools.rom import identify, load_profiles, resolve_canonical_rom
+    profiles = load_profiles()
+    if inventory_all:
+        # Comparative inventory only; non-canonical entries are labelled, never used as inputs.
+        inputs = sorted(p for p in (ROOT / 'roms').iterdir() if p.is_file() and p.suffix.lower() == '.rom')
+    else:
+        inputs = [resolve_canonical_rom().path]
+    for p in inputs:
         data = p.read_bytes()
         crc = f'{zlib.crc32(data) & 0xffffffff:08X}'
         sha = hashlib.sha256(data).hexdigest()
-        entry = {'file': str(p.relative_to(ROOT)), 'size': len(data), 'crc32': crc,
+        profile_id = identify(data, profiles)
+        entry = {'file': str(p.relative_to(ROOT)), 'rom_profile': profile_id,
+                 'canonical': profile_id == profiles['canonical'], 'size': len(data), 'crc32': crc,
                  'sha1': hashlib.sha1(data).hexdigest(), 'sha256': sha,
                  'checksum_match': EXPECTED.get(crc),
                  'ab_header_offsets_tested': [n for n in (0, 16, 512) if data[n:n+2] == b'AB'],
@@ -228,4 +238,8 @@ def run():
     print(json.dumps({k:v for k,v in report.items() if k not in ('ram_symbols','source_hashes','symbols','include_edges')}, indent=2))
 
 if __name__ == '__main__':
-    run()
+    import argparse
+    parser = argparse.ArgumentParser(description='Lexical inventory and canonical ROM comparison; read-only.')
+    parser.add_argument('--inventory-all', action='store_true',
+                        help='Also inventory every .rom in roms/ (labelled by profile; not extraction inputs)')
+    run(parser.parse_args().inventory_all)

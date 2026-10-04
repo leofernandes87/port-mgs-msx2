@@ -1,8 +1,8 @@
 """Extração e validação dos dados canônicos da arma Remote-Controlled Missile (RC Missile).
 
-Offsets na ROM MSX2 RC750:
-- 0x48DE: Tabela de velocidades direcionais (MissileIniSpeed: -4, 0, 4, 0, 0, -4, 0, 4)
-- 0x51D6: Tabelas de capacidade máxima de munição por patente (MaxAmmoLv1..4)
+Tabelas localizadas pelos bytes da fonte na ROM canônica, nunca por offset fixo:
+- MissileIniSpeed (logic/weapon/missile.asm:80): velocidades direcionais (-4, 0, 4, 0, 0, -4, 0, 4)
+- MaxAmmoLv1..MaxAmmoLv4 (logic/maxammo.asm:112-146): capacidade máxima de munição por patente
 Inputs são abertos estritamente em modo somente leitura.
 """
 from __future__ import annotations
@@ -14,14 +14,17 @@ import struct
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ROM = ROOT / "roms" / "Metal Gear - Konami (1987) [Does not work on Non Japanese systems] [RC-750] [1473].rom"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools.rom import resolve_canonical_rom, REFERENCE
+from tools.extractors.reference import Reference
+
 DEFAULT_OUTPUT = ROOT / "data" / "extracted" / "missile_weapon.json"
 
-SPEED_TABLE_ROM_OFFSET = 0x48DE
 SPEED_TABLE_LENGTH = 8
 CANONICAL_SPEEDS = [-4, 0, 4, 0, 0, -4, 0, 4]
 
-MAX_AMMO_ROM_OFFSET = 0x51D6
+MAX_AMMO_TABLE_LENGTH = 4 * 16
 MISSILE_AMMO_PER_RANK = {
     1: 5,
     2: 10,
@@ -33,29 +36,23 @@ DAMAGE_VALUE = 5
 EXPLOSION_DURATION_TICKS = 15  # 0x0F (missile.asm:165)
 
 
-def extract_missile_data(rom_path: Path) -> dict:
-    if not rom_path.exists():
-        raise FileNotFoundError(f"ROM not found at {rom_path}")
-
-    with rom_path.open("rb") as f:
-        rom_bytes = f.read()
-
-    # 1. Validar velocidades direcionais na ROM (0x48DE)
-    if len(rom_bytes) < SPEED_TABLE_ROM_OFFSET + SPEED_TABLE_LENGTH:
+def extract_missile_data(rom_bytes: bytes, speed_offset: int, max_ammo_offset: int) -> dict:
+    if len(rom_bytes) < speed_offset + SPEED_TABLE_LENGTH:
         raise ValueError("ROM size too small for MissileIniSpeed table")
+    if len(rom_bytes) < max_ammo_offset + MAX_AMMO_TABLE_LENGTH:
+        raise ValueError("ROM size too small for MaxAmmo tables")
 
-    raw_speeds = rom_bytes[SPEED_TABLE_ROM_OFFSET:SPEED_TABLE_ROM_OFFSET + SPEED_TABLE_LENGTH]
+    raw_speeds = rom_bytes[speed_offset:speed_offset + SPEED_TABLE_LENGTH]
     extracted_speeds = [struct.unpack("b", bytes([b]))[0] for b in raw_speeds]
     if extracted_speeds != CANONICAL_SPEEDS:
         raise ValueError(
             f"Velocidades extraídas {extracted_speeds} não conferem com o padrão canônico {CANONICAL_SPEEDS}"
         )
 
-    # 2. Validar capacidades de munição por rank (0x51D6)
     # Estrutura: 4 níveis, cada um com 8 words (16 bytes). Índice 6 = MISSILE.
     extracted_capacities = {}
     for rank in range(1, 5):
-        off = MAX_AMMO_ROM_OFFSET + (rank - 1) * 16 + (6 * 2)
+        off = max_ammo_offset + (rank - 1) * 16 + (6 * 2)
         val = struct.unpack("<H", rom_bytes[off:off + 2])[0]
         # Converte representação BCD hex para inteiro decimal
         bcd_decimal = (val >> 8) * 100 + ((val & 0xF0) >> 4) * 10 + (val & 0x0F)
@@ -74,8 +71,8 @@ def extract_missile_data(rom_path: Path) -> dict:
         "description": "Míssil teleguiado por controle remoto em tempo real (MSX2 RC750)",
         "source": "logic/weapon/missile.asm e logic/maxammo.asm",
         "rom_offsets": {
-            "speed_table": f"0x{SPEED_TABLE_ROM_OFFSET:04X}",
-            "max_ammo_table": f"0x{MAX_AMMO_ROM_OFFSET:04X}"
+            "speed_table": f"0x{speed_offset:04X}",
+            "max_ammo_table": f"0x{max_ammo_offset:04X}"
         },
         "directional_speeds": {
             "UP": {"speed_y": extracted_speeds[0], "speed_x": extracted_speeds[1]},
@@ -109,12 +106,20 @@ def extract_missile_data(rom_path: Path) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Extrair especificação da arma RC Missile da ROM do Metal Gear MSX2")
-    parser.add_argument("--rom", type=Path, default=DEFAULT_ROM, help="Caminho para a ROM RC750")
+    parser = argparse.ArgumentParser(description="Extrair especificação da arma RC Missile da ROM canônica do Metal Gear MSX2")
+    parser.add_argument("--rom", type=Path, help="ROM explícita; validada pelo hash canônico")
     parser.add_argument("--out", type=Path, default=DEFAULT_OUTPUT, help="Caminho de saída do JSON")
     args = parser.parse_args()
 
-    data = extract_missile_data(args.rom)
+    rom = resolve_canonical_rom(args.rom)
+    ref = Reference(REFERENCE, rom.data)
+    ref.literal("logic/weapon/missile.asm", "MissileIniSpeed")
+    if len(ref.table("logic/maxammo.asm", "MaxAmmoLv1", "MaxAmmoVals")) != MAX_AMMO_TABLE_LENGTH:
+        raise ValueError("MaxAmmoLv1..4 source tables changed size")
+    data = extract_missile_data(rom.data, ref.symbols["MissileIniSpeed"], ref.symbols["MaxAmmoLv1"])
+    data.update(rom.provenance(), evidence=[ref.evidence("MissileIniSpeed", SPEED_TABLE_LENGTH),
+                                            ref.evidence("MaxAmmoLv1", MAX_AMMO_TABLE_LENGTH)])
+    rom.assert_unchanged()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
