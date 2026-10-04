@@ -20,6 +20,8 @@ extends RefCounted
 ## Lógica revertida de Banks0123.asm (GetNextRoomNum, ChkExitRoom) e logic/nextroom.asm (SetRoomEntryXY).
 
 const NO_ROOM: int = 255
+## Relative to RomProvenance.CANONICAL_DATA_DIR; local aliases (211/212/54) shadow rooms/.
+const ROOM_DATA_DIRS: Array[String] = ["local-aliases", "rooms"]
 
 # Limites exatos de disparo de saída da tela (ChkExitRoom em Banks0123.asm:9418)
 const EXIT_LEFT_X: float = 12.0
@@ -274,25 +276,16 @@ static func get_entry_position(exit_dir: int, current_pos: Vector2) -> Vector2:
 		_:
 			return current_pos
 
-## Carrega um RoomSnapshot a partir dos caminhos locais validados.
+## Carrega um RoomSnapshot extraído da ROM canônica.
 func load_room_snapshot(room_id: int) -> RoomSnapshot:
 	if _snapshot_cache.has(room_id):
 		return _snapshot_cache[room_id] as RoomSnapshot
 
-	var candidate_paths: Array[String] = [
-		ProjectSettings.globalize_path("res://../data/extracted/stage5-batch/room-%03d.json" % room_id),
-		ProjectSettings.globalize_path("res://../data/extracted/stage5-item-rooms/room-%03d.json" % room_id),
-		ProjectSettings.globalize_path("res://../data/extracted/stage5-lorries/room-%03d.json" % room_id),
-		ProjectSettings.globalize_path("res://../data/extracted/stage5-elevators/room-%03d.json" % room_id),
-		ProjectSettings.globalize_path("res://../data/extracted/stage4c-validated/room-%03d.json" % room_id),
-		ProjectSettings.globalize_path("res://../data/extracted/stage4b-validated/room-%03d.json" % room_id),
-		ProjectSettings.globalize_path("res://../data/extracted/stage4-validated/room-%03d.json" % room_id)
-	]
-
-	for path: String in candidate_paths:
+	for dir: String in ROOM_DATA_DIRS:
+		var path: String = RomProvenance.canonical_path("%s/room-%03d.json" % [dir, room_id])
 		if FileAccess.file_exists(path):
 			var snap := RoomSnapshot.new()
-			if snap.load_path(path) == OK:
+			if snap.load_path(path) == OK and snap.provenance == RomProvenance.Status.CANONICAL:
 				_snapshot_cache[room_id] = snap
 				return snap
 
@@ -312,24 +305,14 @@ func load_room_snapshot(room_id: int) -> RoomSnapshot:
 
 	return null
 
-## Carrega metadados de atores, itens e portas canônicas da sala a partir de stage5-batch, stage5-lorries ou stage5-elevators.
+## Carrega metadados de atores, itens e portas da sala extraídos da ROM canônica.
 func load_room_actors(room_id: int) -> Dictionary:
 	if _actors_cache.has(room_id):
 		return _actors_cache[room_id] as Dictionary
 
-	var candidate_paths: Array[String] = [
-		ProjectSettings.globalize_path("res://../data/extracted/stage5-batch/room-%03d-actors.json" % room_id),
-		ProjectSettings.globalize_path("res://../data/extracted/stage5-item-rooms/room-%03d-actors.json" % room_id),
-		ProjectSettings.globalize_path("res://../data/extracted/stage5-lorries/room-%03d-actors.json" % room_id),
-		ProjectSettings.globalize_path("res://../data/extracted/stage5-elevators/room-%03d-actors.json" % room_id)
-	]
-	for path: String in candidate_paths:
-		if FileAccess.file_exists(path):
-			var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-			if file != null:
-				var parser: JSON = JSON.new()
-				if parser.parse(file.get_as_text()) == OK and parser.data is Dictionary:
-					var data: Dictionary = parser.data as Dictionary
-					_actors_cache[room_id] = data
-					return data
+	for dir: String in ROOM_DATA_DIRS:
+		var data: Dictionary = RomProvenance.load_canonical_json("%s/room-%03d-actors.json" % [dir, room_id])
+		if not data.is_empty():
+			_actors_cache[room_id] = data
+			return data
 	return {}

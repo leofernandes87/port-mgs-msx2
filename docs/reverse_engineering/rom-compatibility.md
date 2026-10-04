@@ -12,7 +12,7 @@
 
 Perfis conhecidos e **recusados** (identificados pelo nome do perfil na mensagem de erro): `jp-rc750-local` (dump japonês local descrito abaixo, 1 byte diferente da montagem `JAPANESE equ 1` em 0x1322), `en-nekura-hoka-1.995c` (tradução de fãs) e `en-6873-bitflip` (variante inglesa com dois bits trocados em 0x7CE1 e 0x13272, movida para fora de `roms/`). A ROM japonesa só deve ser usada a pedido explícito; nunca como fallback, fonte de tradução ou mistura.
 
-**Dados ainda não reextraídos:** os JSON locais em `data/extracted/` têm `input_sha256` do dump japonês. O Godot os aceita apenas como `LEGACY_PENDING_REEXTRACTION` (`godot/scripts/systems/rom_provenance.gd`), com aviso único; reextrair da ROM canônica e remover essa exceção é o critério de saída da próxima fase. Diferenças EN×JP a revalidar depois: texto de coleta de item (`logic/items.asm:409`), configuração de rádio/música (`musicradioconfig.asm:16-20`), nomes de armas, `flagTxtItem` e demo.
+**Dados reextraídos (fase 4):** todos os dados consumidos estão em `data/extracted/en-eu-rc750/` com `rom_profile = en-eu-rc750` e o SHA-256 canônico. O Godot (`godot/scripts/systems/rom_provenance.gd`) aceita somente esse par ou o par sintético; não há mais exceção para o dump japonês. Os dados antigos ficam em `data/extracted/legacy-jp-rc750-local/` apenas para comparação. Relatório e divergências EN×JP a tratar: [en-eu-reextraction.md](en-eu-reextraction.md).
 
 O restante deste documento é o histórico da análise anterior, quando apenas o dump japonês estava disponível.
 

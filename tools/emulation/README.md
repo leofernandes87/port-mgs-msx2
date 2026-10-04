@@ -9,17 +9,19 @@ Na volta de RenderRoom, coleta RAM e VRAM. Se o VDP ainda estiver ocupado, captu
 ```sh
 python3 -m tools.rom --check
 python3 tools/emulation/capture.py --output data/extracted/minha-captura
-python3 tools/emulation/compare.py --package data/extracted/rc750-verified/package.json --capture data/extracted/minha-captura --output data/extracted/meus-snapshots
+python3 tools/emulation/compare.py --package data/extracted/en-eu-rc750/package/package.json --capture data/extracted/minha-captura --output data/extracted/meus-snapshots
 ```
 
-`compare.py` verifica hashes, contrato de extração, 768 bytes de RoomTileBuffer, todos os tiles carregados do tileset, registros de portas de 16 bytes e 49.152 pixels do fundo. Preenche graficamente slots antes nulos apenas com a VRAM observada **daquela sala/captura**, não por regra global. O arquivo JSON resultante é contrato diagnóstico, não substitui a representação original por metatiles.
+`compare.py` exige que pacote e captura tenham `rom_profile = en-eu-rc750` e o SHA-256 canônico. Verifica hashes, contrato de extração, 768 bytes de RoomTileBuffer, todos os tiles carregados do tileset, registros de portas de 16 bytes e 49.152 pixels do fundo. Preenche graficamente slots antes nulos apenas com a VRAM observada **daquela sala/captura**, não por regra global. O arquivo JSON resultante é contrato diagnóstico, não substitui a representação original por metatiles.
 
-Dados desta entrega: `emulator-stage4-settled/` contém captura final; `stage4-validated/` contém snapshots, PNGs, checksums e comparison.json. `emulator-stage4/` e `stage4-snapshots/` são investigações intermediárias preservadas. Toda saída real permanece ignorada.
+Dados canônicos: `en-eu-rc750/emulator-demo` e `en-eu-rc750/emulator-gameplay` contêm as capturas; `*-validated/` os snapshots comparados ao pacote europeu. As capturas antigas do dump japonês ficam preservadas em `legacy-jp-rc750-local/` apenas para o relatório de diferenças; o Godot não as aceita. Toda saída real permanece ignorada.
+
+`run_trace.py` executa um script Tcl de trace na ROM canônica com a máquina do perfil. `--map OLD=NEW` reloca literais hexadecimais de endereços de scripts antigos e `--expect CPU=BYTE` confere opcodes nos bancos fixos antes de gravar o manifesto.
 
 Visualizador, na raiz do projeto (caminho de snapshot absoluto):
 
 ```sh
-/Applications/Godot.app/Contents/MacOS/Godot --path godot res://scenes/room_inspector.tscn -- --snapshot /caminho/absoluto/data/extracted/stage4-validated/room-005.json
+/Applications/Godot.app/Contents/MacOS/Godot --path godot res://scenes/room_inspector.tscn -- --snapshot /caminho/absoluto/data/extracted/en-eu-rc750/emulator-demo-validated/room-005.json
 ```
 
 Alternativamente execute `godot/scenes/room_inspector.tscn` com F6 e use **Abrir snapshot local**. Escolha `room-NNN.json`, não package.json. O botão de colisão mostra a máscara estática. A cena principal original permanece independente de ROM. Não copia dados para res:// nem salva recursos protegidos no projeto Godot.

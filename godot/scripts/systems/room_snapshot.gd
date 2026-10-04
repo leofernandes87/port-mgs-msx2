@@ -77,7 +77,7 @@ func decode(data: Dictionary) -> Error:
 	hash_pattern.compile("^[0-9a-f]{64}$")
 	if hash_pattern.search(data["input_sha256"]) == null:
 		return _fail("Hash de origem inválido.")
-	var origin: RomProvenance.Status = RomProvenance.classify(data["input_sha256"])
+	var origin: RomProvenance.Status = RomProvenance.classify_record(data)
 	if origin == RomProvenance.Status.REJECTED:
 		return _fail("Snapshot não extraído da ROM canônica.")
 	room_id = int(data["room_id"])

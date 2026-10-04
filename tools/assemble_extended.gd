@@ -32,17 +32,8 @@ func _init() -> void:
         var img_x: int = x * room_w
         var img_y: int = (height - 1 - y) * room_h
         
-        var img_path: String = "res://../data/extracted/stage5-batch/room-%03d.png" % room_id
+        var img_path: String = "res://../data/extracted/en-eu-rc750/rooms/room-%03d.png" % room_id
         var abs_path: String = ProjectSettings.globalize_path(img_path)
-        if not FileAccess.file_exists(abs_path):
-            img_path = "res://../data/extracted/stage4c-validated/room-%03d.png" % room_id
-            abs_path = ProjectSettings.globalize_path(img_path)
-        if not FileAccess.file_exists(abs_path):
-            img_path = "res://../data/extracted/stage5-lorries/room-%03d.png" % room_id
-            abs_path = ProjectSettings.globalize_path(img_path)
-        if not FileAccess.file_exists(abs_path):
-            img_path = "res://../data/extracted/stage5-elevators/room-%03d.png" % room_id
-            abs_path = ProjectSettings.globalize_path(img_path)
         
         if FileAccess.file_exists(abs_path):
             var room_img: Image = Image.load_from_file(abs_path)

@@ -105,6 +105,23 @@ def resolve_canonical_rom(path: Optional[Path] = None, *, roms_dir: Path = ROMS_
     return _accept(min(matches), profiles)
 
 
+def canonical_data_dir(profiles: Optional[dict] = None) -> Path:
+    """Every artifact consumed downstream lives under data/extracted/<canonical profile id>/."""
+    return ROOT / 'data/extracted' / (profiles or load_profiles())['canonical']
+
+
+def require_canonical_provenance(record: dict, profiles: Optional[dict] = None) -> None:
+    """Derived data is usable only when it names both the canonical profile and its hash."""
+    profiles = profiles or load_profiles()
+    canonical = profiles['canonical']
+    expected_sha = profiles['profiles'][canonical]['sha256']
+    profile, digest = record.get('rom_profile'), record.get('input_sha256')
+    if (profile, digest) != (canonical, expected_sha):
+        known = next((k for k, v in profiles['profiles'].items() if v['sha256'] == digest), None)
+        raise RomError(f'Derived data is not from "{canonical}" (rom_profile={profile!r}, '
+                       f'input_sha256 matches {known or "no known profile"}); re-extract it')
+
+
 def verify_build(rom: CanonicalRom, sjasm: Path, reference: Path = REFERENCE) -> None:
     """Assemble a private copy of the reference with its default JAPANESE equ 0 and compare all bytes."""
     with tempfile.TemporaryDirectory(prefix='mg-build-') as tmp:

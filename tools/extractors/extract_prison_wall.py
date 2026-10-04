@@ -14,7 +14,7 @@ from tools.extractors.extract import build, encode, publish
 from tools.extractors.reference import load_reference
 from tools.extractors.batch_snapshots import build_palette
 from tools.extractors.codecs import png_indexed
-from tools.rom import resolve_canonical_rom
+from tools.rom import resolve_canonical_rom, canonical_data_dir
 
 
 def compose_wall(block, atlas, flags):
@@ -41,7 +41,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--rom', type=Path, help='Explicit ROM; validated against the canonical hash')
     parser.add_argument('--reference', type=Path, default=ROOT / 'external/MetalGear')
-    parser.add_argument('--output', type=Path, default=ROOT / 'data/extracted/prison-walls')
+    parser.add_argument('--output', type=Path, default=canonical_data_dir() / 'prison-walls')
     args = parser.parse_args()
     if (ROOT / 'data/extracted').resolve() not in args.output.resolve().parents:
         raise ValueError('Output must be under private data/extracted')

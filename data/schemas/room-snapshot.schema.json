@@ -56,6 +56,15 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
+    "local_alias_of": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 250
+    },
+    "rom_profile": {
+      "type": "string",
+      "pattern": "^[a-z0-9.-]+$"
+    },
     "source": {
       "type": "string"
     }
@@ -69,6 +78,7 @@
     "palette_rgb",
     "collision",
     "input_sha256",
+    "rom_profile",
     "source"
   ],
   "additionalProperties": false

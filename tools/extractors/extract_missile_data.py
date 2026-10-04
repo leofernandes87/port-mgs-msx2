@@ -16,10 +16,10 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from tools.rom import resolve_canonical_rom, REFERENCE
+from tools.rom import resolve_canonical_rom, REFERENCE, canonical_data_dir
 from tools.extractors.reference import Reference
 
-DEFAULT_OUTPUT = ROOT / "data" / "extracted" / "missile_weapon.json"
+DEFAULT_OUTPUT = canonical_data_dir() / "missile_weapon.json"
 
 SPEED_TABLE_LENGTH = 8
 CANONICAL_SPEEDS = [-4, 0, 4, 0, 0, -4, 0, 4]

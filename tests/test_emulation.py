@@ -31,7 +31,7 @@ class CaptureComparisonTests(unittest.TestCase):
         room={'status':'decoded','graphics_set_ref':0,'palette_ref':0,'expanded_tiles':[0]*768,'static_collision':[0]*768}
         p={'doors':[],'rooms':[room],'tilesets':[{'pixels_by_tile':[[0]*64]+[None]*255,'unloaded_tile_ids':list(range(1,256))}],
            'palette_base':{'default_register_pairs':[[0,0]]*16,'menu_patch':{'registers':[]}},
-           'palettes':[{'registers':[]}],'manifest':{'input_sha256':'0'*64}}
+           'palettes':[{'registers':[]}],'manifest':{'input_sha256':'0'*64,'rom_profile':'synthetic'}}
         return p,bytearray(16384),bytearray(65536)
 
     def test_matching_snapshot_and_contract(self):

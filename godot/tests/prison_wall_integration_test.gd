@@ -17,7 +17,7 @@ func find_wall(game: Control, id: int = 103) -> PrisonWallDoor:
 	return null
 
 func run_test() -> void:
-	if not FileAccess.file_exists("res://../data/extracted/prison-walls/wall-14.json"):
+	if not FileAccess.file_exists(RomProvenance.canonical_path("prison-walls/wall-14.json")):
 		print("PRISON_WALL_INTEGRATION_OK: SKIP private wall extraction absent")
 		quit(0)
 		return

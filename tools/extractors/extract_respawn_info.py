@@ -19,10 +19,10 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from tools.rom import resolve_canonical_rom, REFERENCE
+from tools.rom import resolve_canonical_rom, REFERENCE, canonical_data_dir
 from tools.extractors.reference import Reference
 
-DEFAULT_OUTPUT = ROOT / "data" / "extracted" / "respawn_info.json"
+DEFAULT_OUTPUT = canonical_data_dir() / "respawn_info.json"
 ENTRY_SIZE = 3
 
 ENEMY_NAMES = {

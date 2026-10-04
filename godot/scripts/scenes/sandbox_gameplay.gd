@@ -1335,7 +1335,7 @@ func _spawn_room_doors(room_id: int) -> void:
 	if not game_world:
 		return
 
-	# Portas canônicas carregadas de stage5-batch ou stage5-lorries
+	# Portas canônicas carregadas de data/extracted/en-eu-rc750
 	var room_data: Dictionary = room_manager.load_room_actors(room_id)
 	var doors_data: Array = room_data.get("doors", [])
 	for door_var: Variant in doors_data:
@@ -1633,7 +1633,8 @@ func _create_synthetic_fallback_room() -> void:
 	snapshot.decode({
 		"format_version": "1.0.0", "room_id": 999, "width": 256, "height": 192,
 		"pixels": pixels, "collision": collision, "palette_rgb": palette,
-		"source": "synthetic_sandbox", "input_sha256": "0".repeat(64)
+		"source": "synthetic_sandbox", "rom_profile": RomProvenance.SYNTHETIC_PROFILE,
+		"input_sha256": RomProvenance.SYNTHETIC_SHA256
 	})
 	_apply_snapshot()
 

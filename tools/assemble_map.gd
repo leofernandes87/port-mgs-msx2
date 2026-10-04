@@ -24,7 +24,7 @@ func _init() -> void:
             var img_x = col * room_w
             var img_y = (3 - row) * room_h
             
-            var path: String = "res://../data/extracted/stage5-batch/room-%03d.png" % room_id
+            var path: String = "res://../data/extracted/en-eu-rc750/rooms/room-%03d.png" % room_id
             var room_img: Image = Image.load_from_file(path)
             if room_img:
                 if room_img.get_format() != Image.FORMAT_RGBA8:

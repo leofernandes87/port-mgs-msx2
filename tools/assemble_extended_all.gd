@@ -42,7 +42,7 @@ func _init() -> void:
             var img_y: int = (height - 1 - y) * room_h
             
             var abs_path: String = ""
-            for sub in ["stage5-batch", "stage4c-validated", "stage5-lorries", "stage5-elevators"]:
+            for sub in ["en-eu-rc750/rooms"]:
                 var p = ProjectSettings.globalize_path("res://../data/extracted/%s/room-%03d.png" % [sub, room_id])
                 if FileAccess.file_exists(p):
                     abs_path = p

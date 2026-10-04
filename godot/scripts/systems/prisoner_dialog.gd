@@ -6,7 +6,7 @@ extends Node2D
 signal closed
 
 enum State { CLOSED, INIT, APPEAR, DECODE, PRINT, WAIT, END }
-const DATA_PATH: String = "res://../data/extracted/dialogues/grey-fox-en.json"
+const DATA_FILE: String = "dialogues/grey-fox-en.json"
 const FONT_PATH: String = "res://assets/protected/sprites/transceiver/msx_font.png"
 const BOX: Rect2 = Rect2(48, 8, 160, 41)
 const TEXT_ORIGIN: Vector2 = Vector2(52, 12)
@@ -45,14 +45,13 @@ static func atlas_cell(code: int) -> int:
 
 func open_grey_fox() -> bool:
 	last_error = ""
-	if not FileAccess.file_exists(DATA_PATH) or not FileAccess.file_exists(FONT_PATH):
+	if not FileAccess.file_exists(RomProvenance.canonical_path(DATA_FILE)) or not FileAccess.file_exists(FONT_PATH):
 		last_error = "Execute python3 -m tools.extractors.extract_grey_fox_dialogue"
 		return false
-	var value: Variant = JSON.parse_string(FileAccess.get_file_as_string(DATA_PATH))
-	if not value is Dictionary:
-		last_error = "Invalid private dialogue data"
+	var data: Dictionary = RomProvenance.load_canonical_json(DATA_FILE)
+	if data.is_empty():
+		last_error = "Invalid or non-canonical private dialogue data"
 		return false
-	var data: Dictionary = value
 	if data.get("schema") != "msx-english-dialogue-1" or data.get("text_id") != 59 or data.get("box_type") != 0x11:
 		last_error = "Expected English text 59, box 0x11"
 		return false

@@ -1,13 +1,14 @@
 """Export per-room actor/item/door data from the verified extraction package.
 
-Reads rc750-verified/package.json and emits one lightweight room-NNN-actors.json
-per decoded room under the stage5-batch directory (alongside existing snapshots).
+Reads a canonical package.json (extract.py) and emits one lightweight room-NNN-actors.json
+per decoded room alongside the snapshots written by batch_snapshots.py.
 No ROM, emulator, or network access required.
 
 Output schema per file:
   {
     "format_version": "1.0.0",
     "room_id": int,
+    "rom_profile": str, "input_sha256": str,   # copied from the canonical package
     "actors": [{"actor_type_id": int, "y": int, "x": int,
                 "patrol_path": [[y, x], ...]}, ...],
     "items":  [{"item_type_id": int, "y": int, "x": int}, ...],
@@ -31,10 +32,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.extractors.extract import encode
+from tools.rom import require_canonical_provenance
 
 
 def export_room_data(package: dict, room_ids: set) -> dict:
     """Return a dict of {room_id: room_data_dict} for all requested rooms."""
+    provenance = {k: package['manifest'][k] for k in ('rom_profile', 'input_sha256')}
     rooms_by_id = {r['id']: r for r in package['rooms']}
     entities_by_room: dict = {}
     for e in package['entities']:
@@ -96,6 +99,7 @@ def export_room_data(package: dict, room_ids: set) -> dict:
         result[room_id] = {
             'format_version': '1.0.0',
             'room_id': room_id,
+            **provenance,
             'actors': actors,
             'items': items,
             'doors': doors,
@@ -111,6 +115,7 @@ def run(package_path: Path, output_dir: Path, room_ids: set) -> dict:
         raise ValueError('Output directory must already exist (alongside snapshots)')
 
     package = json.loads(package_path.read_bytes())
+    require_canonical_provenance(package['manifest'])
     room_data = export_room_data(package, room_ids)
 
     written = []
@@ -135,7 +140,7 @@ def run(package_path: Path, output_dir: Path, room_ids: set) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--package', required=True, type=Path,
-                        help='Path to rc750-verified/package.json')
+                        help='Path to a canonical package.json produced by extract.py')
     parser.add_argument('--output', required=True, type=Path,
                         help='Existing directory to write room-NNN-actors.json files into')
     parser.add_argument('--rooms', default='0-125',

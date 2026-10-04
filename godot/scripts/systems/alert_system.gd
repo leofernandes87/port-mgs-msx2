@@ -52,35 +52,22 @@ var respawn_table: Dictionary = {}
 func _init() -> void:
 	load_respawn_table()
 
-## Carrega a tabela RespawnInfo neutra exportada de data/extracted/respawn_info.json
-func load_respawn_table(custom_path: String = "") -> void:
+## Carrega a tabela RespawnInfo de data/extracted/en-eu-rc750/respawn_info.json
+func load_respawn_table() -> void:
 	respawn_table.clear()
-	var path: String = custom_path
-	if path.is_empty():
-		# Tenta caminhos do projeto Godot
-		for p in ["res://../data/extracted/respawn_info.json", "res://data/respawn_info.json"]:
-			if FileAccess.file_exists(p):
-				path = p
-				break
-
-	if not path.is_empty() and FileAccess.file_exists(path):
-		var file := FileAccess.open(path, FileAccess.READ)
-		if file:
-			var text := file.get_as_text()
-			file.close()
-			var json_obj = JSON.parse_string(text)
-			if json_obj is Dictionary and json_obj.has("rooms"):
-				for r in json_obj["rooms"]:
-					var rid: int = int(r.get("room_id", 0))
-					var eid: int = int(r.get("enemy_id", 0))
-					var pts: Array[Vector2] = []
-					for pt in r.get("spawn_points", []):
-						pts.append(Vector2(float(pt.get("x", 0)), float(pt.get("y", 0))))
-					respawn_table[rid] = {
-						"enemy_id": eid,
-						"spawn_points": pts,
-					}
-				return
+	var json_obj: Dictionary = RomProvenance.load_canonical_json("respawn_info.json")
+	if json_obj.has("rooms"):
+		for r in json_obj["rooms"]:
+			var rid: int = int(r.get("room_id", 0))
+			var eid: int = int(r.get("enemy_id", 0))
+			var pts: Array[Vector2] = []
+			for pt in r.get("spawn_points", []):
+				pts.append(Vector2(float(pt.get("x", 0)), float(pt.get("y", 0))))
+			respawn_table[rid] = {
+				"enemy_id": eid,
+				"spawn_points": pts,
+			}
+		return
 
 	# Fallback sintético canônico para salas críticas de teste caso o JSON não esteja montado
 	_init_fallback_table()

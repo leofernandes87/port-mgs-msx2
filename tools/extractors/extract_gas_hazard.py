@@ -13,10 +13,10 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from tools.rom import resolve_canonical_rom, REFERENCE
+from tools.rom import resolve_canonical_rom, REFERENCE, canonical_data_dir
 from tools.extractors.reference import Reference
 
-DEFAULT_OUTPUT = ROOT / "data" / "extracted" / "gas_hazard.json"
+DEFAULT_OUTPUT = canonical_data_dir() / "gas_hazard.json"
 GAS_ROOMS_COUNT = 9
 
 # Canonical rooms in ROM (damagegas.asm:53):

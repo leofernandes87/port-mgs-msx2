@@ -16,9 +16,13 @@
 > `godot/project.godot` segue local, fora do commit. Revisão incluída: atraso de resgate T→T+4, tick contínuo, HUD
 > imediato na promoção, prompt/célula e janela abaixo dos sprites (z=7).
 > Tarefa separada registrada: `RESCUED_PER_RANK=4` vs `cp 5`.
-> **2026-10-04 (sem commit):** ROM inglesa oficial `en-eu-rc750` passou a ser a
-> única canônica, por SHA-256 (fases 1–3; §4). Nada reextraído; snapshots locais
-> ainda derivados do dump japonês e aceitos só como legado temporário.
+> **2026-10-04:** ROM inglesa oficial `en-eu-rc750` passou a ser a única canônica,
+> por SHA-256 (fases 1–3, commit `7904020`; §4).
+> **2026-10-04 (fase 4, sem commit):** tudo reextraído para
+> `data/extracted/en-eu-rc750/`; Godot aceita só `rom_profile = en-eu-rc750` + SHA
+> canônico (ou sintético). Dados antigos em `data/extracted/legacy-jp-rc750-local/`
+> (só para o relatório). Divergências de gameplay pendentes em
+> [en-eu-reextraction.md](reverse_engineering/en-eu-reextraction.md).
 
 > **Regra de continuidade**: atualizar este arquivo a cada commit, antes de avançar
 > para o próximo bloco de trabalho. Assim, qualquer nova sessão retoma exatamente
@@ -67,8 +71,8 @@ Identidade e perfis recusados em `data/rom-profiles.json`; seleção somente por
 SHA-256 via `tools/rom.py` (`python3 -m tools.rom --check`). Nome do arquivo não
 importa. Montagem `JAPANESE equ 0` da referência é idêntica byte a byte
 (`--verify-build`). Captura com `C-BIOS_MSX2_EU`; Godot em 60 Hz. A ROM japonesa
-é ignorada salvo pedido explícito. Dados locais ainda vêm do dump japonês
-(`LEGACY_PENDING_REEXTRACTION`); reextração aguarda aprovação. Ver
+é ignorada salvo pedido explícito. Dados consumidos: `data/extracted/en-eu-rc750/`
+(reextraídos na fase 4; [relatório](reverse_engineering/en-eu-reextraction.md)). Ver
 [compatibilidade](reverse_engineering/rom-compatibility.md). **Nunca modificar a ROM.**
 
 ---
@@ -122,14 +126,12 @@ importa. Montagem `JAPANESE equ 0` da referência é idêntica byte a byte
 
 | Diretório | Conteúdo |
 |-----------|----------|
-| `data/extracted/rc750-verified/` | `package.json` (19 MB): 235 salas, tilesets, doors, actors, items, paths |
-| `data/extracted/stage4c-validated/` | 8 snapshots validados por emulador (rooms 0–3, 5, 121, 240) |
-| `data/extracted/stage4b-validated/` | 6 snapshots validados por emulador |
-| `data/extracted/stage4-validated/` | 4 snapshots (rooms 1, 5, 31, 127) |
-| `data/extracted/stage5-batch/` | **126 snapshots rooms 0–125** + PNGs + **129 room-NNN-actors.json** (salas 0-128) |
-| `data/extracted/stage5-lorries/` | **81 snapshots rooms 126–207** + PNGs + **81 room-NNN-actors.json** (salas 126-207) |
-| `data/extracted/stage5-elevators/` | **11 snapshots rooms 240–250** + PNGs + **11 room-NNN-actors.json** (sala 240 validada contra emulador) |
-| `data/extracted/stage5-item-rooms/` | Snapshots das salas de itens e celas (incluindo salas 211 e 212 da prisão) |
+| `data/extracted/en-eu-rc750/package/` | `package.json`: 235 salas, tilesets, doors, actors, items, paths (ROM canônica) |
+| `data/extracted/en-eu-rc750/rooms/` | **235 snapshots** + PNGs + **235 room-NNN-actors.json** |
+| `data/extracted/en-eu-rc750/local-aliases/` | Celas 211/212 (cópias de 165/164) e portas da sala 54 remapeadas |
+| `data/extracted/en-eu-rc750/emulator-*-validated/` | Snapshots validados por emulador (demo: 1, 5, 31, 127; gameplay: 0–3, 121, 240) |
+| `data/extracted/en-eu-rc750/*.json`, `prison-walls/`, `dialogues/` | Gás, respawn, míssil, prisão, piso elétrico, paredes, Grey Fox |
+| `data/extracted/legacy-jp-rc750-local/` | Dados antigos do dump japonês; só para `compare_regions.py`, não aceitos pelo Godot |
 | `data/extracted/respawn_info.json` | **189 salas (0-188)** extraídas da ROM (0xC445) com IDs e pontos de spawn de reforços |
 | `data/extracted/gas_hazard.json` | **9 salas canônicas com gás tóxico** extraídas da ROM (0x4C79) com danos e temporizadores |
 | `data/extracted/missile_weapon.json` | **Constantes do Míssil Teleguiado** extraídas da ROM (velocidade 4 px/tick, 15 ticks explosão, limites por rank) |
@@ -169,7 +171,7 @@ importa. Montagem `JAPANESE equ 0` da referência é idêntica byte a byte
 - Acústica do Silenciador: disparo sem silenciador dispara alerta da sala (exceto nas 55 salas seguras `ROOMS_SHOT_SECURE`); disparo com silenciador é silencioso.
 - Sala 150: evento de drop do silenciador ao derrotar os 4 guardas silenciadores em (36, 98).
 - `ElevatorSystem` & `ElevatorCabin`: limites e paradas dos 11 elevadores, movimentação vertical a 1 px/tick.
-- `RoomManager`: carrega snapshots e metadados de atores de `stage5-batch/`, `stage5-lorries/`, `stage5-elevators/` e `stage5-item-rooms/` (incluindo salas de itens e celas da prisão).
+- `RoomManager`: carrega snapshots e metadados de atores de `data/extracted/en-eu-rc750/local-aliases/` e depois `rooms/`, aceitando apenas proveniência canônica (`RomProvenance`).
 - Sistema de Portas & Desobstrução de Vãos (`door.gd`): suporte a `clearance_tile_indices` para eliminação de blocos de colisão flutuantes em vãos abertos, triggers laterais (WEST/EAST) alinhados ao chão, saída limpa de caminhões (`LORRY_EXIT`) e bloqueio rigoroso de saídas de borda por portas trancadas (ex: Sala 7 -> Sala 11 requer CARD4).
 - Inicialização Canônica na Sala 121: `sandbox_gameplay.tscn` configurada como cena principal em `project.godot`; Snake inicia na Sala 121 em terra firme/cais navegável após a infiltração nas coordenadas `(128.0, 80.0)` com direção `UP` e `CIGARETTES` equipados.
 - Game Over Punitivo MSX2 & Reset Absoluto de Estado: morte com vida zerada bloqueia imediatamente ações do jogador (`is_dead`, `can_control = false`), limpa totalmente inventário, armas, cartões, rank e alerta, recarregando a cena de forma segura na Sala 121 com vida total e controles liberados.
@@ -212,9 +214,8 @@ projeto-game/
 │       └── compare.py             ← Comparação VRAM
 ├── data/
 │   ├── extracted/
-│   │   ├── rc750-verified/        ← package.json (fonte de verdade)
-│   │   ├── stage5-batch/          ← 126 snapshots rooms 0–125 (Etapa 11)
-│   │   └── stage4c-validated/     ← 8 snapshots validados por emulador
+│   │   ├── en-eu-rc750/           ← única origem consumida (package/, rooms/, local-aliases/, ...)
+│   │   └── legacy-jp-rc750-local/ ← dados antigos, só para o relatório de diferenças
 │   └── schemas/room-snapshot.schema.json
 ├── godot/
 │   ├── scripts/
@@ -251,9 +252,13 @@ python3 -m unittest discover -s tests -v
 
 # Gerar snapshot de uma sala (batch)
 python3 tools/extractors/batch_snapshots.py \
-    --package data/extracted/rc750-verified/package.json \
-    --output data/extracted/stage5-batch-NEW \
-    --rooms 0-125
+    --package data/extracted/en-eu-rc750/package/package.json \
+    --output data/extracted/en-eu-rc750/rooms-NEW \
+    --rooms all
+
+# Relatório EN×JP (recusa sobrescrever o JSON)
+python3 tools/reverse_engineering/compare_regions.py --sjasm <sjasm> \
+    --json data/extracted/en-eu-rc750/region-diff-NEW.json
 
 # Verificar HEAD Git
 git log --oneline -5

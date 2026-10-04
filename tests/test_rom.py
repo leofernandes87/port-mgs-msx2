@@ -110,8 +110,50 @@ class RealProfileFile(unittest.TestCase):
         mirror = dict(re.findall(r'const (\w+): String = "([^"]*)"', source))
         self.assertEqual(mirror['CANONICAL_PROFILE'], profiles['canonical'])
         self.assertEqual(mirror['CANONICAL_SHA256'], profiles['profiles'][profiles['canonical']]['sha256'])
-        self.assertEqual(mirror['LEGACY_PENDING_REEXTRACTION_SHA256'],
-                         profiles['profiles']['jp-rc750-local']['sha256'])
+        self.assertEqual(mirror['CANONICAL_DATA_DIR'], f"res://../data/extracted/{profiles['canonical']}")
+        self.assertEqual(mirror['SYNTHETIC_SHA256'], '0' * 64)
+        foreign = {p['sha256'] for k, p in profiles['profiles'].items() if k != profiles['canonical']}
+        self.assertFalse(foreign & set(mirror.values()), 'Godot still accepts a non-canonical ROM hash')
+        self.assertNotIn('LEGACY', source)
+
+
+class CanonicalProvenance(unittest.TestCase):
+    def test_require_canonical_provenance(self):
+        from tools.rom import canonical_data_dir, require_canonical_provenance
+        profiles = load_profiles()
+        sha = profiles['profiles'][profiles['canonical']]['sha256']
+        require_canonical_provenance({'rom_profile': 'en-eu-rc750', 'input_sha256': sha}, profiles)
+        jp_sha = profiles['profiles']['jp-rc750-local']['sha256']
+        bad = [{'rom_profile': 'jp-rc750-local', 'input_sha256': jp_sha},
+               {'rom_profile': 'en-eu-rc750', 'input_sha256': jp_sha},
+               {'input_sha256': sha}, {'rom_profile': 'en-eu-rc750'},
+               {'rom_profile': 'synthetic', 'input_sha256': '0' * 64}]
+        for record in bad:
+            with self.assertRaises(RomError, msg=record):
+                require_canonical_provenance(record, profiles)
+        self.assertEqual(canonical_data_dir(profiles), ROOT / 'data/extracted/en-eu-rc750')
+
+
+class ConsumedDataProvenance(unittest.TestCase):
+    """Every private file the Godot project loads must come from the canonical ROM."""
+    PATTERNS = ('rooms/room-*.json', 'local-aliases/room-*.json', 'gas_hazard.json', 'respawn_info.json',
+                'missile_weapon.json', 'capture_prison.json', 'electrified_floor.json',
+                'dialogues/grey-fox-en.json', 'prison-walls/wall-*.json')
+
+    def test_consumed_files_have_canonical_profile_and_hash(self):
+        from tools.rom import canonical_data_dir
+        profiles = load_profiles()
+        root = canonical_data_dir(profiles)
+        files = [path for pattern in self.PATTERNS for path in sorted(root.glob(pattern))]
+        if not files:
+            self.skipTest('private canonical extraction absent')
+        sha = profiles['profiles'][profiles['canonical']]['sha256']
+        wrong = []
+        for path in files:
+            data = json.loads(path.read_text(encoding='utf-8'))
+            if (data.get('rom_profile'), data.get('input_sha256')) != (profiles['canonical'], sha):
+                wrong.append(path.relative_to(root).as_posix())
+        self.assertEqual(wrong, [])
 
 
 class RomPolicyLint(unittest.TestCase):
@@ -139,6 +181,25 @@ class RomPolicyLint(unittest.TestCase):
                     problems.append(f'{relative}: {reason}: {match.group(0)}')
             if relative not in self.ROMS_DIR_ALLOWED and re.search(r"""['"]roms['"]""", text):
                 problems.append(f'{relative}: direct access to roms/; use tools.rom.resolve_canonical_rom')
+        self.assertEqual(problems, [])
+
+    # Only the before/after report may read data derived from the former Japanese dump.
+    LEGACY_DATA = r'stage[45][a-z]*-|rc750-(verified|v1|repeat)\b|legacy-jp-rc750-local|emulator-stage4'
+    LEGACY_DATA_ALLOWED = {'tools/reverse_engineering/compare_regions.py', 'tools/emulation/README.md'}
+
+    def test_pipeline_consumes_only_canonical_data(self):
+        problems = []
+        patterns = ('tools/**/*.py', 'tools/**/*.gd', 'tools/**/*.md', 'godot/scripts/**/*.gd', 'godot/tests/**/*.gd')
+        for path in (p for pattern in patterns for p in ROOT.glob(pattern)):
+            relative = path.relative_to(ROOT).as_posix()
+            text = path.read_text(encoding='utf-8', errors='replace')
+            if relative not in self.LEGACY_DATA_ALLOWED:
+                problems += [f'{relative}: legacy data path {m.group(0)}' for m in re.finditer(self.LEGACY_DATA, text)]
+            if relative.endswith('.gd'):
+                for match in re.finditer(r'data/extracted/(?!en-eu-rc750\b)[\w.-]+', text):
+                    problems.append(f'{relative}: non-canonical extracted path {match.group(0)}')
+            if relative.startswith('godot/scripts/') and re.search(r'254ffcd9|LEGACY_PENDING|jp-rc750', text):
+                problems.append(f'{relative}: Japanese ROM provenance still accepted')
         self.assertEqual(problems, [])
 
 

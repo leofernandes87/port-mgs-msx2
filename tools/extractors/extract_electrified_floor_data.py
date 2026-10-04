@@ -22,11 +22,11 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from tools.rom import resolve_canonical_rom, REFERENCE
+from tools.rom import resolve_canonical_rom, REFERENCE, canonical_data_dir, require_canonical_provenance
 from tools.extractors.reference import Reference
 
-DEFAULT_PACKAGE = ROOT / "data" / "extracted" / "rc750-verified" / "package.json"
-DEFAULT_OUTPUT = ROOT / "data" / "extracted" / "electrified_floor.json"
+DEFAULT_PACKAGE = canonical_data_dir() / "package" / "package.json"
+DEFAULT_OUTPUT = canonical_data_dir() / "electrified_floor.json"
 
 CHK_ELECTRIC_FLOOR_SIGNATURE = (
     b"\x3a\x30\xc1\xfe\x10\x01\x61\x60\x28\x15\xfe\x25\x28\x11\xfe\x6e\x28\x0d"
@@ -165,8 +165,7 @@ def main() -> None:
 
     rom = resolve_canonical_rom(args.rom)
     package = json.loads(args.package.read_text(encoding="utf-8"))
-    if package.get("manifest", {}).get("input_sha256") != rom.sha256:
-        raise ValueError(f"{args.package} was not extracted from the canonical ROM; re-extract it first")
+    require_canonical_provenance(package["manifest"])
     ref = Reference(REFERENCE, rom.data)
     ref.signature("logic/damageelectric.asm", "ChkElectricFloor", CHK_ELECTRIC_FLOOR_SIGNATURE)
     data = extract_electrified_floor_data(rom.data, ref.symbols["ChkElectricFloor"], package)

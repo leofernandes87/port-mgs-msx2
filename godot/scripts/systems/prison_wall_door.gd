@@ -12,11 +12,9 @@ var tiles_h: int = 0
 func _ready() -> void:
 	z_index = 6
 	if wall_texture == null:
-		var path: String = "res://../data/extracted/prison-walls/wall-%d.json" % render_type_id
-		if FileAccess.file_exists(path):
-			var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
-			if data is Dictionary:
-				configure_visual(data)
+		var data: Dictionary = RomProvenance.load_canonical_json("prison-walls/wall-%d.json" % render_type_id)
+		if not data.is_empty():
+			configure_visual(data)
 		if wall_texture == null:
 			push_warning("Parede da prisão ausente/inválida: execute tools/extractors/extract_prison_wall.py")
 

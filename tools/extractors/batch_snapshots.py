@@ -1,6 +1,6 @@
 """Generate and validate room snapshots in batch from the verified extraction package.
 
-Reads data/extracted/rc750-verified/package.json (produced by extract.py) and emits
+Reads data/extracted/en-eu-rc750/package/package.json (produced by extract.py) and emits
 one room-NNN.json + room-NNN.png per decoded room for the requested building scope.
 No emulator required; pixels are reconstructed from ROM-extracted tile graphics and
 metatile layout data. Unloaded tile slots render as index 0 (black) — consistent with
@@ -10,9 +10,11 @@ ROM and emulator captures are NOT modified or read here; the package is the sole
 
 Usage:
     python3 tools/extractors/batch_snapshots.py \\
-        --package data/extracted/rc750-verified/package.json \\
-        --output data/extracted/stage5-batch \\
-        [--rooms 0-125]
+        --package data/extracted/en-eu-rc750/package/package.json \\
+        --output data/extracted/en-eu-rc750/rooms \\
+        [--rooms all]
+
+The package must carry the canonical rom_profile and input_sha256 (tools/rom.py).
 """
 import argparse
 import hashlib
@@ -27,6 +29,7 @@ if str(ROOT) not in sys.path:
 from tools.extractors.codecs import rgb_palette, png_indexed
 from tools.extractors.extract import encode, publish
 from tools.extractors.schema import validate
+from tools.rom import require_canonical_provenance
 
 
 SNAPSHOT_SCHEMA = ROOT / 'data/schemas/room-snapshot.schema.json'
@@ -129,6 +132,7 @@ def make_snapshot(package, room, schema):
         'palette_rgb': palette,
         'collision': room['static_collision'],
         'input_sha256': package['manifest']['input_sha256'],
+        'rom_profile': package['manifest']['rom_profile'],
         'source': source,
     }
     validate(snapshot, schema)
@@ -158,6 +162,7 @@ def run(package_path, output, room_ids, validated_dirs):
         raise ValueError('Choose a new directory under data/extracted')
 
     package = json.loads(package_path.read_bytes())
+    require_canonical_provenance(package['manifest'])
     schema = json.loads(SNAPSHOT_SCHEMA.read_text())
 
     rooms_by_id = {r['id']: r for r in package['rooms']}
@@ -211,17 +216,14 @@ def run(package_path, output, room_ids, validated_dirs):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--package', required=True, type=Path,
-                        help='Path to rc750-verified/package.json')
+                        help='Path to a canonical package.json produced by extract.py')
     parser.add_argument('--output', required=True, type=Path,
                         help='New output directory under data/extracted')
     parser.add_argument('--rooms', default='buildings123',
                         help='Room scope: "building1", "building2", "building3", '
                              '"buildings123", "lorries", "all", or a range like "0-125"')
-    parser.add_argument('--validated', nargs='*', type=Path,
-                        default=[ROOT / 'data/extracted/stage4c-validated',
-                                 ROOT / 'data/extracted/stage4b-validated',
-                                 ROOT / 'data/extracted/stage4-validated'],
-                        help='Directories with emulator-validated snapshots to cross-check against')
+    parser.add_argument('--validated', nargs='*', type=Path, default=[],
+                        help='Directories with emulator-validated canonical snapshots to cross-check against')
     args = parser.parse_args()
 
     if args.rooms in BUILDING_SCOPES:

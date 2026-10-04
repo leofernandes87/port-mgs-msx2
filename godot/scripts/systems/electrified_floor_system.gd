@@ -45,16 +45,7 @@ func _init() -> void:
 	reset_state()
 
 func _load_extracted_data() -> void:
-	var path: String = ProjectSettings.globalize_path("res://../data/extracted/electrified_floor.json")
-	if not FileAccess.file_exists(path):
-		return
-	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-	if file == null:
-		return
-	var parser: JSON = JSON.new()
-	if parser.parse(file.get_as_text()) != OK or not parser.data is Dictionary:
-		return
-	var data: Dictionary = parser.data as Dictionary
+	var data: Dictionary = RomProvenance.load_canonical_json("electrified_floor.json")
 	var rooms_list: Array = data.get("rooms", [])
 	for r_entry: Variant in rooms_list:
 		if not r_entry is Dictionary:

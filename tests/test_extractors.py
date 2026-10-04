@@ -278,6 +278,7 @@ class ExportRoomDataTests(unittest.TestCase):
                 {'id': 'path_01', 'kind': 'points_yx', 'values': [[100, 50], [100, 150]]},
                 {'id': 'path_02', 'kind': 'look_directions_raw', 'values': [0, 1, 2]},
             ],
+            'manifest': {'rom_profile': 'synthetic', 'input_sha256': '0' * 64},
         }
 
     def test_export_room_data_structure(self):
@@ -289,6 +290,7 @@ class ExportRoomDataTests(unittest.TestCase):
         data0 = res[0]
         self.assertEqual(data0['room_id'], 0)
         self.assertEqual(data0['format_version'], '1.0.0')
+        self.assertEqual((data0['rom_profile'], data0['input_sha256']), ('synthetic', '0' * 64))
 
         # Check actors
         self.assertEqual(len(data0['actors']), 2)

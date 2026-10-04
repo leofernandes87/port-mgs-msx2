@@ -17,10 +17,10 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
-from tools.rom import resolve_canonical_rom, REFERENCE
+from tools.rom import resolve_canonical_rom, REFERENCE, canonical_data_dir
 from tools.extractors.reference import load_reference
 
-DEFAULT_OUTPUT = ROOT / "data" / "extracted" / "capture_prison.json"
+DEFAULT_OUTPUT = canonical_data_dir() / "capture_prison.json"
 
 # Canonical values from ROM
 CAPTURE_ROOM_ID = 8

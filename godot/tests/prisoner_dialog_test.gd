@@ -168,10 +168,13 @@ func sandbox_rescue_tick() -> void:
 	await process_frame
 
 func private_integration() -> void:
-	if not FileAccess.file_exists(PrisonerDialog.DATA_PATH):
+	if not FileAccess.file_exists(RomProvenance.canonical_path(PrisonerDialog.DATA_FILE)):
 		print("Grey Fox private integration SKIP: extraction absent")
 		return
-	var data: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(PrisonerDialog.DATA_PATH))
+	var data: Dictionary = RomProvenance.load_canonical_json(PrisonerDialog.DATA_FILE)
+	check(not data.is_empty(), "Grey Fox dialogue extracted from the canonical ROM")
+	if data.is_empty():
+		return
 	var image: Image = Image.load_from_file(ProjectSettings.globalize_path(PrisonerDialog.FONT_PATH))
 	var all_pixels_match: bool = true
 	for code: String in data["glyphs"]:
