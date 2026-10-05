@@ -1,308 +1,307 @@
 class_name RadioSystem
 extends RefCounted
 
-## Sistema de Rádio Transceptor (Codec) autêntico do Metal Gear MSX2 RC750 (Etapa 15).
-## Lógica revertida de Banks0123.asm (DrawRadio, RadioIdle, ChgRadioFreq, RadioSignalUp, SetupRadioReply)
-## e tabelas canônicas de data/radiocalls.asm (edição inglesa) e constants/Enums.asm.
+## Radio dialogue core, ported tick by tick from the English edition:
+## - UpdateRadio/RadioFreqs (Banks0123.asm:2379-2461) and SetRadioArea (1060-1068) on every room setup
+##   (NextRoomLogic 11847-11856, InitGame 11826-11832)
+## - ChkRadioCalls (Banks0123.asm:1688-1745) and ChkIncomingCall (logic/incomingcall.asm:10-36, called from
+##   PlayModeLogic 12162); antenna pickup forces a pending call (logic/items.asm:163-170)
+## - RadioLogic states (Banks0123.asm:10676-10853): DrawRadio, RadioIdle, RadioSignalUp, SetupRadioReply,
+##   RadioSignalOFF; ChgRadioFreq (10904-10953), ChkRadioReceiv/RadioAutoReply (10965-11039),
+##   ChkRadioReply (11047-11165)
+## Table, map zones, incoming-call rooms and texts come from tools/extractors/extract_radio_dialogue.py.
 
-# Identificadores de contatos da ROM (data/radiocalls.asm:15-22)
+signal text_requested(text_id: int)
+signal sfx_requested(sfx_id: int)
+
+enum State { DRAW, IDLE, SIGNAL_UP, SETUP_REPLY, SIGNAL_OFF }
+
 const CONTACT_BIG_BOSS: String = "BIG_BOSS"
 const CONTACT_SCHNEIDER: String = "SCHNEIDER"
 const CONTACT_DIANE: String = "DIANE"
 const CONTACT_JENNIFER: String = "JENNIFER"
+## Person IDs 1-7 of data/radiocalls.asm:13-20 (index 0 unused).
+const PERSON_CONTACTS: Array[String] = ["", CONTACT_BIG_BOSS, CONTACT_SCHNEIDER, CONTACT_DIANE,
+	CONTACT_SCHNEIDER, CONTACT_DIANE, CONTACT_JENNIFER, CONTACT_BIG_BOSS]
 
-# Frequências canônicas da ROM (constants/Enums.asm:15-22 e Banks0123.asm:2455-2462)
-# Frequência base: 120.XX MHz. Armazenamos as duas casas decimais (0 a 99).
-const FREQ_BIGBOSS_PR1: int = 85        # 120.85 (0x85 em BCD)
-const FREQ_BIGBOSS_PR2: int = 13        # 120.13 (0x13 em BCD)
-const FREQ_SCHNEIDER_PR1: int = 79      # 120.79 (0x79 em BCD)
-const FREQ_SCHNEIDER_PR2: int = 26      # 120.26 (0x26 em BCD)
-const FREQ_DIANE_PR1: int = 33          # 120.33 (0x33 em BCD)
-const FREQ_DIANE_PR2: int = 91          # 120.91 (0x91 em BCD)
-const FREQ_JENNIFER: int = 48           # 120.48 (0x48 em BCD)
+## RadioFreq is BCD (constants/Enums.asm:15-22).
+const FREQ_BIGBOSS_PR1: int = 0x85
+const FREQ_BIGBOSS_PR2: int = 0x13
+const FREQ_SCHNEIDER_PR1: int = 0x79
+const FREQ_SCHNEIDER_PR2: int = 0x26
+const FREQ_DIANE_PR1: int = 0x33
+const FREQ_DIANE_PR2: int = 0x91
+const FREQ_JENNIFER: int = 0x48
+const FREQ_MAX: int = 0x99
 
-# Texto canônico de transmissão de Snake ao solicitar resposta (Text ID 10 em texts.asm:191)
-const TXT_SNAKE_SEND: String = "THIS IS SOLID SNAKE... YOUR REPLY, PLEASE."
+## RadioCallFlag: 0 = delay running, 1 = CALL in progress, 2 = stopped.
+const CALL_PENDING: int = 0
+const CALL_RINGING: int = 1
+const CALL_STOPPED: int = 2
+const INCOMING_CALL_BIT: int = 0x08
+const CALL_DURATION: int = 0x58
+const ANTENNA_CALL_DELAY: int = 0x10
 
-# Texto de estática quando não há sintonia
-const TXT_NO_RESPONSE: String = "(...NO RESPONSE... ONLY RADIO STATIC...)"
+const LED_COUNT: int = 12
+const LED_FIRST_DELAY: int = 0x10
+const LED_STEP_DELAY: int = 2
+const FREQ_PRESS_DELAY: int = 8
+const FREQ_REPEAT_DELAY: int = 2
 
-# Estado atual do transceptor
-var current_freq: int = FREQ_BIGBOSS_PR1 # Começa em 120.85 (Big Boss)
-var is_send_mode: bool = false
-var has_incoming_call: bool = false
-var signal_leds: int = 0                # 0 a 12 LEDs de sinal
-var answered_rooms: Array[int] = []     # Salas cujas chamadas autoreply já foram atendidas
+const MAP_ZONE_NEEDS_ANTENNA: int = 5
+const MAP_ZONE_BUILDING1_BASEMENT: int = 4
+const CLASS_FOUR_STARS: int = 3
 
-# Banco de dados de chamadas canônicas por sala (data/radiocalls.asm)
-# Cada entrada contém: contact, freq, is_autoreply, text, text_id
-# Porte parcial de idxRoomRadio: salas ausentes ainda não foram portadas. is_autoreply só pode
-# ser true onde RoomsMusic tem o bit 3 (chamada recebida; musicradioconfig.asm:9, Banks0123.asm:1729-1739).
-const ROOM_CALLS: Dictionary = {
-	0: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": true,
-			"text_id": 3,
-			"text": "THIS IS BIG BOSS... MISSION! GAIN ACCESS TO THE ENEMY'S FORTRESS, OUTER HEAVEN. TAKE ACTION NOT TO BE DISCOVERED BY THE ENEMY. ...OVER"
-		}
-	],
-	1: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": false,
-			"text_id": 3,
-			"text": "THIS IS BIG BOSS... MISSION! GAIN ACCESS TO THE ENEMY'S FORTRESS, OUTER HEAVEN. TAKE ACTION NOT TO BE DISCOVERED BY THE ENEMY. ...OVER"
-		},
-		{
-			"contact": CONTACT_SCHNEIDER,
-			"freq": FREQ_SCHNEIDER_PR1,
-			"is_autoreply": false,
-			"text_id": 23,
-			"text": "THIS IS THE RESISTANCE LEADER, MR. SCHNEIDER... I WILL BRIEF YOU ON THE FORTRESS DETAILS. PLEASE CONTACT ON WAVEBAND 12079. ...OVER"
-		}
-	],
-	4: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": false,
-			"text_id": 3,
-			"text": "THIS IS BIG BOSS... MISSION! GAIN ACCESS TO THE ENEMY'S FORTRESS, OUTER HEAVEN. TAKE ACTION NOT TO BE DISCOVERED BY THE ENEMY. ...OVER"
-		}
-	],
-	5: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": false,
-			"text_id": 4,
-			"text": "THIS IS BIG BOSS... TAKE THE WEAPONS AND EQUIPMENTS FROM THE ENEMY'S LORRY!! YOU SHOULD HAVE AN I.D.CARD TO OPEN THE DOOR. ...OVER"
-		}
-	],
-	20: [
-		{
-			"contact": CONTACT_DIANE,
-			"freq": FREQ_DIANE_PR1,
-			"is_autoreply": false,
-			"text_id": 80,
-			"text": "HELLO THIS IS DIANE... MACHINEGUN KID MUST BE KILLED BY REMOTE-CONTROL MISSILE. ...OVER"
-		}
-	],
-	28: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": false,
-			"text_id": 20,
-			"text": "THIS IS BIG BOSS... THERE MUST BE SOME RESISTANCE. TRY TO CONTACT WITH THE TRANSCEIVER! ...OVER"
-		}
-	],
-	29: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": true,
-			"text_id": 25,
-			"text": "THIS IS BIG BOSS... PUT ON A GAS MASK IN THE GAS ROOM. ...OVER"
-		},
-		{
-			"contact": CONTACT_SCHNEIDER,
-			"freq": FREQ_SCHNEIDER_PR1,
-			"is_autoreply": false,
-			"text_id": 26,
-			"text": "THIS IS THE RESISTANCE LEADER, MR. SCHNEIDER... GO TO THE SOUTH PART OF THE 1ST FLOOR TO GET YOUR MASK. ...OVER"
-		}
-	],
-	30: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": false,
-			"text_id": 20,
-			"text": "THIS IS BIG BOSS... THERE MUST BE SOME RESISTANCE. TRY TO CONTACT WITH THE TRANSCEIVER! ...OVER"
-		},
-		{
-			"contact": CONTACT_SCHNEIDER,
-			"freq": FREQ_SCHNEIDER_PR1,
-			"is_autoreply": false,
-			"text_id": 23,
-			"text": "THIS IS THE RESISTANCE LEADER, MR. SCHNEIDER... I WILL BRIEF YOU ON THE FORTRESS DETAILS. PLEASE CONTACT ON WAVEBAND 12079. ...OVER"
-		}
-	],
-	31: [
-		{
-			"contact": CONTACT_SCHNEIDER,
-			"freq": FREQ_SCHNEIDER_PR1,
-			"is_autoreply": false,
-			"text_id": 23,
-			"text": "THIS IS THE RESISTANCE LEADER, MR. SCHNEIDER... I WILL BRIEF YOU ON THE FORTRESS DETAILS. PLEASE CONTACT ON WAVEBAND 12079. ...OVER"
-		}
-	],
-	37: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": true,
-			"text_id": 38,
-			"text": "THIS IS BIG BOSS... BREAK DOWN THE POWER SUPPLY BOX WITH THE REMOTE-CONTROL MISSILE TO GET RID OF THE HIGH-VOLTAGE. ...OVER"
-		},
-		{
-			"contact": CONTACT_SCHNEIDER,
-			"freq": FREQ_SCHNEIDER_PR1,
-			"is_autoreply": false,
-			"text_id": 39,
-			"text": "THIS IS MR. SCHNEIDER... THE REMOTE-CONTROL MISSILE IS AVAILABLE IN THE SOUTHEASTERN AREA. ...OVER"
-		}
-	],
-	50: [
-		{
-			"contact": CONTACT_DIANE,
-			"freq": FREQ_DIANE_PR1,
-			"is_autoreply": false,
-			"text_id": 88,
-			"text": "HI. THIS IS DIANE... BEAT HIND-D WITH A GRENADE LAUNCHER. ...BYE"
-		}
-	],
-	53: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": true,
-			"text_id": 42,
-			"text": "THIS IS BIG BOSS... WIND BARRIER IS EXTENDED ON THE ROOFTOP. LOOK FOR THE BOMBBLASTSUIT TO BE INTO THE BARRIER. ...OVER"
-		},
-		{
-			"contact": CONTACT_SCHNEIDER,
-			"freq": FREQ_SCHNEIDER_PR1,
-			"is_autoreply": false,
-			"text_id": 51,
-			"text": "THIS IS MR. SCHNEIDER... THE BOMBBLASTSUIT CAN BE FOUND IN THE BASEMENT. ...OVER"
-		}
-	],
-	54: [
-		{
-			"contact": CONTACT_BIG_BOSS,
-			"freq": FREQ_BIGBOSS_PR1,
-			"is_autoreply": false,
-			"text_id": 60,
-			"text": "THIS IS BIG BOSS... TAKE BACK YOUR GEAR AND ESCAPE! IT'S HIDDEN IN ONE OF THE ROOMS. PUNCH AROUND TO FIND IT! ...OVER"
-		}
-	],
-	58: [
-		{
-			"contact": CONTACT_SCHNEIDER,
-			"freq": FREQ_SCHNEIDER_PR1,
-			"is_autoreply": false,
-			"text_id": 64,
-			"text": "THIS IS SCHNEIDER... PUNCH THE WALLS AND BOMB AREAS THAT SOUND HOLLOW. ...OVER"
-		}
-	],
-	67: [
-		{
-			"contact": CONTACT_DIANE,
-			"freq": FREQ_DIANE_PR1,
-			"is_autoreply": false,
-			"text_id": 92,
-			"text": "HI. THIS IS DIANE... BEAT THE TANK WITH MINES. ...BYE"
-		}
-	]
-}
+const SFX_INCOMING_CALL: int = 0x22
+const SFX_RADIO_NOISE: int = 0x50
+const SFX_MUTE: int = 0x5C
+const TEXT_SEND: int = 0x0A
+const TEXT_BUG_WARNING: int = 50
+const TEXT_SWITCH_OFF_MSX: int = 136
+const TEXT_MADNAR_CHECK: int = 15
 
-## Sintoniza para cima em +0.01 (Banks0123.asm:10938-10945)
-func tune_up() -> void:
-	if current_freq < 99:
-		current_freq += 1
+const DATA_PATH: String = "radio/radio_dialogue.json"
 
-## Sintoniza para baixo em -0.01 (Banks0123.asm:10948-10957)
-func tune_down() -> void:
-	if current_freq > 0:
-		current_freq -= 1
+var current_freq: int = FREQ_BIGBOSS_PR1
+var is_send_mode: bool = false        # RadioCmd
+var reply_requested: bool = false
+var auto_reply_done: bool = false
+var state: State = State.IDLE
+var signal_leds: int = 0              # RadioLedCnt
+var led_delay: int = 0
+var hold_wait: int = 0                # ControlHoldWait
+var reply_person: Dictionary = {}
+var waiting_text: bool = false        # GAME_MODE_TEXT_BOX suspends RadioLogic
+var persons: Array[Dictionary] = []   # RadioPersonsDat[0..NumRadioPersons-1]
+var first_person_freq: int = 0        # RadioPersonsDat+0 is not cleared when a room has no radio
+var radio_call_flag: int = CALL_STOPPED
+var incoming_call_timer: int = 0
+var map_zone: int = 0
 
-## Define uma frequência diretamente (0 a 99)
-func set_frequency(freq: int) -> void:
-	current_freq = clampi(freq, 0, 99)
+var antenna_taken: bool = false
+var transmitter_taken: bool = false
+var schneider_captured: bool = false
+var jennifer_brother_dead: bool = false
+var madnar_moved: bool = false
+var switch_off_msx: bool = false
+var class_rank: int = 0
 
-## Retorna a string formatada da frequência (ex: "120.85")
-func get_frequency_string() -> String:
-	return "120.%02d" % current_freq
+var has_incoming_call: bool:
+	get:
+		return radio_call_flag == CALL_RINGING
+	set(value):
+		radio_call_flag = CALL_RINGING if value else CALL_STOPPED
 
-## Retorna o nome amigável do contato sintonizado atualmente, se houver
-func get_contact_name_for_freq(freq: int) -> String:
-	match freq:
-		FREQ_BIGBOSS_PR1, FREQ_BIGBOSS_PR2: return "BIG BOSS"
-		FREQ_SCHNEIDER_PR1, FREQ_SCHNEIDER_PR2: return "SCHNEIDER"
-		FREQ_DIANE_PR1, FREQ_DIANE_PR2: return "DIANE"
-		FREQ_JENNIFER: return "JENNIFER"
-		_: return ""
+static var _data: Dictionary = {}
+static var _data_loaded: bool = false
 
-## Verifica se Snake ao entrar em uma sala recebe uma chamada automática (RADIO_AUTOREPLY)
-func check_incoming_call(room_id: int) -> bool:
-	if answered_rooms.has(room_id):
-		return false
+static func data() -> Dictionary:
+	if not _data_loaded:
+		_data_loaded = true
+		_data = RomProvenance.load_canonical_json(DATA_PATH)
+		if _data.is_empty():
+			push_warning("RadioSystem: rode tools/extractors/extract_radio_dialogue.py para gerar %s" % DATA_PATH)
+	return _data
 
-	var calls: Array = ROOM_CALLS.get(room_id, [])
-	for call_info: Dictionary in calls:
-		if bool(call_info.get("is_autoreply", false)):
-			has_incoming_call = true
-			print("RADIO_INCOMING_CALL: Chamada recebida na sala %d! Indicador CALL ativado." % room_id)
+## Pages of a text ID, each page with its FE line breaks as "\n" (DecodeText, Banks0123.asm:5305-5340).
+static func text_pages(text_id: int) -> Array[String]:
+	var pages: Array[String] = []
+	var entry: Dictionary = data().get("texts", {}).get(str(text_id), {})
+	for page: Variant in entry.get("pages", []):
+		pages.append("\n".join(PackedStringArray(page as Array)))
+	return pages
+
+static func room_persons(room_id: int) -> Array:
+	var rooms: Array = data().get("rooms", [])
+	return rooms[room_id] if room_id >= 0 and room_id < rooms.size() else []
+
+static func room_has_incoming_call(room_id: int) -> bool:
+	for room: Variant in data().get("incoming_call_rooms", []):
+		if int(room) == room_id:
 			return true
 	return false
 
-## Atende uma chamada recebida automática, sintoniza na frequência correta e retorna os dados do diálogo
-func answer_call(room_id: int) -> Dictionary:
-	has_incoming_call = false
-	if not answered_rooms.has(room_id):
-		answered_rooms.append(room_id)
+static func room_map_zone(room_id: int) -> int:
+	var zones: Array = data().get("map_zones", [])
+	return int(zones[room_id]) if room_id >= 0 and room_id < zones.size() else 0
 
-	var calls: Array = ROOM_CALLS.get(room_id, [])
-	for call_info: Dictionary in calls:
-		if bool(call_info.get("is_autoreply", false)):
-			current_freq = int(call_info.get("freq", FREQ_BIGBOSS_PR1))
-			signal_leds = 12
-			is_send_mode = false
-			return {
-				"has_signal": true,
-				"contact": String(call_info.get("contact", CONTACT_BIG_BOSS)),
-				"contact_name": get_contact_name_for_freq(current_freq),
-				"freq_str": get_frequency_string(),
-				"text": String(call_info.get("text", "")),
-				"is_incoming": true
-			}
+static func bcd_increment(freq: int) -> int:
+	if freq == FREQ_MAX:
+		return freq
+	return freq + 7 if (freq & 0x0F) == 9 else freq + 1
 
-	# Fallback
-	return get_transmission_result(room_id)
+static func bcd_decrement(freq: int) -> int:
+	if freq == 0:
+		return freq
+	return freq - 7 if (freq & 0x0F) == 0 else freq - 1
 
-## Snake solicita resposta na frequência sintonizada (modo SEND / ChkRadioReceiv em Banks0123.asm:10968)
-func send_transmission(room_id: int) -> Dictionary:
-	is_send_mode = true
-	var result: Dictionary = get_transmission_result(room_id)
-	return result
+func get_frequency_string() -> String:
+	return "120.%02X" % current_freq
 
-## Verifica e retorna o resultado da transmissão na sala e frequência atuais
-func get_transmission_result(room_id: int) -> Dictionary:
-	var calls: Array = ROOM_CALLS.get(room_id, [])
-	for call_info: Dictionary in calls:
-		if int(call_info.get("freq", -1)) == current_freq:
-			signal_leds = 12
-			return {
-				"has_signal": true,
-				"contact": String(call_info.get("contact", CONTACT_BIG_BOSS)),
-				"contact_name": get_contact_name_for_freq(current_freq),
-				"freq_str": get_frequency_string(),
-				"text": String(call_info.get("text", "")),
-				"is_incoming": false
-			}
+func set_frequency(freq: int) -> void:
+	current_freq = clampi(freq, 0, FREQ_MAX)
 
-	# Sem ninguém na frequência não há resposta, nem do Big Boss (ChkRadioReceiv, Banks0123.asm:10971-10990)
+func get_contact_name_for_freq(freq: int) -> String:
+	for person: Dictionary in persons:
+		if int(person["freq"]) == freq:
+			return String(PERSON_CONTACTS[int(person["person"])]).replace("_", " ")
+	return ""
+
+func reply_contact() -> String:
+	return PERSON_CONTACTS[int(reply_person.get("person", 0))]
+
+## NextRoomLogic: SetRadioArea + UpdateRadio, then SetAreaMusic2 -> ChkRadioCalls.
+func enter_room(room_id: int) -> void:
+	update_radio(room_id)
+	check_radio_calls(room_id)
+
+func update_radio(room_id: int) -> void:
+	map_zone = room_map_zone(room_id)
+	persons.clear()
+	for entry: Variant in room_persons(room_id):
+		var person: Dictionary = (entry as Dictionary).duplicate()
+		persons.append(person)
+		if bool(person["auto_tune"]):
+			current_freq = int(person["freq"])
+	if not persons.is_empty():
+		first_person_freq = int(persons[0]["freq"])
+
+func check_radio_calls(room_id: int) -> void:
+	var flag: int = CALL_STOPPED
+	var blocked: bool = false
+	if schneider_captured and first_person_freq in [FREQ_SCHNEIDER_PR1, FREQ_SCHNEIDER_PR2]:
+		blocked = true
+	elif first_person_freq == FREQ_JENNIFER and (class_rank != CLASS_FOUR_STARS or jennifer_brother_dead):
+		blocked = true
+	elif map_zone >= MAP_ZONE_NEEDS_ANTENNA and not antenna_taken:
+		blocked = true
+	if not blocked and room_has_incoming_call(room_id):
+		incoming_call_timer = INCOMING_CALL_BIT * 4
+		flag = CALL_PENDING
+	radio_call_flag = flag
+
+func tick_incoming_call() -> void:
+	if incoming_call_timer == 0 or radio_call_flag == CALL_STOPPED:
+		return
+	if radio_call_flag == CALL_PENDING:
+		incoming_call_timer -= 1
+		if incoming_call_timer != 0:
+			return
+		incoming_call_timer = CALL_DURATION
+		radio_call_flag = CALL_RINGING
+	incoming_call_timer -= 1
+	if incoming_call_timer == 0:
+		radio_call_flag = CALL_STOPPED
+
+func force_pending_call() -> void:
+	incoming_call_timer = ANTENNA_CALL_DELAY
+	radio_call_flag = CALL_PENDING
+
+## DrawRadio: stops the CALL and erases RadioCmd..RadioCmd+10h (AutoReplyDone and ReplyRequested included).
+func open_radio() -> void:
+	radio_call_flag = CALL_STOPPED
+	is_send_mode = false
 	signal_leds = 0
-	return {
-		"has_signal": false,
-		"contact": "",
-		"contact_name": "",
-		"freq_str": get_frequency_string(),
-		"text": TXT_NO_RESPONSE,
-		"is_incoming": false
-	}
+	led_delay = 0
+	reply_person = {}
+	auto_reply_done = false
+	reply_requested = false
+	waiting_text = false
+	state = State.IDLE
+	sfx_requested.emit(SFX_RADIO_NOISE)
+
+## One RadioLogic iteration. Triggers are new presses; holds are keys kept down (ControlsTrigger/Hold).
+func radio_tick(up_trigger: bool, left_trigger: bool, right_trigger: bool, left_hold: bool, right_hold: bool) -> void:
+	if waiting_text:
+		return
+	match state:
+		State.IDLE:
+			if is_send_mode:
+				sfx_requested.emit(SFX_RADIO_NOISE)
+			if up_trigger:
+				is_send_mode = true
+				reply_requested = true
+				sfx_requested.emit(SFX_MUTE)
+				_request_text(TEXT_SEND)
+				return
+			is_send_mode = false
+			_change_frequency(left_trigger, right_trigger, left_hold, right_hold)
+			_check_receive()
+		State.SIGNAL_UP:
+			led_delay -= 1
+			if led_delay != 0:
+				return
+			led_delay = LED_STEP_DELAY
+			signal_leds += 1
+			if signal_leds == LED_COUNT:
+				state = State.SETUP_REPLY
+		State.SETUP_REPLY:
+			state = State.SIGNAL_OFF
+			sfx_requested.emit(SFX_MUTE)
+			_request_text(int(reply_person["text_id"]))
+		State.SIGNAL_OFF:
+			reply_requested = false
+			signal_leds = 0
+			auto_reply_done = true
+			state = State.IDLE
+			sfx_requested.emit(SFX_RADIO_NOISE)
+
+func text_closed() -> void:
+	waiting_text = false
+
+func _request_text(text_id: int) -> void:
+	waiting_text = true
+	text_requested.emit(text_id)
+
+func _change_frequency(left_trigger: bool, right_trigger: bool, left_hold: bool, right_hold: bool) -> void:
+	var left: bool
+	if left_trigger or right_trigger:
+		auto_reply_done = false
+		reply_requested = false
+		hold_wait = FREQ_PRESS_DELAY
+		left = left_trigger
+	elif left_hold or right_hold:
+		hold_wait = (hold_wait - 1) & 0xFF
+		if hold_wait != 0:
+			return
+		hold_wait = FREQ_REPEAT_DELAY
+		left = left_hold
+	else:
+		return
+	current_freq = bcd_decrement(current_freq) if left else bcd_increment(current_freq)
+
+func _check_receive() -> void:
+	for person: Dictionary in persons:
+		if int(person["freq"]) != current_freq:
+			continue
+		if not bool(person["wait_call"]):
+			if auto_reply_done:
+				return
+		elif not reply_requested:
+			continue
+		if not _reply_allowed(person):
+			return
+		reply_person = person
+		state = State.SIGNAL_UP
+		led_delay = LED_FIRST_DELAY
+		return
+
+func _reply_allowed(person: Dictionary) -> bool:
+	var text_id: int = int(person["text_id"])
+	var freq: int = int(person["freq"])
+	if map_zone >= MAP_ZONE_NEEDS_ANTENNA and not antenna_taken:
+		return false
+	var big_boss: bool = freq in [FREQ_BIGBOSS_PR1, FREQ_BIGBOSS_PR2]
+	if big_boss and switch_off_msx:
+		person["text_id"] = TEXT_SWITCH_OFF_MSX
+		return true
+	if big_boss and transmitter_taken and map_zone != MAP_ZONE_BUILDING1_BASEMENT:
+		person["text_id"] = TEXT_BUG_WARNING
+		return true
+	if freq in [FREQ_SCHNEIDER_PR1, FREQ_SCHNEIDER_PR2]:
+		return not schneider_captured
+	if freq == FREQ_JENNIFER:
+		return class_rank == CLASS_FOUR_STARS and not jennifer_brother_dead
+	if text_id == TEXT_MADNAR_CHECK:
+		return not madnar_moved
+	return true

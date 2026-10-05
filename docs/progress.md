@@ -3,21 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Inventário progressivo: atores e bosses
-
-**Feito:** `docs/index/mechanics.json` ampliado como catálogo único, com 51 features da edição
-inglesa, cruzadas com Godot, extractors, testes, documentos e histórico. Base:
-`constants/Enums.asm:169-234`, `Banks0123.asm:6358-6468,12657-12739`.
-PARTIAL 20, PROVISIONAL 12, NOT_STARTED 17, UNMAPPED 2; demais statuses 0.
-`coverage.md` gerado, `lookup mech` ampliado e validação de status, IDs e referências
-(incluindo histórico, dados locais e relações). Nenhum gameplay alterado.
-**Testes:** índice com 14 testes sintéticos (7 novos). `python3 tools/validate.py` fora do
-sandbox: exit 0, 37 etapas PASS, 134 testes Python; importação/boot Godot 4.7.2 aprovados.
-**Pendências:** UNMAPPED: uso alcançável do prisioneiro ID 56 e correspondência da explosão
-ID 65; demais divergências no catálogo, sem correção nesta entrega.
-**Git:** commit `e408782`; entrega registrada na tag anotada `v0.2.1`.
-`godot/project.godot` preservado fora do commit; sem push.
-
 ## 2026-10-04 — Interface enxuta de contexto para agentes
 
 **Feito:** `lookup domain DOMÍNIO`, `lookup status STATUS` e `lookup unmapped` retornam
@@ -88,3 +73,21 @@ Nenhum arquivo de gameplay alterado.
 **Pendências:** correções de gameplay e de texto preservadas para etapas de implementação sob demanda.
 **Git:** commit `6bbad2a` a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
 
+## 2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+
+**Feito:** `tools/extractors/extract_radio_dialogue.py` lê da ROM canônica `idxRoomRadio`/`RadioRoom_*`,
+`RadioFreqs`, `RoomsMusic` (bit 3), `idxMapZones` e os 45 textos ingleses usados (quebras FD/FE),
+com 6 assinaturas Z80 únicas; `Reference.add` ganhou `transform` (ramo `ELSE` de `IF (JAPANESE)`).
+Saída local `radio/radio_dialogue.json`: 60 salas com rádio, 17 com chamada. `radio_system.gd`
+reescrito tick a tick: `UpdateRadio`, `ChkRadioCalls`, `ChkIncomingCall` (32 + 58h ticks),
+`RadioLogic`, `ChgRadioFreq` em BCD, `ChkRadioReceiv` e `ChkRadioReply`
+(`Banks0123.asm:1688-1745,2379-2461,10676-11165`, `logic/incomingcall.asm:10-36`, `logic/items.asm:159-170`).
+`radio_dialog.gd` é dirigido por `radio_tick`; textos inventados e tabela local removidos.
+Sandbox: `enter_room` nas trocas de sala, CALL por tick fora de modais, antena e classe sincronizadas.
+**Testes:** `radio_system_test.gd` reescrito (ticks calculados do asm, pessoas sintéticas, cruzamento
+com o JSON e integração no sandbox); `tests/test_radio_dialogue_extractor.py` (5, fixtures sintéticas);
+`test_region_tools.py` agora confronta o JSON extraído com parse independente do asm (60 salas, CALL).
+`python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 164 testes Python.
+**Pendências:** SFX só como sinal; flags `SchneiderCaptured`, `JennifBrotherDead`, `TransmiTaken`,
+`SwitchOffMSXF` e `MadnarMoved` sem produtor; texto 2 da intro ainda hardcoded; 120.77 do final.
+**Git:** commit `feat(radio)` com tag `v0.2.3`, sem push; `godot/project.godot` preservado.

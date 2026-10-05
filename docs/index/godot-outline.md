@@ -4,10 +4,10 @@ Gerado por `tools/context/build_index.py` para .gd com 300+ linhas; não editar.
 Leia por faixa (`Read offset/limit` ou `python3 -m tools.context.lookup gd ARQUIVO FUNC`),
 nunca o arquivo inteiro. Formato: `- início-fim assinatura`; `nome@linha` em sinais/constantes.
 
-## godot/scripts/scenes/sandbox_gameplay.gd (3125 linhas)
+## godot/scripts/scenes/sandbox_gameplay.gd (3145 linhas)
 class_name SandboxGameplay · extends Control
 const/enum: ROOMS_SHOT_SECURE@88, ELEVATOR_STATE_IDLE@102, ELEVATOR_STATE_MOVING@103, INITIAL_ROOM_ID@131, DEFAULT_SPAWN_X@132, DEFAULT_SPAWN_Y@133
-var: intro_cutscene@16, play_intro_cutscene@17, snapshot@19, player@20, room_manager@21, enemies@22, inventory@23, weapon_system@24, radio_system@25, radio_dialog@26, cameras@27, laser_system@28, bullets@29, hud@30, silencer_dropped_room_150@31, item_boxes@32, room_doors@33, runtime_collision@34, room_texture@35, use_remastered_maps@41, show_collision@43, show_enemy_vision@44, infinite_life@45, god_mode_btn@46, zoom@47, canvas_origin@48, alert_system@49, rank_system@50, prisoners@51, dialog_banner_label@52, prisoner_dialog@53, _world_process_before_dialog@54, is_game_over@55, game_over_banner@56, shot_gunner@59, shot_gunner_bullets@60, boss_dialog_label@61, defeated_bosses@62, gas_hazard_system@65, gas_clouds@66, rolling_barrels@69, active_missile@72, active_plastic_bomb@75, broken_basement_walls@76, capture_system@79, capture_cutscene@80, tilemap_layer@81, electrified_floor_system@84, power_panel@85, is_player_shocked_flash@86, previous_room_id@95, room_entry_direction@96, is_in_elevator@97, elevator_cabin@98, elevator_y@99, elevator_target_y@100, elevator_state@101, elevator_spawner_timer_sec@104, elevator_spawner_timer@105, elevator_guard2_delay_sec@111, elevator_guard2_delay@112, status_label@118, call_badge@119, weapon_menu@121, item_menu@122, pause_menu@123, binocular_system@126, binocular_overlay@127, home_enemies_backup@128, guard1_exited_lorry@135, guard2_exited_lorry@136, guard3_exited_lorry@137, viewport_area@400, game_world@401, room_display@402
+var: intro_cutscene@16, play_intro_cutscene@17, snapshot@19, player@20, room_manager@21, enemies@22, inventory@23, weapon_system@24, radio_system@25, radio_dialog@26, cameras@27, laser_system@28, bullets@29, hud@30, silencer_dropped_room_150@31, item_boxes@32, room_doors@33, runtime_collision@34, room_texture@35, use_remastered_maps@41, show_collision@43, show_enemy_vision@44, infinite_life@45, god_mode_btn@46, zoom@47, canvas_origin@48, alert_system@49, rank_system@50, prisoners@51, dialog_banner_label@52, prisoner_dialog@53, _world_process_before_dialog@54, is_game_over@55, game_over_banner@56, shot_gunner@59, shot_gunner_bullets@60, boss_dialog_label@61, defeated_bosses@62, gas_hazard_system@65, gas_clouds@66, rolling_barrels@69, active_missile@72, active_plastic_bomb@75, broken_basement_walls@76, capture_system@79, capture_cutscene@80, tilemap_layer@81, electrified_floor_system@84, power_panel@85, is_player_shocked_flash@86, previous_room_id@95, room_entry_direction@96, is_in_elevator@97, elevator_cabin@98, elevator_y@99, elevator_target_y@100, elevator_state@101, elevator_spawner_timer_sec@104, elevator_spawner_timer@105, elevator_guard2_delay_sec@111, elevator_guard2_delay@112, status_label@118, call_badge@119, weapon_menu@121, item_menu@122, pause_menu@123, binocular_system@126, binocular_overlay@127, home_enemies_backup@128, guard1_exited_lorry@135, guard2_exited_lorry@136, guard3_exited_lorry@137, viewport_area@415, game_world@416, room_display@417
 - 139-322 func _ready() -> void
 - 324-330 func _on_weapon_menu_selected(w_name: String) -> void
 - 332-340 func _on_item_menu_selected(i_name: String) -> void
@@ -15,68 +15,70 @@ var: intro_cutscene@16, play_intro_cutscene@17, snapshot@19, player@20, room_man
 - 357-378 func _give_debug_arsenal() -> void
 - 380-384 func _on_radio_closed() -> void
 - 386-392 func _on_intro_radio_requested(pages: Array[String]) -> void
-- 394-402 func _on_intro_finished() -> void
-- 404-406 func _post_ready_layout() -> void
-- 408-410 func _on_viewport_resized() -> void
-- 412-420 func _update_world_transform(area_size: Vector2) -> void
-- 422-442 func _draw_room_and_collision() -> void
-- 444-477 func _load_initial_room() -> void
-- 479-507 func _apply_snapshot() -> void
-- 509-739 func _spawn_room_enemies(room_id: int) -> void
-- 740-793 func _should_hide_guard(room_id: int, act_y: int, act_x: int) -> bool
-- 795-943 func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> void
-- 945-947 func _on_chow_time_called() -> void
-- 949-953 func _on_guard_sleepy_dialog(text: String) -> void
-- 954-982 func _process_elevator_spawner(delta: float = 1.0 / 60.0) -> void
-- 984-1004 func _spawn_relieve_guard(target_x: float, is_speaker: bool) -> void
-- 1006-1030 func open_binoculars() -> bool
-- 1032-1051 func close_binoculars() -> void
-- 1053-1057 func toggle_binoculars() -> void
-- 1059-1069 func _binocular_look(dir: PlayerController.Direction) -> bool
-- 1071-1093 func _show_binocular_preview(room_id: int) -> void
-- 1095-1123 func _restore_binocular_home() -> void
-- 1125-1163 func _process_binoculars(delta: float = 1.0 / 60.0) -> void
-- 1165-1198 func _backup_home_enemies() -> void
-- 1200-1248 func _restore_home_enemies() -> void
-- 1250-1344 func _spawn_room_items(room_id: int) -> void
-- 1347-1488 func _spawn_room_doors(room_id: int) -> void
-- 1490-1532 func _spawn_room_prisoners(room_id: int) -> void
-- 1534-1560 func _on_prisoner_rescued(prisoner: Prisoner) -> void
-- 1562-1612 func _spawn_room_power_panel(room_id: int) -> void
-- 1614-1622 func show_dialog_message(speaker: String, text: String, duration_seconds: float = 6.0) -> void
-- 1624-1657 func _create_synthetic_fallback_room() -> void
-- 1659-1669 func _is_position_safe(pos: Vector2) -> bool
-- 1671-1701 func _get_safe_spawn_position() -> Vector2
-- 1703-1735 func reset_player() -> void
-- 1736-1839 func reset_game_state() -> void
-- 1841-1842 func _on_player_died() -> void
-- 1844-1861 func trigger_game_over(instant: bool = false) -> void
-- 1863-1886 func _execute_game_restart() -> void
-- 1888-2181 func _input(event: InputEvent) -> void
-- 2183-2682 func _physics_process(delta: float) -> void
-- 2685-2728 func _check_and_handle_room_transition() -> void
-- 2730-2742 func _clamp_to_room_bounds(exit_dir: int) -> void
-- 2744-2866 func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, from_door_id: int = -1) -> bool
-- 2867-2902 func _transition_elevator_room(next_room_id: int, move_dir_y: int) -> void
-- 2904-2907 func _on_camera_detected(_cam: SecurityCamera) -> void
-- 2909-2912 func _on_laser_triggered(_laser_id: int = 0) -> void
-- 2914-2917 func _trigger_alarm() -> void
-- 2919-2925 func _on_alert_state_changed(_old_state: AlertSystem.AlertState, new_state: AlertSystem.AlertState) -> void
-- 2927-2944 func _on_reinforcement_requested(enemy_id: int, spawn_pos: Vector2) -> void
-- 2946-2950 func _on_boss_intro_dialog(text: String) -> void
-- 2952-2969 func _on_boss_shot_fired(origin: Vector2, target: Vector2) -> void
-- 2971-2976 func _on_boss_bullet_hit_player(damage: int) -> void
-- 2978-3004 func _on_boss_defeated() -> void
-- 3005-3016 func _check_boss_bullet_collision(b: Bullet) -> bool
-- 3018-3024 func _on_missile_exploded(pos: Vector2) -> void
-- 3026-3062 func _on_plastic_bomb_exploded(bomb_pos: Vector2, radius: float, damage: int) -> void
-- 3064-3070 func _on_plastic_bomb_finished(bomb_node: Node2D) -> void
-- 3072-3083 func _trigger_capture_event() -> void
-- 3085-3090 func _on_capture_teleport_requested() -> void
-- 3092-3095 func _on_capture_cutscene_finished() -> void
-- 3097-3104 func _update_prison_wall(delta: float) -> void
-- 3106-3118 func break_prison_wall(door_id: int = 103) -> void
-- 3120-3125 func _on_equipment_restored() -> void
+- 394-401 func _on_intro_finished() -> void
+- 402-404 func _radio_enter_room(room_id: int) -> void
+- 406-417 func _sync_radio_conditions() -> void
+- 419-421 func _post_ready_layout() -> void
+- 423-425 func _on_viewport_resized() -> void
+- 427-435 func _update_world_transform(area_size: Vector2) -> void
+- 437-457 func _draw_room_and_collision() -> void
+- 459-492 func _load_initial_room() -> void
+- 494-522 func _apply_snapshot() -> void
+- 524-754 func _spawn_room_enemies(room_id: int) -> void
+- 755-808 func _should_hide_guard(room_id: int, act_y: int, act_x: int) -> bool
+- 810-958 func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> void
+- 960-962 func _on_chow_time_called() -> void
+- 964-968 func _on_guard_sleepy_dialog(text: String) -> void
+- 969-997 func _process_elevator_spawner(delta: float = 1.0 / 60.0) -> void
+- 999-1019 func _spawn_relieve_guard(target_x: float, is_speaker: bool) -> void
+- 1021-1045 func open_binoculars() -> bool
+- 1047-1066 func close_binoculars() -> void
+- 1068-1072 func toggle_binoculars() -> void
+- 1074-1084 func _binocular_look(dir: PlayerController.Direction) -> bool
+- 1086-1108 func _show_binocular_preview(room_id: int) -> void
+- 1110-1138 func _restore_binocular_home() -> void
+- 1140-1178 func _process_binoculars(delta: float = 1.0 / 60.0) -> void
+- 1180-1213 func _backup_home_enemies() -> void
+- 1215-1263 func _restore_home_enemies() -> void
+- 1265-1359 func _spawn_room_items(room_id: int) -> void
+- 1362-1503 func _spawn_room_doors(room_id: int) -> void
+- 1505-1547 func _spawn_room_prisoners(room_id: int) -> void
+- 1549-1575 func _on_prisoner_rescued(prisoner: Prisoner) -> void
+- 1577-1627 func _spawn_room_power_panel(room_id: int) -> void
+- 1629-1637 func show_dialog_message(speaker: String, text: String, duration_seconds: float = 6.0) -> void
+- 1639-1672 func _create_synthetic_fallback_room() -> void
+- 1674-1684 func _is_position_safe(pos: Vector2) -> bool
+- 1686-1716 func _get_safe_spawn_position() -> Vector2
+- 1718-1750 func reset_player() -> void
+- 1751-1854 func reset_game_state() -> void
+- 1856-1857 func _on_player_died() -> void
+- 1859-1876 func trigger_game_over(instant: bool = false) -> void
+- 1878-1901 func _execute_game_restart() -> void
+- 1903-2196 func _input(event: InputEvent) -> void
+- 2198-2702 func _physics_process(delta: float) -> void
+- 2705-2748 func _check_and_handle_room_transition() -> void
+- 2750-2762 func _clamp_to_room_bounds(exit_dir: int) -> void
+- 2764-2886 func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, from_door_id: int = -1) -> bool
+- 2887-2922 func _transition_elevator_room(next_room_id: int, move_dir_y: int) -> void
+- 2924-2927 func _on_camera_detected(_cam: SecurityCamera) -> void
+- 2929-2932 func _on_laser_triggered(_laser_id: int = 0) -> void
+- 2934-2937 func _trigger_alarm() -> void
+- 2939-2945 func _on_alert_state_changed(_old_state: AlertSystem.AlertState, new_state: AlertSystem.AlertState) -> void
+- 2947-2964 func _on_reinforcement_requested(enemy_id: int, spawn_pos: Vector2) -> void
+- 2966-2970 func _on_boss_intro_dialog(text: String) -> void
+- 2972-2989 func _on_boss_shot_fired(origin: Vector2, target: Vector2) -> void
+- 2991-2996 func _on_boss_bullet_hit_player(damage: int) -> void
+- 2998-3024 func _on_boss_defeated() -> void
+- 3025-3036 func _check_boss_bullet_collision(b: Bullet) -> bool
+- 3038-3044 func _on_missile_exploded(pos: Vector2) -> void
+- 3046-3082 func _on_plastic_bomb_exploded(bomb_pos: Vector2, radius: float, damage: int) -> void
+- 3084-3090 func _on_plastic_bomb_finished(bomb_node: Node2D) -> void
+- 3092-3103 func _trigger_capture_event() -> void
+- 3105-3110 func _on_capture_teleport_requested() -> void
+- 3112-3115 func _on_capture_cutscene_finished() -> void
+- 3117-3124 func _update_prison_wall(delta: float) -> void
+- 3126-3138 func break_prison_wall(door_id: int = 103) -> void
+- 3140-3145 func _on_equipment_restored() -> void
 
 ## godot/scripts/scenes/title_screen.gd (299 linhas)
 extends Control
@@ -222,46 +224,61 @@ var: current_direction@48, is_moving@49, anim_timer_sec@50, anim_wait_cnt@51, fr
 - 365-385 func is_colliding_at(target_pos: Vector2, dir: Direction) -> bool
 - 387-823 func _draw() -> void
 
-## godot/scripts/systems/radio_dialog.gd (568 linhas)
+## godot/scripts/systems/radio_dialog.gd (548 linhas)
 class_name RadioDialog · extends Control
 signals: radio_closed@9
-const/enum: ENTER_ICON_BITS@40
-var: radio_system@11, current_room_id@12, is_active@13, target_full_text@16, displayed_text@17, char_index@18, typewriter_speed@19, typewriter_timer@20, text_finished@21, current_contact@24, current_contact_name@25, current_text@26, has_signal@27, target_leds@30, current_leds@31, led_anim_timer@32, dialog_pages@35, current_page_index@36, is_tuning_locked@37, anim_timer@52, texture_chassis@55, texture_snake_portrait@56, texture_digits@57, texture_120@58, texture_leds@59, texture_msx_font@60
-- 62-67 func _ready() -> void
-- 69-75 func _load_textures() -> void
-- 77-85 func _load_texture(path: String) -> Texture2D
-- 87-111 func start_briefing(contact: String, contact_name: String, pages: Array[String], system: RadioSystem = null...
-- 113-132 func open_radio(system: RadioSystem, room_id: int, auto_answer: bool = false) -> void
-- 134-143 func close_radio() -> void
-- 145-175 func _process(delta: float) -> void
-- 177-267 func handle_input(event: InputEvent) -> bool
-- 269-276 func _on_frequency_changed() -> void
-- 278-283 func _trigger_send() -> void
-- 285-292 func _start_dialog(result: Dictionary) -> void
-- 294-298 func _update_status_display() -> void
-- 300-303 func _set_text(text: String) -> void
-- 305-315 func _display_current_page() -> void
-- 316-359 static func _paginate_text(text: String, max_w: float = 184.0, max_lines_per_page: int = 4) -> Array[String]
-- 361-463 func _draw() -> void
-- 465-479 func _draw_msx_char(ch: int, pos: Vector2, color: Color) -> int
-- 481-487 func _draw_msx_line(line_str: String, pos: Vector2, color: Color) -> float
-- 489-522 func _draw_msx_multiline(text: String, start_pos: Vector2, max_w: float, line_h: float, color: Color) -> void
-- 524-561 func _draw_fallback(is_send: bool) -> void
-- 563-568 func _draw_enter_icon(pos: Vector2, color: Color) -> void
+const/enum: ENTER_ICON_BITS@43
+var: radio_system@11, current_room_id@12, is_active@13, target_full_text@16, displayed_text@17, char_index@18, typewriter_speed@19, typewriter_timer@20, text_finished@21, current_contact@24, current_contact_name@25, current_text@26, has_signal@27, target_leds@30, current_leds@31, led_anim_timer@32, dialog_pages@35, current_page_index@36, is_tuning_locked@37, _up_was_down@38, _left_was_down@39, _right_was_down@40, anim_timer@55, texture_chassis@58, texture_snake_portrait@59, texture_digits@60, texture_120@61, texture_leds@62, texture_msx_font@63
+- 65-70 func _ready() -> void
+- 72-78 func _load_textures() -> void
+- 80-88 func _load_texture(path: String) -> Texture2D
+- 90-117 func start_briefing(contact: String, contact_name: String, pages: Array[String], system: RadioSystem = null...
+- 118-134 func open_radio(system: RadioSystem, room_id: int, _auto_answer: bool = false) -> void
+- 136-148 func close_radio() -> void
+- 149-150 func is_showing_text() -> bool
+- 152-164 func _physics_process(_delta: float) -> void
+- 166-176 func _on_text_requested(text_id: int) -> void
+- 178-181 func _finish_text() -> void
+- 183-191 func _clear_text() -> void
+- 193-223 func _process(delta: float) -> void
+- 225-283 func handle_input(event: InputEvent) -> bool
+- 285-295 func _display_current_page() -> void
+- 296-339 static func _paginate_text(text: String, max_w: float = 184.0, max_lines_per_page: int = 4) -> Array[String]
+- 341-443 func _draw() -> void
+- 445-459 func _draw_msx_char(ch: int, pos: Vector2, color: Color) -> int
+- 461-467 func _draw_msx_line(line_str: String, pos: Vector2, color: Color) -> float
+- 469-502 func _draw_msx_multiline(text: String, start_pos: Vector2, max_w: float, line_h: float, color: Color) -> void
+- 504-541 func _draw_fallback(is_send: bool) -> void
+- 543-548 func _draw_enter_icon(pos: Vector2, color: Color) -> void
 
-## godot/scripts/systems/radio_system.gd (308 linhas)
+## godot/scripts/systems/radio_system.gd (307 linhas)
 class_name RadioSystem · extends RefCounted
-const/enum: CONTACT_BIG_BOSS@9, CONTACT_SCHNEIDER@10, CONTACT_DIANE@11, CONTACT_JENNIFER@12, FREQ_BIGBOSS_PR1@16, FREQ_BIGBOSS_PR2@17, FREQ_SCHNEIDER_PR1@18, FREQ_SCHNEIDER_PR2@19, FREQ_DIANE_PR1@20, FREQ_DIANE_PR2@21, FREQ_JENNIFER@22, TXT_SNAKE_SEND@25, TXT_NO_RESPONSE@28, ROOM_CALLS@41
-var: current_freq@31, is_send_mode@32, has_incoming_call@33, signal_leds@34, answered_rooms@35
-- 215-219 func tune_up() -> void
-- 220-224 func tune_down() -> void
-- 225-228 func set_frequency(freq: int) -> void
-- 229-232 func get_frequency_string() -> String
-- 233-241 func get_contact_name_for_freq(freq: int) -> String
-- 242-254 func check_incoming_call(room_id: int) -> bool
-- 255-278 func answer_call(room_id: int) -> Dictionary
-- 279-284 func send_transmission(room_id: int) -> Dictionary
-- 285-308 func get_transmission_result(room_id: int) -> Dictionary
+signals: text_requested@14, sfx_requested@15
+const/enum: State@17, CONTACT_BIG_BOSS@19, CONTACT_SCHNEIDER@20, CONTACT_DIANE@21, CONTACT_JENNIFER@22, PERSON_CONTACTS@24, FREQ_BIGBOSS_PR1@28, FREQ_BIGBOSS_PR2@29, FREQ_SCHNEIDER_PR1@30, FREQ_SCHNEIDER_PR2@31, FREQ_DIANE_PR1@32, FREQ_DIANE_PR2@33, FREQ_JENNIFER@34, FREQ_MAX@35, CALL_PENDING@38, CALL_RINGING@39, CALL_STOPPED@40, INCOMING_CALL_BIT@41, CALL_DURATION@42, ANTENNA_CALL_DELAY@43, LED_COUNT@45, LED_FIRST_DELAY@46, LED_STEP_DELAY@47, FREQ_PRESS_DELAY@48, FREQ_REPEAT_DELAY@49, MAP_ZONE_NEEDS_ANTENNA@51, MAP_ZONE_BUILDING1_BASEMENT@52, CLASS_FOUR_STARS@53, SFX_INCOMING_CALL@55, SFX_RADIO_NOISE@56, SFX_MUTE@57, TEXT_SEND@58, TEXT_BUG_WARNING@59, TEXT_SWITCH_OFF_MSX@60, TEXT_MADNAR_CHECK@61, DATA_PATH@63
+var: current_freq@65, is_send_mode@66, reply_requested@67, auto_reply_done@68, state@69, signal_leds@70, led_delay@71, hold_wait@72, reply_person@73, waiting_text@74, persons@75, first_person_freq@76, radio_call_flag@77, incoming_call_timer@78, map_zone@79, antenna_taken@81, transmitter_taken@82, schneider_captured@83, jennifer_brother_dead@84, madnar_moved@85, switch_off_msx@86, class_rank@87, has_incoming_call@89
+- 98-106 static func data() -> Dictionary
+- 107-112 static func text_pages(text_id: int) -> Array[String]
+- 114-116 static func room_persons(room_id: int) -> Array
+- 118-122 static func room_has_incoming_call(room_id: int) -> bool
+- 124-126 static func room_map_zone(room_id: int) -> int
+- 128-131 static func bcd_increment(freq: int) -> int
+- 133-136 static func bcd_decrement(freq: int) -> int
+- 138-139 func get_frequency_string() -> String
+- 141-142 func set_frequency(freq: int) -> void
+- 144-148 func get_contact_name_for_freq(freq: int) -> String
+- 150-153 func reply_contact() -> String
+- 154-156 func enter_room(room_id: int) -> void
+- 158-167 func update_radio(room_id: int) -> void
+- 169-181 func check_radio_calls(room_id: int) -> void
+- 183-194 func tick_incoming_call() -> void
+- 196-200 func force_pending_call() -> void
+- 201-213 func open_radio() -> void
+- 214-247 func radio_tick(up_trigger: bool, left_trigger: bool, right_trigger: bool, left_hold: bool, right_hold: boo...
+- 249-250 func text_closed() -> void
+- 252-254 func _request_text(text_id: int) -> void
+- 256-271 func _change_frequency(left_trigger: bool, right_trigger: bool, left_hold: bool, right_hold: bool) -> void
+- 273-287 func _check_receive() -> void
+- 289-307 func _reply_allowed(person: Dictionary) -> bool
 
 ## godot/scripts/systems/room_manager.gd (318 linhas)
 class_name RoomManager · extends RefCounted

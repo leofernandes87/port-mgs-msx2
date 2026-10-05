@@ -35,6 +35,9 @@ var led_anim_timer: float = 0.0
 var dialog_pages: Array[String] = []
 var current_page_index: int = 0
 var is_tuning_locked: bool = false
+var _up_was_down: bool = true
+var _left_was_down: bool = true
+var _right_was_down: bool = true
 
 # Ícone clássico de ENTER do MSX2 (Banks0123.asm:8201-8219 DrawEnterIcon / PromptXY em 212, 168)
 const ENTER_ICON_BITS: Array[int] = [
@@ -110,26 +113,25 @@ func start_briefing(contact: String, contact_name: String, pages: Array[String],
 	queue_redraw()
 	print("RADIO_BRIEFING: Iniciado briefing de %s (%d páginas)" % [contact_name, dialog_pages.size()])
 
-func open_radio(system: RadioSystem, room_id: int, auto_answer: bool = false) -> void:
+## GAME_MODE_RADIO: DrawRadio and then one RadioLogic iteration per physics tick (Banks0123.asm:10676-10853).
+## Incoming calls are not answered here: auto-tune (UpdateRadio) plus auto reply produce the reply.
+func open_radio(system: RadioSystem, room_id: int, _auto_answer: bool = false) -> void:
 	radio_system = system
 	current_room_id = room_id
 	is_active = true
 	visible = true
 	is_tuning_locked = false
-
-	if auto_answer and radio_system and radio_system.has_incoming_call:
-		var result: Dictionary = radio_system.answer_call(room_id)
-		_start_dialog(result)
-	else:
-		# Entra em modo RECV na frequência atual
-		if radio_system:
-			radio_system.is_send_mode = false
-		_update_status_display()
-		_set_text("TRANSCEIVER ONLINE. TUNE FREQUENCY (LEFT/RIGHT) AND PRESS UP TO TRANSMIT.")
-
+	if not radio_system.text_requested.is_connected(_on_text_requested):
+		radio_system.text_requested.connect(_on_text_requested)
+	radio_system.open_radio()
+	_up_was_down = true
+	_left_was_down = true
+	_right_was_down = true
+	_clear_text()
+	current_leds = 0
+	target_leds = 0
 	queue_redraw()
-	var freq_msg: String = radio_system.get_frequency_string() if radio_system else "120.85"
-	print("RADIO_OPENED: Transceptor ativado na sala %d (Freq: %s)" % [room_id, freq_msg])
+	print("RADIO_OPENED: Transceptor ativado na sala %d (Freq: %s)" % [room_id, radio_system.get_frequency_string()])
 
 func close_radio() -> void:
 	if not is_active:
@@ -137,10 +139,56 @@ func close_radio() -> void:
 	is_active = false
 	visible = false
 	is_tuning_locked = false
-	dialog_pages.clear()
-	current_page_index = 0
+	if radio_system and radio_system.text_requested.is_connected(_on_text_requested):
+		radio_system.text_requested.disconnect(_on_text_requested)
+	_clear_text()
 	radio_closed.emit()
 	print("RADIO_CLOSED: Transceptor desligado.")
+
+## ExitRadio is only polled by RadioLogic (F4), not while the text window runs.
+func is_showing_text() -> bool:
+	return radio_system != null and radio_system.waiting_text
+
+func _physics_process(_delta: float) -> void:
+	if not is_active or is_tuning_locked or radio_system == null:
+		return
+	var up: bool = Input.is_action_pressed("ui_up") or Input.is_physical_key_pressed(KEY_W)
+	var left: bool = Input.is_action_pressed("ui_left") or Input.is_physical_key_pressed(KEY_A)
+	var right: bool = Input.is_action_pressed("ui_right") or Input.is_physical_key_pressed(KEY_D)
+	radio_system.radio_tick(up and not _up_was_down, left and not _left_was_down, right and not _right_was_down,
+		left, right)
+	_up_was_down = up
+	_left_was_down = left
+	_right_was_down = right
+	current_leds = radio_system.signal_leds
+	target_leds = current_leds
+
+func _on_text_requested(text_id: int) -> void:
+	current_contact = "SOLID SNAKE" if text_id == RadioSystem.TEXT_SEND else radio_system.reply_contact()
+	current_contact_name = current_contact.replace("_", " ")
+	has_signal = text_id != RadioSystem.TEXT_SEND
+	dialog_pages = RadioSystem.text_pages(text_id)
+	current_page_index = 0
+	if dialog_pages.is_empty():
+		radio_system.text_closed()
+		return
+	_display_current_page()
+	queue_redraw()
+
+func _finish_text() -> void:
+	_clear_text()
+	if radio_system:
+		radio_system.text_closed()
+
+func _clear_text() -> void:
+	dialog_pages.clear()
+	current_page_index = 0
+	target_full_text = ""
+	displayed_text = ""
+	char_index = 0
+	text_finished = true
+	current_contact = ""
+	current_contact_name = ""
 
 func _process(delta: float) -> void:
 	if not is_active:
@@ -213,94 +261,26 @@ func handle_input(event: InputEvent) -> bool:
 
 		return false
 
-	if event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and (event.keycode == KEY_F4 or event.keycode == KEY_T or event.keycode == KEY_ESCAPE)):
+	var showing_text: bool = is_showing_text()
+	if not showing_text and (event.is_action_pressed("ui_cancel") or (event is InputEventKey and event.pressed and (event.keycode in [KEY_F4, KEY_T, KEY_ESCAPE]))):
 		close_radio()
 		return true
 
-	# Avançar texto imediatamente se pressionar Espaço ou Enter
-	if event.is_action_pressed("ui_accept") or (event is InputEventKey and event.pressed and (event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER])):
+	if showing_text and (event.is_action_pressed("ui_accept") or (event is InputEventKey and event.pressed and (event.keycode in [KEY_SPACE, KEY_ENTER, KEY_KP_ENTER]))):
 		if not text_finished:
-			# Pula digitação e exibe tudo da página atual
 			displayed_text = target_full_text
 			char_index = target_full_text.length()
 			text_finished = true
-			queue_redraw()
-			return true
+		elif current_page_index + 1 < dialog_pages.size():
+			current_page_index += 1
+			_display_current_page()
 		else:
-			# Texto já completo: verifica se há mais páginas
-			if current_page_index + 1 < dialog_pages.size():
-				current_page_index += 1
-				_display_current_page()
-				queue_redraw()
-				return true
-			else:
-				close_radio()
-				return true
-
-	# Sintonia: Esquerda / Direita
-	if event.is_action_pressed("ui_left") or (event is InputEventKey and event.pressed and event.keycode == KEY_A):
-		if radio_system:
-			radio_system.tune_down()
-			radio_system.is_send_mode = false
-		_on_frequency_changed()
-		return true
-	elif event.is_action_pressed("ui_right") or (event is InputEventKey and event.pressed and event.keycode == KEY_D):
-		if radio_system:
-			radio_system.tune_up()
-			radio_system.is_send_mode = false
-		_on_frequency_changed()
+			_finish_text()
+		queue_redraw()
 		return true
 
-	# Transmissão (SEND): Cima / W
-	if event.is_action_pressed("ui_up") or (event is InputEventKey and event.pressed and event.keycode == KEY_W):
-		_trigger_send()
-		return true
-
-	# Modo Recepção (RECV): Baixo / S
-	if event.is_action_pressed("ui_down") or (event is InputEventKey and event.pressed and event.keycode == KEY_S):
-		if radio_system:
-			radio_system.is_send_mode = false
-		_update_status_display()
-		_set_text("RECEIVER MODE. WAITING FOR TRANSMISSION.")
-		return true
-
-	return false
-
-func _on_frequency_changed() -> void:
-	target_leds = 0
-	current_contact = ""
-	current_contact_name = ""
-	has_signal = false
-	var freq_text: String = radio_system.get_frequency_string() if radio_system else "120.85"
-	_set_text("TUNING: %s MHz..." % freq_text)
-	queue_redraw()
-
-func _trigger_send() -> void:
-	if not radio_system:
-		radio_system = RadioSystem.new()
-	radio_system.is_send_mode = true
-	var result: Dictionary = radio_system.send_transmission(current_room_id)
-	_start_dialog(result)
-
-func _start_dialog(result: Dictionary) -> void:
-	has_signal = bool(result.get("has_signal", false))
-	current_contact = String(result.get("contact", ""))
-	var is_send: bool = radio_system.is_send_mode if radio_system else false
-	current_contact_name = String(result.get("contact_name", "SOLID SNAKE" if is_send else "RADIO"))
-	target_leds = 12 if has_signal else 0
-	_set_text(String(result.get("text", "")))
-	queue_redraw()
-
-func _update_status_display() -> void:
-	if radio_system:
-		current_contact_name = radio_system.get_contact_name_for_freq(radio_system.current_freq)
-	target_leds = 0
-	queue_redraw()
-
-func _set_text(text: String) -> void:
-	dialog_pages = _paginate_text(text, 184.0, 4)
-	current_page_index = 0
-	_display_current_page()
+	# Directions are polled per tick in _physics_process (ControlsTrigger/ControlsHold).
+	return event is InputEventKey or event.is_action_type()
 
 func _display_current_page() -> void:
 	if current_page_index >= 0 and current_page_index < dialog_pages.size():
@@ -413,9 +393,9 @@ func _draw() -> void:
 			draw_texture(texture_120, Vector2(120.0, 33.0))
 
 		if texture_digits:
-			var freq_val: int = radio_system.current_freq if radio_system else 85
-			var d1: int = (freq_val / 10) % 10
-			var d2: int = freq_val % 10
+			var freq_val: int = radio_system.current_freq if radio_system else RadioSystem.FREQ_BIGBOSS_PR1
+			var d1: int = (freq_val >> 4) & 0x0F
+			var d2: int = freq_val & 0x0F
 			var src_d1 := Rect2(float(d1 * 8), 0.0, 8.0, 16.0)
 			var src_d2 := Rect2(float(d2 * 8), 0.0, 8.0, 16.0)
 			draw_texture_rect_region(texture_digits, Rect2(152.0, 33.0, 8.0, 16.0), src_d1)

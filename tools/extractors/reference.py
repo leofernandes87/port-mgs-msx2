@@ -28,9 +28,12 @@ class Reference:
     def read(self, file):
         return (self.path / file).read_text(encoding='latin-1')
 
-    def add(self, files, group, offset=None):
-        """group physical base maps CPU 6000..BFFF. Verify entire segment."""
-        sources = [(f, self.read(f)) for f in files]
+    def add(self, files, group, offset=None, transform=None):
+        """group physical base maps CPU 6000..BFFF. Verify entire segment.
+
+        transform(file, text) may rewrite source syntax the strict parser rejects
+        (English IF branch, constant expressions); the bytes are still compared in full."""
+        sources = [(f, transform(f, self.read(f)) if transform else self.read(f)) for f in files]
         if offset is None:
             prototype, _, _ = data_segment(sources, 0, self.constants)
             # Call sites use data-only leading blocks. Full reassembly below

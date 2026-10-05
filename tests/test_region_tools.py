@@ -1,4 +1,5 @@
 """Re-extraction tools: synthetic documents and symbols only, never game data."""
+import json
 from pathlib import Path
 import re
 import unittest
@@ -90,7 +91,7 @@ class RegionClassifier(unittest.TestCase):
 
 
 REFERENCE = Path(__file__).resolve().parents[1] / 'external/MetalGear'
-GODOT_RADIO = Path(__file__).resolve().parents[1] / 'godot/scripts/systems/radio_system.gd'
+RADIO_JSON = Path(__file__).resolve().parents[1] / 'data/extracted/en-eu-rc750/radio/radio_dialogue.json'
 
 
 def english_branch(source):
@@ -102,9 +103,9 @@ def asm_values(text):
             for line in re.findall(r'\bdb\s+([^;\n]+)', text) for v in (x.strip() for x in line.split(','))]
 
 
-@unittest.skipUnless(REFERENCE.is_dir(), 'private reference disassembly absent')
+@unittest.skipUnless(REFERENCE.is_dir() and RADIO_JSON.is_file(), 'private reference or local extraction absent')
 class GodotRadioFollowsEnglishEdition(unittest.TestCase):
-    """The partial Godot port may omit rooms, but what it has must match the English tables."""
+    """The ROM-extracted radio table read by Godot must match an independent parse of the English sources."""
 
     def english_tables(self):
         enums = (REFERENCE / 'constants/Enums.asm').read_text(encoding='latin-1')
@@ -128,25 +129,21 @@ class GodotRadioFollowsEnglishEdition(unittest.TestCase):
         music = music[music.index('RoomsMusic:'):music.index('Map zones')]
         return rooms, asm_values(english_branch(music))
 
-    def godot_table(self):
-        source = GODOT_RADIO.read_text(encoding='utf-8')
-        freq = {k: int(v) for k, v in re.findall(r'const (FREQ_\w+): int = (\d+)', source)}
-        body = source[source.index('const ROOM_CALLS'):]
-        body = body[:body.index('\n}\n')]
-        return {int(m[1]): [(freq[f], int(t), a == 'true') for f, a, t in re.findall(
-            r'"freq": (FREQ_\w+),\s*"is_autoreply": (true|false),\s*"text_id": (\d+)', m[2])]
-            for m in re.finditer(r'^\t(\d+): \[(.*?)^\t\]', body, re.M | re.S)}
+    def extracted_table(self):
+        data = json.loads(RADIO_JSON.read_text(encoding='utf-8'))
+        rooms = {room: [(int(f'{p["freq"]:02x}'), p['text_id']) for p in persons]
+                 for room, persons in enumerate(data['rooms']) if persons}
+        return rooms, set(data['incoming_call_rooms'])
 
-    def test_ported_rooms_match_english_calls_and_call_indicator(self):
+    def test_extracted_rooms_match_english_calls_and_call_indicator(self):
         english, rooms_music = self.english_tables()
         self.assertEqual(len(rooms_music), 251)
-        for room, calls in self.godot_table().items():
+        extracted, incoming = self.extracted_table()
+        self.assertEqual(set(extracted), set(english))
+        for room, calls in extracted.items():
             with self.subTest(room=room):
-                self.assertTrue(room in english, 'room has no radio listeners in the English edition (NoRadio)')
-                self.assertEqual([c[:2] for c in calls], [c[:2] for c in english[room]])
-                incoming = any(c[2] for c in calls)
-                self.assertEqual(incoming, bool(rooms_music[room] & 8), 'CALL indicator must follow RoomsMusic bit 3')
-
+                self.assertEqual(calls, [c[:2] for c in english[room]])
+        self.assertEqual(incoming, {room for room, value in enumerate(rooms_music) if value & 8})
 
 if __name__ == '__main__':
     unittest.main()

@@ -16,7 +16,7 @@ marcador aparecer e não houver `ERROR:`. Suíte nova: acrescentar a `GODOT_TEST
 - `godot-elevator` · `elevator_test.gd` · `ELEVATOR_OK:` · scenes/sandbox_gameplay.tscn, scripts/systems/door.gd, scripts/systems/elevator_system.gd, scripts/systems/player.gd
 - `godot-weapon-combat` · `weapon_and_combat_test.gd` · `WEAPONS_AND_COMBAT_OK:` · scenes/enemy.tscn, scenes/player.tscn, scripts/systems/bullet.gd, scripts/systems/enemy.gd, scripts/systems/player.gd, scripts/systems/weapon_system.gd
 - `godot-building-doors` · `building_doors_test.gd` · `BUILDING_DOORS_OK:` · scenes/sandbox_gameplay.tscn, scripts/systems/door.gd, scripts/systems/inventory.gd, scripts/systems/item_box.gd, scripts/systems/player.gd, scripts/systems/weapon_system.gd
-- `godot-radio-system` · `radio_system_test.gd` · `RADIO_SYSTEM_OK:` · scenes/sandbox_gameplay.tscn, scripts/scenes/sandbox_gameplay.gd, scripts/systems/player.gd, scripts/systems/radio_dialog.gd, scripts/systems/radio_system.gd
+- `godot-radio-system` · `radio_system_test.gd` · `RADIO_SYSTEM_OK:` · scenes/sandbox_gameplay.tscn, scripts/systems/player.gd, scripts/systems/radio_dialog.gd, scripts/systems/radio_system.gd
 - `godot-cameras-and-lasers` · `cameras_and_lasers_test.gd` · `CAMERAS_AND_LASERS_OK:` · scripts/systems/laser_system.gd, scripts/systems/security_camera.gd
 - `godot-alert-system` · `alert_system_test.gd` · `ALERT_SYSTEM_OK:` · scripts/systems/alert_system.gd
 - `godot-boss-shoot-gunner` · `shot_gunner_test.gd` · `BOSS_SHOOT_GUNNER_OK:` · scripts/systems/shot_gunner.gd, scripts/systems/shot_gunner_bullet.gd
@@ -52,6 +52,7 @@ marcador aparecer e não houver `ERROR:`. Suíte nova: acrescentar a `GODOT_TEST
 - `tests/test_hud_extractor.py` · TestHUDExtractor · tools.extractors.extract_hud_assets
 - `tests/test_prison_wall_extractor.py` · PrisonWallExtractorTests · tools.extractors.extract_prison_wall
 - `tests/test_prisoner_sprite_extractor.py` · PrisonerSpriteExtractorTests · tools.extractors.extract_prisoner_sprites
+- `tests/test_radio_dialogue_extractor.py` · RadioDialogueTests · tools.extractors.extract_radio_dialogue
 - `tests/test_region_tools.py` · LocalAliases, TraceRelocation, RegionClassifier, GodotRadioFollowsEnglishEdition · tools.emulation.run_trace, tools.extractors.export_local_aliases, tools.reverse_engineering.compare_regions, tools.rom
 - `tests/test_repository.py` · RepositoryPolicyTests · —
 - `tests/test_reverse_engineering.py` · AnalysisTests · tools.reverse_engineering.analyze

@@ -5,7 +5,7 @@ citado como `arquivo.asm:linhas`, os arquivos do projeto que o citam (histórico
 excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic/items.asm" -A20`.
 
 ## Banks0123.asm
-- arquivo: .agents/skills/delivery/SKILL.md, .agents/skills/implement-faithful-mechanic/SKILL.md, .agents/skills/inspect-msx-disassembly/SKILL.md, AGENTS.md, docs/index/README.md, docs/index/mechanics.json, docs/reverse_engineering/architecture.md, docs/reverse_engineering/enemies.md, docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/movement-and-collision.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-19-gas-hazard.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-5-movement-and-collision.md, godot/scripts/systems/elevator_system.gd, godot/scripts/systems/radio_system.gd, godot/scripts/systems/room_manager.gd, tests/test_region_tools.py, tools/extractors/extract.py, tools/extractors/extract_hud_assets.py, tools/extractors/extract_rolling_barrel.py, tools/extractors/extract_transceiver_sprites.py, tools/extractors/reference.py
+- arquivo: .agents/skills/delivery/SKILL.md, .agents/skills/implement-faithful-mechanic/SKILL.md, .agents/skills/inspect-msx-disassembly/SKILL.md, AGENTS.md, docs/index/README.md, docs/index/mechanics.json, docs/reverse_engineering/architecture.md, docs/reverse_engineering/enemies.md, docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/movement-and-collision.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-19-gas-hazard.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-5-movement-and-collision.md, godot/scripts/systems/elevator_system.gd, godot/scripts/systems/room_manager.gd, tests/test_region_tools.py, tools/extractors/extract.py, tools/extractors/extract_hud_assets.py, tools/extractors/extract_radio_dialogue.py, tools/extractors/extract_rolling_barrel.py, tools/extractors/extract_transceiver_sprites.py, tools/extractors/reference.py
 - 7: docs/reference.md
 - 8: docs/reverse_engineering/architecture.md
 - 440: docs/index/mechanics.json, docs/reverse_engineering/architecture.md
@@ -25,18 +25,20 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 1283: docs/reverse_engineering/stage-3-results.md
 - 1480-1531: docs/reverse_engineering/prison-wall.md, tools/extractors/extract_prison_wall.py
 - 1590-1603: docs/index/mechanics.json
+- 1688-1745: docs/index/mechanics.json, godot/scripts/systems/radio_system.gd, tools/extractors/extract_radio_dialogue.py
 - 1689-1701: docs/index/mechanics.json
 - 1689-1743: .agents/skills/inspect-msx-disassembly/SKILL.md
 - 1689-1745: docs/index/mechanics.json
 - 1692-1694: docs/index/mechanics.json
+- 1692-1701: docs/index/mechanics.json
 - 1696-1701: docs/index/mechanics.json
 - 1703-1715: docs/index/mechanics.json
 - 1708-1710: docs/index/mechanics.json
 - 1712-1714: docs/index/mechanics.json
 - 1720-1727: docs/index/mechanics.json
 - 1729-1733: docs/reverse_engineering/en-eu-reextraction.md
-- 1729-1739: godot/scripts/systems/radio_system.gd
 - 1729-1743: docs/index/mechanics.json
+- 1734-1741: tools/extractors/extract_radio_dialogue.py
 - 1824-1913: docs/index/mechanics.json
 - 1858-1896: docs/index/mechanics.json
 - 2025: docs/reverse_engineering/en-eu-reextraction.md
@@ -44,11 +46,13 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 2139: godot/scripts/systems/hud.gd
 - 2270-2312: docs/index/mechanics.json, godot/scripts/systems/hud.gd
 - 2379-2448: docs/index/mechanics.json
+- 2379-2461: godot/scripts/systems/radio_system.gd, tools/extractors/extract_radio_dialogue.py
 - 2380-2448: docs/index/mechanics.json
 - 2413-2425: docs/reverse_engineering/en-eu-reextraction.md
 - 2421-2426: docs/index/mechanics.json
 - 2427-2435: docs/index/mechanics.json
-- 2455-2462: docs/index/mechanics.json, godot/scripts/systems/radio_system.gd
+- 2455-2461: tools/extractors/extract_radio_dialogue.py
+- 2455-2462: docs/index/mechanics.json
 - 2549: docs/reverse_engineering/stage-4b-vram-inheritance.md
 - 2890: tools/extractors/extract_hud_assets.py
 - 2936-2965: docs/index/mechanics.json
@@ -70,6 +74,8 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 4885: docs/reverse_engineering/stage-4-results.md
 - 5204: docs/reverse_engineering/stage-3-results.md, tools/extractors/extract_hud_assets.py, tools/extractors/extract_transceiver_sprites.py
 - 5274: docs/reverse_engineering/inventory-and-events.md
+- 5280-5283: tools/extractors/extract_radio_dialogue.py
+- 5305-5340: godot/scripts/systems/radio_system.gd
 - 5305-5345: docs/index/mechanics.json
 - 5305-5391: docs/reverse_engineering/grey-fox-dialogue.md, tools/extractors/extract_grey_fox_dialogue.py
 - 5353: docs/reverse_engineering/en-eu-reextraction.md
@@ -159,9 +165,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 8301-8304: docs/index/mechanics.json
 - 8301-8325: docs/index/mechanics.json
 - 8305-8324: docs/index/mechanics.json
-- 8318-8324: docs/index/mechanics.json
 - 8338-8387: docs/index/mechanics.json
-- 8344: godot/tests/radio_system_test.gd
 - 8345: godot/scripts/systems/capture_cutscene.gd
 - 8365-8387: docs/reverse_engineering/grey-fox-dialogue.md
 - 8397: docs/reverse_engineering/movement-and-collision.md
@@ -199,31 +203,36 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 9827-9843: docs/reverse_engineering/intro-water-colors.md, godot/scripts/systems/intro_cutscene.gd
 - 9827-9877: docs/reverse_engineering/intro-fence-timing.md
 - 10058: docs/reverse_engineering/architecture.md
+- 10676-10853: godot/scripts/systems/radio_dialog.gd, godot/scripts/systems/radio_system.gd, godot/tests/radio_system_test.gd
 - 10695-10730: godot/scripts/systems/radio_dialog.gd
 - 10695-10731: docs/index/mechanics.json
 - 10695-11350: docs/index/mechanics.json
 - 10701-10702: docs/index/mechanics.json
 - 10742-10779: docs/index/mechanics.json
 - 10757-10779: docs/index/mechanics.json
+- 10759-10771: tools/extractors/extract_radio_dialogue.py
+- 10780-10790: tools/extractors/extract_radio_dialogue.py
 - 10787: godot/scripts/systems/radio_dialog.gd
 - 10787-10809: docs/index/mechanics.json
 - 10837-10850: docs/index/mechanics.json
 - 10842: docs/index/mechanics.json
+- 10904-10953: godot/tests/radio_system_test.gd
 - 10906-10957: docs/index/mechanics.json
-- 10906-10958: godot/tests/radio_system_test.gd
-- 10938-10945: godot/scripts/systems/radio_system.gd
-- 10948-10957: godot/scripts/systems/radio_system.gd
-- 10968: godot/scripts/systems/radio_system.gd
-- 10971-10990: docs/reverse_engineering/en-eu-reextraction.md, godot/scripts/systems/radio_system.gd
+- 10912-10917: tools/extractors/extract_radio_dialogue.py
+- 10921-10927: tools/extractors/extract_radio_dialogue.py
+- 10965-11039: docs/index/mechanics.json
+- 10971-10990: docs/reverse_engineering/en-eu-reextraction.md
 - 10993-11020: docs/index/mechanics.json
+- 11034-11039: tools/extractors/extract_radio_dialogue.py
 - 11043-11055: docs/index/mechanics.json
 - 11043-11056: docs/index/mechanics.json
 - 11043-11175: docs/index/mechanics.json
+- 11047-11165: godot/tests/radio_system_test.gd
 - 11049-11055: docs/index/mechanics.json
 - 11071-11080: docs/index/mechanics.json
-- 11079: docs/index/mechanics.json
+- 11071-11081: tools/extractors/extract_radio_dialogue.py
+- 11088-11106: tools/extractors/extract_radio_dialogue.py
 - 11095-11108: docs/index/mechanics.json
-- 11107: docs/index/mechanics.json
 - 11115-11130: docs/index/mechanics.json
 - 11135-11149: docs/index/mechanics.json
 - 11136-11148: docs/index/mechanics.json
@@ -236,11 +245,13 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 11775: godot/scripts/systems/inventory.gd
 - 11775-11780: docs/index/mechanics.json
 - 11797-11799: docs/reverse_engineering/prison-wall.md, godot/scripts/systems/capture_system.gd, tools/extractors/extract_capture_prison_data.py
+- 11847-11856: godot/scripts/scenes/sandbox_gameplay.gd
 - 11908: docs/reverse_engineering/stage-4-results.md
 - 11914-11916: docs/reverse_engineering/intro-water-colors.md, tools/extractors/extract_snake_sprites.py
 - 12015: docs/reverse_engineering/architecture.md
 - 12072-12087: docs/reverse_engineering/grey-fox-dialogue.md
 - 12151: .agents/skills/implement-faithful-mechanic/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/architecture.md
+- 12161-12167: godot/scripts/scenes/sandbox_gameplay.gd
 - 12190-12191: godot/scripts/scenes/sandbox_gameplay.gd
 - 12193-12195: docs/index/mechanics.json
 - 12223-12224: godot/tests/prisoner_dialog_test.gd
@@ -279,16 +290,18 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 9: docs/reference.md
 
 ## BanksABC.asm
-- arquivo: docs/reverse_engineering/memory-and-banks.md
+- arquivo: docs/reverse_engineering/memory-and-banks.md, tools/extractors/extract_radio_dialogue.py
 - 9: docs/reference.md
+- 22: tools/extractors/extract_radio_dialogue.py
 - 24: docs/reverse_engineering/en-eu-reextraction.md
 - 36-58: docs/index/mechanics.json
 
 ## BanksDEF.asm
-- arquivo: docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/rom-compatibility.md, tools/extractors/reference.py
+- arquivo: docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/rom-compatibility.md, tools/extractors/extract_radio_dialogue.py, tools/extractors/reference.py
 - 9: docs/reference.md
 - 11: docs/reverse_engineering/maps.md
 - 21: docs/reverse_engineering/en-eu-reextraction.md
+- 24: tools/extractors/extract_radio_dialogue.py
 
 ## MetalGear.asm
 - arquivo: docs/reverse_engineering/README.md, tools/reverse_engineering/compare_regions.py, tools/rom.py
@@ -296,7 +309,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 59: docs/reverse_engineering/memory-and-banks.md
 
 ## Variables.asm
-- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json, docs/reference.md, docs/reverse_engineering/README.md, docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/stage-5-movement-and-collision.md, tools/emulation/README.md, tools/reverse_engineering/analyze.py
+- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json, docs/reference.md, docs/reverse_engineering/README.md, docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/stage-5-movement-and-collision.md, tools/emulation/README.md, tools/extractors/extract_radio_dialogue.py, tools/reverse_engineering/analyze.py
 - 8: docs/reverse_engineering/memory-and-banks.md
 - 32: docs/reverse_engineering/architecture.md
 - 144: docs/reverse_engineering/movement-and-collision.md
@@ -308,10 +321,11 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 402: docs/reverse_engineering/stage-4-results.md
 
 ## constants/Enums.asm
-- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, godot/scripts/systems/radio_system.gd, tests/test_region_tools.py, tools/extractors/reference.py
+- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, tests/test_region_tools.py, tools/extractors/reference.py
 - 4-10: docs/index/mechanics.json
 - 14-23: docs/index/mechanics.json
 - 15-22: godot/scripts/systems/radio_system.gd
+- 15-36: tools/extractors/extract_radio_dialogue.py
 - 27-36: docs/index/mechanics.json
 - 51: docs/index/mechanics.json
 - 63: docs/reverse_engineering/movement-and-collision.md
@@ -417,8 +431,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 602: docs/reverse_engineering/maps.md
 
 ## data/musicradioconfig.asm
-- arquivo: tests/test_region_tools.py
-- 9: godot/scripts/systems/radio_system.gd
+- arquivo: tests/test_region_tools.py, tools/extractors/extract_radio_dialogue.py
 - 16: docs/reverse_engineering/en-eu-reextraction.md
 
 ## data/palettes.asm
@@ -440,15 +453,15 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 112-116: godot/scripts/systems/player.gd, tools/extractors/extract_snake_sprites.py
 
 ## data/radiocalls.asm
-- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md, godot/scripts/systems/radio_system.gd, godot/tests/radio_system_test.gd, tests/test_region_tools.py
+- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md, tests/test_region_tools.py, tools/extractors/extract_radio_dialogue.py
 - 1-11: docs/index/mechanics.json
 - 1-447: docs/index/mechanics.json
 - 5-10: docs/reverse_engineering/en-eu-reextraction.md
 - 9: docs/index/mechanics.json
-- 15-22: godot/scripts/systems/radio_system.gd
+- 13-20: godot/scripts/systems/radio_system.gd
 - 45: docs/index/mechanics.json
 - 63: docs/index/mechanics.json
-- 188: docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md, godot/tests/radio_system_test.gd
+- 188: docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md
 - 195-447: docs/index/mechanics.json
 
 ## data/radiocallsjp.asm
@@ -485,7 +498,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 183-185: tools/extractors/extract_rolling_barrel.py
 
 ## data/texts.asm
-- arquivo: docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md, docs/reverse_engineering/inventory-and-events.md, tools/extractors/extract_grey_fox_dialogue.py
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md, docs/reverse_engineering/inventory-and-events.md, tools/extractors/extract_grey_fox_dialogue.py, tools/extractors/extract_radio_dialogue.py
 - 1: docs/index/mechanics.json
 - 1-350: docs/index/mechanics.json
 - 15: docs/index/mechanics.json
@@ -500,7 +513,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 189: godot/tests/capture_prison_test.gd
 - 189-190: godot/scripts/systems/capture_cutscene.gd, godot/tests/capture_prison_test.gd
 - 190: godot/tests/capture_prison_test.gd
-- 191: docs/index/mechanics.json, godot/scripts/systems/radio_system.gd, godot/tests/radio_system_test.gd
+- 191: docs/index/mechanics.json
 - 193: docs/index/mechanics.json
 - 203-228: docs/index/mechanics.json
 
@@ -1005,7 +1018,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## logic/incomingcall.asm
 - arquivo: docs/index/mechanics.json
-- 10-36: docs/index/mechanics.json
+- 10-36: docs/index/mechanics.json, godot/scripts/systems/radio_system.gd, godot/tests/radio_system_test.gd, tools/extractors/extract_radio_dialogue.py
 
 ## logic/inithardware.asm
 - 14: docs/reverse_engineering/architecture.md
@@ -1038,6 +1051,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 120-124: godot/scripts/systems/capture_system.gd, tools/extractors/extract_capture_prison_data.py
 - 139-189: docs/index/mechanics.json
 - 159-170: docs/index/mechanics.json
+- 163-170: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/radio_system.gd
 - 184-189: docs/index/mechanics.json
 - 188: godot/scripts/systems/weapon_system.gd
 - 199-285: docs/index/mechanics.json
@@ -1098,6 +1112,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 295-361: godot/tests/binocular_test.gd
 - 299-349: docs/index/mechanics.json
 - 300: godot/scripts/systems/binocular_system.gd, godot/scripts/systems/room_manager.gd
+- 326-327: docs/index/mechanics.json
 - 338-361: godot/scripts/systems/binocular_overlay.gd
 - 355: godot/scripts/systems/binocular_overlay.gd
 

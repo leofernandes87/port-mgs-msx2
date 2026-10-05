@@ -2615,7 +2615,7 @@ Nenhuma entrada.
 
 **Godot relacionado:** godot/scripts/systems/item_box.gd; godot/scripts/systems/inventory.gd; godot/scripts/scenes/sandbox_gameplay.gd; godot/scripts/systems/radio_system.gd
 
-**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items; godot/scripts/systems/radio_system.gd::get_transmission_result
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_items; godot/scripts/systems/radio_system.gd::_reply_allowed
 
 **Testes existentes:** Nenhum localizado neste recorte.
 
@@ -3029,10 +3029,10 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 | Status | Features |
 | --- | ---: |
-| `IMPLEMENTED` | 0 |
-| `PARTIAL` | 20 |
-| `PROVISIONAL` | 5 |
-| `NOT_STARTED` | 6 |
+| `IMPLEMENTED` | 7 |
+| `PARTIAL` | 19 |
+| `PROVISIONAL` | 3 |
+| `NOT_STARTED` | 2 |
 | `DEFERRED` | 0 |
 | `UNMAPPED` | 1 |
 | `INVESTIGATING` | 0 |
@@ -3044,20 +3044,20 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 | --- | --- | --- |
 | [radio](#radio) — Transceptor: tela, modo de jogo e interface central | transversal | `PARTIAL` |
 | [text-window](#text-window) — Motor de janela de texto: TextBoxLogic e despacho central | transversal | `PROVISIONAL` |
-| [radio-tuning-frequency](#radio-tuning-frequency) — Sintonia de frequências e display digital BCD | transversal | `PARTIAL` |
+| [radio-tuning-frequency](#radio-tuning-frequency) — Sintonia de frequências e display digital BCD | transversal | `IMPLEMENTED` |
 | [radio-contacts-frequencies](#radio-contacts-frequencies) — Contatos e frequências canônicas da edição inglesa | transversal | `PARTIAL` |
 | [radio-transmission-modes](#radio-transmission-modes) — Modos de transmissão: envio (SEND) vs escuta (RECV) | transversal | `PARTIAL` |
-| [radio-auto-reply-waitcall](#radio-auto-reply-waitcall) — Despacho de resposta: AUTO-REPLY vs WAIT-CALL | transversal | `PROVISIONAL` |
-| [radio-auto-tune](#radio-auto-tune) — Sintonia automática ao atender chamadas (Auto-Tune) | transversal | `PARTIAL` |
-| [radio-signal-led-bars](#radio-signal-led-bars) — Animação e temporização das 12 barras de sinal LED | transversal | `PARTIAL` |
-| [radio-incoming-call-detection](#radio-incoming-call-detection) — Detecção e ciclo de vida de chamadas recebidas (Incoming Calls) | transversal | `PROVISIONAL` |
+| [radio-auto-reply-waitcall](#radio-auto-reply-waitcall) — Despacho de resposta: AUTO-REPLY vs WAIT-CALL | transversal | `IMPLEMENTED` |
+| [radio-auto-tune](#radio-auto-tune) — Sintonia automática ao atender chamadas (Auto-Tune) | transversal | `IMPLEMENTED` |
+| [radio-signal-led-bars](#radio-signal-led-bars) — Animação e temporização das 12 barras de sinal LED | transversal | `IMPLEMENTED` |
+| [radio-incoming-call-detection](#radio-incoming-call-detection) — Detecção e ciclo de vida de chamadas recebidas (Incoming Calls) | transversal | `IMPLEMENTED` |
 | [radio-hud-call-indicator](#radio-hud-call-indicator) — Indicador CALL no HUD e sinal sonoro do buzzer | transversal | `PARTIAL` |
-| [radio-room-dispatch-table](#radio-room-dispatch-table) — Tabela canônica de despachos de rádio por sala (idxRoomRadio) | transversal | `PARTIAL` |
-| [radio-cond-antenna](#radio-cond-antenna) — Condição de rádio: exigência da antena no Edifício 2 | transversal | `NOT_STARTED` |
+| [radio-room-dispatch-table](#radio-room-dispatch-table) — Tabela canônica de despachos de rádio por sala (idxRoomRadio) | transversal | `IMPLEMENTED` |
+| [radio-cond-antenna](#radio-cond-antenna) — Condição de rádio: exigência da antena no Edifício 2 | transversal | `IMPLEMENTED` |
 | [radio-cond-schneider](#radio-cond-schneider) — Condições de rádio: Schneider (chamadas ativas e captura) | transversal | `PARTIAL` |
-| [radio-cond-jennifer](#radio-cond-jennifer) — Condições de rádio: Jennifer (Rank 4 e vingança pelo irmão) | transversal | `NOT_STARTED` |
-| [radio-cond-bigboss-bug](#radio-cond-bigboss-bug) — Condição de rádio: aviso de grampo/transmissor por Big Boss | transversal | `NOT_STARTED` |
-| [radio-cond-bigboss-switch-off](#radio-cond-bigboss-switch-off) — Condição de rádio: ordem de desligar o MSX por Big Boss | transversal | `NOT_STARTED` |
+| [radio-cond-jennifer](#radio-cond-jennifer) — Condições de rádio: Jennifer (Rank 4 e vingança pelo irmão) | transversal | `PARTIAL` |
+| [radio-cond-bigboss-bug](#radio-cond-bigboss-bug) — Condição de rádio: aviso de grampo/transmissor por Big Boss | transversal | `PARTIAL` |
+| [radio-cond-bigboss-switch-off](#radio-cond-bigboss-switch-off) — Condição de rádio: ordem de desligar o MSX por Big Boss | transversal | `PARTIAL` |
 | [radio-chk-reply-madnar-text15](#radio-chk-reply-madnar-text15) — Checagem anômala de Text ID 15 e MadnarMoved no rádio | transversal | `UNMAPPED` |
 | [text-box-geometry-types](#text-box-geometry-types) — Tipos e geometrias de caixas de texto (TextBoxType) | transversal | `PARTIAL` |
 | [text-appearance-animation](#text-appearance-animation) — Animação de abertura e fechamento da caixa de texto | transversal | `PARTIAL` |
@@ -3102,11 +3102,11 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** docs/reverse_engineering/en-eu-reextraction.md
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** Overlay visual em radio_dialog.gd e sandbox_gameplay.gd que desenha chassi e retrato extraídos de Screen 5, pausa o mundo do jogo via process_mode, exibe HUD, e encerra emitindo sinal radio_closed ao pressionar F4/ESC.
+**Implementado:** RadioDialog dirigido por radio_tick a cada physics tick (estados DrawRadio/RadioIdle/RadioSignalUp/SetupRadioReply/RadioSignalOFF); textos extraídos da ROM; janela de texto suspende o RadioLogic; F4/T só saem fora da janela de texto. Textos inventados removidos.
 
-**Faltante / não comprovado:** Não utiliza o modo de jogo do motor (GAME_MODE_RADIO = 4); exibe textos de instruções inventados ('TRANSCEIVER ONLINE...', 'RECEIVER MODE...'); não reproduz o ruído contínuo SFX 50h de estática; fechamento não restaura VRAM via rotinas originais.
+**Faltante / não comprovado:** Ruído contínuo SFX 50h só como sinal; não usa GAME_MODE_RADIO formal; animação do retrato e geometria da caixa seguem em features próprias.
 
 **Notas de evidência:** Substituto provisório da tela de rádio inclui textos 'TRANSCEIVER ONLINE...' não presentes na ROM; SFX 50h e 5Ch não acionados; ausência de modo formal GAME_MODE_RADIO.
 
@@ -3146,11 +3146,11 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 <a id="radio-tuning-frequency"></a>
 ### Sintonia de frequências e display digital BCD
 
-`radio-tuning-frequency` · **PARTIAL**
+`radio-tuning-frequency` · **IMPLEMENTED**
 
 **Original:** Sintonia com botões esquerda/direita via ChgRadioFreq (Banks0123.asm:10906-10957): decremento/incremento de frequência com aritmética BCD pura (add 1; daa / sub 1; daa), limites 120.00 a 120.99. Renderização dos dígitos em 7 segmentos vermelhos em (120, 33) via DrawRadioFreq (Banks0123.asm:11180-11270). A cada alteração de frequência, chama ChkRadioReceiv para checagem contínua de contatos.
 
-**Classificação:** Sintonia funcional com limites e exibição gráfica presente, mas sem avaliação reativa contínua de sintonia em tempo real a cada passo.
+**Classificação:** Sintonia portada tick a tick.
 
 **Assembly:** Banks0123.asm:10906-10957 ChgRadioFreq; Banks0123.asm:11180-11270 DrawRadioFreq
 
@@ -3160,19 +3160,19 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Godot relacionado:** godot/scripts/systems/radio_system.gd; godot/scripts/systems/radio_dialog.gd
 
-**Integração inspecionada:** godot/scripts/systems/radio_dialog.gd::_on_frequency_changed
+**Integração inspecionada:** godot/scripts/systems/radio_dialog.gd::_physics_process
 
 **Testes existentes:** godot-radio-system
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** Métodos tune_up(), tune_down(), set_frequency() e get_frequency_string() em radio_system.gd com limites 0 a 99; renderização dos dígitos em display vermelho em radio_dialog.gd.
+**Implementado:** Frequência em BCD (bcd_increment/bcd_decrement = add/sub 1; daa) com limites 00h e 99h; _change_frequency porta ChgRadioFreq (atraso 8 ao pressionar, repetição a cada 2 ticks, esquerda com prioridade); ChkRadioReceiv avaliado a cada tick ocioso.; radio_dialog.gd desenha os dígitos pelos nibbles BCD.
 
-**Faltante / não comprovado:** Aritmética opera em inteiros decimais comuns em vez de BCD; ao sintonizar, o Godot não avalia ChkRadioReceiv continuamente (apenas exibe 'TUNING: 120.XX MHz...' e limpa o contato atual).
+**Faltante / não comprovado:** Nenhum localizado neste recorte.
 
-**Notas de evidência:** radio_system_test.gd valida tune_up e tune_down em 120.00..120.99; falta despacho automático de ChkRadioReceiv ao trocar frequência.
+**Notas de evidência:** radio_system_test.gd confere 89h→90h, limites e temporização de repetição.
 
 
 <a id="radio-contacts-frequencies"></a>
@@ -3194,15 +3194,15 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** godot-radio-system
+**Testes existentes:** godot-radio-system; tests/test_radio_dialogue_extractor.py
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** radio_system.gd declara constantes para as 7 frequências dos personagens nos edifícios 1 e 2; mapeamento por nome de contato em get_contact_name_for_freq.
+**Implementado:** RadioFreqs (7 pessoas) extraída e conferida; PERSON_CONTACTS mapeia as pessoas 1-7; todas as salas com rádio vêm da ROM.
 
-**Faltante / não comprovado:** Frequência 120.77 (FREQ_NEWS) não mapeada; contatos do Edifício 2 (120.13, 120.26, 120.91) e Jennifer (120.48) não possuem salas correspondentes implementadas em ROOM_CALLS.
+**Faltante / não comprovado:** Frequência 120.77 (FREQ_NEWS) só usada pelo final, não portada.
 
 **Notas de evidência:** Constantes conferem com a tabela RadioFreqs de Banks0123.asm; ausência de consumidores para as frequências do Edifício 2 e notícias.
 
@@ -3230,11 +3230,11 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** radio_system.gd e radio_dialog.gd suportam modo SEND ao pressionar cima/W, exibindo mensagem de Snake e requisitando resposta.
+**Implementado:** SEND por gatilho cima: is_send_mode (RadioCmd), ReplyRequested = 1 e texto 0Ah da ROM; volta a RECV no tick seguinte ao texto; indicador RECV/SEND desenhado conforme RadioCmd.
 
-**Faltante / não comprovado:** Exige pressionar SEND para obter resposta em todas as salas, ignorando que contatos em auto-reply respondem sem chamada; áudio não comuta SFX 5Ch de silêncio; não comuta tiles VDP txtSend/txtRecv.
+**Faltante / não comprovado:** SFX 50h/5Ch emitidos só como sinal (sem subsistema de áudio).
 
 **Notas de evidência:** Texto ID 10 confere com texts.asm:191; divergência de comportamento ao exigir SEND para contatos de auto-resposta.
 
@@ -3242,45 +3242,45 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 <a id="radio-auto-reply-waitcall"></a>
 ### Despacho de resposta: AUTO-REPLY vs WAIT-CALL
 
-`radio-auto-reply-waitcall` · **PROVISIONAL**
+`radio-auto-reply-waitcall` · **IMPLEMENTED**
 
 **Original:** Diferença formal entre RADIO_AUTOREPLY (bit 3 da tabela / bit 0 invertido em RAM) e RADIO_WAITCALL (bit 2 da tabela / bit 0 em RAM) em Banks0123.asm:10993-11020: contatos com auto-reply respondem assim que a frequência é sintonizada; contatos com wait-call exigem que Snake envie chamada (ReplyRequested = 1). Flag AutoReplyDone (Variables.asm:351, Banks0123.asm:10842, 10924-10925) previne disparo repetido na mesma frequência até que a sintonia mude.
 
-**Classificação:** A propriedade foi aproveitada para um propósito divergente (gatilho de CALL) em vez de seu comportamento original de resposta automática de sintonia.
+**Classificação:** Flags WAITCALL/AUTOTUNE lidas da tabela extraída e despacho tick a tick como no Z80.
 
-**Assembly:** Banks0123.asm:10993-11020 ChkRadioReceiv4; data/radiocalls.asm:1-11; Variables.asm:351 AutoReplyDone
+**Assembly:** Banks0123.asm:10993-11020 ChkRadioReceiv4; data/radiocalls.asm:1-11; Variables.asm:351 AutoReplyDone; Banks0123.asm:10965-11039 ChkRadioReceiv
 
 **Extractors:** Nenhum localizado neste recorte.
 
 **Dados canônicos locais:** Nenhum localizado neste recorte.
 
-**Godot relacionado:** godot/scripts/systems/radio_system.gd; godot/scripts/systems/radio_dialog.gd
+**Godot relacionado:** godot/scripts/systems/radio_system.gd; godot/scripts/systems/radio_dialog.gd; godot/scripts/scenes/sandbox_gameplay.gd
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** godot-radio-system; tests/test_region_tools.py
+**Testes existentes:** godot-radio-system; tests/test_region_tools.py; tests/test_radio_dialogue_extractor.py
 
 **Documentação:** docs/reverse_engineering/en-eu-reextraction.md
 
-**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa; docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** radio_system.gd declara campo booleano 'is_autoreply' em cada registro de ROOM_CALLS.
+**Implementado:** radio_system.gd::_check_receive porta ChkRadioReceiv: sem WAITCALL responde ao sintonizar salvo AutoReplyDone; com WAITCALL exige ReplyRequested (SEND).; auto_reply_done é ligado em RadioSignalOFF e limpo por DrawRadio e por nova sintonia (ChgRadioFreq2).
 
-**Faltante / não comprovado:** Implementação invertida/divergente: no Godot is_autoreply foi interpretado como 'ativa indicador CALL no mapa ao entrar na sala', enquanto na tela de rádio o contato com auto-reply não responde automaticamente ao sintonizar. A flag AutoReplyDone não existe no Godot.
+**Faltante / não comprovado:** Nenhum localizado neste recorte.
 
-**Notas de evidência:** Registrado em en-eu-reextraction.md: 'Resposta automática ao sintonizar ainda exige SEND no Godot; AutoReplyDone não portado.'
+**Notas de evidência:** radio_system_test.gd verifica resposta sem SEND, não repetição, reabilitação ao ressintonizar e WAIT-CALL só após SEND.
 
 
 <a id="radio-auto-tune"></a>
 ### Sintonia automática ao atender chamadas (Auto-Tune)
 
-`radio-auto-tune` · **PARTIAL**
+`radio-auto-tune` · **IMPLEMENTED**
 
 **Original:** Flag RADIO_AUTOTUNE (bit 2 da tabela em data/radiocalls.asm:9 / bit 1 em RAM RadioPersonsDat em Banks0123.asm:2421-2426): ao inicializar o rádio com chamada recebida ou sintonizar chamada do jogo, ajusta imediatamente RadioFreq para a frequência do interlocutor.
 
-**Classificação:** Efeito prático de auto-sintonia foi implementado para chamadas atendidas, mas através de lógica estática sem o pipeline canônico de flags.
+**Classificação:** Flag canônica lida da tabela idxRoomRadio extraída.
 
-**Assembly:** Banks0123.asm:2427-2435 UpdateRadio3; data/radiocalls.asm:9
+**Assembly:** Banks0123.asm:2427-2435 UpdateRadio3; data/radiocalls.asm:9; Banks0123.asm:2379-2448 UpdateRadio
 
 **Extractors:** Nenhum localizado neste recorte.
 
@@ -3290,27 +3290,27 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** godot-radio-system
+**Testes existentes:** godot-radio-system; tests/test_radio_dialogue_extractor.py
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** radio_system.gd::answer_call define current_freq diretamente para a frequência do contato quando uma chamada automática é atendida.
+**Implementado:** update_radio porta UpdateRadio: cada contato com flag auto-tune da tabela extraída define current_freq ao entrar na sala.
 
-**Faltante / não comprovado:** Sintonia forçada por dicionário local em vez de ler a flag canônica da estrutura de salas; ausente nos contatos que não utilizam answer_call.
+**Faltante / não comprovado:** Nenhum localizado neste recorte.
 
-**Notas de evidência:** answer_call(room_id) atribui current_freq = call_info['freq']; verificação indireta em radio_system_test.gd.
+**Notas de evidência:** Teste cruzado: sala 0 auto-sintoniza 120.85 a partir de radio_dialogue.json.
 
 
 <a id="radio-signal-led-bars"></a>
 ### Animação e temporização das 12 barras de sinal LED
 
-`radio-signal-led-bars` · **PARTIAL**
+`radio-signal-led-bars` · **IMPLEMENTED**
 
 **Original:** Animação de intensidade de sinal do transceptor (Banks0123.asm:10787-10809 RadioSignalUp e 11271-11340 DrawRadioLeds): atraso inicial de 16 ticks (RadioLedDelay = 10h), seguido pelo acendimento de 1 LED a cada 2 ticks até totalizar 12 barras ligadas, avançando para o estado SetupRadioReply; apagamento de todos os LEDs em RadioSignalOFF (Banks0123.asm:10837-10850).
 
-**Classificação:** Efeito visual existe e exibe as 12 barras de LED, mas opera por temporizador arbitrário desvinculado da temporização de 16+24 ticks do MSX2.
+**Classificação:** Temporização original por tick.
 
 **Assembly:** Banks0123.asm:10787-10809 RadioSignalUp; Banks0123.asm:10837-10850 RadioSignalOFF; Banks0123.asm:11271-11340 DrawRadioLeds
 
@@ -3326,25 +3326,25 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** radio_dialog.gd implementa animação visual de subida e descida dos 12 LEDs a cada 0.033s (led_anim_timer), renderizando as texturas de LEDs.
+**Implementado:** State.SIGNAL_UP porta RadioSignalUp: atraso inicial 10h, +1 LED a cada 2 ticks até 12, depois SetupRadioReply; RadioSignalOFF zera os LEDs. radio_dialog.gd lê signal_leds a cada tick.
 
-**Faltante / não comprovado:** radio_system.gd define signal_leds = 12 instantaneamente; inexiste o atraso inicial canônico de 16 ticks antes da primeira barra acender; falta sincronização com os ticks do motor.
+**Faltante / não comprovado:** Nenhum localizado neste recorte.
 
-**Notas de evidência:** led_anim_timer usa float 0.033s em radio_dialog.gd; atraso inicial 10h ausente.
+**Notas de evidência:** radio_system_test.gd confere primeiro LED após 16 ticks e 12 LEDs 22 ticks depois.
 
 
 <a id="radio-incoming-call-detection"></a>
 ### Detecção e ciclo de vida de chamadas recebidas (Incoming Calls)
 
-`radio-incoming-call-detection` · **PROVISIONAL**
+`radio-incoming-call-detection` · **IMPLEMENTED**
 
 **Original:** Gatilho de chamada pelo bit 3 de RoomsMusic (and 8 em ChkRadioCalls, Banks0123.asm:1729-1743); temporizador pré-chamada de 32 ticks (IncomingCallTimer = 32); disparo de RadioCallFlag = 1 com duração de 88 ticks (58h) em logic/incomingcall.asm:10-36; expiração da chamada com RadioCallFlag = 2 se não atendida a tempo.
 
-**Classificação:** O disparo da chamada recebida foi simplificado em uma checagem booleana permanente, divergindo do ciclo dinâmico com expiração do Z80.
+**Classificação:** Ciclo de vida portado com os temporizadores originais.
 
-**Assembly:** Banks0123.asm:1729-1743 ChkRadioCalls4; logic/incomingcall.asm:10-36 ChkIncomingCall
+**Assembly:** Banks0123.asm:1729-1743 ChkRadioCalls4; logic/incomingcall.asm:10-36 ChkIncomingCall; Banks0123.asm:1688-1745 ChkRadioCalls; logic/items.asm:159-170 AddItemInventory3
 
 **Extractors:** Nenhum localizado neste recorte.
 
@@ -3354,17 +3354,17 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** godot-radio-system
+**Testes existentes:** godot-radio-system; tests/test_radio_dialogue_extractor.py
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** radio_system.gd possui check_incoming_call(room_id) que marca has_incoming_call = true.
+**Implementado:** check_radio_calls porta ChkRadioCalls (bit 3 de RoomsMusic extraído, bloqueios Schneider capturado, Jennifer e antena); tick_incoming_call porta ChkIncomingCall (32 ticks de atraso, CALL de 58h ticks, expiração).; enter_room roda em toda troca de sala e tick_incoming_call a cada tick de jogo fora de modais; abrir o rádio para o CALL; coletar a antena força chamada pendente (10h).
 
-**Faltante / não comprovado:** Detecção no Godot é baseada no campo is_autoreply de ROOM_CALLS e não no bit 3 de RoomsMusic; não há atraso de 32 ticks antes do alerta; não há timeout de 88 ticks (a chamada permanece indefinidamente até ser atendida); não é possível perder a chamada.
+**Faltante / não comprovado:** Nenhum localizado neste recorte.
 
-**Notas de evidência:** Falta de temporizadores de 32 e 88 ticks gera divergência com ChkIncomingCall; chamada nunca expira no Godot.
+**Notas de evidência:** radio_system_test.gd confere flag 0 por 32 ticks, CALL dos ticks 32 a 118 e parada no 119; sala 0 arma o CALL no sandbox.; Salvamento do CALL em menus (menuequipment.asm:326-327) é equivalente porque o Godot não avança o CALL com menus abertos.
 
 
 <a id="radio-hud-call-indicator"></a>
@@ -3402,11 +3402,11 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 <a id="radio-room-dispatch-table"></a>
 ### Tabela canônica de despachos de rádio por sala (idxRoomRadio)
 
-`radio-room-dispatch-table` · **PARTIAL**
+`radio-room-dispatch-table` · **IMPLEMENTED**
 
 **Original:** Tabela de 256 ponteiros idxRoomRadio (data/radiocalls.asm:195-447) mapeando cada sala para um dos 41 blocos RadioRoom_XXX ou NoRadio; rotina UpdateRadio em Banks0123.asm:2380-2448 preenche RadioPersonsDat e NumRadioPersons para a sala atual.
 
-**Classificação:** As 15 salas portadas conferem com a edição inglesa após correções regionais, mas cobrem apenas 25% do conteúdo total de rádio do jogo.
+**Classificação:** Tabela integral lida da ROM em vez de dicionário local.
 
 **Assembly:** data/radiocalls.asm:195-447 idxRoomRadio; Banks0123.asm:2379-2448 UpdateRadio
 
@@ -3418,27 +3418,27 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** godot-radio-system; tests/test_region_tools.py
+**Testes existentes:** godot-radio-system; tests/test_region_tools.py; tests/test_radio_dialogue_extractor.py
 
 **Documentação:** docs/reverse_engineering/en-eu-reextraction.md
 
-**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa; docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** radio_system.gd define ROOM_CALLS com 15 salas portadas do Prédio 1, com interlocutores, frequências e textos correspondentes à edição inglesa.
+**Implementado:** extract_radio_dialogue.py lê idxRoomRadio/RadioRoom_* da ROM canônica (segmentos binary_verified) e gera a tabela das 251 salas (60 com rádio), zonas de mapa e salas com chamada; radio_system.gd não tem mais tabela local.
 
-**Faltante / não comprovado:** 45 salas com chamadas no original inglês permanecem não portadas (todas as do Prédio 2 e Prédio 3); mais de 200 salas dependem de chave ausente em vez do ponteiro NoRadio; múltiplos contatos por sala usam lista Godot sem limitar a NumRadioPersons.
+**Faltante / não comprovado:** Nenhum localizado neste recorte.
 
-**Notas de evidência:** Auditado em en-eu-reextraction.md: '15 das 60 salas inglesas portadas; 45 salas restantes pendentes.'
+**Notas de evidência:** Textos ingleses dos 45 IDs usados pelo rádio extraídos localmente com quebras FD/FE; nenhum texto versionado.
 
 
 <a id="radio-cond-antenna"></a>
 ### Condição de rádio: exigência da antena no Edifício 2
 
-`radio-cond-antenna` · **NOT_STARTED**
+`radio-cond-antenna` · **IMPLEMENTED**
 
 **Original:** A partir do Edifício 2 (MapZone >= 5), qualquer comunicação de rádio requer a Antena (AntennaTaken != 0): sem ela, chamadas recebidas não tocam (ChkRadioCalls3, Banks0123.asm:1720-1727) e chamadas do jogador falham com NoRadioReply (Banks0123.asm:11049-11055).
 
-**Classificação:** Mecânica original crítica de progressão que bloqueia o transceptor no Edifício 2 até o jogador obter a antena; ainda não implementada no Godot.
+**Classificação:** Condição portada.
 
 **Assembly:** Banks0123.asm:1720-1727 ChkRadioCalls3; Banks0123.asm:11043-11055 ChkRadioReply
 
@@ -3446,21 +3446,21 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Dados canônicos locais:** Nenhum localizado neste recorte.
 
-**Godot relacionado:** godot/scripts/systems/radio_system.gd
+**Godot relacionado:** godot/scripts/systems/radio_system.gd; godot/scripts/scenes/sandbox_gameplay.gd
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** tests/test_region_tools.py
+**Testes existentes:** tests/test_region_tools.py; godot-radio-system
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa; docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** Nenhuma verificação de antena ou zona de mapa em radio_system.gd.
+**Implementado:** map_zone vem do nibble de idxMapZones extraído (SetRadioArea); antenna_taken sincronizado com o inventário; ChkRadioCalls e ChkRadioReply bloqueiam zona >= 5 sem antena; coletar a antena força chamada pendente.
 
-**Faltante / não comprovado:** Totalmente ausente no Godot; não há checagem de MapZone nem de AntennaTaken; o transceptor funciona identicamente em qualquer área do jogo.
+**Faltante / não comprovado:** Nenhum localizado neste recorte.
 
-**Notas de evidência:** MapZone >= 5 e AntennaTaken são verificadas em ChkRadioCalls3 e ChkRadioReply; o Godot não possui essas condicionais.
+**Notas de evidência:** radio_system_test.gd: zona 5 sem antena não responde; com antena responde.
 
 
 <a id="radio-cond-schneider"></a>
@@ -3486,19 +3486,19 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** Nas salas portadas de radio_system.gd, Schneider está configurado exclusivamente com is_autoreply = false.
+**Implementado:** schneider_captured bloqueia a chamada recebida quando o primeiro contato é Schneider (ChkRadioCalls só testa isso com SchneiderCaptured != 0) e a resposta em ChkRadioReply.
 
-**Faltante / não comprovado:** A flag SchneiderCaptured não existe nem é checada no Godot; Schneider continuaria respondendo após sua captura.
+**Faltante / não comprovado:** Flag SchneiderCaptured nunca é ligada no Godot (evento do texto 138, text-event-triggers).
 
-**Notas de evidência:** Schneider nunca chama no Z80; flag SchneiderCaptured liga no texto 138 (Banks0123.asm:8318-8324) e silencia o rádio.
+**Notas de evidência:** Correção da descrição: ChkRadioCalls (Banks0123.asm:1692-1701) só suprime Schneider quando SchneiderCaptured != 0.
 
 
 <a id="radio-cond-jennifer"></a>
 ### Condições de rádio: Jennifer (Rank 4 e vingança pelo irmão)
 
-`radio-cond-jennifer` · **NOT_STARTED**
+`radio-cond-jennifer` · **PARTIAL**
 
 **Original:** Jennifer só estabelece contato se Snake tiver patente de 4 estrelas (Class == 3, Banks0123.asm:1708-1710, 11140-11142); se Snake tiver menos de 4 estrelas, ela não chama e não responde. Se o irmão de Jennifer for morto pelo jogador (JennifBrotherDead != 0, Banks0123.asm:1712-1714, 11144-11146), Jennifer se recusa terminantemente a responder até o fim do jogo.
 
@@ -3514,23 +3514,23 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** Nenhum localizado neste recorte.
+**Testes existentes:** godot-radio-system
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** Nenhum localizado neste recorte.
+**Histórico consultado:** docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** Nenhuma verificação de patente ou vida do irmão de Jennifer em radio_system.gd.
+**Implementado:** Checagem Class == 3 (class_rank sincronizado com rank_system) e JennifBrotherDead em ChkRadioCalls e ChkRadioReply.
 
-**Faltante / não comprovado:** Totalmente ausente no Godot; não há checagem de Class == 3 nem de JennifBrotherDead; Jennifer não possui chamadas portadas no sandbox.
+**Faltante / não comprovado:** Flag JennifBrotherDead nunca é ligada no Godot.
 
-**Notas de evidência:** Class == 3 (4 estrelas) e JennifBrotherDead == 0 são pré-requisitos absolutos em ChkRadioCalls2 e ChkReplyJeniffer.
+**Notas de evidência:** radio_system_test.gd: Jennifer só responde com 4 estrelas.
 
 
 <a id="radio-cond-bigboss-bug"></a>
 ### Condição de rádio: aviso de grampo/transmissor por Big Boss
 
-`radio-cond-bigboss-bug` · **NOT_STARTED**
+`radio-cond-bigboss-bug` · **PARTIAL**
 
 **Original:** Se o jogador coletar a bolsa com o transmissor/grampo (TransmiTaken != 0) e estiver fora de MapZone == 4, qualquer contato com Big Boss substitui sua fala pelo Texto ID 50: 'THIS IS BIG BOSS... CHECK YOUR EQUIPMENTS! CHECK IF YOU HAVE BEEN BUGGED BY THE ENEMY. ...OVER' (Banks0123.asm:11095-11108).
 
@@ -3546,23 +3546,23 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** Nenhum localizado neste recorte.
+**Testes existentes:** godot-radio-system
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** Nenhum localizado neste recorte.
+**Histórico consultado:** docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** Nenhuma verificação de transmissor em radio_system.gd.
+**Implementado:** ChkRadioReply substitui o texto de Big Boss por 50 com transmitter_taken fora da zona 4.
 
-**Faltante / não comprovado:** Transmissor existe como item no inventário, mas a lógica de sobreposição de mensagem do Big Boss avisando sobre o grampo não está implementada no Godot.
+**Faltante / não comprovado:** TransmiTaken não é sincronizado (bolsa com transmissor não portada); transmitter_taken fica falso no jogo.
 
-**Notas de evidência:** TransmiTaken != 0 e MapZone != 4 desviam o texto de Big Boss para Texto 50 em Banks0123.asm:11107.
+**Notas de evidência:** radio_system_test.gd confere a substituição pelo texto 50.
 
 
 <a id="radio-cond-bigboss-switch-off"></a>
 ### Condição de rádio: ordem de desligar o MSX por Big Boss
 
-`radio-cond-bigboss-switch-off` · **NOT_STARTED**
+`radio-cond-bigboss-switch-off` · **PARTIAL**
 
 **Original:** Quando a flag SwitchOffMSXF é ativada no porão do Edifício 3 (sala 111), qualquer chamada a Big Boss nas frequências 120.85 ou 120.13 substitui sua fala pelo Texto ID 136: 'Stop operation. Switch off your MSX' (Banks0123.asm:11071-11080).
 
@@ -3578,17 +3578,17 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** Nenhum localizado neste recorte.
+**Testes existentes:** godot-radio-system
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** Nenhum localizado neste recorte.
+**Histórico consultado:** docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** Nenhuma menção a SwitchOffMSXF ou Texto 136 no Godot.
+**Implementado:** ChkRadioReply substitui o texto de Big Boss por 136 com switch_off_msx, com prioridade sobre o aviso do transmissor.
 
-**Faltante / não comprovado:** Totalmente ausente no Godot; a sala 111 e a flag de traição de Big Boss não foram implementadas.
+**Faltante / não comprovado:** SwitchOffMSXF nunca é ligada (sala 111/evento não portados).
 
-**Notas de evidência:** SwitchOffMSXF != 0 força texto 136 para Big Boss em Banks0123.asm:11079.
+**Notas de evidência:** radio_system_test.gd confere a prioridade do texto 136.
 
 
 <a id="radio-chk-reply-madnar-text15"></a>
@@ -3610,13 +3610,13 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Integração inspecionada:** Nenhum localizado neste recorte.
 
-**Testes existentes:** Nenhum localizado neste recorte.
+**Testes existentes:** godot-radio-system
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** Nenhum localizado neste recorte.
+**Histórico consultado:** docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
-**Implementado:** Nenhuma correspondência no Godot.
+**Implementado:** ChkReplyMadnar portado literalmente: texto 15 sem resposta com madnar_moved (flag não ligada no jogo).
 
 **Faltante / não comprovado:** Código morto/anômalo no Z80 original; o propósito exato (se era protótipo de chamada com Dr. Madnar antes de sua transferência para o prédio 2) não está mapeado no catálogo.
 
@@ -3838,11 +3838,11 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox; docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** Extractor tools/extractors/extract_grey_fox_dialogue.py implementa decodificação fiel com dicionário da ROM para o Texto 59; PrisonerDialog consome o JSON resultante.
 
-**Faltante / não comprovado:** No runtime do Godot, apenas o Texto 59 é consumido via extração de dicionário; os outros 157 textos da ROM permanecem não extraídos e utilizam strings soltas hardcoded em scripts.
+**Faltante / não comprovado:** No runtime do Godot são consumidos o Texto 59 e os 45 textos do rádio (radio_dialogue.json); os demais textos da ROM seguem não extraídos ou hardcoded.
 
 **Notas de evidência:** extract_grey_fox_dialogue.py valida segmento completo de texts.asm byte a byte contra a ROM canônica; runtime só carrega grey-fox-en.json.
 

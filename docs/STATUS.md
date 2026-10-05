@@ -5,17 +5,18 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 ## Onde estamos
 
-- Última tag: `v0.2.2` (barris rolantes fiéis à ROM).
-- Último commit: `docs(context)` de rádio e diálogos (confira com `git log --oneline -1`).
-- Implementação recente: `rolling-barrels` (ID 15) revisado contra a ROM, com sprites extraídos por
-  `tools/extractors/extract_rolling_barrel.py`; toque na coluna inteira mata Snake
-  (linha de `ImpactAreasInfo` = shape); salas 141, 153, 191 e 205.
+- Última tag: `v0.2.3` (núcleo do rádio fiel à ROM).
+- Último commit: `feat(radio)` (confira com `git log --oneline -1`).
+- Implementação recente: núcleo do rádio fiel à ROM. Tabela de salas, zonas e
+  textos extraídos por `tools/extractors/extract_radio_dialogue.py`; `radio_system.gd` tick a tick
+  (CALL 32/88 ticks, AUTO-REPLY/WAIT-CALL, BCD, LEDs, condições de `ChkRadioReply`).
+- Anterior: `rolling-barrels` (ID 15) com sprites extraídos, tag `v0.2.2`.
 - ROM canônica `en-eu-rc750` por SHA-256 (`tools/rom.py`); o Godot só aceita dados de
   `data/extracted/en-eu-rc750/` com essa proveniência. Godot em 60 Hz.
 - Sandbox jogável a partir da sala 121; catálogo progressivo e cadeias em
   `python3 -m tools.context.lookup mech` (`docs/index/mechanics.json`).
 - Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 38 etapas PASS,
-  159 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
+  164 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
 - `godot/project.godot` tem alteração local do usuário: nunca incluir em commits.
 
 ## Auditoria atual
@@ -24,18 +25,17 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
   20 PARTIAL, 12 PROVISIONAL, 16 NOT_STARTED, 2 UNMAPPED; total 51).
 - `weapons-items`: 38 features — IMPLEMENTED 1, PARTIAL 20, PROVISIONAL 8,
   NOT_STARTED 9; DEFERRED/UNMAPPED/INVESTIGATING 0. Catálogo via `lookup domain weapons-items`.
-- `radio-dialogue`: 32 features — IMPLEMENTED 0, PARTIAL 20, PROVISIONAL 5,
-  NOT_STARTED 6, UNMAPPED 1; DEFERRED/INVESTIGATING 0. Catálogo via `lookup domain radio-dialogue`.
-- Divergências registradas: WAITCALL vs AUTOREPLY, 45 salas omitidas, condições do Edifício 2
-  (antena, rank Jennifer, Big Boss traidor), textos hardcoded e fragmentação de TextBoxLogic.
+- `radio-dialogue`: 32 features — IMPLEMENTED 7, PARTIAL 19, PROVISIONAL 3,
+  NOT_STARTED 2, UNMAPPED 1; DEFERRED/INVESTIGATING 0. Catálogo via `lookup domain radio-dialogue`.
+- Rádio: flags de evento sem produtor (Schneider capturado, irmão de Jennifer, transmissor,
+  SwitchOffMSX, Madnar), SFX só como sinal, texto 2 da intro hardcoded e TextBoxLogic fragmentado.
 - Próxima tarefa sugerida, só após pedido: priorizar `pitfalls` (ID 16) ou `rocket-launcher`.
 - Pendências de actors-bosses: uso alcançável do ID 56 e produtores do ID 65.
 
 ## Decisões pendentes do usuário
 
-- Textos hardcoded com redação diferente da ROM inglesa (intro texto 2; rádio 3, 60, 64, 88, 92):
-  corrigir exige extração local em runtime, como o diálogo de Grey Fox
-  (`docs/reverse_engineering/en-eu-reextraction.md`, "Auditoria regional").
+- Texto 2 da intro ainda hardcoded com redação diferente da ROM; os textos do rádio já vêm da
+  extração local do rádio, que pode servir à intro se autorizado.
 
 ## Próximas tarefas registradas (não iniciar sem pedido)
 
@@ -43,8 +43,7 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
   ROM (`data/roomsconnections.asm:113-114,136-137`); ver `docs/index/rooms.md`.
 - `RESCUED_PER_RANK = 4` em `rank_system.gd` versus `cp 5` em `IncRescued`
   (`Banks0123.asm:9634-9641`; `docs/reverse_engineering/grey-fox-dialogue.md`).
-- Rádio parcial: 45 salas restantes, condições de `ChkRadioCalls`, resposta automática ao
-  sintonizar, texto 62 da `BAG` (lista na auditoria regional).
+- Rádio: produtores das flags de evento (texto 138, bolsa com transmissor, sala 111) e texto 62 da `BAG`.
 - Grey Fox: SFX e captura dinâmica do diálogo.
 - Fora do escopo até pedido: 50 Hz × 60 Hz; bloco de RAM 0xF29C–0xF2D9.
 

@@ -240,7 +240,7 @@ func _ready() -> void:
 		start_with_intro = false
 		intro_cutscene.start_intro(player)
 	elif snapshot and snapshot.loaded:
-		radio_system.check_incoming_call(snapshot.room_id)
+		_radio_enter_room(snapshot.room_id)
 	# Máquina de Estados de Alerta Global e Reforços (Etapa 17)
 	alert_system.state_changed.connect(_on_alert_state_changed)
 	alert_system.reinforcement_requested.connect(_on_reinforcement_requested)
@@ -395,6 +395,21 @@ func _on_intro_finished() -> void:
 	print("SANDBOX: Cutscene de abertura concluída. Snake assumiu controle em terra firme!")
 	if player:
 		player.queue_redraw()
+	if snapshot and snapshot.loaded:
+		_radio_enter_room(snapshot.room_id)
+
+## NextRoomLogic: SetRadioArea, UpdateRadio, SetAreaMusic2 -> ChkRadioCalls (Banks0123.asm:11847-11856).
+func _radio_enter_room(room_id: int) -> void:
+	_sync_radio_conditions()
+	radio_system.enter_room(room_id)
+
+func _sync_radio_conditions() -> void:
+	var has_antenna: bool = inventory.has_item("ANTENNA")
+	# AddItemInventory3: taking the antenna forces pending calls (logic/items.asm:163-170).
+	if has_antenna and not radio_system.antenna_taken:
+		radio_system.force_pending_call()
+	radio_system.antenna_taken = has_antenna
+	radio_system.class_rank = rank_system.current_rank - 1
 
 
 var viewport_area: Control
@@ -2202,6 +2217,11 @@ func _physics_process(delta: float) -> void:
 	player.is_in_box = (inventory.get_selected_item() == InventoryManager.ITEM_BOX)
 	player.equipped_weapon = weapon_system.selected_weapon if weapon_system else ""
 
+	# PlayModeLogic2 runs ChkIncomingCall before the dead check (Banks0123.asm:12161-12167).
+	if not ((radio_dialog and radio_dialog.is_active) or (weapon_menu and weapon_menu.visible) or (item_menu and item_menu.visible) or (pause_menu and pause_menu.visible)):
+		_sync_radio_conditions()
+		radio_system.tick_incoming_call()
+
 	# Bloqueio de física e ações durante Game Over / morte de Snake
 	if player.is_dead or not player.can_control or is_game_over:
 		return
@@ -2788,7 +2808,7 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 
 	snapshot = snap
 	_apply_snapshot()
-	radio_system.check_incoming_call(new_room_id)
+	_radio_enter_room(new_room_id)
 
 	for b: Bullet in bullets:
 		if is_instance_valid(b):
@@ -2873,7 +2893,7 @@ func _transition_elevator_room(next_room_id: int, move_dir_y: int) -> void:
 
 	snapshot = snap
 	_apply_snapshot()
-	radio_system.check_incoming_call(next_room_id)
+	_radio_enter_room(next_room_id)
 
 	if move_dir_y < 0:
 		# Entrou por baixo (subindo): inicia em Y = ENTRY_UP_Y (208.0)
