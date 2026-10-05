@@ -3,34 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Barris rolantes revisados: sprites canônicos e comportamento da ROM
-
-**Revisão:** a versão anterior (não commitada) divergia da ROM: hitbox 16x16 e barril
-destruído por tiro/bomba (o índice 14 de `data/weapondamage.asm:18-58` é 0, granada FFh), direção
-inicial escolhida pelo jogador (`SetupActor`, `Banks0123.asm:6358-6402`, deixa `Direction`=0 e
-`InitRollingBarrel` não a define), X em float e desenho procedural.
-**Feito:** `tools/extractors/extract_rolling_barrel.py` lê só a ROM canônica e gera
-`data/extracted/en-eu-rc750/rolling-barrel/` (JSON com proveniência e PNG 32x144 por sala). Segmentos
-binary_verified de `spritesets`/`sprites`, `actorspriteattr`, `shapes`/`weapondamage` e `palettes`,
-mais 6 assinaturas Z80 únicas de `rollingbarrels.asm`. O sprite é uma coluna de 9 barris (18 sprites,
-`SprOffsets7`, Color Compare 2|13, `SprsetPal19`). `rolling_barrel.gd` foi reescrito: X 8.8 em 16 bits,
-`Xdec` preservado no ricochete, aceleração por bit 0 de `Direction`, `MoveActor`/`ChkActorExitRoom`,
-`ChkArea` de 8 bits, dano FFh por toque e indestrutível. Sandbox: absorve tiro, bomba sem efeito,
-dismiss, textura por sala. `png_indexed` ganhou tRNS opcional.
-**Correção pós-teste em jogo:** Snake não sofria dano. `touchenemy.asm:87-93` e
-`damagetoenemy.asm:98-102` fazem `inc a` antes de `GetShapeInfo`, então a linha de `ImpactAreasInfo`
-é o próprio shape (toque 10h = 48h,48h,0,0Ch; tiro 11h = 48h,48h,0,10h): a coluna inteira mata.
-Captura com janela confirmou textura canônica carregada (a "barra cinza" é a coluna de barris
-cinza de `SprsetPal19`) e Snake à frente (plano 0, `Banks0123.asm:5414-5424`).
-**Sala 153:** `idxActorsRooms` reutiliza `ActorsRoom141` nas salas 153 e 191
-(`data/actorsinrooms.asm:1167-1231`, `Banks0123.asm:6141-6147`); o extrator só gerava PNG para 141 e
-205, e nessas salas aparecia o retângulo cinza provisório. Agora gera as 4 salas (spriteset 19
-conferido), o Godot avisa quando falta textura e o teste cobre as quatro salas.
-**Testes:** `tests/test_rolling_barrel_extractor.py` (13, fixtures sintéticas); `rolling_barrel_test.gd`
-com valores calculados do asm, conferência cruzada com o JSON extraído e contato fatal no sandbox.
-**Pendências:** SFX 1Dh só como sinal (sem subsistema de áudio); paleta dos óculos não aplicada.
-**Git:** commit `feat(actors)` com tag `v0.2.2`, sem push; `godot/project.godot` preservado.
-
 ## 2026-10-04 — Inventário progressivo: rádio, diálogos e caixas de texto
 
 **Feito:** inventário Z80 da edição inglesa antes do cruzamento com Godot, extrações e testes.
@@ -87,5 +59,12 @@ Divergências registradas: física float/delta vs aritmética 8.8 (0x0200 = 2.0 
 **Pendências:** convergência de física 8.8 e sequência de morte reservadas para etapas sob demanda.
 **Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
 
+## 2026-10-05 — Inventário progressivo: hazards ambientais e lógica especial de salas
 
-
+**Feito:** inventário Z80 da edição inglesa antes de qualquer alteração no Godot, dados ou testes.
+14 features em `hazards-special-rooms`: PARTIAL 4 (`gas`, `electrified-floor`, `cameras-lasers`, `hazard-breakable-walls`), PROVISIONAL 1 (`hazard-environmental-palette`), NOT_STARTED 9 (`hazard-water-environment`, `hazard-pitfall-trap`, `hazard-dark-rooms`, `hazard-roof-wind`, `hazard-roof-bridge-fall`, `hazard-minefield`, `hazard-roof-freefall`, `hazard-desert-loop`, `hazard-room78-narrow-channel`), UNMAPPED 0, INVESTIGATING 0.
+Evidência: `logic/damagegas.asm:9-53`, `logic/damageelectric.asm:8-63`, `data/laserconfig.asm:6-51`, `logic/laserbeams.asm:11-101`, `Banks0123.asm:9141-9277,8999-9008,9284-9325,8587-8603,2937-2974`, `logic/pitfall.asm:10-69`, `logic/actors/pitfall.asm:7-99`, `data/doors.asm:293-305,923-1085`, `logic/doors/drawdoors.asm:233-261`, `logic/doors/opendoor.asm:280-385`, `logic/bridge.asm:8-48`, `logic/actors/mine.asm:7-75`, `logic/nextroom.asm:33-48,204-260`, `powerswitch.asm:37-67`.
+Divergências registradas: ausência de esteiras (conveyor belts) e correnteza em MG1 MSX2; paredes ocas e quebráveis unificadas como a mesma mecânica (C4 + soco direcional); conflito estrutural de salas 211/212 (canal de água na ROM vs aliases da prisão no Godot); aproximações por overlay alfa/senoidal no Godot vs alteração de paleta direta do VDP MSX2; sala 204 bloqueada como "o limbo" em vez do pátio de paraquedas; loop do deserto (sala 103) contornado no Godot sem checagem de Compass. Nenhum arquivo de gameplay alterado.
+**Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS; `build_index --check`: exit 0.
+**Pendências:** implementação/correção de hazards e resolução do conflito de IDs 211/212 sob demanda.
+**Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.

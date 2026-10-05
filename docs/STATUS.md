@@ -26,7 +26,8 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 - `radio-dialogue`: 32 features (7 IMPLEMENTED, 19 PARTIAL, 3 PROVISIONAL, 2 NOT_STARTED, 1 UNMAPPED).
 - `progression-events`: 33 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 5, NOT_STARTED 24).
 - `player-core`: 17 features (IMPLEMENTED 0, PARTIAL 10, PROVISIONAL 3, NOT_STARTED 4; UNMAPPED 0).
-- Lacunas: GameProgressBuffer, IDs 211/212, física 8.8 vs float/delta, morte 128 ticks, sem knockback.
+- `hazards-special-rooms`: 14 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 1, NOT_STARTED 9).
+- Lacunas: GameProgressBuffer, IDs 211/212 (canal vs cela), física 8.8 vs float, VDP vs alfa.
 - Próxima tarefa sugerida, só após pedido: priorizar `pitfalls` (ID 16) ou `rocket-launcher`.
 
 ## Decisões pendentes do usuário
@@ -36,8 +37,7 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 ## Próximas tarefas registradas (não iniciar sem pedido)
 
-- Conflito de IDs: 211/212 são aliases da prisão no Godot, mas salas reais do canal de água na
-  ROM (`data/roomsconnections.asm:113-114,136-137`); ver `docs/index/rooms.md`.
+- Conflito de IDs: 211/212 são aliases da prisão no Godot, mas salas reais do canal de água na ROM.
 - `RESCUED_PER_RANK = 4` em `rank_system.gd` versus `cp 5` em `IncRescued`
   (`Banks0123.asm:9634-9641`; `docs/reverse_engineering/grey-fox-dialogue.md`).
 - Rádio: produtores das flags de evento (texto 138, bolsa com transmissor, sala 111) e texto 62 da `BAG`.

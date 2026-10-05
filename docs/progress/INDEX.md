@@ -102,8 +102,9 @@ Gerado por `tools/context/progress_archive.py`; não editar. Leia uma entrada: `
 | docs/progress/2026-10.md:439 | 2026-10-04 — Inventário progressivo: atores e bosses |
 | docs/progress/2026-10.md:454 | 2026-10-04 — Interface enxuta de contexto para agentes |
 | docs/progress/2026-10.md:468 | 2026-10-04 — Inventário progressivo: armas, itens e equipamentos |
-| docs/progress.md:6 | 2026-10-04 — Barris rolantes revisados: sprites canônicos e comportamento da ROM |
-| docs/progress.md:34 | 2026-10-04 — Inventário progressivo: rádio, diálogos e caixas de texto |
-| docs/progress.md:47 | 2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL |
-| docs/progress.md:66 | 2026-10-05 — Inventário progressivo: eventos de campanha e progressão global |
-| docs/progress.md:80 | 2026-10-05 — Inventário progressivo: núcleo do jogador, física e estados de controle |
+| docs/progress/2026-10.md:483 | 2026-10-04 — Barris rolantes revisados: sprites canônicos e comportamento da ROM |
+| docs/progress.md:6 | 2026-10-04 — Inventário progressivo: rádio, diálogos e caixas de texto |
+| docs/progress.md:19 | 2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL |
+| docs/progress.md:38 | 2026-10-05 — Inventário progressivo: eventos de campanha e progressão global |
+| docs/progress.md:52 | 2026-10-05 — Inventário progressivo: núcleo do jogador, física e estados de controle |
+| docs/progress.md:62 | 2026-10-05 — Inventário progressivo: hazards ambientais e lógica especial de salas |

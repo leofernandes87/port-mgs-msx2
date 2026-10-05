@@ -521,29 +521,6 @@
       ]
     },
     {
-      "id": "cameras-lasers",
-      "title": "Câmeras de vigilância e lasers",
-      "asm": [
-        "logic/actors/camera.asm:93-121 RoomCamTypes",
-        "logic/actors/camera.asm:145-186 CamameraMove",
-        "logic/laserbeams.asm:11-68 ChkTouchLaser",
-        "Banks0123.asm:5653-5847 InitLaserRoom",
-        "data/laserconfig.asm"
-      ],
-      "godot": [
-        "godot/scripts/systems/security_camera.gd",
-        "godot/scripts/systems/laser_system.gd"
-      ],
-      "integration": [
-        "godot/scripts/scenes/sandbox_gameplay.gd::_on_camera_detected",
-        "godot/scripts/scenes/sandbox_gameplay.gd::_on_laser_triggered"
-      ],
-      "tests": [
-        "godot-cameras-and-lasers"
-      ],
-      "docs": []
-    },
-    {
       "id": "elevators",
       "title": "Rede de 11 eixos de elevadores conectando andares dos 3 edifícios",
       "domain": "progression-events",
@@ -740,60 +717,6 @@
         "text-skip-control-modes",
         "grey-fox"
       ]
-    },
-    {
-      "id": "gas",
-      "title": "Gás tóxico e máscara",
-      "asm": [
-        "logic/damagegas.asm:9 ChkGasRooms",
-        "logic/damagegas.asm:29 ChkGasMask",
-        "logic/damagegas.asm:53 GasRooms",
-        "logic/actors/gas.asm:22 GasLogic"
-      ],
-      "extractor": [
-        "tools/extractors/extract_gas_hazard.py"
-      ],
-      "data": [
-        "gas_hazard.json"
-      ],
-      "godot": [
-        "godot/scripts/systems/gas_hazard_system.gd",
-        "godot/scripts/systems/gas_cloud.gd"
-      ],
-      "integration": [
-        "godot/scripts/scenes/sandbox_gameplay.gd::_physics_process"
-      ],
-      "tests": [
-        "godot-gas-hazard"
-      ],
-      "docs": [
-        "docs/reverse_engineering/stage-19-gas-hazard.md"
-      ]
-    },
-    {
-      "id": "electrified-floor",
-      "title": "Piso eletrificado e painel de força",
-      "asm": [
-        "logic/damageelectric.asm:8 ChkElectricFloor",
-        "logic/actors/powerswitch.asm"
-      ],
-      "extractor": [
-        "tools/extractors/extract_electrified_floor_data.py"
-      ],
-      "data": [
-        "electrified_floor.json"
-      ],
-      "godot": [
-        "godot/scripts/systems/electrified_floor_system.gd",
-        "godot/scripts/systems/power_panel.gd"
-      ],
-      "integration": [
-        "godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_power_panel"
-      ],
-      "tests": [
-        "godot-electrified-floor"
-      ],
-      "docs": []
     },
     {
       "id": "capture-prison",
@@ -8126,6 +8049,551 @@
         "progression-flags-buffer",
         "progression-game-over-continue"
       ]
+    },
+    {
+      "id": "gas",
+      "title": "Gás tóxico ambiental e salas contaminadas",
+      "domain": "hazards-special-rooms",
+      "status": "PARTIAL",
+      "original_scope": "Perigo ambiental em 9 salas canônicas (GasRooms: 29, 94, 96, 97, 98, 100, 101, 112, 114) verificado a cada tick em ChkGasRooms (logic/damagegas.asm:9-21); aplicação periódica de dano a cada 16 ticks (0x10) com 2 HP de decréscimo em DecrementLife_C (damagegas.asm:36-47); imunidade total concedida enquanto SELECTED_GAS_MASK estiver equipada (ChkGasMask, 29-33). Desacoplado da entidade visual das nuvens de gás (actor-gas, ID 8), que é puramente cosmética.",
+      "rationale": "A tabela canônica das 9 salas, o período de 16 ticks e a imunidade pela máscara estão implementados via GasHazardSystem e testados, mas o sandbox aplica uma névoa verde translúcida procedimental inexistente no VDP do MSX2 e o temporizador de dano usa a invulnerabilidade genérica do player (com flash invisível divergente) em vez do registrador de dano independente.",
+      "asm": [
+        "logic/damagegas.asm:9-21 ChkGasRooms",
+        "logic/damagegas.asm:29-47 ChkGasMask",
+        "logic/damagegas.asm:53 GasRooms"
+      ],
+      "extractor": [
+        "tools/extractors/extract_gas_hazard.py"
+      ],
+      "data": [
+        "gas_hazard.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/gas_hazard_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_draw_room_and_collision"
+      ],
+      "tests": [
+        "godot-gas-hazard"
+      ],
+      "docs": [
+        "docs/reverse_engineering/stage-19-gas-hazard.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-21 — Extração e Implementação da Mecânica de Gas Mask e Salas de Gás Tóxico (Etapa 19)"
+      ],
+      "implemented_scope": [
+        "Tabela canônica de 9 salas em gas_hazard.json; ciclo de dano de 2 HP a cada 16 ticks; anulação de dano com ITEM_GAS_MASK equipado; integração no loop de física do sandbox."
+      ],
+      "missing_scope": [
+        "Remoção de overlay verde translúcido procedimental no sandbox; isolamento do dano de gás da rotina de flash de invulnerabilidade do jogador; áudio do dano por gás."
+      ],
+      "evidence_notes": [
+        "damagegas.asm aplica dano room-wide independentemente da posição do jogador ou da proximidade de nuvens visuais. GasHazardSystem respeita a área de 100% da sala."
+      ],
+      "related_features": [
+        "actor-gas",
+        "gas-mask",
+        "player-damage-life",
+        "player-hit-recovery"
+      ]
+    },
+    {
+      "id": "electrified-floor",
+      "title": "Piso eletrificado e desativação por painel de força",
+      "domain": "hazards-special-rooms",
+      "status": "PARTIAL",
+      "original_scope": "Perigo ambiental de piso eletrificado ativo nas salas 16, 37, 40, 110 e 116 em ChkElectricFloor (logic/damageelectric.asm:8-27); identificação de contato por tile do jogador via GetTilePlayer comparando com tiles específicos de cada sala (tiles 60h/61h nas salas 16, 37, 110; tiles 45h/46h na sala 40; tiles 40h/41h na sala 116); dano periódico de 2 HP a cada 8 ticks com disparo do SFX 18h (SfxElectricDamage) em ChkElectricFloor3 (51-63); desativação ambiental imediata quando a flag PowerSwitchOn for zerada (28-32), causada pela destruição do painel de força ID 44 por míssil teleguiado.",
+      "rationale": "O mapeamento de tiles das 5 salas, a cadência de 8 ticks e a desativação por destruição do painel de força estão implementados e testados, mas o Godot renderiza um pulso senoidal translúcido procedimental em vez de pulsar os registradores de paleta do VDP, e persiste o desligamento do painel em dicionário mesmo após troca de salas, diferindo do respawn da ROM.",
+      "asm": [
+        "logic/damageelectric.asm:8-27 ChkElectricFloor",
+        "logic/damageelectric.asm:28-50 ChkElectricFloor2",
+        "logic/damageelectric.asm:51-63 ChkElectricFloor3"
+      ],
+      "extractor": [
+        "tools/extractors/extract_electrified_floor_data.py"
+      ],
+      "data": [
+        "electrified_floor.json"
+      ],
+      "godot": [
+        "godot/scripts/systems/electrified_floor_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_draw_room_and_collision"
+      ],
+      "tests": [
+        "godot-electrified-floor"
+      ],
+      "docs": [],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-21 — Etapa 22: Pisos Eletrificados & Painéis de Força"
+      ],
+      "implemented_scope": [
+        "Mapeamento dos hazard tiles para as salas 16, 37, 40, 110 e 116; dano de 2 HP a cada 8 frames; desativação do perigo quando o painel de força é destruído por míssil."
+      ],
+      "missing_scope": [
+        "Pulsação de paleta autêntica do VDP em vez de shader/draw_rect com seno; persistência fiel do estado do painel alinhada ao ciclo de respawn da ROM (PowerSwitchOn zerado ao recarregar a sala)."
+      ],
+      "evidence_notes": [
+        "damageelectric.asm:56 toca SFX 18h. O dano é estritamente condicionado ao tile onde o jogador pisa (GetTilePlayer), não à sala inteira."
+      ],
+      "related_features": [
+        "actor-power-switch",
+        "remote-missile",
+        "player-damage-life",
+        "player-hit-recovery"
+      ]
+    },
+    {
+      "id": "cameras-lasers",
+      "title": "Feixes laser infravermelhos e barreiras de alarme de sala",
+      "domain": "hazards-special-rooms",
+      "status": "PARTIAL",
+      "original_scope": "Barreiras de feixes laser nas salas 24, 25 e 72 configuradas em data/laserconfig.asm; suporte a feixes verticais e horizontais de comprimento fixo e feixes móveis alternando segundo 5 sequências periódicas de 10 passos em idxLaserOnOff (laserconfig.asm:39-51); feixes invisíveis a olho nu, revelados quando SELECTED_GOGGLES estiver equipado; detecção de contato em ChkTouchLaser (logic/laserbeams.asm:11-48) disparando alarme de 90 frames (SetAlertModeRespawn), apagando os feixes da sala (RemoveLaserBeans, 88-101) e gerando reforços militares.",
+      "rationale": "LaserSystem implementa as tabelas das salas 24, 25 e 72, as sequências cíclicas e a revelação por óculos com disparo de alerta, mas a temporização do ciclo da sala 72 (ROOM_72_CYCLE_TICKS = 192) difere da contagem por quadros exata do MSX2 e a renderização utiliza linhas coloridas procedimentais em vez dos tiles de feixe e paleta de cinza autênticos.",
+      "asm": [
+        "Banks0123.asm:5653-5680 InitLaserRoom",
+        "logic/laserbeams.asm:11-48 ChkTouchLaser",
+        "logic/laserbeams.asm:88-101 RemoveLaserBeans",
+        "data/laserconfig.asm:6-33",
+        "data/laserconfig.asm:39-51 idxLaserOnOff"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/laser_system.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_on_laser_triggered"
+      ],
+      "tests": [
+        "godot-cameras-and-lasers"
+      ],
+      "docs": [],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 16 concluída: Câmeras de Vigilância e Feixes Laser Infravermelhos"
+      ],
+      "implemented_scope": [
+        "Tabelas de feixes para salas 24, 25 e 72; sequências cíclicas ON/OFF; revelação ao equipar ITEM_GOGGLES; disparo do sinal laser_triggered e ativação de alerta militar."
+      ],
+      "missing_scope": [
+        "Renderização autêntica de tiles de feixe VRAM em vez de linhas desenhadas via draw_line; ajuste fino do período de 10 passos sincronizado com o clock de interrupção; restauração do background VRAM (RestLaserBack_) ao desligar."
+      ],
+      "evidence_notes": [
+        "laserbeams.asm:43-47 desativa todos os feixes (RemoveLaserBeans) assim que qualquer feixe é tocado e o alarme é disparado. O jogador não recebe dano do feixe; o efeito é puramente disparo de alerta."
+      ],
+      "related_features": [
+        "actor-lasers",
+        "laser-cameras",
+        "goggles",
+        "alert"
+      ]
+    },
+    {
+      "id": "hazard-water-environment",
+      "title": "Propriedades ambientais de água de superfície e água profunda",
+      "domain": "hazards-special-rooms",
+      "status": "NOT_STARTED",
+      "original_scope": "Mapeamento ambiental de 10 salas com água em RoomsWater (Banks0123.asm:9267-9277: salas 70, 73, 74, 77, 78, 107, 105, 106, 211, 212); identificação de tiles de água em ChkWaterTiles (9162-9209): tiles 6Fh-72h (água sombreada), 73h-74h (água normal), 75h-76h (água profunda) e 6Dh (tijolos em água); tratamento das salas 105, 106, 211 e 212 como zonas 100% profundas em ChkDeepShadow (9218-9229); dano ambiental por asfixia a cada 8 ticks em SetDeepWaterMode (9230-9260) quando o jogador não estiver com SELECTED_OXYGEN equipado; descarte imediato da caixa de papelão ao tocar qualquer tile aquático (9201-9204). Conflito crítico: na ROM, 211 e 212 são canais navegáveis de água profunda entre edifícios (data/roomsconnections.asm:113-114, 136-137), mas no Godot foram usadas como aliases da cela da prisão.",
+      "rationale": "A física de água existe apenas na cutscene introdutória da sala 121 e em sprites do jogador, mas as salas jogáveis de água (70, 73, 74, 77, 78, 105, 106) e os canais 211/212 não possuem detecção de tiles aquáticos, não aplicam modo de nado e não geram dano por falta de oxigênio.",
+      "asm": [
+        "Banks0123.asm:9141-9229 ChkWater",
+        "Banks0123.asm:9218-9229 ChkDeepShadow",
+        "Banks0123.asm:9230-9260 SetDeepWaterMode",
+        "Banks0123.asm:9267-9277 RoomsWater",
+        "data/roomsconnections.asm:136-137"
+      ],
+      "extractor": [
+        "tools/extractors/export_local_aliases.py"
+      ],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/room_manager.gd"
+      ],
+      "integration": [],
+      "tests": [
+        "godot-intro-cutscene"
+      ],
+      "docs": [
+        "docs/index/rooms.md"
+      ],
+      "history": [],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Verificação de tiles de água nas salas normais de gameplay; classificação de água normal vs profunda em tempo de execução; dano ambiental por falta de Oxygen Tank; resolução do conflito de aliases das salas 211/212 com a prisão."
+      ],
+      "evidence_notes": [
+        "As 4 últimas salas de RoomsWater (105, 106, 211, 212) tratam qualquer tile de sombra como deep water (ChkDeepShadow). A colisão em água permite movimentação contínua exceto nos obstáculos de margem."
+      ],
+      "related_features": [
+        "player-water-movement",
+        "player-deep-water",
+        "oxygen-tank",
+        "rooms"
+      ]
+    },
+    {
+      "id": "hazard-pitfall-trap",
+      "title": "Alçapões e armadilhas de piso que abrem",
+      "domain": "hazards-special-rooms",
+      "status": "NOT_STARTED",
+      "original_scope": "Armadilhas mecânicas embutidas no piso de salas fechadas (salas 13, 19, 23, 27, 85, 220, 221 etc.); ativação por raio de aproximação de 40 pixels em ChkTriggerPitfall (logic/pitfall.asm:48-69); abertura progressiva de 0 a 64 pixels em PitfallLogic (logic/actors/pitfall.asm:7-99) copiando gráficos da VDP página 1 para página 0 em fatias e tocando SFX 07h (SfxPitfall); detecção de queda fatal em ChkPitfall (logic/pitfall.asm:10-41) com dano instantâneo 0xFF (morte imediata) se Snake pisar na área do buraco aberto; fechamento automático e reset de armadilha ao sair e reentrar na sala (exceto na sala 190 onde inicia já aberta em InitPitfall:147-160).",
+      "rationale": "A mecânica de alçapões originais não possui implementação de gameplay ou física no Godot. O ator ID 16 é filtrado/ignorado no sandbox e não há entidades de colisão letal no piso para representar a abertura do chão.",
+      "asm": [
+        "logic/pitfall.asm:10-41 ChkPitfall",
+        "logic/pitfall.asm:48-69 ChkTriggerPitfall",
+        "logic/actors/pitfall.asm:7-99 PitfallLogic"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [],
+      "integration": [],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/enemies.md"
+      ],
+      "history": [],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Trigger de proximidade (raio 40 px); animação de abertura procedural de fatias no piso; SFX 07h; checagem de queda fatal (dano 0xFF); recarregamento das armadilhas no reset de sala."
+      ],
+      "evidence_notes": [
+        "logic/pitfall.asm:24-41 exige que o buraco tenha pelo menos 4 pixels abertos antes de poder engolir o jogador. O dano é 0xFF (DecrementLife_B), provocando morte imediata."
+      ],
+      "related_features": [
+        "pitfalls",
+        "player-damage-life",
+        "player-death"
+      ]
+    },
+    {
+      "id": "hazard-breakable-walls",
+      "title": "Paredes destrutíveis, paredes ocas e passagens secretas",
+      "domain": "hazards-special-rooms",
+      "status": "PARTIAL",
+      "original_scope": "13 tipos de paredes destrutíveis em 11 salas (data/doors.asm:293-305, 923-1085: salas 54, 58, 59, 60, 61, 63, 93, 96, 100, 108, 112, 164, 165); detecção de parede oca por impacto de soco em direções específicas (PunchWallDirs em logic/doors/opendoor.asm:379-385) emitindo SFX 0Ah (Sfx_PunchWallBrk) em vez do som de concreto maciço SFX 09h (Sfx_PunchWall); detonação por explosivo plástico (C4) que remove os tiles da parede (erasedoor.asm:67, 453) e atualiza a máscara de colisão; persistência do estado quebrado na sessão de jogo.",
+      "rationale": "As paredes do subsolo e da cela da prisão foram implementadas e testadas (PrisonWallDoor, portas 12, 16, 18, 103, 140, 142 etc. com soco direcional e explosão de C4), mas paredes destrutíveis de outros edifícios (ex: sala 108 no Edifício 3, sala 93 e 100 no Edifício 2) e a paleta exata de detritos ainda não foram integradas.",
+      "asm": [
+        "data/doors.asm:293-305",
+        "data/doors.asm:923-1085",
+        "logic/doors/drawdoors.asm:233-261",
+        "logic/doors/opendoor.asm:280-324",
+        "logic/doors/opendoor.asm:369-375 PlayBreakableSfx",
+        "logic/doors/opendoor.asm:379-385 PunchWallDirs"
+      ],
+      "extractor": [
+        "tools/extractors/extract_prison_wall.py"
+      ],
+      "data": [
+        "prison-walls/"
+      ],
+      "godot": [
+        "godot/scripts/systems/prison_wall_door.gd",
+        "godot/scripts/systems/plastic_bomb.gd",
+        "godot/scripts/systems/door.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::break_prison_wall"
+      ],
+      "tests": [
+        "godot-basement-and-plastic-bomb",
+        "godot-capture-prison"
+      ],
+      "docs": [],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-21 — Etapa 21: Evento de Captura na Sala 8, Cela 211, Parede Oca e Restituição de Inventário",
+        "docs/progress/2026-09.md::[Auditoria e Implementação Canônica do Basement (Edifício 1) e Bomba Plástica (C4)]"
+      ],
+      "implemented_scope": [
+        "Paredes das salas 54, 58, 59, 60, 61, 63, 164 e 165; verificação direcional de soco com som oco; destruição por bomba plástica C4 com abertura física e transição transitável."
+      ],
+      "missing_scope": [
+        "Paredes destrutíveis do Edifício 2 (salas 93, 100, 112) e Edifício 3 (sala 108); efeito sonoro autêntico de colapso de parede (SfxWallBroken); verificação de colisão após detonação em salas multi-bloco."
+      ],
+      "evidence_notes": [
+        "opendoor.asm:369-375 emite SFX 0Ah apenas se o soco for executado na direção exata definida em PunchWallDirs. Um soco em outra direção emite SFX 09h convencional."
+      ],
+      "related_features": [
+        "plastic-bomb",
+        "capture-prison",
+        "doors"
+      ]
+    },
+    {
+      "id": "hazard-dark-rooms",
+      "title": "Salas escuras e iluminação ambiental por lanterna",
+      "domain": "hazards-special-rooms",
+      "status": "NOT_STARTED",
+      "original_scope": "Salas escuras sem iluminação natural no subsolo do Edifício 1 (salas 123, 124, 125) e no Edifício 2 (salas 220, 221) gerenciadas em SetRoomPal (Banks0123.asm:2937-2965); se o jogador não estiver com SELECTED_FLASHLIGHT equipado em ChkFlashLight (2958-2964), carrega a paleta 0Bh (paleta totalmente preta), tornando as paredes e o chão invisíveis no VDP e mantendo apenas sprites visíveis; restauração da paleta visível do tileset quando a lanterna estiver ativa. Nas salas 220 e 221, a escuridão sobrepõe armadilhas de alçapão (pitfalls), tornando o deslocamento às cegas letal.",
+      "rationale": "O item FLASHLIGHT existe no inventário e HUD, mas nenhuma sala do Godot aplica a paleta preta nem mascara os tiles do cenário; todas as salas escuras são renderizadas com iluminação completa mesmo sem lanterna.",
+      "asm": [
+        "Banks0123.asm:2937-2965 SetRoomPal",
+        "Banks0123.asm:2958-2964 ChkFlashLight"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [],
+      "integration": [],
+      "tests": [],
+      "docs": [],
+      "history": [],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Aplicação de paleta preta 0Bh nas salas 123, 124, 125, 220 e 221 sem lanterna; restauração dinâmica da paleta ao equipar/desequipar a lanterna; combinação de escuridão com armadilhas de alçapão."
+      ],
+      "evidence_notes": [
+        "Banks0123.asm:2963 carrega a paleta 0Bh (Black palette) diretamente para a VDP. Sprites continuam visíveis pois usam tabelas de cores separadas no VDP MSX2 (ColorsTileset vs SprsetPal)."
+      ],
+      "related_features": [
+        "flashlight",
+        "hazard-pitfall-trap"
+      ]
+    },
+    {
+      "id": "hazard-roof-wind",
+      "title": "Correnteza de vento do telhado e repulsão ambiental",
+      "domain": "hazards-special-rooms",
+      "status": "NOT_STARTED",
+      "original_scope": "Perigo ambiental de forte vento de exaustão na sala 53 (saída do elevador no telhado do Edifício 1) verificado em ChkRoofAirFlow (Banks0123.asm:9284-9325); zona de vento ativa entre coordenadas Y [50h, 60h] (80 a 96 px) e X [48h, 0C0h] (72 a 192 px); se o jogador não estiver vestindo SELECTED_BOMB_SUIT (9292-9295), o vento empurra Snake para o sul com velocidade de 3 pixels/tick em AirFlowLogic (Banks0123.asm:8587-8603) e dispara SFX 11h (SfxRoofAir); anulação completa da repulsão pelo traje Bomb Blast Suit, permitindo transitar normalmente.",
+      "rationale": "A mecânica ambiental de vento na sala 53 não existe no Godot. O traje Bomb Blast Suit existe apenas como item de inventário sem função ambiental ativa.",
+      "asm": [
+        "Banks0123.asm:9284-9325 ChkRoofAirFlow",
+        "Banks0123.asm:8587-8603 AirFlowLogic"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [],
+      "integration": [],
+      "tests": [],
+      "docs": [],
+      "history": [],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Zona de vento na sala 53; repulsão forçada de 3 px/tick para o sul; áudio SFX 11h; anulação pelo Bomb Blast Suit."
+      ],
+      "evidence_notes": [
+        "Banks0123.asm:9310-9316: se o jogador segura DOWN (ControlsHold bit 1), a variável InAirFlow é ativada em vez do modo forçado CONTROL_AIR_FLOW, permitindo andar para baixo mas impedindo avanço para o norte."
+      ],
+      "related_features": [
+        "player-roof-airflow",
+        "bomb-blast-suit"
+      ]
+    },
+    {
+      "id": "hazard-roof-bridge-fall",
+      "title": "Pontes do telhado e queda ambiental para o andar inferior",
+      "domain": "hazards-special-rooms",
+      "status": "NOT_STARTED",
+      "original_scope": "Perigo de abismo nas pontes do telhado do Edifício 1 (salas 45 e 46) em ChkOnBridge (logic/bridge.asm:8-48); o mapa é composto por tile 1 (vazio/abismo), exceto nas cabeceiras fixas da ponte; se o jogador pisar em tile 1 e a flag isOnBridge for zero (indicando que não está sobre uma prancha móvel de ator), despenca do telhado; a queda não causa morte, acionando transição vertical para a sala inferior de tijolos (salas 58 ou 59) através de IdDoorEnter (5Bh ou 81h) com JumpRoomId (1 ou 2) e GameMode = 1.",
+      "rationale": "A lógica de abismo e queda das pontes para o andar inferior em logic/bridge.asm não está implementada no Godot; as pontes e a detecção de queda no tile 1 não existem no runtime.",
+      "asm": [
+        "logic/bridge.asm:8-48",
+        "logic/bridge.asm:15-48 ChkOnBridge",
+        "logic/common.asm:15",
+        "logic/common.asm:64-70 SetOnBridge"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [],
+      "integration": [],
+      "tests": [],
+      "docs": [],
+      "history": [],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Identificação de tile 1 como abismo nas salas 45 e 46; queda ao sair das pranchas móveis; transição vertical para as salas inferiores 58 e 59 via IdDoorEnter 5Bh/81h."
+      ],
+      "evidence_notes": [
+        "logic/bridge.asm:24-32: o jogador não morre ao cair da ponte; a rotina configura a porta e o JumpRoomId para reposicionar Snake no andar de baixo (wall of bricks room)."
+      ],
+      "related_features": [
+        "bridges",
+        "player-room-transition"
+      ]
+    },
+    {
+      "id": "hazard-minefield",
+      "title": "Campos minados de cenário e revelação por detector",
+      "domain": "hazards-special-rooms",
+      "status": "NOT_STARTED",
+      "original_scope": "Campos minados terrestres em salas abertas e travessias do deserto (salas 12, 14, 21, 64 etc.) gerenciados em InitMines e DrawMines (logic/actors/mine.asm:7-75); minas de cenário fixas e invisíveis a olho nu; salvamento do fundo original em VRAM página 1 (GetMineBackXY); quando SELECTED_MINE_DETECTOR estiver ativo, as minas são desenhadas na tela como pontos de 5x5 pixels (DrawMine:22-38); pisar sobre uma mina ativa causa explosão letal/grave por contato (TouchPlayer em touchenemy.asm) e restaura o fundo original.",
+      "rationale": "O detector de minas e a arma de minas do jogador existem, mas as minas ambientais de cenário (ator ID 7) não são instanciadas nem processadas no sandbox do Godot, inexistindo campos minados funcionais.",
+      "asm": [
+        "logic/actors/mine.asm:7-38 InitMines",
+        "logic/actors/mine.asm:55-75 DrawMines"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [],
+      "integration": [],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/enemies.md"
+      ],
+      "history": [],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Spawn de minas terrestres de cenário nas salas da ROM; salvamento de fundo em VRAM; renderização de bitmaps 5x5 quando Mine Detector estiver equipado; detonação por contato e restauração de fundo."
+      ],
+      "evidence_notes": [
+        "logic/actors/mine.asm:22-38 desenha um bitmap transparente de 5x5 a partir da VRAM página 1 (offset 9565h). O dano é gerado por colisão de ator de toque."
+      ],
+      "related_features": [
+        "enemy-mines",
+        "mine-detector",
+        "player-actor-touch"
+      ]
+    },
+    {
+      "id": "hazard-roof-freefall",
+      "title": "Queda livre do telhado e descida para o pátio exterior",
+      "domain": "hazards-special-rooms",
+      "status": "NOT_STARTED",
+      "original_scope": "Mecânica ambiental de salto a partir do telhado do Edifício 1 para o pátio externo na sala 204 em ChkParachute (logic/nextroom.asm:204-260); se SELECTED_PARACHUTE estiver equipado, ativa descida suave com deslocamento oscilante de 16 ticks em ParachuteLogic (Banks0123.asm:8564-8580); se o jogador saltar sem o paraquedas, aciona FreeFall (logic/nextroom.asm:227-239), aplicando dano 0xFF (morte imediata) ao atingir o solo; sala 204 como destino da descida. No Godot atual, a sala 204 é considerada limbo e suprimida em sandbox_gameplay.gd:1393.",
+      "rationale": "A sala 204 é explicitamente tratada como o limbo e descartada no Godot (sandbox_gameplay.gd:1388, 1393), e o salto com ou sem paraquedas não está implementado.",
+      "asm": [
+        "logic/nextroom.asm:204-226 ChkParachute",
+        "logic/nextroom.asm:227-239 FreeFall",
+        "Banks0123.asm:8564-8580 ParachuteLogic"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [],
+      "tests": [],
+      "docs": [],
+      "history": [],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Habilitação da sala 204 como pátio real; transição de descida do telhado; verificação de paraquedas; queda fatal 0xFF em salto sem proteção."
+      ],
+      "evidence_notes": [
+        "nextroom.asm:227-239: FreeFall seta vida para zero e mata Snake imediatamente ao atingir o pátio. O salto com paraquedas é a única travessia segura do telhado para o solo."
+      ],
+      "related_features": [
+        "player-freefall-parachute",
+        "parachute",
+        "rooms"
+      ]
+    },
+    {
+      "id": "hazard-desert-loop",
+      "title": "Loop de desorientação do deserto sem bússola",
+      "domain": "hazards-special-rooms",
+      "status": "NOT_STARTED",
+      "original_scope": "Mecânica de armadilha geográfica de navegação no deserto entre o Edifício 1 e o Edifício 2 (sala 103) em logic/nextroom.asm:33-48; ao transitar para o norte em direção à sala 103/208 sem SELECTED_COMPASS equipado, o jogo impede o avanço e redireciona Room de volta para 103 (ld a, 103; ld (Room), a em nextroom.asm:46), prendendo Snake em um loop infinito de deserto; apenas equipando a Bússola o avanço ao norte tem sucesso; recuar para o sul (PlayerDirection == DIR_DOWN) permite retornar livremente ao Edifício 1 sem penalidade.",
+      "rationale": "Em room_manager.gd:143 a sala 103 conecta diretamente à sala 208 sem nenhuma validação do item Bússola, eliminando completamente a armadilha de loop geográfico do deserto.",
+      "asm": [
+        "logic/nextroom.asm:33-48"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/room_manager.gd"
+      ],
+      "integration": [],
+      "tests": [],
+      "docs": [],
+      "history": [],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Loop de retorno infinito na sala 103 sem Compass; validação direcional em transições norte; verificação de SELECTED_COMPASS antes de permitir entrada na sala 208."
+      ],
+      "evidence_notes": [
+        "nextroom.asm:42-43: caminhar para o sul (DIR_DOWN) não cai no loop, permitindo recuar para a sala 102 mesmo sem bússola."
+      ],
+      "related_features": [
+        "compass",
+        "progression-desert-crossing-compass",
+        "rooms"
+      ]
+    },
+    {
+      "id": "hazard-room78-narrow-channel",
+      "title": "Colisão reforçada do canal estreito na sala 78",
+      "domain": "hazards-special-rooms",
+      "status": "NOT_STARTED",
+      "original_scope": "Regra especial de colisão na sala 78 (entrada da vala de água / canal em direção ao Edifício 2) em Banks0123.asm:8999-9008; além da colisão padrão com Shape 0 (BoxColliderDat em logic/collisions.asm:77-97), a rotina executa uma segunda chamada a ChkTileCollision_ com Shape 2 (collisions.asm:122-142: offsets ampliados UP [-6,-13],[5,-13]; DOWN [-6,12],[5,12]; LEFT [-16,-4],[-16,3]; RIGHT [15,-4],[15,3]); isso expande a caixa de colisão física e impede que Snake entre na vala estreita ou atravesse as margens sem estar rigorosamente centralizado.",
+      "rationale": "A verificação especial da sala 78 com Shape 2 não foi implementada em player.gd::is_colliding_at ou room_manager.gd, permitindo que o jogador atravesse as margens do canal estreito sem restrição.",
+      "asm": [
+        "Banks0123.asm:8999-9008",
+        "logic/collisions.asm:122-142"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [],
+      "tests": [],
+      "docs": [],
+      "history": [],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Segunda verificação de colisão específica para a sala 78; aplicação dos offsets ampliados de Shape 2."
+      ],
+      "evidence_notes": [
+        "Banks0123.asm:9003 faz ld b, 2 antes de chamar ChkTileCollision_, ativando Shape 2 exclusivamente para a sala 78."
+      ],
+      "related_features": [
+        "player-world-collision",
+        "hazard-water-environment"
+      ]
+    },
+    {
+      "id": "hazard-environmental-palette",
+      "title": "Efeitos de paleta ambiental (visão infravermelha e pulsação)",
+      "domain": "hazards-special-rooms",
+      "status": "PROVISIONAL",
+      "original_scope": "Manipulação direta da paleta do VDP para representar efeitos ambientais: aplicação da paleta de escala de cinza 0Ah em SetRoomPal3 (Banks0123.asm:2967-2974) quando SELECTED_GOGGLES estiver equipado, transformando as cores de todo o cenário para simular visão infravermelha; e pulsação de brilho nos registradores de paleta do piso eletrificado em logic/actors/powerswitch.asm:37-67 (BrightIndex alternando cores da VRAM a cada frame).",
+      "rationale": "No Godot, os Goggles não alteram a paleta de cores do cenário (o cenário continua colorido), e o piso eletrificado utiliza um retângulo translúcido procedimental com função seno desenhado sobre os tiles (sandbox_gameplay.gd:445-450) em vez da modulação original de paleta do VDP.",
+      "asm": [
+        "Banks0123.asm:2967-2974 ChkGogglesPal",
+        "logic/actors/powerswitch.asm:37-67"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/scenes/sandbox_gameplay.gd::_draw_room_and_collision"
+      ],
+      "tests": [],
+      "docs": [],
+      "history": [],
+      "implemented_scope": [
+        "Efeito visual aproximado de pulso com seno sobre o piso elétrico em sandbox_gameplay.gd."
+      ],
+      "missing_scope": [
+        "Paleta de cinza autêntica do VDP para o cenário ao usar Goggles; modulação direta de paleta para o piso elétrico em substituição ao overlay alfa moderno."
+      ],
+      "evidence_notes": [
+        "Banks0123.asm:2972 carrega paleta 0Ah (gray colors to simulate infrared). O MSX2 altera os 16 registradores de paleta do VDP sem desenhar geometrias transparentes."
+      ],
+      "related_features": [
+        "goggles",
+        "electrified-floor"
+      ]
     }
   ],
   "schema_version": 2,
@@ -8459,6 +8927,64 @@
         "Identificada divergência crítica de física: Godot calcula velocidade por 'speed * delta' em float acumulado, em vez da aritmética discreta de 16-bits 8.8 (0x0200 = 2.0 px/tick fixo) do Z80.",
         "Identificada divergência crítica de invulnerabilidade e morte: o flash pós-dano na ROM alterna a paleta para vermelho a cada frame (TickCounter bit 0) sem ocultar o sprite; a morte possui sequência canônica de 128 ticks (DeadTimer = 0x80) com 3 poses de animação antes de disparar Game Over.",
         "Identificada ausência de knockback físico: Snake não sofre repulsão vetorial ao receber dano de tiros ou soldados na ROM; a posição física é preservada e apenas o temporizador de recuperação e a vida são alterados."
+      ]
+    },
+    "hazards-special-rooms": {
+      "title": "Hazards ambientais e salas especiais",
+      "date": "2026-10-05",
+      "project_revision": "8d9d970",
+      "reference_revision": "30d1b940bede10fdabbaf9767ad4f0ad8dd33291",
+      "scope": "Inventário das mecânicas ambientais, armadilhas de cenário e lógica especial de salas da edição inglesa RC750 (JAPANESE equ 0): perigo de gás tóxico e salas contaminadas (GasRooms: 29, 94, 96, 97, 98, 100, 101, 112, 114 em logic/damagegas.asm), piso eletrificado por tiles e desativação por painel de força (salas 16, 37, 40, 110, 116 em logic/damageelectric.asm), propriedades ambientais de água e zonas de afogamento em água profunda (RoomsWater: 10 salas em Banks0123.asm:9267-9277), feixes laser infravermelhos e barreiras de alarme de sala (salas 24, 25, 72 em data/laserconfig.asm e logic/laserbeams.asm), alçapões e armadilhas de piso com abertura progressiva em VRAM e queda letal (logic/pitfall.asm, logic/actors/pitfall.asm), 13 tipos de paredes destrutíveis/ocas em 11 salas com soco direcional e demolição por C4 (data/doors.asm, logic/doors/opendoor.asm), salas escuras com paleta preta 0Bh e iluminação por lanterna (salas 123-125, 220-221 em Banks0123.asm:2946-2965), correnteza de vento do telhado e repulsão para o sul na sala 53 (Banks0123.asm:9284-9325), queda de pontes do telhado para o andar inferior nas salas 45-46 (logic/bridge.asm), campos minados terrestres e detecção (logic/actors/mine.asm), queda livre fatal no pátio da sala 204 sem paraquedas (logic/nextroom.asm:204-260), loop de desorientação do deserto na sala 103 sem bússola (logic/nextroom.asm:33-48), colisão reforçada com Shape 2 no canal da sala 78 (Banks0123.asm:8999-9008) e efeitos de paleta ambiental (escala de cinza infravermelha e pulsação).",
+      "method": "Inventário a partir da desmontagem canônica inglesa (Banks0123.asm, logic/damagegas.asm, logic/damageelectric.asm, logic/laserbeams.asm, logic/pitfall.asm, logic/bridge.asm, logic/nextroom.asm, logic/doors/opendoor.asm, logic/doors/drawdoors.asm, logic/actors/pitfall.asm, logic/actors/mine.asm, data/laserconfig.asm, data/doors.asm, data/roomsconnections.asm). Cruzamento com sistemas Godot (gas_hazard_system.gd, electrified_floor_system.gd, laser_system.gd, prison_wall_door.gd, room_manager.gd, sandbox_gameplay.gd), dados canônicos extraídos (gas_hazard.json, electrified_floor.json, prison-walls/), testes automatizados, documentação e histórico. Sem alterações de código de gameplay.",
+      "asm": [
+        "Banks0123.asm:2937-2965 SetRoomPal",
+        "Banks0123.asm:2958-2964 ChkFlashLight",
+        "Banks0123.asm:2967-2974 ChkGogglesPal",
+        "Banks0123.asm:5653-5680 InitLaserRoom",
+        "Banks0123.asm:8564-8580 ParachuteLogic",
+        "Banks0123.asm:8587-8603 AirFlowLogic",
+        "Banks0123.asm:8999-9008",
+        "Banks0123.asm:9141-9229 ChkWater",
+        "Banks0123.asm:9218-9229 ChkDeepShadow",
+        "Banks0123.asm:9230-9260 SetDeepWaterMode",
+        "Banks0123.asm:9267-9277 RoomsWater",
+        "Banks0123.asm:9284-9325 ChkRoofAirFlow",
+        "data/doors.asm:293-305",
+        "data/doors.asm:923-1085",
+        "data/laserconfig.asm:6-33",
+        "data/laserconfig.asm:39-51 idxLaserOnOff",
+        "data/roomsconnections.asm:136-137",
+        "logic/actors/mine.asm:7-38 InitMines",
+        "logic/actors/mine.asm:55-75 DrawMines",
+        "logic/actors/pitfall.asm:7-99 PitfallLogic",
+        "logic/actors/powerswitch.asm:37-67",
+        "logic/bridge.asm:8-48",
+        "logic/bridge.asm:15-48 ChkOnBridge",
+        "logic/collisions.asm:122-142",
+        "logic/common.asm:15",
+        "logic/common.asm:64-70 SetOnBridge",
+        "logic/damageelectric.asm:8-27 ChkElectricFloor",
+        "logic/damageelectric.asm:28-50 ChkElectricFloor2",
+        "logic/damageelectric.asm:51-63 ChkElectricFloor3",
+        "logic/damagegas.asm:9-21 ChkGasRooms",
+        "logic/damagegas.asm:29-47 ChkGasMask",
+        "logic/damagegas.asm:53 GasRooms",
+        "logic/doors/drawdoors.asm:233-261",
+        "logic/doors/opendoor.asm:280-324",
+        "logic/doors/opendoor.asm:369-375 PlayBreakableSfx",
+        "logic/doors/opendoor.asm:379-385 PunchWallDirs",
+        "logic/laserbeams.asm:11-48 ChkTouchLaser",
+        "logic/laserbeams.asm:88-101 RemoveLaserBeans",
+        "logic/nextroom.asm:33-48",
+        "logic/nextroom.asm:204-226 ChkParachute",
+        "logic/nextroom.asm:227-239 FreeFall"
+      ],
+      "notes": [
+        "Domínio dedicado aos perigos ambientais, armadilhas de cenário e regras físicas específicas de salas.",
+        "Preservou e refinou os IDs legados gas, electrified-floor e cameras-lasers, mantendo íntegras todas as referências cruzadas existentes de actors-bosses e weapons-items.",
+        "Identificado conflito de ID crítico: na ROM, 211 e 212 são salas de canal de água profunda de RoomsWater conectando os edifícios 2 e 3, enquanto no Godot foram usadas como aliases da prisão.",
+        "Identificada ausência de esteiras (conveyors) e correntezas de água no código original do MSX2: a única mecânica de repulsão contínua é o vento da sala 53 (AirFlowLogic).",
+        "Identificado uso de overlays alfa procedimentais no Godot (névoa verde de gás e pulso elétrico senoidal) em contraste com o comportamento estrito de registradores de paleta VDP do MSX2."
       ]
     }
   }
