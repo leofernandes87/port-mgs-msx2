@@ -3,21 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Inventário progressivo: armas, itens e equipamentos
-
-**Feito:** inventário inglês antes do cruzamento com extração, Godot, integração, testes e histórico.
-38 features `weapons-items` no catálogo canônico: IMPLEMENTED 1, PARTIAL 20, PROVISIONAL 8,
-NOT_STARTED 9; DEFERRED/UNMAPPED/INVESTIGATING 0. Entradas de outros domínios preservadas.
-Evidência: `constants/Enums.asm:4-10,83-108,127-155`, `logic/items.asm:333-356,490-516`,
-`logic/weaponuse.asm:8-40`, `logic/maxammo.asm:112-147`; detalhes via `lookup mech ID`.
-Gerador/lookup/validação suportam IDs de armas, pickups e equipamentos separados dos atores;
-relatório humano regenerado. Limites de escopo e sobreposições documentados no próprio catálogo.
-**Testes:** 26 testes focados de contexto; `python3 tools/validate.py` fora do sandbox: exit 0,
-37 etapas PASS, 146 testes Python; importação, boot e suítes Godot 4.7.2 aprovados.
-**Pendências:** divergências registradas sem correção; próxima tarefa sugerida, após pedido,
-priorizar aquisição do foguete/recarga e respectivos testes. Gameplay e configuração local preservados.
-**Git:** commit `b68b8f7` a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
-
 ## 2026-10-04 — Barris rolantes revisados: sprites canônicos e comportamento da ROM
 
 **Revisão:** a versão anterior (não commitada) divergia da ROM: hitbox 16x16 e barril
@@ -91,4 +76,16 @@ inviabilidade de playthrough contínuo. Nenhum arquivo de gameplay alterado.
 **Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 164 testes Python; `build_index --check`: exit 0.
 **Pendências:** implementação da persistência e expansão dos edifícios 2 e 3 reservadas para etapas sob demanda.
 **Git:** commit `e1bdddd` a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
+
+## 2026-10-05 — Inventário progressivo: núcleo do jogador, física e estados de controle
+
+**Feito:** inventário Z80 da edição inglesa antes do cruzamento com Godot, integração e testes.
+17 features em `player-core`: PARTIAL 10, PROVISIONAL 3, NOT_STARTED 4; IMPLEMENTED 0, UNMAPPED/INVESTIGATING 0.
+Evidência: `Banks0123.asm:5486-5515,8397-8439,8447-8512,8564-8644,8702-8760,8791-8926,8972-9008,9141-9277,9284-9325,9332-9441,9520-9573,9654-9765,9886-9928,12151-12290`, `Variables.asm:79,88-92,105,142-181`, `logic/collisions.asm:15-169`, `logic/nextroom.asm:204-480`, `logic/touchenemy.asm:8-190`, `logic/hud.asm:107-145`, `logic/damagegas.asm:36-47`, `logic/damageelectric.asm:51-61`, `logic/pitfall.asm:10-41`.
+Divergências registradas: física float/delta vs aritmética 8.8 (0x0200 = 2.0 px/tick), precedência direcional sem memória Z80, dano com flash vermelho alternado por frame vs invisibilidade, sequência de morte de 128 ticks (DeadTimer = 0x80) com 3 poses antes de Game Over, ausência de knockback físico e timers de recuperação por hazard (32/16/8 ticks). Nenhum arquivo de gameplay alterado.
+**Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 164 testes Python; `build_index --check`: exit 0.
+**Pendências:** convergência de física 8.8 e sequência de morte reservadas para etapas sob demanda.
+**Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
+
+
 

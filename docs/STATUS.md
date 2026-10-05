@@ -24,10 +24,9 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 - `actors-bosses`: 51 features (1 IMPLEMENTED, 20 PARTIAL, 12 PROVISIONAL, 16 NOT_STARTED, 2 UNMAPPED).
 - `weapons-items`: 38 features (1 IMPLEMENTED, 20 PARTIAL, 8 PROVISIONAL, 9 NOT_STARTED).
 - `radio-dialogue`: 32 features (7 IMPLEMENTED, 19 PARTIAL, 3 PROVISIONAL, 2 NOT_STARTED, 1 UNMAPPED).
-- `progression-events`: 33 features — IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 5,
-  NOT_STARTED 24; UNMAPPED/INVESTIGATING 0. Catálogo via `lookup domain progression-events`.
-- Progressão: GameProgressBuffer ausente, conflito de salas 211/212, bolsa sem transmissor,
-  downgrade de refém sem reset de 17 prisioneiros e edifícios 2/3 ausentes no playthrough.
+- `progression-events`: 33 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 5, NOT_STARTED 24).
+- `player-core`: 17 features (IMPLEMENTED 0, PARTIAL 10, PROVISIONAL 3, NOT_STARTED 4; UNMAPPED 0).
+- Lacunas: GameProgressBuffer, IDs 211/212, física 8.8 vs float/delta, morte 128 ticks, sem knockback.
 - Próxima tarefa sugerida, só após pedido: priorizar `pitfalls` (ID 16) ou `rocket-launcher`.
 
 ## Decisões pendentes do usuário

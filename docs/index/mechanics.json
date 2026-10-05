@@ -23,34 +23,6 @@
       ]
     },
     {
-      "id": "player-movement",
-      "title": "Movimento e colisão de Snake",
-      "asm": [
-        "Banks0123.asm:8840 ControlPlayer",
-        "Banks0123.asm:8972-8997 ChkPlayerColl",
-        "logic/collisions.asm"
-      ],
-      "extractor": [
-        "tools/extractors/extract.py"
-      ],
-      "data": [
-        "package/package.json"
-      ],
-      "godot": [
-        "godot/scripts/systems/player.gd"
-      ],
-      "integration": [
-        "godot/scripts/scenes/sandbox_gameplay.gd::_physics_process"
-      ],
-      "tests": [
-        "godot-player-movement"
-      ],
-      "docs": [
-        "docs/reverse_engineering/movement-and-collision.md",
-        "docs/reverse_engineering/stage-5-movement-and-collision.md"
-      ]
-    },
-    {
       "id": "rooms",
       "title": "Salas, snapshots, transições de borda e aliases locais",
       "asm": [
@@ -7372,6 +7344,788 @@
         "rooms",
         "progression-flags-buffer"
       ]
+    },
+    {
+      "id": "player-movement",
+      "title": "Movimento cardinal, velocidade e aritmética de posição",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Loop de movimentação cardinal em NormalCtrl (Banks0123.asm:8467-8512) e ChkControlPlayer (8825-8926); velocidade fixa de 2.0 pixels por tick (PlayerMovSpeed = 0x0200 em 8.8, 8415-8416); integração em MovePlayerX/MovePlayerY (9549-9573) adicionando velocidade com sinal ao subpixel de 16-bits (PlayerXdec/PlayerYdec); parada imediata sem inércia quando nenhum direcional está ativo (StopPlayerFlag, 8834-8837); sistema de prioridade de direções em GetPlayerDir (8702-8760), onde novo input (ControlsTrigger) tem precedência sobre direções mantidas (ControlsHold), com memória em DirectionMask e DirectionMaskOld.",
+      "rationale": "Há movimentação nas 4 direções e avanço de 2.0 px por passo no sandbox, mas o runtime opera com floats e multiplicação por delta (120 * delta), sem a aritmética discreta de 16 bits (8.8) e sem o sistema de precedência direcional com memória de teclas do Z80.",
+      "asm": [
+        "Variables.asm:105 PlayerMovSpeed",
+        "Banks0123.asm:8415-8416",
+        "Banks0123.asm:8467-8512 NormalCtrl",
+        "Banks0123.asm:8702-8760 GetPlayerDir",
+        "Banks0123.asm:8791-8807 ControlPlayerV",
+        "Banks0123.asm:8808-8817 ControlPlayerH",
+        "Banks0123.asm:8825-8914 ChkControlPlayer",
+        "Banks0123.asm:8915-8926 UpdatePlayerSpd",
+        "Banks0123.asm:9549-9565 MovePlayerX",
+        "Banks0123.asm:9566-9573 MovePlayerY"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::step_tick"
+      ],
+      "tests": [
+        "godot-player-movement"
+      ],
+      "docs": [
+        "docs/reverse_engineering/movement-and-collision.md",
+        "docs/reverse_engineering/stage-5-movement-and-collision.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4"
+      ],
+      "implemented_scope": [
+        "Movimentação cardinal (UP, DOWN, LEFT, RIGHT), velocidade base SPEED_NORMAL_PX_PER_SEC = 120.0 (2.0 px/frame a 60 Hz), parada sem inércia com input zero e atualização da posição Vector2."
+      ],
+      "missing_scope": [
+        "Aritmética inteira canônica 8.8 com PlayerXdec/PlayerYdec em 16-bits; sistema de precedência direcional com DirectionMask e DirectionMaskOld (Godot usa cascata if/elif fixa em step_tick:320-327 que prioriza vertical sobre horizontal)."
+      ],
+      "evidence_notes": [
+        "step_tick acumula posição em float via Vector2 next_pos = position + speed_vector * delta. O teste godot-player-movement valida passos de 2.0 px com delta = 1/60 fixo, mas não valida a resolução de conflito de teclas opostas ou diagonais simultâneas do MSX2."
+      ],
+      "related_features": [
+        "player-facing-animation",
+        "player-world-collision",
+        "player-runtime-control"
+      ]
+    },
+    {
+      "id": "player-facing-animation",
+      "title": "Direção, ciclo de passos e animação de caminhada",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Orientação cardinal nas 4 direções (PlayerDirection, IdsDirection: UP=1, DOWN=2, LEFT=3, RIGHT=4); ciclo de passos de 3 frames em SetSprWalk (Banks0123.asm:9708-9765): 0=parado, 1=passo esquerdo, 2=passo direito, ciclando 0 -> 1 -> 2 -> 1; cadência de troca a cada 6 iterações/ticks (PlayerAnimWaitCnt cp 6, PlayerFrameNum); seleção de spritesheet de caminhada desarmado (sprites 0..11) versus armado (sprites 12..23) via SelectedWeapon, preservando postura desarmada para Plastic Bomb e Land Mine.",
+      "rationale": "O ciclo 0 -> 1 -> 2 -> 1 e o spritesheet autêntico MSX2 estão implementados e testados, mas o temporizador usa float (anim_timer_sec += delta com ANIM_STEP_SEC = 6.0/60.0) e a distinção de sprites de armas em mãos não replica as exceções originais.",
+      "asm": [
+        "Banks0123.asm:8767-8783 IdsDirection",
+        "Banks0123.asm:9687-9700 AnimatePlayer",
+        "Banks0123.asm:9708-9765 SetSprWalk"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::_get_msx_sprite_rect"
+      ],
+      "tests": [
+        "godot-player-movement"
+      ],
+      "docs": [
+        "docs/reverse_engineering/movement-and-collision.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4"
+      ],
+      "implemented_scope": [
+        "Direções UP, DOWN, LEFT, RIGHT; ciclo de 3 frames (frame_num 0 -> 1 -> 2 -> 1) com cadência de 6 ticks; recorte de texturas autênticas de player_spritesheet.png."
+      ],
+      "missing_scope": [
+        "Contador inteiro por tick canônico (PlayerAnimWaitCnt); verificação de postura desarmada específica para Plastic Bomb e Land Mine em SetSprWalk5; suporte a espelhamento/paletas MSX2 por layer."
+      ],
+      "evidence_notes": [
+        "player.gd utiliza anim_timer_sec flutuante com getters/setters emulando anim_wait_cnt. O teste godot-player-movement passa conferindo frame_num após 6 chamadas de step_tick."
+      ],
+      "related_features": [
+        "player-movement",
+        "player-runtime-control"
+      ]
+    },
+    {
+      "id": "player-world-collision",
+      "title": "Colisão do jogador com tiles do cenário e obstáculos",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Rotina ChkPlayerColl (Banks0123.asm:8972-9008) chamando ChkTileCollision_ (logic/collisions.asm:19-67) com Shape 0 (BoxColliderDat, 77-97): dois pontos de amostragem na borda de ataque por direção (UP: [-6,-5] e [5,-5]; DOWN: [-6,4] e [5,4]; LEFT: [-8,-4] e [-8,3]; RIGHT: [7,-4] e [7,3]); conversão de pixel para índice de tile 8x8 via CoordToBuffTile (Banks0123.asm:7570-7586); colisão indicada por bit 0 em CollisionTiles; anulação de velocidade (ResetPlayerSpd) no contato; checagem secundária especial na sala 78 com shape 2 (8999-9007).",
+      "rationale": "Os offsets de BoxColliderDat e o grid 32x24 de tiles 8x8 foram portados com exatidão em COLLIDER_OFFSETS, mas is_colliding_at inclui barreiras artificiais de tela e omite a regra especial da sala 78.",
+      "asm": [
+        "Banks0123.asm:7570-7586 CoordToBuffTile",
+        "Banks0123.asm:8972-9008 ChkPlayerColl",
+        "logic/collisions.asm:19-67 ChkTileCollision_",
+        "logic/collisions.asm:77-97 BoxColliderDat",
+        "logic/collisions.asm:122-142",
+        "logic/collisions.asm:155-169 GetTilePlayer"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::is_colliding_at"
+      ],
+      "tests": [
+        "godot-player-movement"
+      ],
+      "docs": [
+        "docs/reverse_engineering/movement-and-collision.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4"
+      ],
+      "implemented_scope": [
+        "Offsets exatos da ROM para Shape 0 em COLLIDER_OFFSETS; consulta a collision_grid com 768 inteiros (32x24 tiles de 8x8 px); bloqueio de movimento se algum ponto amostrado colidir."
+      ],
+      "missing_scope": [
+        "Remoção de bloqueios rígidos em coordenadas globais [0..256, 0..192] em is_colliding_at que interferem nas bordas de transição de sala; checagem adicional de shape 2 na sala 78."
+      ],
+      "evidence_notes": [
+        "is_colliding_at retorna true prematuramente se sample_x < 0.0 ou >= 256.0 ou sample_y < 0.0 ou >= 192.0, o que bloqueia o jogador antes das coordenadas canônicas de ChkExitRoom (ex: X < 12 ou X >= 244)."
+      ],
+      "related_features": [
+        "player-movement",
+        "player-room-transition"
+      ]
+    },
+    {
+      "id": "player-room-transition",
+      "title": "Limites de sala, transição física de borda e posicionamento",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Detecção de saída de sala em ChkExitRoom (Banks0123.asm:9418-9441): limites X < 12 (LEFT, 3), X >= 244 (RIGHT, 4), Y < 16 (UP, 1), Y >= 186 (DOWN, 2); ativação de GAME_MODE_NEXT_ROOM com direção em NextRoomDirect (ExitRoom, 9520-9527); posicionamento canônico de entrada na sala adjacente via SetRoomEntryXY / EntryRoomXY (logic/nextroom.asm:342-366): UP -> Y=184; DOWN -> Y=18; LEFT -> X=242; RIGHT -> X=12; preservação estrita da coordenada perpendicular e da direção de caminhada; zeramento da fração de subpixel; posicionamento em portas via SetPlayerInDoor e PlayerInDoorDat (393-490).",
+      "rationale": "Os limites numéricos de saída (12, 244, 16, 186) e coordenadas de reentrada (184, 18, 242, 12) constam em RoomManager, mas a direção de entrada na sala é frequentemente inferida por heurística e o reposicionamento por portas diverge da tabela canônica.",
+      "asm": [
+        "Banks0123.asm:9418-9441 ChkExitRoom",
+        "Banks0123.asm:9520-9527 ExitRoom",
+        "logic/nextroom.asm:342-361 SetRoomEntryXY",
+        "logic/nextroom.asm:362-366 EntryRoomXY",
+        "logic/nextroom.asm:393-456 SetPlayerInDoor",
+        "logic/nextroom.asm:463-480 PlayerInDoorDat"
+      ],
+      "extractor": [
+        "tools/extractors/export_room_data.py"
+      ],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/room_manager.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/room_manager.gd::check_room_exit",
+        "godot/scripts/systems/room_manager.gd::get_entry_position",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_check_and_handle_room_transition",
+        "godot/scripts/scenes/sandbox_gameplay.gd::change_to_room"
+      ],
+      "tests": [
+        "godot-room-transition"
+      ],
+      "docs": [
+        "docs/reverse_engineering/stage-6-room-transitions.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 6: Transição de Salas e Navegação Contínua do Mundo"
+      ],
+      "implemented_scope": [
+        "Constantes EXIT_LEFT_X = 12.0, EXIT_RIGHT_X = 244.0, EXIT_UP_Y = 16.0, EXIT_DOWN_Y = 186.0; ENTRY_Y_FROM_UP = 184.0, ENTRY_Y_FROM_DOWN = 18.0, ENTRY_X_FROM_LEFT = 242.0, ENTRY_X_FROM_RIGHT = 12.0; clamp de borda para salas bloqueadas."
+      ],
+      "missing_scope": [
+        "Preservação estrita de PlayerDirection sem recálculo heurístico por coordenada Y (sandbox_gameplay.gd:2777-2782); tabela exata de offsets e direções PlayerInDoorDat para cada DoorRenderType; resolução dos aliases conflitantes 211/212."
+      ],
+      "evidence_notes": [
+        "sandbox_gameplay.gd::change_to_room recalcula room_entry_direction se entry_dir não for explicitado comparando entry_pos.y <= 40.0. No Z80, NextRoomDirect determina a direção de entrada e PlayerDirection é mantida intacta."
+      ],
+      "related_features": [
+        "player-movement",
+        "player-world-collision",
+        "rooms",
+        "doors"
+      ]
+    },
+    {
+      "id": "player-damage-life",
+      "title": "Sistema de vida, aplicação de dano e dano letal",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Variáveis Life e MaxLife (Variables.asm:79, 88); valores de MaxLife escalonados por Class/Rank (UpdateLevels em Banks0123.asm:9654-9679: Rank 1=24, Rank 2=32, Rank 3=40, Rank 4=48); rotinas de decremento DecrementLife_B, DecrementLife_4, DecrementLife_2 (logic/hud.asm:96-120 e logic/damagegas.asm:44-47); laço de decréscimo dec (hl) até 0 que salta imediatamente para SetDead (logic/hud.asm:113-116); suporte a dano letal instantâneo com B = 0xFF (pitfalls e queda de paraquedas); sincronização gráfica imediata da barra de energia via DrawLife.",
+      "rationale": "O sistema possui life/max_life em 24 HP no Rank 1 e método apply_damage com die(), mas a aplicação não usa o laço de decremento com atualização atômica de HUD e faltam integrações diretas com danos calculados da ROM.",
+      "asm": [
+        "Variables.asm:79 Life",
+        "Variables.asm:88 MaxLife",
+        "logic/hud.asm:107-127 DecrementLife_B",
+        "logic/hud.asm:128-145 SetDead",
+        "Banks0123.asm:9654-9679 UpdateLevels"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::apply_damage",
+        "godot/scripts/systems/player.gd::set_rank_life"
+      ],
+      "tests": [
+        "godot-combat-health"
+      ],
+      "docs": [
+        "docs/reverse_engineering/stage-8-combat-and-health.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 8: Combate Corpo a Corpo (Soco), Perseguição em Alerta e Vida/Dano"
+      ],
+      "implemented_scope": [
+        "life e max_life inicializados em 24; set_rank_life atualiza capacidade conforme rank; apply_damage subtrai pontos de vida e chama die() ao atingir <= 0."
+      ],
+      "missing_scope": [
+        "Laço canônico de decremento DecrementLifeLoop; disparo imediato de SetDead por evento de dano letal 0xFF; emissão reativa de atualização de HUD em cada decréscimo discreto."
+      ],
+      "evidence_notes": [
+        "apply_damage faz subtração direta life = max(0, life - amount). O teste godot-combat-health confirma dano e morte letal ao atingir 0 HP."
+      ],
+      "related_features": [
+        "player-hit-recovery",
+        "player-death",
+        "progression-rank-stars"
+      ]
+    },
+    {
+      "id": "player-hit-recovery",
+      "title": "Invulnerabilidade pós-dano, flash de sprites e ausência de knockback",
+      "domain": "player-core",
+      "status": "PROVISIONAL",
+      "original_scope": "Temporizador DamageDelayTimer (Variables.asm:173); decréscimo em cada iteração do loop principal (PlayModeLogic em Banks0123.asm:12154-12160); durações canônicas de invulnerabilidade: 32 ticks (0x20) para contato/bala em TouchPlayer2 (logic/touchenemy.asm:155-156), 16 ticks (0x10) para gás em DecrementLife_C (logic/damagegas.asm:34-42), 8 ticks para água profunda (Banks0123.asm:9257) e piso elétrico (logic/damageelectric.asm:59-60); efeito visual de alternância de cor por frame (Banks0123.asm:5489-5498: TickCounter bit 0 chaveando paleta vermelha SnakeAttrDamage com paleta normal); bloqueio de dano adicional enquanto timer > 0; ausência estrita de repulsão/knockback físico.",
+      "rationale": "O Godot adota uma duração fixa de 32 ticks para todos os tipos de dano e simula invulnerabilidade tornando o sprite invisível a cada 4 frames (invulnerable_timer % 4 < 2), divergindo do comportamento original onde o sprite pisca em vermelho a cada frame e nunca desaparece.",
+      "asm": [
+        "Variables.asm:173 DamageDelayTimer",
+        "Banks0123.asm:5486-5498 SetSnakeSprCol2",
+        "Banks0123.asm:9257-9258",
+        "Banks0123.asm:12154-12160",
+        "logic/damageelectric.asm:51-61 ChkElectricFloor3",
+        "logic/damagegas.asm:36-47 DecrementLife_C"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::apply_damage",
+        "godot/scripts/systems/player.gd::_draw"
+      ],
+      "tests": [
+        "godot-combat-health"
+      ],
+      "docs": [
+        "docs/reverse_engineering/stage-8-combat-and-health.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 8: Combate Corpo a Corpo (Soco), Perseguição em Alerta e Vida/Dano"
+      ],
+      "implemented_scope": [
+        "invulnerable_timer iniciado em 32 ticks (INVULNERABLE_DURATION_SEC) ao sofrer dano; decréscimo em step_tick; bloqueio de novo dano enquanto > 0; ausência de knockback."
+      ],
+      "missing_scope": [
+        "Flash de paleta vermelha frame a frame (SnakeAttrDamage via TickCounter bit 0) sem ocultar o sprite; temporizadores diferenciados por hazard (16 ticks para gás, 8 ticks para água profunda e choque elétrico)."
+      ],
+      "evidence_notes": [
+        "player.gd::_draw faz return antecipado quando invulnerable_timer % 4 < 2, tornando o personagem invisível por 2 frames a cada 4 frames. Na ROM MSX2, o sprite permanece 100% visível, alternando entre a paleta normal e a paleta vermelha (SnakeAttrDamage)."
+      ],
+      "related_features": [
+        "player-damage-life",
+        "player-actor-touch"
+      ]
+    },
+    {
+      "id": "player-death",
+      "title": "Sequência de morte, animação de queda e transição para Game Over",
+      "domain": "player-core",
+      "status": "PROVISIONAL",
+      "original_scope": "Entrada no estado de morte em SetDead (logic/hud.asm:128-145): PlayerControlMod = CONTROL_DEAD (3), PlayerAnimation = 6, GameMode = GAME_MODE_DEAD (9), DeadTimer = 0x80 (128 ticks), DamageDelayTimer = 0; execução de DeadLogic (Banks0123.asm:12276-12290) decrementando DeadTimer; três fases de animação em SetSprDead (9886-9906): spinning/giro nos primeiros 16 ticks (0x80..0x70), corpo inclinado/caindo por 48 ticks (0x70..0x40), e corpo caído no solo nos últimos 64 ticks (0x40..0x00); ao atingir 0, zera PlayingFlag para acionar a rotina de encerramento GS_GameOver (10410-10430); bloqueio absoluto de comandos durante toda a sequência.",
+      "rationale": "O Godot interrompe imediatamente a execução no método die() emitindo o sinal player_died e congelando o personagem, sem o temporizador canônico de 128 ticks (DeadTimer) e sem as 3 etapas de animação de queda da ROM.",
+      "asm": [
+        "Variables.asm:177 DeadTimer",
+        "Banks0123.asm:8532-8563 Dead",
+        "Banks0123.asm:9886-9906 SetSprDead",
+        "Banks0123.asm:12276-12290 DeadLogic",
+        "logic/hud.asm:128-145 SetDead"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::die",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_on_player_died"
+      ],
+      "tests": [
+        "godot-combat-health"
+      ],
+      "docs": [
+        "docs/reverse_engineering/stage-8-combat-and-health.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 8: Combate Corpo a Corpo (Soco), Perseguição em Alerta e Vida/Dano"
+      ],
+      "implemented_scope": [
+        "die() define is_dead = true, can_control = false, reseta timers de soco e movimento, e emite sinal player_died; desenho de Snake caído no solo em _draw."
+      ],
+      "missing_scope": [
+        "Temporizador de 128 ticks (DeadTimer); rotina DeadLogic no loop principal; sequência de 3 estágios visuais (giro -> inclinação -> deitado); transição assíncrona após 128 ticks para a tela de Game Over."
+      ],
+      "evidence_notes": [
+        "die() finaliza o ciclo no mesmo frame em que o dano letal é aplicado, emitindo player_died imediatamente. Na ROM, o jogador assiste à queda física de Snake durante 128 ticks (~2.1 segundos) antes do fade/Game Over."
+      ],
+      "related_features": [
+        "player-damage-life",
+        "progression-game-over-continue"
+      ]
+    },
+    {
+      "id": "player-actor-touch",
+      "title": "Transparência física e detecção de contato com atores",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Verificação de sobreposição física em ChkTouchEnemies / TouchPlayer (logic/touchenemy.asm:10-190); transparência física bidirecional (Snake e atores não possuem colisão sólida rígida de bloqueio de deslocamento, permitindo cruzamento de corpos); disparo de dano de contato ao sobrepor as hitboxes de impacto; consulta à tabela ActorTouchDamage (158-166) aplicando dano canônico (2 HP para soldado comum, 255 para barris, etc.); verificação de SelectedItem == SELECTED_ARMOR com redução de 50% (srl b) para tiros balísticos (169-187); ativação de 32 ticks de invulnerabilidade.",
+      "rationale": "A transparência de corpos de soldados com dano por contato de 2 HP e 32 ticks de invulnerabilidade está implementada e validada em teste, mas a redução de 50% de dano da Body Armor e a tabela completa ActorTouchDamage não estão centralizadas.",
+      "asm": [
+        "logic/touchenemy.asm:8-139 ChkTouchEnemies",
+        "logic/touchenemy.asm:148-190 TouchPlayer2",
+        "data/shapes.asm:36-43 ActorTouchDamage"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/systems/enemy.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/enemy.gd::step_tick",
+        "godot/scripts/systems/player.gd::apply_damage"
+      ],
+      "tests": [
+        "godot-combat-health"
+      ],
+      "docs": [
+        "docs/reverse_engineering/stage-8-combat-and-health.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 8: Combate Corpo a Corpo (Soco), Perseguição em Alerta e Vida/Dano"
+      ],
+      "implemented_scope": [
+        "Passagem desimpedida de Snake através do sprite de guardas sem colisão sólida; dano de contato de 2 HP ao aproximar a distância mínima; concessão de 32 ticks de invulnerabilidade."
+      ],
+      "missing_scope": [
+        "Integração centralizada da tabela ActorTouchDamage para todos os atores; verificação estrita dos IDs de balas (ID_SGUNNER_SHOT, ID_GUARD_BULLET, ID_BULLET_HORIZ) para redução de 50% por Body Armor."
+      ],
+      "evidence_notes": [
+        "O teste em combat_and_health_test.gd:96-104 comprova formalmente que Snake cruza o soldado com velocidade intacta e recebe 2 HP de dano, atestando a transparência canônica do MSX2."
+      ],
+      "related_features": [
+        "player-movement",
+        "player-hit-recovery",
+        "body-armor",
+        "actor-runtime"
+      ]
+    },
+    {
+      "id": "player-poison-state",
+      "title": "Estado de envenenamento e dano periódico",
+      "domain": "player-core",
+      "status": "NOT_STARTED",
+      "original_scope": "Flag Poisoned na RAM (Variables.asm:90); verificação periódica no loop principal em PlayModeLogic (Banks0123.asm:12197-12208): a cada 64 ticks (TickCounter & 3Fh == 0), se Poisoned != 0, aplica 1 ponto de dano contínuo chamando DecrementLife_B (ld b, 1); dano por veneno ignora DamageDelayTimer; o estado persiste até o uso do item ANTIDOTE (logic/items.asm:430-435) ou até a morte do jogador.",
+      "rationale": "O comportamento está completamente identificado no Z80, mas não existe implementação de dano periódico por veneno no Godot.",
+      "asm": [
+        "Variables.asm:90 Poisoned",
+        "Banks0123.asm:12197-12208",
+        "logic/touchenemy.asm:121-122",
+        "logic/menuequipment.asm:254-266"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Flag de veneno no jogador; verificação no tick a cada 64 frames (TickCounter & 0x3F); decremento de 1 ponto de vida; cura ao consumir Antidote."
+      ],
+      "evidence_notes": [
+        "O item Antidote existe no catálogo de inventário (weapons-items), mas o efeito físico de veneno e seu temporizador periódico de 64 ticks não foram implementados em player.gd."
+      ],
+      "related_features": [
+        "player-damage-life",
+        "antidote"
+      ]
+    },
+    {
+      "id": "player-water-movement",
+      "title": "Navegação e restrições em água de superfície",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Rotina ChkWater (Banks0123.asm:9141-9208); lista de salas com água RoomsWater (9267-9277: salas 70, 73, 74, 77, 78, 107 para água de superfície); detecção de tiles de água e sombras via GetTilePlayer (tiles 6Fh-74h e 6Dh); ativação de PlayerAnimation = 2 (SWIM_SURFACE); velocidade reduzida pela metade para 1.0 px/tick (SPEED_SLOW_PX_PER_SEC); proibição de desferir socos em chkPunch (8939-8941) e de disparar armas em weaponuse.asm; alternância de sprites de água com ondulação (SetSprWater, 9784-9810).",
+      "rationale": "A velocidade reduzida de 1.0 px/tick, a animação SWIM_SURFACE e o bloqueio de soco existem no PlayerController, mas a detecção automática dinâmica de água por tiles no sandbox comum não está conectada ao gameplay ordinário fora da introdução.",
+      "asm": [
+        "Banks0123.asm:8939-8941",
+        "Banks0123.asm:9141-9229 ChkWater",
+        "Banks0123.asm:9267-9277 RoomsWater",
+        "logic/weaponuse.asm:24-26"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::step_tick",
+        "godot/scripts/systems/player.gd::punch"
+      ],
+      "tests": [
+        "godot-intro-cutscene"
+      ],
+      "docs": [
+        "docs/reverse_engineering/movement-and-collision.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4"
+      ],
+      "implemented_scope": [
+        "AnimMode.SWIM_SURFACE; velocidade reduzida SPEED_SLOW_PX_PER_SEC = 60.0 (1.0 px/frame); bloqueio de soco em água na cutscene de introdução."
+      ],
+      "missing_scope": [
+        "Detecção dinâmica de tiles de água em tempo real durante caminhada normal (ChkWater); tabela de salas RoomsWater; bloqueio de disparo de armas ao nadar."
+      ],
+      "evidence_notes": [
+        "AnimMode.SWIM_SURFACE é acionado exclusivamente na cena de introdução (intro_cutscene.gd). Ao caminhar livremente nas salas 70 ou 73 do sandbox, Snake anda normalmente sobre a água com sprites de caminhada terrestre."
+      ],
+      "related_features": [
+        "player-movement",
+        "player-deep-water",
+        "player-attack-rules"
+      ]
+    },
+    {
+      "id": "player-deep-water",
+      "title": "Água profunda, asfixia e consumo de oxigênio",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Salas de água profunda em RoomsWater (Banks0123.asm:9273-9277: salas 105, 106, 211, 212); detecção de tiles 75h-76h e sombras ChkDeepShadow (9218-9233); ativação de PlayerAnimation = 4 (DEEP_WATER); sprite de bolha/sombra circular SetSprDeepWater (9827-9844); velocidade 1.0 px/tick; verificação de SelectedItem == SELECTED_OXYGEN (9253-9255); sem o tanque de oxigênio, aplica dano contínuo de 2 HP a cada 8 ticks via DecrementLife_C (c = 8, 9257-9258); proibição de soco e armas.",
+      "rationale": "O modo visual DEEP_WATER com sprite de ondulação circular existe em player.gd, mas a mecânica de dano contínuo por asfixia a cada 8 ticks e a checagem de Oxygen Tank não estão implementadas no gameplay.",
+      "asm": [
+        "Banks0123.asm:8943-8945",
+        "Banks0123.asm:9230-9249 SetDeepWaterMode",
+        "Banks0123.asm:9250-9259",
+        "logic/damagegas.asm:36-47 DecrementLife_C"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::_draw"
+      ],
+      "tests": [
+        "godot-intro-cutscene"
+      ],
+      "docs": [
+        "docs/reverse_engineering/movement-and-collision.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4"
+      ],
+      "implemented_scope": [
+        "AnimMode.DEEP_WATER com recorte de sprite de bolhas/ondulação (dest_rect 16x16 px) em _draw; exibição durante mergulho da intro."
+      ],
+      "missing_scope": [
+        "Aplicação de dano periódico de 2 HP a cada 8 ticks quando sem Oxygen Tank nas salas 105, 106, 211, 212; integração com o inventário de equipamentos."
+      ],
+      "evidence_notes": [
+        "O sprite DEEP_WATER foi refinado para a cena de abertura aquática, mas o dano físico de asfixia permanece inativo no gameplay ordinário."
+      ],
+      "related_features": [
+        "player-water-movement",
+        "player-damage-life",
+        "oxygen-tank"
+      ]
+    },
+    {
+      "id": "player-freefall-parachute",
+      "title": "Queda livre de alturas e descida controlada em paraquedas",
+      "domain": "player-core",
+      "status": "NOT_STARTED",
+      "original_scope": "Gatilho de salto do telhado e pontes (IdDoorEnter 91h, 5Bh, 81h em logic/nextroom.asm:204-260); verificação de SelectedItem == SELECTED_PARACHUTE em ChkParachute; sem paraquedas, aciona FreeFall (227-238) com queda fatal instantânea (b = 0xFF; DecrementLife_B) no pátio de destino; com paraquedas, aciona ParachuteLogic (Banks0123.asm:8564-8580), PlayerControlMod = 4, PlayerAnimation = 3 (SetSprParachute, 9817-9820), descida vertical constante (PlayerSpeedY = 0x0100) com oscilação lateral automática de 16 ticks (bit 4, TickCounter alternando PlayerSpeedX entre +0x0100 e -0x0100), descendo 2 andares na sala 204 até o solo.",
+      "rationale": "Embora o enum AnimMode.PARACHUTE exista como declaração em player.gd, nenhuma das rotinas físicas de queda livre, morte instantânea por salto sem paraquedas ou descida oscilante existe no código.",
+      "asm": [
+        "Banks0123.asm:8455",
+        "Banks0123.asm:8564-8580 ParachuteLogic",
+        "logic/nextroom.asm:204-226 ChkParachute",
+        "logic/nextroom.asm:227-239 FreeFall"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Máquina de estados de queda livre e paraquedas; morte fatal imediata (0xFF dano) sem paraquedas; oscilação lateral por TickCounter bit 4; descida vertical de 2 andares na sala 204."
+      ],
+      "evidence_notes": [
+        "O salto do terraço é um evento obrigatório de progressão entre os edifícios, mas o estado físico do jogador de queda e paraquedas ainda não foi construído no Godot."
+      ],
+      "related_features": [
+        "player-damage-life",
+        "player-runtime-control",
+        "parachute",
+        "progression-roof-parachute-jump"
+      ]
+    },
+    {
+      "id": "player-roof-airflow",
+      "title": "Correnteza de vento no telhado e restrição de avanço",
+      "domain": "player-core",
+      "status": "NOT_STARTED",
+      "original_scope": "Verificação de corrente de vento do telhado em ChkRoofAirFlow (Banks0123.asm:9284-9325); sala 53 (elevador do telhado), área de coordenadas Y em [50h..60h] e X em [48h..C0h]; verificação de SelectedItem == SELECTED_BOMB_SUIT; sem o Bomb Blast Suit, Snake é repelido para cima (PlayerControlMod = CONTROL_AIR_FLOW, PlayerY -= 3 por tick com SFX 11h em AirFlowLogic, 8587-8603) até Y < 30h (ExitAirFlow); se a tecla DOWN estiver pressionada (ControlsHold & 2), seta InAirFlow = 1 e anula velocidade vertical (PlayerSpeedY = 0 em 8919-8925), impedindo o avanço para o sul sem o traje.",
+      "rationale": "O comportamento físico da ventilação do telhado está completamente mapeado na ROM, mas não foi implementado no Godot.",
+      "asm": [
+        "Variables.asm:180 InAirFlow",
+        "Banks0123.asm:8456",
+        "Banks0123.asm:8479-8484",
+        "Banks0123.asm:8587-8603 AirFlowLogic",
+        "Banks0123.asm:8919-8925",
+        "Banks0123.asm:9284-9325 ChkRoofAirFlow"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/stage-5-movement-and-collision.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 9: Portas Interativas, Caixas de Itens e Inventário"
+      ],
+      "implemented_scope": [],
+      "missing_scope": [
+        "Detecção de área de ventilação na sala 53; empurrão vertical PlayerY -= 3 com SFX 11h; trava de velocidade vertical InAirFlow; bypass com Bomb Blast Suit."
+      ],
+      "evidence_notes": [
+        "A sala 53 existe nos dados extraídos, mas o hazard de vento sobre a física do jogador não foi implementado."
+      ],
+      "related_features": [
+        "player-movement",
+        "player-runtime-control",
+        "bomb-blast-suit"
+      ]
+    },
+    {
+      "id": "player-cardboard-box",
+      "title": "Restrições de movimento e controle dentro da caixa de papelão",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Estado de disfarce na caixa quando SelectedItem == SELECTED_BOX (Banks0123.asm:8499-8507); ativação de PlayerAnimation = 7 (AnimMode.BOX); rotina SetSprBox (9913-9928): sprite estático 42 quando parado, alternância entre sprite 42 e 44 a cada 8 ticks em movimento (TickCounter & 8); velocidade normal mantida (2.0 px/tick); bloqueio absoluto de soco em chkPunch (8947-8948); ocultação automática da mira de lançador de granada em SetGrenaTargetSpr (9946-9949); cancelamento imediato se o jogador entrar em água (9201-9204).",
+      "rationale": "A caixa de papelão possui suporte a is_in_box, renderização de sprite/caixa e bloqueio de soco em player.gd, mas a alternância de animação por TickCounter e a ocultação da mira de granada não estão sincronizadas com o Z80.",
+      "asm": [
+        "Banks0123.asm:8499-8507",
+        "Banks0123.asm:8947-8948",
+        "Banks0123.asm:9201-9204",
+        "Banks0123.asm:9913-9928 SetSprBox",
+        "Banks0123.asm:9946-9949"
+      ],
+      "extractor": [
+        "tools/extractors/extract.py"
+      ],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::punch",
+        "godot/scripts/systems/player.gd::_draw"
+      ],
+      "tests": [
+        "godot-combat-health"
+      ],
+      "docs": [
+        "docs/reverse_engineering/inventory-and-events.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 13 concluída: Sistema de Armas, Silenciador e Balística"
+      ],
+      "implemented_scope": [
+        "is_in_box; bloqueio de soco quando dentro da caixa; desenho da caixa de papelão em _draw."
+      ],
+      "missing_scope": [
+        "Alternância dos frames 42 e 44 por TickCounter bit 3 durante caminhada; cancelamento ao pisar em água; ocultação de retículo de granada."
+      ],
+      "evidence_notes": [
+        "A caixa de papelão é tratada no Godot primariamente como flag de camuflagem de IA para os guardas, faltando a sincronização exata da animação de passo da caixa por ticks da ROM."
+      ],
+      "related_features": [
+        "player-movement",
+        "player-facing-animation",
+        "cardboard-box"
+      ]
+    },
+    {
+      "id": "player-escape-ladders",
+      "title": "Controle nas escadas de fuga e encerramento da campanha",
+      "domain": "player-core",
+      "status": "NOT_STARTED",
+      "original_scope": "Modos de controle nas escadas de fuga (salas 224-226 em Banks0123.asm:8610-8644): LaddersWalk (PlayerControlMod = 6, velocidade 2.0 px/tick, 9400-9402) no chão da sala e LaddersClimb (PlayerControlMod = 7, velocidade 1.0 px/tick, 9360) ao subir a escada; transição para subida via UP em ChkStartClimb (9332-9362), alinhando PlayerY em 99h e PlayerAnimation = 5; saída para o chão via LEFT/RIGHT em ChkExitLadders (9369-9408, sala 224, Y em 9Eh); verificação de limites em ChkLadderLimits (9473-9509): na sala 226, atingir Y < 10h aciona SetLeavedOuterH (LeavedOuterHeaven = 1) para disparar a sequência final de encerramento.",
+      "rationale": "O enum AnimMode.CLIMB existe em player.gd, mas toda a lógica física de subida de escadas de fuga, transição walk/climb e gatilho de escape final não foi implementada.",
+      "asm": [
+        "Banks0123.asm:8457-8458",
+        "Banks0123.asm:8610-8629 LaddersWalk",
+        "Banks0123.asm:8630-8644 LaddersClimb",
+        "Banks0123.asm:9332-9368 ChkStartClimb",
+        "Banks0123.asm:9369-9411 ChkExitLadders"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [],
+      "tests": [],
+      "docs": [
+        "docs/reverse_engineering/stage-5-movement-and-collision.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4"
+      ],
+      "implemented_scope": [
+        "AnimMode.CLIMB e velocidade SPEED_SLOW_PX_PER_SEC declaradas no PlayerController."
+      ],
+      "missing_scope": [
+        "Máquinas de estado LaddersWalk e LaddersClimb; alinhamento de coordenadas ao entrar e sair da escada; gatilho LeavedOuterHeaven na sala 226."
+      ],
+      "evidence_notes": [
+        "As salas 224-226 compõem a sequência final de fuga após a derrota de Big Boss, mas as rotinas físicas do jogador para escalada continuam sem equivalente no runtime."
+      ],
+      "related_features": [
+        "player-runtime-control",
+        "progression-escape-ending"
+      ]
+    },
+    {
+      "id": "player-runtime-control",
+      "title": "Máquina de estados de controle, congelamento e bloqueio de input",
+      "domain": "player-core",
+      "status": "PARTIAL",
+      "original_scope": "Variável PlayerControlMod (Variables.asm:143) com 9 estados canônicos de controle: 0=Walk (NormalCtrl), 1=Punch (PunchLogic), 2=Elevator (ElevatorCtrl), 3=Dead (Dead), 4=Parachute (ParachuteLogic), 5=Air flow (AirFlowLogic), 6=Ladders walk (LaddersWalk), 7=Ladders climb (LaddersClimb), 8=Intro scene (IntroScene); despacho tabular via JumpIndex em PlayerControlLogic (Banks0123.asm:8447-8460); desabilitação de controles em DisableControls (logic/nextroom.asm:380-384) e flag ControlConfig bit 6; congelamento automático do jogador durante chamadas de rádio (GAME_MODE_RADIO), janelas de texto (GAME_MODE_TEXT), menus de armas/equipamentos, cenas de captura e explosão do Metal Gear (EnemyList+0Dh == 0 / bit 7, c em PlayModeLogic:12170-12183).",
+      "rationale": "O Godot gerencia controle através de flags booleanas ad-hoc (can_control, is_dead, is_punching, is_in_box) e congela Snake em caixas de diálogo, rádio e menus, mas não possui a máquina de estados unificada PlayerControlMod com despacho por tabela da ROM.",
+      "asm": [
+        "Variables.asm:142 PlayerControlMod",
+        "Banks0123.asm:8447-8460 PlayerControlLogic",
+        "Banks0123.asm:12151-12153 PlayModeLogic",
+        "Banks0123.asm:12169-12185"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::step_tick",
+        "godot/scripts/scenes/sandbox_gameplay.gd::_physics_process"
+      ],
+      "tests": [
+        "godot-player-movement",
+        "godot-combat-health"
+      ],
+      "docs": [
+        "docs/reverse_engineering/movement-and-collision.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4"
+      ],
+      "implemented_scope": [
+        "Flag can_control impedindo movimento e ações quando falsa; congelamento em soco (is_punching), morte (is_dead), rádio, diálogo e menus."
+      ],
+      "missing_scope": [
+        "Máquina de estados canônica PlayerControlMod com enum de 9 modos e despacho por índice; congelamento automático de controle durante a explosão do Metal Gear."
+      ],
+      "evidence_notes": [
+        "A arquitetura atual no Godot utiliza variáveis booleanas dispersas em vez da máquina de estados discreta indexada por byte da ROM."
+      ],
+      "related_features": [
+        "player-movement",
+        "player-death",
+        "radio-incoming-call-detection"
+      ]
+    },
+    {
+      "id": "player-initialization-reset",
+      "title": "Inicialização de campanha e reset do estado físico do jogador",
+      "domain": "player-core",
+      "status": "PROVISIONAL",
+      "original_scope": "Inicialização de novo jogo em InitPlayer (Banks0123.asm:8405-8439): Class = 0, Life = 24, PlayerFrameNum = 0, PlayerAnimation = 0, PlayerControlMod = 0, StopPlayerFlag = 1, PlayerDirection = 2 (DOWN), SnakeSprId = 3 (Stand Down), PlayerMovSpeed = 0x0200; transição para demo/intro em água profunda Y=0xB8, X=0xC0, PlayerMovSpeed = 0x0100; rotina ResetPlayer / restauração física em caso de continue ou reinício seguro de sala nos 31 checkpoints canônicos de SaveStatRooms (logic/checkpoints.asm:37-58).",
+      "rationale": "O Godot possui revive() e reset_player() em sandbox_gameplay.gd, mas a inicialização restaura Snake em uma posição arbitrária (128.0, 80.0 na sala 121) e não consome os checkpoints canônicos da ROM.",
+      "asm": [
+        "Banks0123.asm:8397-8439 InitPlayerVars",
+        "logic/checkpoints.asm:134-155 SaveStatRooms",
+        "Banks0123.asm:2886-2910 SetSnakePal"
+      ],
+      "extractor": [],
+      "data": [],
+      "godot": [
+        "godot/scripts/systems/player.gd",
+        "godot/scripts/scenes/sandbox_gameplay.gd"
+      ],
+      "integration": [
+        "godot/scripts/systems/player.gd::revive",
+        "godot/scripts/scenes/sandbox_gameplay.gd::reset_player"
+      ],
+      "tests": [
+        "godot-player-movement"
+      ],
+      "docs": [
+        "docs/reverse_engineering/movement-and-collision.md"
+      ],
+      "history": [
+        "docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4"
+      ],
+      "implemented_scope": [
+        "player.revive() restaurando life = max_life, is_dead = false, can_control = true; sandbox_gameplay.gd::reset_player reposicionando Snake na sala 121 em (128, 80)."
+      ],
+      "missing_scope": [
+        "Consumo do estado canônico de início de campanha de InitPlayer; restauração física coordenada com o buffer de checkpoints da ROM (GameProgressBuffer)."
+      ],
+      "evidence_notes": [
+        "reset_player restaura Snake na sala 121 com coordenadas fixas do sandbox de desenvolvimento. Não há suporte ao ciclo canônico de spawn inicial ou restauração nos 31 checkpoints."
+      ],
+      "related_features": [
+        "player-movement",
+        "player-damage-life",
+        "progression-flags-buffer",
+        "progression-game-over-continue"
+      ]
     }
   ],
   "schema_version": 2,
@@ -7645,6 +8399,66 @@
         "Integrou as mecânicas legadas 'capture-prison' e 'elevators' para manter referências cruzadas existentes intactas.",
         "Identificado conflito crítico de IDs de salas 211/212 (aliases locais de prisão vs salas reais de canal de água da ROM) que representa risco grave de softlock na progressão para o Edifício 3.",
         "Zero features IMPLEMENTED: o projeto atual é um sandbox de salas do Edifício 1 com testes de mecânicas isoladas; não possui a máquina de estados contínua necessária para um playthrough do início ao fim."
+      ]
+    },
+    "player-core": {
+      "title": "Núcleo de controle, movimento, colisão, vida e estados físicos do Snake",
+      "date": "2026-10-05",
+      "project_revision": "6db5cbb",
+      "reference_revision": "30d1b940bede10fdabbaf9767ad4f0ad8dd33291",
+      "scope": "Inventário das rotinas Z80, estados de controle, variáveis de RAM e física do jogador da edição inglesa RC750 (JAPANESE equ 0): loop principal de controle (PlayerControlLogic, PlayModeLogic), máquina de 9 modos de controle (PlayerControlMod), leitura e bloqueio de inputs com sistema de prioridade de direções (ControlsTrigger, ControlsHold, DirectionMask, DirectionMaskOld), movimento cardinal discreto a 2.0 pixels/tick em aritmética 8.8 (PlayerMovSpeed, MovePlayerX, MovePlayerY), ciclo de 3 frames de caminhada e temporização de 6 ticks (SetSprWalk, PlayerAnimWaitCnt, PlayerFrameNum), detecção de colisão por tiles com shape 0 e 2 pontos por borda de ataque (ChkPlayerColl, ChkTileCollision_, BoxColliderDat, CoordToBuffTile), limites de sala e transição física pelas 4 bordas (ChkExitRoom, ExitRoom, SetRoomEntryXY, EntryRoomXY, SetPlayerInDoor), transparência física de atores com detecção de toque e dano (ChkTouchEnemies, TouchPlayer, ActorTouchDamage, ausência de knockback), sistema de vida e cálculo de decréscimo (Life, MaxLife, DecrementLife_B, DecrementLife_4, dano letal 0xFF), recuperação pós-dano com flash vermelho de sprites a cada frame (DamageDelayTimer, SnakeAttrDamage, TickCounter bit 0), sequência de morte em 3 fases e encerramento para Game Over (SetDead, DeadTimer = 0x80, DeadLogic, SetSprDead, PlayingFlag = 0), veneno periódico a cada 64 ticks (Poisoned), navegação em água de superfície (ChkWater, RoomsWater, PlayerAnimation = 2, velocidade 1.0 px/tick), água profunda e asfixia sem Oxygen Tank (SetDeepWaterMode, PlayerAnimation = 4, dano a cada 8 ticks), queda livre mortal e paraquedas oscilante (FreeFall, ChkParachute, ParachuteLogic, sala 204), correnteza de vento do telhado (ChkRoofAirFlow, AirFlowLogic, sala 53 sem Bomb Suit), restrições físicas dentro da caixa de papelão (SetSprBox, alternância a cada 8 ticks, bloqueio de soco e miras), escadas de fuga e gatilho de encerramento (LaddersWalk, LaddersClimb, ChkStartClimb, ChkExitLadders, ChkLadderLimits, salas 224-226) e inicialização/spawn do jogador.",
+      "method": "Inventário do comportamento original a partir da desmontagem canônica inglesa (Banks0123.asm, logic/collisions.asm, logic/nextroom.asm, logic/touchenemy.asm, logic/damagegas.asm, logic/damageelectric.asm, logic/pitfall.asm, logic/hud.asm, Variables.asm, constants/Enums.asm). Cruzamento estático com sistemas Godot (player.gd, sandbox_gameplay.gd, room_manager.gd, enemy.gd), testes automatizados (player_movement_test.gd, combat_and_health_test.gd, room_transition_test.gd), documentação e histórico. Classificação segundo os 7 statuses sem promover a IMPLEMENTED aproximações de ponto flutuante, timers divergentes ou ausência de rotinas canônicas. Sem alterações de código de gameplay nesta tarefa.",
+      "asm": [
+        "Banks0123.asm:5486-5515 SetSnakeSprCol2",
+        "Banks0123.asm:8397-8439 InitPlayerVars",
+        "Banks0123.asm:8447-8460 PlayerControlLogic",
+        "Banks0123.asm:8467-8512 NormalCtrl",
+        "Banks0123.asm:8564-8580 ParachuteLogic",
+        "Banks0123.asm:8587-8603 AirFlowLogic",
+        "Banks0123.asm:8610-8629 LaddersWalk",
+        "Banks0123.asm:8630-8644 LaddersClimb",
+        "Banks0123.asm:8702-8760 GetPlayerDir",
+        "Banks0123.asm:8791-8807 ControlPlayerV",
+        "Banks0123.asm:8808-8817 ControlPlayerH",
+        "Banks0123.asm:8825-8914 ChkControlPlayer",
+        "Banks0123.asm:8915-8926 UpdatePlayerSpd",
+        "Banks0123.asm:8972-9008 ChkPlayerColl",
+        "Banks0123.asm:9141-9229 ChkWater",
+        "Banks0123.asm:9230-9260 SetDeepWaterMode",
+        "Banks0123.asm:9284-9325 ChkRoofAirFlow",
+        "Banks0123.asm:9332-9368 ChkStartClimb",
+        "Banks0123.asm:9369-9411 ChkExitLadders",
+        "Banks0123.asm:9418-9441 ChkExitRoom",
+        "Banks0123.asm:9520-9527 ExitRoom",
+        "Banks0123.asm:9549-9565 MovePlayerX",
+        "Banks0123.asm:9566-9573 MovePlayerY",
+        "Banks0123.asm:9654-9679 UpdateLevels",
+        "Banks0123.asm:9687-9707 AnimatePlayer",
+        "Banks0123.asm:9708-9765 SetSprWalk",
+        "Banks0123.asm:9886-9906 SetSprDead",
+        "Banks0123.asm:9913-9928 SetSprBox",
+        "Banks0123.asm:12151-12209 PlayModeLogic",
+        "Banks0123.asm:12276-12290 DeadLogic",
+        "logic/collisions.asm:15-67 ChkTileCollision_",
+        "logic/collisions.asm:77-97 BoxColliderDat",
+        "logic/collisions.asm:155-169 GetTilePlayer",
+        "logic/nextroom.asm:204-226 ChkParachute",
+        "logic/nextroom.asm:227-239 FreeFall",
+        "logic/nextroom.asm:342-361 SetRoomEntryXY",
+        "logic/nextroom.asm:362-366 EntryRoomXY",
+        "logic/nextroom.asm:393-454 SetPlayerInDoor",
+        "logic/touchenemy.asm:148-190 TouchPlayer2",
+        "logic/hud.asm:107-127 DecrementLife_B",
+        "logic/hud.asm:128-145 SetDead",
+        "logic/pitfall.asm:10-41 ChkPitfall",
+        "logic/damagegas.asm:36-47 DecrementLife_C"
+      ],
+      "notes": [
+        "Domínio estritamente focado no controle, física, movimento, colisão, dano, vida e estados corporais de Solid Snake.",
+        "Manteve e expandiu a feature legada 'player-movement', mantendo compatibilidade com referências existentes de outros domínios.",
+        "Identificada divergência crítica de física: Godot calcula velocidade por 'speed * delta' em float acumulado, em vez da aritmética discreta de 16-bits 8.8 (0x0200 = 2.0 px/tick fixo) do Z80.",
+        "Identificada divergência crítica de invulnerabilidade e morte: o flash pós-dano na ROM alterna a paleta para vermelho a cada frame (TickCounter bit 0) sem ocultar o sprite; a morte possui sequência canônica de 128 ticks (DeadTimer = 0x80) com 3 poses de animação antes de disparar Game Over.",
+        "Identificada ausência de knockback físico: Snake não sofre repulsão vetorial ao receber dano de tiros ou soldados na ROM; a posição física é preservada e apenas o temporizador de recuperação e a vida são alterados."
       ]
     }
   }
