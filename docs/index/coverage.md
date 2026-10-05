@@ -194,7 +194,7 @@ Inventário original primeiro: enums, SetupActor e RunEnemyLogic via índices/lo
 
 `rank-prisoners` · **PARTIAL**
 
-**Original:** Contato diferido, libertação, texto por sala, flags de resgate, promoção e penalidade.
+**Original:** Entidade do refém comum (logic/actors/prisoner.asm:55-96, PrisonerLogic): detecção de toque de Snake, animação de libertação, ciclo de desamarração e despacho por sala. Os diálogos pertencem a hostage-dialogue-system, a promoção a progression-rank-stars, o rebaixamento por morte a progression-hostage-penalty-downgrade e as capacidades a rank-capacities.
 
 **Classificação:** Mecânica portável e testada em parte; divergência numérica já registrada no STATUS.
 
@@ -3023,7 +3023,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 - Domínio estritamente focado no sistema de comunicação por rádio, seleção/despacho de mensagens e motor de caixas de texto.
 - Não possui IDs numéricos de entidade (actor_ids, weapon_ids, etc.); cada feature cobre uma mecânica ou subsistema funcional transversal.
-- Nenhuma feature foi promovida a IMPLEMENTED porque todos os sistemas de diálogo e rádio atuais possuem pendências concretas: strings hardcoded parafraseadas, ausência de motor unificado de caixas de texto ou ausência de condições canônicas do Z80.
+- Na revisão inicial da auditoria estática, nenhuma feature havia sido promovida a IMPLEMENTED; posteriormente o núcleo do rádio (v0.2.3) promoveu 7 features a IMPLEMENTED com base na ROM canônica e testes tick a tick.
 - Features legadas 'radio' e 'text-window' foram integradas ao domínio radio-dialogue para manter referências cruzadas existentes de outros domínios intactas.
 - Status UNMAPPED atribuído à verificação de Text ID 15 e MadnarMoved em ChkReplyMadnar por ser código anômalo/morto sem correspondência em radiocalls.asm.
 
@@ -3102,7 +3102,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** docs/reverse_engineering/en-eu-reextraction.md
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** RadioDialog dirigido por radio_tick a cada physics tick (estados DrawRadio/RadioIdle/RadioSignalUp/SetupRadioReply/RadioSignalOFF); textos extraídos da ROM; janela de texto suspende o RadioLogic; F4/T só saem fora da janela de texto. Textos inventados removidos.
 
@@ -3166,7 +3166,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** Frequência em BCD (bcd_increment/bcd_decrement = add/sub 1; daa) com limites 00h e 99h; _change_frequency porta ChgRadioFreq (atraso 8 ao pressionar, repetição a cada 2 ticks, esquerda com prioridade); ChkRadioReceiv avaliado a cada tick ocioso.; radio_dialog.gd desenha os dígitos pelos nibbles BCD.
 
@@ -3198,7 +3198,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** RadioFreqs (7 pessoas) extraída e conferida; PERSON_CONTACTS mapeia as pessoas 1-7; todas as salas com rádio vêm da ROM.
 
@@ -3230,7 +3230,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** SEND por gatilho cima: is_send_mode (RadioCmd), ReplyRequested = 1 e texto 0Ah da ROM; volta a RECV no tick seguinte ao texto; indicador RECV/SEND desenhado conforme RadioCmd.
 
@@ -3262,7 +3262,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** docs/reverse_engineering/en-eu-reextraction.md
 
-**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa; docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa; docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** radio_system.gd::_check_receive porta ChkRadioReceiv: sem WAITCALL responde ao sintonizar salvo AutoReplyDone; com WAITCALL exige ReplyRequested (SEND).; auto_reply_done é ligado em RadioSignalOFF e limpo por DrawRadio e por nova sintonia (ChgRadioFreq2).
 
@@ -3294,7 +3294,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** update_radio porta UpdateRadio: cada contato com flag auto-tune da tabela extraída define current_freq ao entrar na sala.
 
@@ -3326,7 +3326,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** State.SIGNAL_UP porta RadioSignalUp: atraso inicial 10h, +1 LED a cada 2 ticks até 12, depois SetupRadioReply; RadioSignalOFF zera os LEDs. radio_dialog.gd lê signal_leds a cada tick.
 
@@ -3358,7 +3358,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** check_radio_calls porta ChkRadioCalls (bit 3 de RoomsMusic extraído, bloqueios Schneider capturado, Jennifer e antena); tick_incoming_call porta ChkIncomingCall (32 ticks de atraso, CALL de 58h ticks, expiração).; enter_room roda em toda troca de sala e tick_incoming_call a cada tick de jogo fora de modais; abrir o rádio para o CALL; coletar a antena força chamada pendente (10h).
 
@@ -3422,7 +3422,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** docs/reverse_engineering/en-eu-reextraction.md
 
-**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa; docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa; docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** extract_radio_dialogue.py lê idxRoomRadio/RadioRoom_* da ROM canônica (segmentos binary_verified) e gera a tabela das 251 salas (60 com rádio), zonas de mapa e salas com chamada; radio_system.gd não tem mais tabela local.
 
@@ -3454,7 +3454,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa; docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa; docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** map_zone vem do nibble de idxMapZones extraído (SetRadioArea); antenna_taken sincronizado com o inventário; ChkRadioCalls e ChkRadioReply bloqueiam zona >= 5 sem antena; coletar a antena força chamada pendente.
 
@@ -3486,7 +3486,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec); docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** schneider_captured bloqueia a chamada recebida quando o primeiro contato é Schneider (ChkRadioCalls só testa isso com SchneiderCaptured != 0) e a resposta em ChkRadioReply.
 
@@ -3518,7 +3518,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** Checagem Class == 3 (class_rank sincronizado com rank_system) e JennifBrotherDead em ChkRadioCalls e ChkRadioReply.
 
@@ -3550,7 +3550,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** ChkRadioReply substitui o texto de Big Boss por 50 com transmitter_taken fora da zona 4.
 
@@ -3582,7 +3582,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** ChkRadioReply substitui o texto de Big Boss por 136 com switch_off_msx, com prioridade sobre o aviso do transmissor.
 
@@ -3614,7 +3614,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** ChkReplyMadnar portado literalmente: texto 15 sem resposta com madnar_moved (flag não ligada no jogo).
 
@@ -3838,7 +3838,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 **Documentação:** Nenhum localizado neste recorte.
 
-**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox; docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox; docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Implementado:** Extractor tools/extractors/extract_grey_fox_dialogue.py implementa decodificação fiel com dicionário da ROM para o Texto 59; PrisonerDialog consome o JSON resultante.
 
@@ -4076,7 +4076,7 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 
 `fake-madnar-trap-dialogue` · **PROVISIONAL**
 
-**Original:** Diálogo do impostor (ator ID 55, sala 189) em logic/actors/fakemadnar.asm:30-45: dispara Texto ID 189 ('HEHEHE... I'M AN IMPOSTOR! THE REAL DR. PETTROVICH IS ELSEWHERE!') via SetTextUnskippable, acionando simultaneamente a abertura do alçapão/pitfall sob os pés de Snake.
+**Original:** Diálogo do impostor (ator ID 55, sala 189) em logic/actors/fakemadnar.asm:39-44 (FakeMadnarSpeak): dispara Texto ID 109 ('YOU ARE CAUGHT IN A TRAP... IN FACT, WE HAVE CONFINED DR. PETTROVICH ON THE SECOND FLOOR...' em data/texts.asm:370, txtTrap) de forma unskippable (SetTextUnskippable) antes de abrir o alçapão.
 
 **Classificação:** A fala está registrada em dicionário de texto, mas o despachador original de diálogo e o gatilho da armadilha não foram implementados.
 
@@ -4173,7 +4173,7 @@ Nenhuma entrada.
 
 `elevators` · **PARTIAL**
 
-**Original:** Rede de 11 eixos verticais de elevadores conectando andares dos 3 edifícios (salas 240 a 250, data/elevatorrooms.asm, logic/elevatorroom.asm:7-227, logic/nextroom.asm:74-94). Movimento da cabine a 1 px/tick com direcional cima/baixo, transição contínua entre shafts verticais (ElevatorExitRoom) e parada nos andares autorizados da campanha (1F, 2F, 3F, B1, Telhado).
+**Original:** Acesso vertical entre andares e edifícios condicionado a chaves e progressão de campanha através dos 11 elevadores (logic/elevatorroom.asm:7-70). A topologia espacial dos 11 poços e a tabela idxElevatorRoom pertencem a world-elevator-topology.
 
 **Classificação:** Sistema de elevadores bem modelado no Godot, mas com integração e cobertura parciais em relação ao conjunto de edifícios do jogo completo.
 
@@ -4525,7 +4525,7 @@ Nenhuma entrada.
 
 `progression-roof-parachute-jump` · **NOT_STARTED**
 
-**Original:** Salto pela borda sul do telhado (sala 63/241) avaliado por ChkParachute (logic/nextroom.asm:204-260). Se SelectedItem == SELECTED_PARACHUTE: Snake abre o paraquedas, cai pela sala 204 por 2 andares (HeightParachuteCnt = 2) e pousa vivo no pátio exterior (sala 10 / Yard), cancelando o alerta. Se não equipado: FreeFall (logic/nextroom.asm:227-238) derruba Snake sem paraquedas, aplicando dano letal imediato (DecrementLife_B com 0FFh) com aterrissagem morto e Game Over.
+**Original:** Salto pela borda sul do telhado (salas 45, 46 e 117 através das portas 91, 129 e 145) avaliado por ChkParachute (logic/nextroom.asm:204-260). Se SelectedItem == SELECTED_PARACHUTE: Snake abre o paraquedas, cai pela sala 204 por 2 andares (HeightParachuteCnt = 2) e pousa com vida no pátio inferior correspondente (salas 5, 6 ou 10), cancelando o alerta. Se não equipado: FreeFall (227-238) derruba Snake sem paraquedas, aplicando dano letal imediato (0FFh) com Game Over.
 
 **Classificação:** Evento mandatório de progressão entre o Edifício 1 e o pátio não iniciado.
 
@@ -4557,11 +4557,11 @@ Nenhuma entrada.
 
 `progression-desert-crossing-compass` · **NOT_STARTED**
 
-**Original:** Travessia das salas de deserto entre o Edifício 1 e o Edifício 2 (salas 64-68). Se Snake não estiver com a bússola (COMPASS) no inventário, a transição entre telas entra em loop infinito retornando para a mesma sala ou desviando a rota. Com a bússola no inventário, a navegação direcional é normalizada, permitindo alcançar o campo minado e o Tanque.
+**Original:** Travessia do labirinto do deserto entre o Edifício 1 e o Edifício 2 através da sala 103 (logic/nextroom.asm:33-48). Se Snake tentar cruzar a sala 103 para o norte ou laterais sem a bússola equipada (SelectedItem != SELECTED_COMPASS), o avanço é impedido por redirecionamento forçado de volta para a sala 103 (Room = 103). A bússola permite a transição para a sala 208, abrindo a rota para o Edifício 2.
 
 **Classificação:** Bloqueio geográfico de progressão não iniciado.
 
-**Assembly:** logic/nextroom.asm:410-435; constants/Enums.asm:102
+**Assembly:** logic/nextroom.asm:12-48 SetNextRoom; constants/Enums.asm:102
 
 **Extractors:** Nenhum localizado neste recorte.
 
@@ -4653,7 +4653,7 @@ Nenhuma entrada.
 
 `progression-antenna-requirement` · **NOT_STARTED**
 
-**Original:** Em todas as salas do Edifício 2 e além (MapZone >= 5, Variables.asm:129), ChkRadioReply (Banks0123.asm:11043-11055) verifica se Snake está com a Antena equipada (SelectedItem == SELECTED_ANTENNA). Se não estiver, todas as frequências recebem estática e falham. Sem a antena, o jogador fica impossibilitado de contatar Jennifer ou receber instruções vitais.
+**Original:** Em todas as salas do Edifício 2 e além (MapZone >= 5, Variables.asm:129), ChkRadioReply (Banks0123.asm:11043-11055) e ChkRadioCalls (1720-1727) exigem a posse da Antena (AntennaTaken != 0). Sem a posse da antena, o transceptor recebe estática e falha, impedindo contato com Jennifer e instruções vitais da campanha.
 
 **Classificação:** Bloqueio de comunicação essencial da segunda metade da campanha não iniciado.
 
@@ -4673,9 +4673,9 @@ Nenhuma entrada.
 
 **Histórico consultado:** Nenhum localizado neste recorte.
 
-**Implementado:** O item antena existe no catálogo de itens, mas a checagem no transceptor não está implementada.
+**Implementado:** A checagem runtime de rádio (MapZone >= 5 e AntennaTaken != 0) está implementada e testada no rádio fiel (radio-cond-antenna em radio_system.gd).
 
-**Faltante / não comprovado:** Validação de MapZone >= 5 e exigência de SelectedItem == SELECTED_ANTENNA no rádio não implementadas.
+**Faltante / não comprovado:** Amarração na campanha que exige a antena para desbloquear a progressão narrativa no Edifício 2.
 
 **Notas de evidência:** MapZone >= 5 bloqueia todo o rádio sem antena.
 
@@ -4877,11 +4877,11 @@ Nenhuma entrada.
 
 `progression-fake-madnar-trap` · **PROVISIONAL**
 
-**Original:** Armadilha na sala 107 (Edifício 2) com impostor disfarçado de Dr. Madnar (logic/actors/prisoner.asm:180-210, data/texts.asm:90). Ao interagir, o impostor revela a farsa ('FOOLED YOU! I'M NOT MADNAR!') e um alçapão (pitfall) abre imediatamente sob Snake, derrubando-o para o subsolo.
+**Original:** Armadilha na cela da sala 189 (ActorsRoom189) com impostor disfarçado de Dr. Madnar (ator ID 55, logic/actors/fakemadnar.asm:7-65). Ao contatar o impostor, ele revela a armadilha (Texto 109, txtTrap), ativa um alçapão (ID_PITFALL em X=96, Y=128), cai no abismo e seta RescuedArray[22] = 1, revelando que o verdadeiro Dr. Madnar está confinado no segundo andar.
 
 **Classificação:** O evento possui apenas representação textual/provisória sem a consequência espacial do Z80.
 
-**Assembly:** logic/actors/prisoner.asm:180-210
+**Assembly:** logic/actors/fakemadnar.asm:7-65 FakeMadnadLogic
 
 **Extractors:** Nenhum localizado neste recorte.
 
@@ -4973,7 +4973,7 @@ Nenhuma entrada.
 
 `progression-water-channel-oxygen` · **NOT_STARTED**
 
-**Original:** Travessia subaquática entre o Edifício 2 e o Edifício 3 pelas salas do canal (salas 105, 110, 211, 212 na ROM, logic/nextroom.asm). Se Snake entrar no canal sem o tanque de oxigênio equipado (SelectedItem != SELECTED_OXYGEN_TANK), a barra de vida é esvaziada em alta velocidade por asfixia/afogamento, levando à morte em poucos segundos. Com o tanque equipado, o nado ocorre normalmente.
+**Original:** Travessia subaquática entre o Edifício 2 e o Edifício 3 pelas salas do canal de água profunda (salas 105, 106, 211, 212 em RoomsWater, Banks0123.asm:9273-9277). Se Snake entrar no canal sem o tanque de oxigênio equipado (SelectedItem != SELECTED_OXYGEN_TANK), a vida é esvaziada por asfixia (2 HP a cada 8 ticks em DecrementLife_C), causando afogamento. Com o tanque equipado, a travessia ocorre sem dano.
 
 **Classificação:** Bloqueio fatal de progressão para o Edifício 3 não iniciado, com risco grave de softlock/conflito de salas.
 
@@ -6094,7 +6094,7 @@ Nenhuma entrada.
 
 `hazard-roof-wind` · **NOT_STARTED**
 
-**Original:** Perigo ambiental de forte vento de exaustão na sala 53 (saída do elevador no telhado do Edifício 1) verificado em ChkRoofAirFlow (Banks0123.asm:9284-9325); zona de vento ativa entre coordenadas Y [50h, 60h] (80 a 96 px) e X [48h, 0C0h] (72 a 192 px); se o jogador não estiver vestindo SELECTED_BOMB_SUIT (9292-9295), o vento empurra Snake para o sul com velocidade de 3 pixels/tick em AirFlowLogic (Banks0123.asm:8587-8603) e dispara SFX 11h (SfxRoofAir); anulação completa da repulsão pelo traje Bomb Blast Suit, permitindo transitar normalmente.
+**Original:** Perigo ambiental de forte vento de exaustão na sala 53 (saída do elevador no telhado do Edifício 1) verificado em ChkRoofAirFlow (Banks0123.asm:9284-9325); zona de vento em X=[72, 191], Y=[80, 95] bloqueando o avanço sul a menos que SELECTED_BOMB_SUIT esteja equipado. O modo de controle e deslocamento de Snake é de player-roof-airflow.
 
 **Classificação:** A mecânica ambiental de vento na sala 53 não existe no Godot. O traje Bomb Blast Suit existe apenas como item de inventário sem função ambiental ativa.
 
@@ -6190,7 +6190,7 @@ Nenhuma entrada.
 
 `hazard-roof-freefall` · **NOT_STARTED**
 
-**Original:** Mecânica ambiental de salto a partir do telhado do Edifício 1 para o pátio externo na sala 204 em ChkParachute (logic/nextroom.asm:204-260); se SELECTED_PARACHUTE estiver equipado, ativa descida suave com deslocamento oscilante de 16 ticks em ParachuteLogic (Banks0123.asm:8564-8580); se o jogador saltar sem o paraquedas, aciona FreeFall (logic/nextroom.asm:227-239), aplicando dano 0xFF (morte imediata) ao atingir o solo; sala 204 como destino da descida. No Godot atual, a sala 204 é considerada limbo e suprimida em sandbox_gameplay.gd:1393.
+**Original:** Mecânica ambiental de precipitação letal nas bordas do telhado do Edifício 1 (salas 45, 46 e 117 em data/doors.asm:293-305); aciona ChkParachute (logic/nextroom.asm:204-260) ao cruzar a borda sul; sem o paraquedas equipado, aciona FreeFall (227-239) aplicando dano fatal 0xFF no impacto com o solo. A dinâmica física de descida oscilante pertence a player-freefall-parachute e a topologia pertence a world-parachute-courtyard-204.
 
 **Classificação:** A sala 204 é explicitamente tratada como o limbo e descartada no Godot (sandbox_gameplay.gd:1388, 1393), e o salto com ou sem paraquedas não está implementado.
 
@@ -6649,7 +6649,7 @@ Nenhuma entrada.
 
 `world-escape-ladder-topology` · **NOT_STARTED**
 
-**Original:** Rota linear de escadas verticais de emergência após a derrota de Big Boss em data/doors.asm:730-745, logic/nextroom.asm:307-308, 581-597 (SetLadderRoomEntry), data/roomsconnections.asm:149-152 e logic/ending.asm; na sala 119 (Big Boss), a porta 6Bh leva à sala 224; SetLadderRoomEntry ativa PlayerControlMod = 6 (Ladders room mode), direção esquerda (DIR_LEFT), PlayerY = 9Eh (158.0) e PlayerX = 0D8h (216.0); as salas de escada 224 -> 225 -> 226 -> 227 conectam-se verticalmente de baixo para cima (Room - 82); na sala 227, o topo da escada aciona a cutscene final de destruição na sala 251 (EndingSetup).
+**Original:** Rota linear de escadas verticais de emergência após a derrota de Big Boss em data/doors.asm:730-745, data/roomsconnections.asm:149-151 e Banks0123.asm:9473-9486 (ChkLadderLimits): sequência das salas 224 -> 225 -> 226; a sala 226 é a última sala de escada canônica (cp 226 em Banks0123.asm:9477), cujo topo (Y < 16) dispara SetLeavedOuterH e a transição para a sequência final de fuga (EndingSetup, sala 251).
 
 **Classificação:** A sala 227 é uma das 16 salas não decodificadas em data/extracted/en-eu-rc750/rooms/; a porta 6Bh, o modo de escalada de escadas verticais e a transição final de fuga para a sala 251 não existem no sandbox do Godot.
 

@@ -28,8 +28,8 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 - `player-core`: 17 features (IMPLEMENTED 0, PARTIAL 10, PROVISIONAL 3, NOT_STARTED 4; UNMAPPED 0).
 - `hazards-special-rooms`: 14 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 1, NOT_STARTED 9).
 - `world-rooms-navigation`: 10 features (IMPLEMENTED 0, PARTIAL 6, PROVISIONAL 0, NOT_STARTED 4).
-- Lacunas: IDs 211/212 (canal vs cela), sala 204 (paraquedas vs limbo), caminhões, 8.8 vs float.
-- Próxima tarefa sugerida, só após pedido: priorizar `pitfalls` (ID 16) ou `rocket-launcher`.
+- Catálogo: 201 features normalizadas, ownership consolidado e 0 erros de integridade.
+- Próxima tarefa sugerida, só após pedido: priorizar `scenes-flow` ou `pitfalls` (ID 16).
 
 ## Decisões pendentes do usuário
 

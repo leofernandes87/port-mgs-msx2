@@ -3,7 +3,7 @@
   "mechanics": [
     {
       "id": "game-loop",
-      "title": "Loop de jogo, ordem de tick e lógica comum",
+      "title": "Loop principal de interrupção e despacho de GameMode (não auditado)",
       "asm": [
         "Banks0123.asm:440 InterruptTick",
         "Banks0123.asm:12151 PlayModeLogic",
@@ -20,11 +20,14 @@
       ],
       "docs": [
         "docs/reverse_engineering/architecture.md"
+      ],
+      "related_features": [
+        "player-runtime-control"
       ]
     },
     {
       "id": "rooms",
-      "title": "Salas, snapshots, transições de borda e aliases locais",
+      "title": "Salas, snapshots e layouts de mapa (absorvido por world-room-identity-mapping e world-cardinal-connections)",
       "asm": [
         "logic/nextroom.asm:362 EntryRoomXY",
         "Banks0123.asm:1038 ChkIsolatedRoom",
@@ -59,11 +62,16 @@
         "docs/index/rooms.md",
         "docs/reverse_engineering/stage-6-room-transitions.md",
         "docs/reverse_engineering/maps.md"
+      ],
+      "related_features": [
+        "world-room-identity-mapping",
+        "world-cardinal-connections",
+        "world-entry-coordinates"
       ]
     },
     {
       "id": "doors",
-      "title": "Portas, cartões e entrada em portas",
+      "title": "Portas físicas, desenho de portas e ciclo de abertura (não auditado)",
       "asm": [
         "logic/doors/enterdoor.asm:64-88 ChkEnterDoor",
         "logic/nextroom.asm:457-480 PlayerInDoorDat",
@@ -86,6 +94,11 @@
       "docs": [
         "docs/reverse_engineering/stage-9-doors-and-inventory.md",
         "docs/reverse_engineering/stage-4c-doors-and-items.md"
+      ],
+      "related_features": [
+        "access-cards",
+        "hazard-breakable-walls",
+        "world-entry-coordinates"
       ]
     },
     {
@@ -494,7 +507,7 @@
     },
     {
       "id": "alert",
-      "title": "Alerta, evasão e reforços",
+      "title": "Máquina global de alerta, sirene e temporizador de alarme (não auditado)",
       "asm": [
         "logic/setalert.asm:14-40 SetAlertMode",
         "Banks0123.asm:6559-6628 ChkRespawnEnemy",
@@ -518,6 +531,9 @@
       ],
       "docs": [
         "docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md"
+      ],
+      "related_features": [
+        "guard-alert"
       ]
     },
     {
@@ -525,7 +541,7 @@
       "title": "Rede de 11 eixos de elevadores conectando andares dos 3 edifícios",
       "domain": "progression-events",
       "status": "PARTIAL",
-      "original_scope": "Rede de 11 eixos verticais de elevadores conectando andares dos 3 edifícios (salas 240 a 250, data/elevatorrooms.asm, logic/elevatorroom.asm:7-227, logic/nextroom.asm:74-94). Movimento da cabine a 1 px/tick com direcional cima/baixo, transição contínua entre shafts verticais (ElevatorExitRoom) e parada nos andares autorizados da campanha (1F, 2F, 3F, B1, Telhado).",
+      "original_scope": "Acesso vertical entre andares e edifícios condicionado a chaves e progressão de campanha através dos 11 elevadores (logic/elevatorroom.asm:7-70). A topologia espacial dos 11 poços e a tabela idxElevatorRoom pertencem a world-elevator-topology.",
       "implemented_scope": [
         "elevator_system.gd e elevator_cabin.gd implementam movimentação de cabine, shafts conectados e transição de tela em sandbox_gameplay.gd."
       ],
@@ -559,7 +575,8 @@
         "Salas 240 a 250 cobrem todos os eixos de elevador de Outer Heaven."
       ],
       "related_features": [
-        "rooms"
+        "world-elevator-topology",
+        "player-room-transition"
       ]
     },
     {
@@ -601,7 +618,7 @@
       ],
       "history": [
         "docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "Substituto provisório da tela de rádio inclui textos 'TRANSCEIVER ONLINE...' não presentes na ROM; SFX 50h e 5Ch não acionados; ausência de modo formal GAME_MODE_RADIO."
@@ -647,7 +664,7 @@
         49
       ],
       "status": "PARTIAL",
-      "original_scope": "Contato diferido, libertação, texto por sala, flags de resgate, promoção e penalidade.",
+      "original_scope": "Entidade do refém comum (logic/actors/prisoner.asm:55-96, PrisonerLogic): detecção de toque de Snake, animação de libertação, ciclo de desamarração e despacho por sala. Os diálogos pertencem a hostage-dialogue-system, a promoção a progression-rank-stars, o rebaixamento por morte a progression-hostage-penalty-downgrade e as capacidades a rank-capacities.",
       "implemented_scope": [
         "Ator com estados/atraso, sprites, resgate, contador e morte; suíte dedicada."
       ],
@@ -664,7 +681,12 @@
       "evidence_notes": [
         "Uma suíte que exige quatro resgates não comprova o limiar original de cinco."
       ],
-      "related_features": []
+      "related_features": [
+        "hostage-dialogue-system",
+        "progression-rank-stars",
+        "progression-hostage-penalty-downgrade",
+        "rank-capacities"
+      ]
     },
     {
       "id": "text-window",
@@ -771,6 +793,8 @@
         "Na ROM original a prisão é a sala 165 e a cela de Grey Fox é a 164. Aliases locais 211/212 causam colisão com as salas de canal."
       ],
       "related_features": [
+        "capture-guards",
+        "equipment-bag",
         "progression-grey-fox-rescue",
         "progression-equipment-recovery"
       ]
@@ -891,7 +915,7 @@
     },
     {
       "id": "hud",
-      "title": "HUD original (vida, classe, arma e item)",
+      "title": "HUD original: vida, classe, armas e itens (não auditado)",
       "asm": [
         "logic/hud.asm:162-205 DrawLife",
         "logic/hud.asm:214-244 DrawClass",
@@ -911,11 +935,14 @@
         "godot-hud",
         "tests/test_hud_extractor.py"
       ],
-      "docs": []
+      "docs": [],
+      "related_features": [
+        "radio-call-sign-hud-timing"
+      ]
     },
     {
       "id": "intro-title",
-      "title": "Logo Konami, tela de título e cutscene de infiltração",
+      "title": "Logo Konami, tela de título e cutscene de infiltração (não auditado)",
       "asm": [
         "logic/konamilogo.asm:61 DrawKonamiLogo",
         "logic/introscene.asm:32-166 IntroScene1",
@@ -940,6 +967,9 @@
       "docs": [
         "docs/reverse_engineering/intro-fence-timing.md",
         "docs/reverse_engineering/intro-water-colors.md"
+      ],
+      "related_features": [
+        "intro-mission-briefing"
       ]
     },
     {
@@ -2528,7 +2558,9 @@
       "evidence_notes": [
         "Somente metadados genéricos do ator são exportáveis; tests/test_extractors.py cobre o contrato de dados, não este comportamento. Busca cruzada em scripts/sistemas, cenas, testes, extractors e histórico de spawn: sem implementação específica; o filtro do sandbox descarta estes IDs."
       ],
-      "related_features": []
+      "related_features": [
+        "progression-boss-bigboss-final"
+      ]
     },
     {
       "id": "machine-gun-kid",
@@ -2812,7 +2844,8 @@
       ],
       "related_features": [
         "madnar",
-        "rank-prisoners"
+        "rank-prisoners",
+        "progression-ellen-rescue"
       ]
     },
     {
@@ -2915,7 +2948,8 @@
       ],
       "related_features": [
         "text-window",
-        "rank-prisoners"
+        "rank-prisoners",
+        "progression-grey-fox-rescue"
       ]
     },
     {
@@ -2967,7 +3001,9 @@
         "Texto hardcoded não comprova o evento original."
       ],
       "related_features": [
-        "ellen"
+        "ellen",
+        "progression-madnar-rescue-formula",
+        "progression-ellen-rescue"
       ]
     },
     {
@@ -3017,6 +3053,9 @@
         "Código atual incrementa resgate pelo fluxo comum; não alterar durante auditoria."
       ],
       "related_features": [
+        "fake-madnar-trap-dialogue",
+        "progression-fake-madnar-trap",
+        "hazard-pitfall-trap",
         "pitfalls"
       ]
     },
@@ -3380,6 +3419,7 @@
         "weapons",
         "ration",
         "rank-prisoners",
+        "progression-rank-stars",
         "rocket-launcher"
       ]
     },
@@ -4183,7 +4223,9 @@
         "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
       ],
       "related_features": [
-        "equipment-inventory"
+        "equipment-inventory",
+        "player-roof-airflow",
+        "hazard-roof-wind"
       ]
     },
     {
@@ -4400,7 +4442,8 @@
       ],
       "related_features": [
         "equipment-inventory",
-        "radio"
+        "radio-cond-antenna",
+        "progression-antenna-requirement"
       ]
     },
     {
@@ -4455,7 +4498,11 @@
         "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
       ],
       "related_features": [
-        "equipment-inventory"
+        "equipment-inventory",
+        "player-deep-water",
+        "hazard-water-environment",
+        "world-water-channel-topology",
+        "progression-water-channel-oxygen"
       ]
     },
     {
@@ -4508,7 +4555,10 @@
         "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
       ],
       "related_features": [
-        "equipment-inventory"
+        "equipment-inventory",
+        "hazard-desert-loop",
+        "world-desert-navigation",
+        "progression-desert-crossing-compass"
       ]
     },
     {
@@ -4561,7 +4611,11 @@
         "Busca por nomes/IDs foi cruzada com despacho e dados; atlas/HUD isolados não contam como efeito. Nenhum teste específico nem entrega desse efeito localizado no índice/histórico de inventário."
       ],
       "related_features": [
-        "equipment-inventory"
+        "equipment-inventory",
+        "player-freefall-parachute",
+        "world-parachute-courtyard-204",
+        "progression-roof-parachute-jump",
+        "hazard-roof-freefall"
       ]
     },
     {
@@ -5048,9 +5102,7 @@
       ],
       "related_features": [
         "equipment-inventory",
-        "player-attack-rules",
-        "guard-senses",
-        "actor-camera"
+        "player-cardboard-box"
       ]
     },
     {
@@ -5139,7 +5191,7 @@
       ],
       "history": [
         "docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "radio_system_test.gd confere 89h→90h, limites e temporização de repetição."
@@ -5177,7 +5229,7 @@
       ],
       "history": [
         "docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "Constantes conferem com a tabela RadioFreqs de Banks0123.asm; ausência de consumidores para as frequências do Edifício 2 e notícias."
@@ -5214,7 +5266,7 @@
       ],
       "history": [
         "docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "Texto ID 10 confere com texts.asm:191; divergência de comportamento ao exigir SEND para contatos de auto-resposta."
@@ -5258,7 +5310,7 @@
       ],
       "history": [
         "docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "radio_system_test.gd verifica resposta sem SEND, não repetição, reabilitação ao ressintonizar e WAIT-CALL só após SEND."
@@ -5293,7 +5345,7 @@
       ],
       "history": [
         "docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "Teste cruzado: sala 0 auto-sintoniza 120.85 a partir de radio_dialogue.json."
@@ -5329,7 +5381,7 @@
       ],
       "history": [
         "docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "radio_system_test.gd confere primeiro LED após 16 ticks e 12 LEDs 22 ticks depois."
@@ -5368,7 +5420,7 @@
       ],
       "history": [
         "docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "radio_system_test.gd confere flag 0 por 32 ticks, CALL dos ticks 32 a 118 e parada no 119; sala 0 arma o CALL no sandbox.",
@@ -5445,7 +5497,7 @@
       ],
       "history": [
         "docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "Textos ingleses dos 45 IDs usados pelo rádio extraídos localmente com quebras FD/FE; nenhum texto versionado."
@@ -5479,7 +5531,7 @@
       ],
       "history": [
         "docs/progress/2026-10.md::2026-10-04 — Auditoria regional da implementação contra a edição inglesa",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "radio_system_test.gd: zona 5 sem antena não responde; com antena responde."
@@ -5487,7 +5539,8 @@
       "related_features": [
         "radio-room-dispatch-table",
         "radio-incoming-call-detection",
-        "antenna"
+        "antenna",
+        "progression-antenna-requirement"
       ],
       "docs": []
     },
@@ -5516,14 +5569,15 @@
       ],
       "history": [
         "docs/progress/2026-09.md::2026-09-20 — Etapa 15 concluída: Sistema de Rádio Transceptor (Transceiver / Codec)",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "Correção da descrição: ChkRadioCalls (Banks0123.asm:1692-1701) só suprime Schneider quando SchneiderCaptured != 0."
       ],
       "related_features": [
         "radio-room-dispatch-table",
-        "text-event-triggers"
+        "text-event-triggers",
+        "progression-schneider-captured-event"
       ],
       "docs": []
     },
@@ -5548,7 +5602,7 @@
         "godot/scripts/systems/radio_system.gd"
       ],
       "history": [
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "radio_system_test.gd: Jennifer só responde com 4 estrelas."
@@ -5583,7 +5637,7 @@
         "godot/scripts/systems/radio_system.gd"
       ],
       "history": [
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "radio_system_test.gd confere a substituição pelo texto 50."
@@ -5618,7 +5672,7 @@
         "godot/scripts/systems/radio_system.gd"
       ],
       "history": [
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "radio_system_test.gd confere a prioridade do texto 136."
@@ -5652,7 +5706,7 @@
         "godot/scripts/systems/radio_system.gd"
       ],
       "history": [
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "Anotação na desmontagem: '(!?) Why is this text checked? It is not a radio reply.' Texto 15 é txtFinalThread (texts.asm:15), fala final de Big Boss."
@@ -5908,7 +5962,7 @@
       ],
       "history": [
         "docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox",
-        "docs/progress.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
+        "docs/progress/2026-10.md::2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL"
       ],
       "evidence_notes": [
         "extract_grey_fox_dialogue.py valida segmento completo de texts.asm byte a byte contra a ROM canônica; runtime só carrega grey-fox-en.json."
@@ -6027,7 +6081,8 @@
       "related_features": [
         "text-window",
         "text-decoder-rom-dictionary",
-        "rank-prisoners"
+        "rank-prisoners",
+        "progression-rank-stars"
       ]
     },
     {
@@ -6193,7 +6248,7 @@
       "title": "Diálogo do Falso Madnar e armadilha de alçapão",
       "domain": "radio-dialogue",
       "status": "PROVISIONAL",
-      "original_scope": "Diálogo do impostor (ator ID 55, sala 189) em logic/actors/fakemadnar.asm:30-45: dispara Texto ID 189 ('HEHEHE... I'M AN IMPOSTOR! THE REAL DR. PETTROVICH IS ELSEWHERE!') via SetTextUnskippable, acionando simultaneamente a abertura do alçapão/pitfall sob os pés de Snake.",
+      "original_scope": "Diálogo do impostor (ator ID 55, sala 189) em logic/actors/fakemadnar.asm:39-44 (FakeMadnarSpeak): dispara Texto ID 109 ('YOU ARE CAUGHT IN A TRAP... IN FACT, WE HAVE CONFINED DR. PETTROVICH ON THE SECOND FLOOR...' em data/texts.asm:370, txtTrap) de forma unskippable (SetTextUnskippable) antes de abrir o alçapão.",
       "implemented_scope": [
         "String presente em PRISONER_TEXTS[189] dentro de prisoner.gd."
       ],
@@ -6213,9 +6268,10 @@
         "SetTextUnskippable acionado em fakemadnar.asm:41; abertura de alçapão ocorre durante a fala."
       ],
       "related_features": [
-        "hostage-dialogue-system",
-        "text-skip-control-modes",
-        "pitfalls"
+        "fake-madnar",
+        "progression-fake-madnar-trap",
+        "hazard-pitfall-trap",
+        "text-skip-control-modes"
       ],
       "docs": [],
       "tests": []
@@ -6252,8 +6308,7 @@
         "Checkpoints dependem de pares exatos de transição em SaveStatRooms; serialização ldir com 6 blocos de RAM."
       ],
       "related_features": [
-        "progression-game-over-continue",
-        "rooms"
+        "world-room-identity-mapping"
       ]
     },
     {
@@ -6332,7 +6387,9 @@
         "cp 5 em Banks0123.asm:9638 define que são necessários 5 reféns por estrela."
       ],
       "related_features": [
+        "rank-prisoners",
         "progression-hostage-penalty-downgrade",
+        "rank-capacities",
         "progression-jennifer-compass-door"
       ]
     },
@@ -6371,6 +6428,7 @@
         "Reset de 17 reféns é punição severa do MSX2 que exige resgatar novamente prisioneiros de salas já visitadas."
       ],
       "related_features": [
+        "rank-prisoners",
         "progression-rank-stars"
       ]
     },
@@ -6418,6 +6476,7 @@
       ],
       "related_features": [
         "capture-prison",
+        "grey-fox",
         "progression-madnar-rescue-formula"
       ]
     },
@@ -6568,7 +6627,7 @@
       "title": "Salto de paraquedas do telhado para o pátio vs queda mortal",
       "domain": "progression-events",
       "status": "NOT_STARTED",
-      "original_scope": "Salto pela borda sul do telhado (sala 63/241) avaliado por ChkParachute (logic/nextroom.asm:204-260). Se SelectedItem == SELECTED_PARACHUTE: Snake abre o paraquedas, cai pela sala 204 por 2 andares (HeightParachuteCnt = 2) e pousa vivo no pátio exterior (sala 10 / Yard), cancelando o alerta. Se não equipado: FreeFall (logic/nextroom.asm:227-238) derruba Snake sem paraquedas, aplicando dano letal imediato (DecrementLife_B com 0FFh) com aterrissagem morto e Game Over.",
+      "original_scope": "Salto pela borda sul do telhado (salas 45, 46 e 117 através das portas 91, 129 e 145) avaliado por ChkParachute (logic/nextroom.asm:204-260). Se SelectedItem == SELECTED_PARACHUTE: Snake abre o paraquedas, cai pela sala 204 por 2 andares (HeightParachuteCnt = 2) e pousa com vida no pátio inferior correspondente (salas 5, 6 ou 10), cancelando o alerta. Se não equipado: FreeFall (227-238) derruba Snake sem paraquedas, aplicando dano letal imediato (0FFh) com Game Over.",
       "implemented_scope": [
         "O item paraquedas foi inventariado em weapons-items, mas a mecânica de salto, verificação de equipamento e queda livre mortal não existem no Godot."
       ],
@@ -6591,6 +6650,10 @@
         "SelectedItem == SELECTED_PARACHUTE é a única condição que evita morte imediata na saída do telhado."
       ],
       "related_features": [
+        "parachute",
+        "player-freefall-parachute",
+        "world-parachute-courtyard-204",
+        "hazard-roof-freefall",
         "progression-building-transitions"
       ]
     },
@@ -6599,7 +6662,7 @@
       "title": "Travessia do labirinto do deserto e exigência da bússola",
       "domain": "progression-events",
       "status": "NOT_STARTED",
-      "original_scope": "Travessia das salas de deserto entre o Edifício 1 e o Edifício 2 (salas 64-68). Se Snake não estiver com a bússola (COMPASS) no inventário, a transição entre telas entra em loop infinito retornando para a mesma sala ou desviando a rota. Com a bússola no inventário, a navegação direcional é normalizada, permitindo alcançar o campo minado e o Tanque.",
+      "original_scope": "Travessia do labirinto do deserto entre o Edifício 1 e o Edifício 2 através da sala 103 (logic/nextroom.asm:33-48). Se Snake tentar cruzar a sala 103 para o norte ou laterais sem a bússola equipada (SelectedItem != SELECTED_COMPASS), o avanço é impedido por redirecionamento forçado de volta para a sala 103 (Room = 103). A bússola permite a transição para a sala 208, abrindo a rota para o Edifício 2.",
       "implemented_scope": [
         "Não implementado no Godot."
       ],
@@ -6608,7 +6671,7 @@
       ],
       "rationale": "Bloqueio geográfico de progressão não iniciado.",
       "asm": [
-        "logic/nextroom.asm:410-435",
+        "logic/nextroom.asm:12-48 SetNextRoom",
         "constants/Enums.asm:102"
       ],
       "extractor": [],
@@ -6622,6 +6685,9 @@
         "Exige ITEM_COMPASS no inventário para atravessar o deserto."
       ],
       "related_features": [
+        "compass",
+        "hazard-desert-loop",
+        "world-desert-navigation",
         "progression-jennifer-compass-door",
         "progression-building-transitions"
       ]
@@ -6695,12 +6761,12 @@
       "title": "Requisito da Antena equipada para comunicação no Edifício 2",
       "domain": "progression-events",
       "status": "NOT_STARTED",
-      "original_scope": "Em todas as salas do Edifício 2 e além (MapZone >= 5, Variables.asm:129), ChkRadioReply (Banks0123.asm:11043-11055) verifica se Snake está com a Antena equipada (SelectedItem == SELECTED_ANTENNA). Se não estiver, todas as frequências recebem estática e falham. Sem a antena, o jogador fica impossibilitado de contatar Jennifer ou receber instruções vitais.",
+      "original_scope": "Em todas as salas do Edifício 2 e além (MapZone >= 5, Variables.asm:129), ChkRadioReply (Banks0123.asm:11043-11055) e ChkRadioCalls (1720-1727) exigem a posse da Antena (AntennaTaken != 0). Sem a posse da antena, o transceptor recebe estática e falha, impedindo contato com Jennifer e instruções vitais da campanha.",
       "implemented_scope": [
-        "O item antena existe no catálogo de itens, mas a checagem no transceptor não está implementada."
+        "A checagem runtime de rádio (MapZone >= 5 e AntennaTaken != 0) está implementada e testada no rádio fiel (radio-cond-antenna em radio_system.gd)."
       ],
       "missing_scope": [
-        "Validação de MapZone >= 5 e exigência de SelectedItem == SELECTED_ANTENNA no rádio não implementadas."
+        "Amarração na campanha que exige a antena para desbloquear a progressão narrativa no Edifício 2."
       ],
       "rationale": "Bloqueio de comunicação essencial da segunda metade da campanha não iniciado.",
       "asm": [
@@ -6718,7 +6784,8 @@
         "MapZone >= 5 bloqueia todo o rádio sem antena."
       ],
       "related_features": [
-        "radio",
+        "radio-cond-antenna",
+        "antenna",
         "progression-building-transitions"
       ]
     },
@@ -6812,6 +6879,9 @@
         "JeniRocketF é acionado por Text 117 em TextBoxExit."
       ],
       "related_features": [
+        "rocket-launcher",
+        "radio-cond-jennifer",
+        "jennifer-brother",
         "progression-boss-arnolds-card7"
       ]
     },
@@ -6874,6 +6944,8 @@
         "RescuedArray[20] é checado por Madnar antes de falar do Metal Gear."
       ],
       "related_features": [
+        "ellen",
+        "madnar",
         "progression-madnar-rescue-formula"
       ]
     },
@@ -6904,6 +6976,8 @@
         "Sem Ellen salva, Madnar não entrega a sequência de 16 C4."
       ],
       "related_features": [
+        "madnar",
+        "progression-ellen-rescue",
         "progression-metalgear-destruction"
       ]
     },
@@ -6912,7 +6986,7 @@
       "title": "Armadilha do Falso Madnar e acionamento de alçapão",
       "domain": "progression-events",
       "status": "PROVISIONAL",
-      "original_scope": "Armadilha na sala 107 (Edifício 2) com impostor disfarçado de Dr. Madnar (logic/actors/prisoner.asm:180-210, data/texts.asm:90). Ao interagir, o impostor revela a farsa ('FOOLED YOU! I'M NOT MADNAR!') e um alçapão (pitfall) abre imediatamente sob Snake, derrubando-o para o subsolo.",
+      "original_scope": "Armadilha na cela da sala 189 (ActorsRoom189) com impostor disfarçado de Dr. Madnar (ator ID 55, logic/actors/fakemadnar.asm:7-65). Ao contatar o impostor, ele revela a armadilha (Texto 109, txtTrap), ativa um alçapão (ID_PITFALL em X=96, Y=128), cai no abismo e seta RescuedArray[22] = 1, revelando que o verdadeiro Dr. Madnar está confinado no segundo andar.",
       "implemented_scope": [
         "Diálogo do impostor catalogado em radio-dialogue, com mocks parciais."
       ],
@@ -6921,7 +6995,7 @@
       ],
       "rationale": "O evento possui apenas representação textual/provisória sem a consequência espacial do Z80.",
       "asm": [
-        "logic/actors/prisoner.asm:180-210"
+        "logic/actors/fakemadnar.asm:7-65 FakeMadnadLogic"
       ],
       "extractor": [],
       "data": [],
@@ -6934,7 +7008,9 @@
         "O alçapão abre sob os pés de Snake forçando queda de andar."
       ],
       "related_features": [
-        "fake-madnar-trap-dialogue"
+        "fake-madnar",
+        "fake-madnar-trap-dialogue",
+        "hazard-pitfall-trap"
       ]
     },
     {
@@ -7004,7 +7080,7 @@
       "title": "Travessia do canal de água e exigência do tanque de oxigênio",
       "domain": "progression-events",
       "status": "NOT_STARTED",
-      "original_scope": "Travessia subaquática entre o Edifício 2 e o Edifício 3 pelas salas do canal (salas 105, 110, 211, 212 na ROM, logic/nextroom.asm). Se Snake entrar no canal sem o tanque de oxigênio equipado (SelectedItem != SELECTED_OXYGEN_TANK), a barra de vida é esvaziada em alta velocidade por asfixia/afogamento, levando à morte em poucos segundos. Com o tanque equipado, o nado ocorre normalmente.",
+      "original_scope": "Travessia subaquática entre o Edifício 2 e o Edifício 3 pelas salas do canal de água profunda (salas 105, 106, 211, 212 em RoomsWater, Banks0123.asm:9273-9277). Se Snake entrar no canal sem o tanque de oxigênio equipado (SelectedItem != SELECTED_OXYGEN_TANK), a vida é esvaziada por asfixia (2 HP a cada 8 ticks em DecrementLife_C), causando afogamento. Com o tanque equipado, a travessia ocorre sem dano.",
       "implemented_scope": [
         "Não implementado no Godot. Além disso, existe conflito documentado em rooms.md: as salas 211 e 212 do canal colidem com os aliases da prisão adotados no laboratório."
       ],
@@ -7029,6 +7105,10 @@
         "Conflito de ID de sala 211/212 precisa ser resolvido antes de implementar o canal."
       ],
       "related_features": [
+        "oxygen-tank",
+        "player-deep-water",
+        "hazard-water-environment",
+        "world-water-channel-topology",
         "progression-building-transitions"
       ]
     },
@@ -7188,6 +7268,8 @@
         "LeavedOuterHeaven = 1 conclui o jogo e dispara a sequência de créditos."
       ],
       "related_features": [
+        "player-escape-ladders",
+        "world-escape-ladder-topology",
         "progression-boss-bigboss-final"
       ]
     },
@@ -7227,8 +7309,8 @@
         "MovingLorries define as salas que transportam o jogador dinamicamente."
       ],
       "related_features": [
-        "doors",
-        "rooms"
+        "world-lorry-navigation",
+        "doors"
       ]
     },
     {
@@ -7264,8 +7346,8 @@
         "Edifícios 2 e 3 estão fora do loop jogável contínuo no Godot."
       ],
       "related_features": [
-        "rooms",
-        "progression-flags-buffer"
+        "world-buildings-zones",
+        "world-cardinal-connections"
       ]
     },
     {
@@ -7463,10 +7545,9 @@
         "sandbox_gameplay.gd::change_to_room recalcula room_entry_direction se entry_dir não for explicitado comparando entry_pos.y <= 40.0. No Z80, NextRoomDirect determina a direção de entrada e PlayerDirection é mantida intacta."
       ],
       "related_features": [
-        "player-movement",
-        "player-world-collision",
-        "rooms",
-        "doors"
+        "world-cardinal-connections",
+        "world-entry-coordinates",
+        "player-movement"
       ]
     },
     {
@@ -7737,6 +7818,7 @@
       "related_features": [
         "player-movement",
         "player-deep-water",
+        "hazard-water-environment",
         "player-attack-rules"
       ]
     },
@@ -7782,7 +7864,10 @@
       "related_features": [
         "player-water-movement",
         "player-damage-life",
-        "oxygen-tank"
+        "oxygen-tank",
+        "hazard-water-environment",
+        "world-water-channel-topology",
+        "progression-water-channel-oxygen"
       ]
     },
     {
@@ -7822,7 +7907,9 @@
         "player-damage-life",
         "player-runtime-control",
         "parachute",
-        "progression-roof-parachute-jump"
+        "progression-roof-parachute-jump",
+        "hazard-roof-freefall",
+        "world-parachute-courtyard-204"
       ]
     },
     {
@@ -7863,7 +7950,8 @@
       "related_features": [
         "player-movement",
         "player-runtime-control",
-        "bomb-blast-suit"
+        "bomb-blast-suit",
+        "hazard-roof-wind"
       ]
     },
     {
@@ -7953,6 +8041,7 @@
       ],
       "related_features": [
         "player-runtime-control",
+        "world-escape-ladder-topology",
         "progression-escape-ending"
       ]
     },
@@ -8236,7 +8325,8 @@
         "player-water-movement",
         "player-deep-water",
         "oxygen-tank",
-        "rooms"
+        "world-water-channel-topology",
+        "progression-water-channel-oxygen"
       ]
     },
     {
@@ -8272,7 +8362,9 @@
       "related_features": [
         "pitfalls",
         "player-damage-life",
-        "player-death"
+        "player-death",
+        "fake-madnar",
+        "progression-fake-madnar-trap"
       ]
     },
     {
@@ -8365,7 +8457,7 @@
       "title": "Correnteza de vento do telhado e repulsão ambiental",
       "domain": "hazards-special-rooms",
       "status": "NOT_STARTED",
-      "original_scope": "Perigo ambiental de forte vento de exaustão na sala 53 (saída do elevador no telhado do Edifício 1) verificado em ChkRoofAirFlow (Banks0123.asm:9284-9325); zona de vento ativa entre coordenadas Y [50h, 60h] (80 a 96 px) e X [48h, 0C0h] (72 a 192 px); se o jogador não estiver vestindo SELECTED_BOMB_SUIT (9292-9295), o vento empurra Snake para o sul com velocidade de 3 pixels/tick em AirFlowLogic (Banks0123.asm:8587-8603) e dispara SFX 11h (SfxRoofAir); anulação completa da repulsão pelo traje Bomb Blast Suit, permitindo transitar normalmente.",
+      "original_scope": "Perigo ambiental de forte vento de exaustão na sala 53 (saída do elevador no telhado do Edifício 1) verificado em ChkRoofAirFlow (Banks0123.asm:9284-9325); zona de vento em X=[72, 191], Y=[80, 95] bloqueando o avanço sul a menos que SELECTED_BOMB_SUIT esteja equipado. O modo de controle e deslocamento de Snake é de player-roof-airflow.",
       "rationale": "A mecânica ambiental de vento na sala 53 não existe no Godot. O traje Bomb Blast Suit existe apenas como item de inventário sem função ambiental ativa.",
       "asm": [
         "Banks0123.asm:9284-9325 ChkRoofAirFlow",
@@ -8464,7 +8556,7 @@
       "title": "Queda livre do telhado e descida para o pátio exterior",
       "domain": "hazards-special-rooms",
       "status": "NOT_STARTED",
-      "original_scope": "Mecânica ambiental de salto a partir do telhado do Edifício 1 para o pátio externo na sala 204 em ChkParachute (logic/nextroom.asm:204-260); se SELECTED_PARACHUTE estiver equipado, ativa descida suave com deslocamento oscilante de 16 ticks em ParachuteLogic (Banks0123.asm:8564-8580); se o jogador saltar sem o paraquedas, aciona FreeFall (logic/nextroom.asm:227-239), aplicando dano 0xFF (morte imediata) ao atingir o solo; sala 204 como destino da descida. No Godot atual, a sala 204 é considerada limbo e suprimida em sandbox_gameplay.gd:1393.",
+      "original_scope": "Mecânica ambiental de precipitação letal nas bordas do telhado do Edifício 1 (salas 45, 46 e 117 em data/doors.asm:293-305); aciona ChkParachute (logic/nextroom.asm:204-260) ao cruzar a borda sul; sem o paraquedas equipado, aciona FreeFall (227-239) aplicando dano fatal 0xFF no impacto com o solo. A dinâmica física de descida oscilante pertence a player-freefall-parachute e a topologia pertence a world-parachute-courtyard-204.",
       "rationale": "A sala 204 é explicitamente tratada como o limbo e descartada no Godot (sandbox_gameplay.gd:1388, 1393), e o salto com ou sem paraquedas não está implementado.",
       "asm": [
         "logic/nextroom.asm:204-226 ChkParachute",
@@ -8492,7 +8584,8 @@
       "related_features": [
         "player-freefall-parachute",
         "parachute",
-        "rooms"
+        "world-parachute-courtyard-204",
+        "progression-roof-parachute-jump"
       ]
     },
     {
@@ -8523,8 +8616,8 @@
       ],
       "related_features": [
         "compass",
-        "progression-desert-crossing-compass",
-        "rooms"
+        "world-desert-navigation",
+        "progression-desert-crossing-compass"
       ]
     },
     {
@@ -8926,7 +9019,8 @@
       "related_features": [
         "hazard-roof-freefall",
         "player-freefall-parachute",
-        "progression-roof-parachute-jump"
+        "progression-roof-parachute-jump",
+        "parachute"
       ]
     },
     {
@@ -9016,6 +9110,7 @@
       "related_features": [
         "hazard-water-environment",
         "oxygen-tank",
+        "player-deep-water",
         "world-room-identity-mapping",
         "progression-water-channel-oxygen"
       ]
@@ -9025,7 +9120,7 @@
       "title": "Topologia das escadas verticais de fuga e transição pós-Metal Gear",
       "domain": "world-rooms-navigation",
       "status": "NOT_STARTED",
-      "original_scope": "Rota linear de escadas verticais de emergência após a derrota de Big Boss em data/doors.asm:730-745, logic/nextroom.asm:307-308, 581-597 (SetLadderRoomEntry), data/roomsconnections.asm:149-152 e logic/ending.asm; na sala 119 (Big Boss), a porta 6Bh leva à sala 224; SetLadderRoomEntry ativa PlayerControlMod = 6 (Ladders room mode), direção esquerda (DIR_LEFT), PlayerY = 9Eh (158.0) e PlayerX = 0D8h (216.0); as salas de escada 224 -> 225 -> 226 -> 227 conectam-se verticalmente de baixo para cima (Room - 82); na sala 227, o topo da escada aciona a cutscene final de destruição na sala 251 (EndingSetup).",
+      "original_scope": "Rota linear de escadas verticais de emergência após a derrota de Big Boss em data/doors.asm:730-745, data/roomsconnections.asm:149-151 e Banks0123.asm:9473-9486 (ChkLadderLimits): sequência das salas 224 -> 225 -> 226; a sala 226 é a última sala de escada canônica (cp 226 em Banks0123.asm:9477), cujo topo (Y < 16) dispara SetLeavedOuterH e a transição para a sequência final de fuga (EndingSetup, sala 251).",
       "rationale": "A sala 227 é uma das 16 salas não decodificadas em data/extracted/en-eu-rc750/rooms/; a porta 6Bh, o modo de escalada de escadas verticais e a transição final de fuga para a sala 251 não existem no sandbox do Godot.",
       "asm": [
         "data/doors.asm:730-745",
@@ -9294,7 +9389,7 @@
       "notes": [
         "Domínio estritamente focado no sistema de comunicação por rádio, seleção/despacho de mensagens e motor de caixas de texto.",
         "Não possui IDs numéricos de entidade (actor_ids, weapon_ids, etc.); cada feature cobre uma mecânica ou subsistema funcional transversal.",
-        "Nenhuma feature foi promovida a IMPLEMENTED porque todos os sistemas de diálogo e rádio atuais possuem pendências concretas: strings hardcoded parafraseadas, ausência de motor unificado de caixas de texto ou ausência de condições canônicas do Z80.",
+        "Na revisão inicial da auditoria estática, nenhuma feature havia sido promovida a IMPLEMENTED; posteriormente o núcleo do rádio (v0.2.3) promoveu 7 features a IMPLEMENTED com base na ROM canônica e testes tick a tick.",
         "Features legadas 'radio' e 'text-window' foram integradas ao domínio radio-dialogue para manter referências cruzadas existentes de outros domínios intactas.",
         "Status UNMAPPED atribuído à verificação de Text ID 15 e MadnarMoved em ChkReplyMadnar por ser código anômalo/morto sem correspondência em radiocalls.asm."
       ]

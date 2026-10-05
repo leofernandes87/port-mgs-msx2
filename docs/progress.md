@@ -3,25 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
-
-**Feito:** `tools/extractors/extract_radio_dialogue.py` lê da ROM canônica `idxRoomRadio`/`RadioRoom_*`,
-`RadioFreqs`, `RoomsMusic` (bit 3), `idxMapZones` e os 45 textos ingleses usados (quebras FD/FE),
-com 6 assinaturas Z80 únicas; `Reference.add` ganhou `transform` (ramo `ELSE` de `IF (JAPANESE)`).
-Saída local `radio/radio_dialogue.json`: 60 salas com rádio, 17 com chamada. `radio_system.gd`
-reescrito tick a tick: `UpdateRadio`, `ChkRadioCalls`, `ChkIncomingCall` (32 + 58h ticks),
-`RadioLogic`, `ChgRadioFreq` em BCD, `ChkRadioReceiv` e `ChkRadioReply`
-(`Banks0123.asm:1688-1745,2379-2461,10676-11165`, `logic/incomingcall.asm:10-36`, `logic/items.asm:159-170`).
-`radio_dialog.gd` é dirigido por `radio_tick`; textos inventados e tabela local removidos.
-Sandbox: `enter_room` nas trocas de sala, CALL por tick fora de modais, antena e classe sincronizadas.
-**Testes:** `radio_system_test.gd` reescrito (ticks calculados do asm, pessoas sintéticas, cruzamento
-com o JSON e integração no sandbox); `tests/test_radio_dialogue_extractor.py` (5, fixtures sintéticas);
-`test_region_tools.py` agora confronta o JSON extraído com parse independente do asm (60 salas, CALL).
-`python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 164 testes Python.
-**Pendências:** SFX só como sinal; flags `SchneiderCaptured`, `JennifBrotherDead`, `TransmiTaken`,
-`SwitchOffMSXF` e `MadnarMoved` sem produtor; texto 2 da intro ainda hardcoded; 120.77 do final.
-**Git:** commit `feat(radio)` com tag `v0.2.3`, sem push; `godot/project.godot` preservado.
-
 ## 2026-10-05 — Inventário progressivo: eventos de campanha e progressão global
 
 **Feito:** inventário Z80 da edição inglesa antes do cruzamento com Godot, extrações e testes.
@@ -64,4 +45,11 @@ Evidência: `data/rooms.asm:7-267`, `data/roomsconnections.asm:7-162`, `logic/ne
 Divergências registradas: salas 211/212 mascaradas por `local-aliases/` no Godot (aliases da cela 165 e sala de equipamento 164 com saídas bloqueadas, em vez do canal de água que conecta Prédio 2 ao Prédio 3); sala 204 tratada como "o limbo" e bloqueada no Godot em vez da descida de paraquedas para os pátios 5/6/10; caminhões com trânsito dinâmico não implementados; loop do deserto (sala 103) contornado no Godot sem checagem de Compass; comando `lookup room` adicionado a `tools/context/lookup.py`. Nenhum arquivo de gameplay alterado.
 **Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 165 testes Python; `build_index --check`: exit 0.
 **Pendências:** resolução estrutural dos IDs 211/212 e implementação da navegação de caminhões, canal e paraquedas sob demanda.
+**Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
+
+## 2026-10-05 — Normalização de consistência e ownership do catálogo canônico
+
+**Feito:** auditoria global de consistência em `docs/index/mechanics.json`. Fatos canônicos corrigidos contra a desmontagem Z80: antena por posse (`AntennaTaken != 0`), paraquedas com origem nas salas 45/46/117 e pouso nos pátios 5/6/10, canal de água profunda nas salas 105/106/211/212, vento da sala 53 empurrando para o norte (Y -= 3), Falso Madnar na cela 189 com ator 55 e Texto 109 (`txtTrap`), deserto com loop na sala 103, escadas de fuga concluindo na sala 226 com gatilho `SetLeavedOuterH`. Features legadas saneadas: `rooms` absorvido/estreitado para apontar para `world-room-identity-mapping` e conexões (com migração de 8 referências); `doors`, `game-loop`, `alert`, `hud` e `intro-title` delimitados; sobreposições de `rank-prisoners` e `elevators` estreitadas; nota histórica em `audits["radio-dialogue"]` contextualizada; dezenas de arestas bidirecionais adicionadas. Nenhum arquivo de gameplay alterado.
+**Testes:** `python3 tools/validate.py`: exit 0, 38 etapas PASS, 165 testes Python; `build_index --check`: exit 0.
+**Pendências:** expansão de `scenes-flow` adotando `game-loop` e `intro-title`.
 **Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.

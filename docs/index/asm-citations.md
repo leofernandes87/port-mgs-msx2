@@ -252,6 +252,8 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 9369-9411: docs/index/mechanics.json
 - 9418: docs/reverse_engineering/movement-and-collision.md, docs/reverse_engineering/stage-6-room-transitions.md, godot/scripts/systems/room_manager.gd
 - 9418-9441: docs/index/mechanics.json
+- 9473-9486: docs/index/mechanics.json
+- 9477: docs/index/mechanics.json
 - 9520-9527: docs/index/mechanics.json
 - 9549: docs/reverse_engineering/movement-and-collision.md
 - 9549-9565: docs/index/mechanics.json
@@ -607,6 +609,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 113-114: docs/index/mechanics.json, docs/index/rooms.md
 - 133-135: docs/index/mechanics.json
 - 136-137: docs/index/mechanics.json
+- 149-151: docs/index/mechanics.json
 - 149-152: docs/index/mechanics.json
 - 152-162: docs/index/mechanics.json, godot/scripts/systems/elevator_system.gd
 
@@ -633,7 +636,6 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 58: docs/index/mechanics.json
 - 59: docs/index/mechanics.json
 - 64: docs/reverse_engineering/grey-fox-dialogue.md, tools/extractors/extract_grey_fox_dialogue.py
-- 90: docs/index/mechanics.json
 - 155: docs/index/mechanics.json
 - 156: docs/index/mechanics.json
 - 167: docs/index/mechanics.json
@@ -644,6 +646,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 191: docs/index/mechanics.json
 - 193: docs/index/mechanics.json
 - 203-228: docs/index/mechanics.json
+- 370: docs/index/mechanics.json
 
 ## data/textsjp.asm
 - arquivo: docs/reverse_engineering/en-eu-reextraction.md, docs/reverse_engineering/inventory-and-events.md
@@ -794,6 +797,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 ## logic/actors/fakemadnar.asm
 - 7-65: docs/index/mechanics.json
 - 30-45: docs/index/mechanics.json
+- 39-44: docs/index/mechanics.json
 - 41: docs/index/mechanics.json
 
 ## logic/actors/firetropper.asm
@@ -924,7 +928,6 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 112-250: docs/index/mechanics.json
 - 151-168: docs/index/mechanics.json
 - 152-170: docs/index/mechanics.json
-- 180-210: docs/index/mechanics.json
 - 181-190: docs/index/mechanics.json
 - 212-223: docs/index/mechanics.json
 - 244-256: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/scenes/sandbox_gameplay.gd
@@ -1181,6 +1184,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 ## logic/elevatorroom.asm
 - arquivo: docs/index/mechanics.json, docs/reverse_engineering/stage-3-results.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/elevator_system.gd, tools/extractors/reference.py
 - 7-36: docs/index/mechanics.json
+- 7-70: docs/index/mechanics.json
 - 7-227: docs/index/mechanics.json
 - 41-70: docs/index/mechanics.json
 - 227-241: godot/scripts/systems/elevator_cabin.gd
@@ -1356,7 +1360,6 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 204-260: docs/index/mechanics.json
 - 204-285: docs/index/mechanics.json
 - 209: docs/index/mechanics.json
-- 227-238: docs/index/mechanics.json
 - 227-239: docs/index/mechanics.json
 - 250-280: docs/index/mechanics.json
 - 262-273: docs/index/mechanics.json
@@ -1374,7 +1377,6 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 393-456: docs/index/mechanics.json
 - 397-482: docs/index/mechanics.json
 - 398-453: docs/reverse_engineering/prison-wall.md, godot/scripts/scenes/sandbox_gameplay.gd
-- 410-435: docs/index/mechanics.json
 - 418-453: docs/reverse_engineering/stage-10-lorries-and-canonical-items.md
 - 457-480: docs/index/mechanics.json, godot/scripts/systems/door.gd, godot/tests/building_doors_test.gd
 - 463: docs/index/mechanics.json
