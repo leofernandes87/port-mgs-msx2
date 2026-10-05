@@ -4101,3 +4101,1124 @@ Inventário original primeiro a partir da desmontagem canônica inglesa (Banks01
 **Faltante / não comprovado:** O ator do Falso Madnar não existe; a fala é exibida como refém comum em dialog_banner_label; não utiliza caixa unskippable nem aciona a armadilha de alçapão sincronizada.
 
 **Notas de evidência:** SetTextUnskippable acionado em fakemadnar.asm:41; abertura de alçapão ocorre durante a fala.
+
+## Progressão global, flags de evento, desbloqueios e transições de campanha
+
+Auditoria: 2026-10-04; HEAD de partida: `13d74a0`; referência inglesa: `30d1b940bede10fdabbaf9767ad4f0ad8dd33291`.
+
+Inventário das rotinas, flags e eventos de progressão global da edição inglesa RC750 (JAPANESE equ 0): buffer de persistência e checkpoints (GameProgressBuffer, SaveStatRooms), ciclo de Game Over e Continue (GS_GameOver, ChkContinueKey), patentes militares (Class/Rank ★1 a ★4) e penalidade por morte de refém (DowngradeRank), cadeia de captura na sala 8 e fuga da prisão (salas 165/164), restituição de equipamentos e transmissor (ITEM_BAG), resgate dos reféns essenciais (Grey Fox, Ellen, Madnar), consequências da derrota de todos os bosses (Shoot Gunner, Machine Gun Kid, Hind-D, Tank, Bulldozer, Fire Trooper, Arnolds com Cartão 7, Metal Gear e Big Boss), portas e passagens dependentes de eventos (porta de entrada do Edifício 2, porta da bússola, porta do Metal Gear e Big Boss), travessias de perigo com requisitos de equipamento (paraquedas no telhado, bússola no deserto, antena no Edifício 2, tanque de oxigênio no canal), traição de Big Boss (sala 111), contagem regressiva de autodestruição (DecNukeTimer), fuga e encerramento (EndingSetup), caminhões móveis (MovingLorries) e rede de 11 elevadores. Exclui combate detalhado coberto em actors-bosses, inventário detalhado coberto em weapons-items e diálogos cobertos em radio-dialogue.
+
+Inventário inicial a partir da desmontagem canônica inglesa (logic/checkpoints.asm, logic/capturescene.asm, logic/doors/opendoor.asm, logic/items.asm, logic/nextroom.asm, logic/lorry.asm, logic/elevatorroom.asm, logic/madnarbigbossevent.asm, logic/destructiontimer.asm, logic/ending.asm, logic/actors/*.asm, Banks0123.asm, Variables.asm). Cruzamento com sistemas Godot (sandbox_gameplay.gd, capture_system.gd, capture_cutscene.gd, prison_wall_door.gd, rank_system.gd, elevator_system.gd, room_manager.gd), extratores, testes automatizados e histórico. Classificação segundo os 7 statuses sem promover a IMPLEMENTED sem suporte à persistência de campanha. Sem alterações de código de gameplay nesta tarefa.
+
+- Domínio focado na amarração macro da campanha, persistência de checkpoints, flags globais, condições de desbloqueio e transições de estado.
+- Integrou as mecânicas legadas 'capture-prison' e 'elevators' para manter referências cruzadas existentes intactas.
+- Identificado conflito crítico de IDs de salas 211/212 (aliases locais de prisão vs salas reais de canal de água da ROM) que representa risco grave de softlock na progressão para o Edifício 3.
+- Zero features IMPLEMENTED: o projeto atual é um sandbox de salas do Edifício 1 com testes de mecânicas isoladas; não possui a máquina de estados contínua necessária para um playthrough do início ao fim.
+
+| Status | Features |
+| --- | ---: |
+| `IMPLEMENTED` | 0 |
+| `PARTIAL` | 4 |
+| `PROVISIONAL` | 5 |
+| `NOT_STARTED` | 24 |
+| `DEFERRED` | 0 |
+| `UNMAPPED` | 0 |
+| `INVESTIGATING` | 0 |
+| Total | 33 |
+
+### Entradas
+
+| Feature | IDs | Status |
+| --- | --- | --- |
+| [elevators](#elevators) — Rede de 11 eixos de elevadores conectando andares dos 3 edifícios | transversal | `PARTIAL` |
+| [capture-prison](#capture-prison) — Captura na Sala 8, encarceramento na cela e fuga da prisão | transversal | `PARTIAL` |
+| [progression-flags-buffer](#progression-flags-buffer) — Buffer canônico de persistência e checkpoints (GameProgressBuffer) | transversal | `NOT_STARTED` |
+| [progression-game-over-continue](#progression-game-over-continue) — Ciclo de Game Over e Continue com restauração de checkpoint | transversal | `NOT_STARTED` |
+| [progression-rank-stars](#progression-rank-stars) — Patente militar (Rank ★1 a ★4) e requisitos de progressão | transversal | `PARTIAL` |
+| [progression-hostage-penalty-downgrade](#progression-hostage-penalty-downgrade) — Penalidade por morte de refém, rebaixamento de rank e reset de prisioneiros | transversal | `PROVISIONAL` |
+| [progression-grey-fox-rescue](#progression-grey-fox-rescue) — Resgate de Grey Fox na prisão e revelação de Dr. Madnar | transversal | `PROVISIONAL` |
+| [progression-equipment-recovery](#progression-equipment-recovery) — Recuperação de equipamentos na bolsa e inserção do transmissor | transversal | `PROVISIONAL` |
+| [progression-boss-shotgunner](#progression-boss-shotgunner) — Derrota de Shoot Gunner na Sala 57 e destrancamento do subsolo | transversal | `PROVISIONAL` |
+| [progression-boss-machinegunkid](#progression-boss-machinegunkid) — Derrota de Machine Gun Kid na Sala 39 e destrancamento do refém do telhado | transversal | `NOT_STARTED` |
+| [progression-boss-hind-d](#progression-boss-hind-d) — Destruição de Hind-D no telhado do Edifício 1 | transversal | `NOT_STARTED` |
+| [progression-roof-parachute-jump](#progression-roof-parachute-jump) — Salto de paraquedas do telhado para o pátio vs queda mortal | transversal | `NOT_STARTED` |
+| [progression-desert-crossing-compass](#progression-desert-crossing-compass) — Travessia do labirinto do deserto e exigência da bússola | transversal | `NOT_STARTED` |
+| [progression-boss-tank](#progression-boss-tank) — Derrota do Tanque no deserto e abertura do caminho para o Edifício 2 | transversal | `NOT_STARTED` |
+| [progression-building2-entrance-door](#progression-building2-entrance-door) — Abertura da porta trancada de entrada do Edifício 2 pelos guardas | transversal | `NOT_STARTED` |
+| [progression-antenna-requirement](#progression-antenna-requirement) — Requisito da Antena equipada para comunicação no Edifício 2 | transversal | `NOT_STARTED` |
+| [progression-boss-bulldozer](#progression-boss-bulldozer) — Derrota do Bulldozer no Edifício 2 e liberação do corredor | transversal | `NOT_STARTED` |
+| [progression-jennifer-compass-door](#progression-jennifer-compass-door) — Abertura remota da porta da bússola por Jennifer via rádio | transversal | `NOT_STARTED` |
+| [progression-jennifer-rocket-launcher](#progression-jennifer-rocket-launcher) — Concessão do lançador de foguetes por Jennifer | transversal | `NOT_STARTED` |
+| [progression-boss-firetrooper](#progression-boss-firetrooper) — Derrota de Fire Trooper no subsolo do Edifício 2 | transversal | `NOT_STARTED` |
+| [progression-ellen-rescue](#progression-ellen-rescue) — Resgate de Ellen e pré-requisito de cooperação de Madnar | transversal | `NOT_STARTED` |
+| [progression-madnar-rescue-formula](#progression-madnar-rescue-formula) — Resgate de Dr. Madnar e revelação da fórmula de destruição do Metal Gear | transversal | `NOT_STARTED` |
+| [progression-fake-madnar-trap](#progression-fake-madnar-trap) — Armadilha do Falso Madnar e acionamento de alçapão | transversal | `PROVISIONAL` |
+| [progression-madnar-moved-event](#progression-madnar-moved-event) — Evento da cela vazia na Sala 133 ('Madnar foi transferido') | transversal | `NOT_STARTED` |
+| [progression-schneider-captured-event](#progression-schneider-captured-event) — Evento de captura de Schneider durante transmissão de rádio | transversal | `NOT_STARTED` |
+| [progression-water-channel-oxygen](#progression-water-channel-oxygen) — Travessia do canal de água e exigência do tanque de oxigênio | transversal | `NOT_STARTED` |
+| [progression-boss-arnolds-card7](#progression-boss-arnolds-card7) — Derrota dos ciborgues Arnolds na Sala 104 e obtenção do Cartão 7 | transversal | `NOT_STARTED` |
+| [progression-bigboss-betrayal-switchoff](#progression-bigboss-betrayal-switchoff) — Traição de Big Boss na Sala 111 e ordem para desligar o MSX | transversal | `NOT_STARTED` |
+| [progression-metalgear-destruction](#progression-metalgear-destruction) — Destruição do Metal Gear com 16 C4 e ativação da autodestruição | transversal | `NOT_STARTED` |
+| [progression-boss-bigboss-final](#progression-boss-bigboss-final) — Confronto final com Big Boss na Sala 119 e abertura da escada de fuga | transversal | `NOT_STARTED` |
+| [progression-escape-ending](#progression-escape-ending) — Fuga pela escada de escape, evasão de Outer Heaven e créditos finais | transversal | `NOT_STARTED` |
+| [progression-moving-lorries-transport](#progression-moving-lorries-transport) — Rede de caminhões móveis e transporte entre setores (Moving Lorries) | transversal | `PARTIAL` |
+| [progression-building-transitions](#progression-building-transitions) — Cadeia global de transição entre edifícios (Edifício 1 -> 2 -> 3) | transversal | `NOT_STARTED` |
+
+### UNMAPPED
+
+Nenhuma entrada.
+
+<a id="elevators"></a>
+### Rede de 11 eixos de elevadores conectando andares dos 3 edifícios
+
+`elevators` · **PARTIAL**
+
+**Original:** Rede de 11 eixos verticais de elevadores conectando andares dos 3 edifícios (salas 240 a 250, data/elevatorrooms.asm, logic/elevatorroom.asm:7-227, logic/nextroom.asm:74-94). Movimento da cabine a 1 px/tick com direcional cima/baixo, transição contínua entre shafts verticais (ElevatorExitRoom) e parada nos andares autorizados da campanha (1F, 2F, 3F, B1, Telhado).
+
+**Classificação:** Sistema de elevadores bem modelado no Godot, mas com integração e cobertura parciais em relação ao conjunto de edifícios do jogo completo.
+
+**Assembly:** logic/elevatorroom.asm:7-36 ElevatorRoomLogic; logic/elevatorroom.asm:41-70 MoveElevator; logic/nextroom.asm:74-94
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/elevator_system.gd; godot/scripts/systems/elevator_cabin.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_transition_elevator_room
+
+**Testes existentes:** godot-elevator
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-21 — Fix: Transição Contínua Vertical de Shafts de Elevadores Multi-Telas (Salas 241 <-> 242)
+
+**Implementado:** elevator_system.gd e elevator_cabin.gd implementam movimentação de cabine, shafts conectados e transição de tela em sandbox_gameplay.gd.
+
+**Faltante / não comprovado:** Nem todos os 11 eixos da ROM estão integrados e validados no fluxo contínuo de campanha; conexão com salas superiores do Edifício 2 e Edifício 3 não coberta nos testes.
+
+**Notas de evidência:** Salas 240 a 250 cobrem todos os eixos de elevador de Outer Heaven.
+
+
+<a id="capture-prison"></a>
+### Captura na Sala 8, encarceramento na cela e fuga da prisão
+
+`capture-prison` · **PARTIAL**
+
+**Original:** Ao cruzar a zona X=[192, 208] na sala 8, dispara CaptureSceneLogic (logic/capturescene.asm:8-118): guarda diz 'DON'T MOVE!', trava inputs, fade-out, confisca armas e itens (EquipRemoved = 1, SelectedWeapon = 0, SelectedItem = 0), teletransporta Snake para a cela na sala 165 em (128, 80). Fuga exige socar a parede oca leste da cela (porta 103, PrisonWall1Life) para alcançar a cela vizinha de Grey Fox (sala 164), e em seguida socar a parede sul (porta 12, PrisonWall2Life) para abrir a passagem para o subsolo (sala 54).
+
+**Classificação:** Cadeia completa e funcional no sandbox, mas com conflito documentado de room IDs (211/212 vs canal da ROM) e aproximações temporais.
+
+**Assembly:** logic/capturescene.asm:8-18 CaptureSceneLogic; logic/capturescene.asm:87-118 PutInPrison; logic/doors/opendoor.asm:285-319 ChkPrisonWalls; logic/doors/drawdoors.asm:262-319 DrawWallPrison2
+
+**Extractors:** tools/extractors/extract_capture_prison_data.py; tools/extractors/extract_prison_wall.py
+
+**Dados canônicos locais:** capture_prison.json; prison-walls/
+
+**Godot relacionado:** godot/scripts/systems/capture_system.gd; godot/scripts/systems/capture_cutscene.gd; godot/scripts/systems/prison_wall_door.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_trigger_capture_event; godot/scripts/scenes/sandbox_gameplay.gd::break_prison_wall
+
+**Testes existentes:** godot-capture-prison; godot-prison-wall; tests/test_prison_wall_extractor.py
+
+**Documentação:** docs/reverse_engineering/prison-wall.md; docs/index/rooms.md
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-01 — Implementação da Animação Canônica de Captura na Sala 8 e Transporte para Cela 211; docs/progress/2026-10.md::2026-10-02 — Parede original da cela de captura
+
+**Implementado:** Implementado em capture_cutscene.gd, capture_system.gd, prison_wall_door.gd e sandbox_gameplay.gd: detecção na sala 8, cutscene com fade, confisco de inventário, teletransporte para cela e mecânica de soco que abre as portas 103 e 12.
+
+**Faltante / não comprovado:** O Godot utiliza salas 211 e 212 como aliases locais da prisão em vez das salas originais 165 e 164, conflitando com salas reais de canal da ROM; temporização da cutscene diverge do Z80; resistência das paredes utiliza constantes desacopladas dos ticks do Z80.
+
+**Notas de evidência:** Na ROM original a prisão é a sala 165 e a cela de Grey Fox é a 164. Aliases locais 211/212 causam colisão com as salas de canal.
+
+
+<a id="progression-flags-buffer"></a>
+### Buffer canônico de persistência e checkpoints (GameProgressBuffer)
+
+`progression-flags-buffer` · **NOT_STARTED**
+
+**Original:** Buffer de 544 bytes (0x220) em GameProgressBuffer (Variables.asm:365) salvo em ChkSaveGameStatus / StoreGameStat (logic/checkpoints.asm:10-127) ao passar entre 31 pares de salas de checkpoint (SaveStatRooms). Persiste vida, classe/rank, munição, status de todas as 216 portas (DoorOpenArray), inventário completo (Equipment), status de todos os 23 reféns (RescuedArray), flags de bosses derrotados (BossHindD_KO, BossTank_KO, Bulldozer_KO, MetalGear_KO, FireTrooper_KO, ShotGunnerStat, MachGunStatus, BigBossStat) e flags de eventos (PowerSwitchOn, DoorBuild2LockedF, JennifBrotherDead, MadnarMoved, JeniRocketF, SchneiderCaptured, JeniOpenDoorF, SwitchOffMSXF). Gravação é permanentemente suspensa após MetalGear_KO.
+
+**Classificação:** O Godot gerencia estados de salas de forma fragmentada e recria entidades em cada troca de sala sem a matriz canônica de 544 bytes do Z80.
+
+**Assembly:** logic/checkpoints.asm:10-36 ChkSaveGameStatus; logic/checkpoints.asm:59-103 StoreGameStat; logic/checkpoints.asm:114-126; logic/checkpoints.asm:134-164
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não há buffer de persistência unificado nem tabela de checkpoints da ROM.
+
+**Faltante / não comprovado:** GameProgressBuffer, serialização por GameDataAreas, tabela SaveStatRooms com 31 checkpoints e bloqueio pós-Metal Gear não implementados.
+
+**Notas de evidência:** Checkpoints dependem de pares exatos de transição em SaveStatRooms; serialização ldir com 6 blocos de RAM.
+
+
+<a id="progression-game-over-continue"></a>
+### Ciclo de Game Over e Continue com restauração de checkpoint
+
+`progression-game-over-continue` · **NOT_STARTED**
+
+**Original:** Ao esgotar a vida (Life = 0), aciona modo de morte SetDead (Banks0123.asm:10410-10500, GS_GameOver). Exibe mensagem GAME OVER e aguarda tecla F5 (ChkContinueKey). Se confirmado (RestoreGameFlag = 1), chama RestoreGameStat (logic/checkpoints.asm:44-51), desempacotando GameProgressBuffer e restabelecendo o jogador no último checkpoint salvo com vida e inventário persistidos. Se recusado, reinicia a partida do zero na sala 121.
+
+**Classificação:** Fluxo de Game Over existe apenas como rotina simplificada de reinício sem o protocolo de Continue e restauração de checkpoint do Z80.
+
+**Assembly:** Banks0123.asm:10410-10430 GS_GameOver; Banks0123.asm:10435-10455 ChkContinueKey; logic/checkpoints.asm:44-51 RestoreGameStat
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::trigger_game_over; godot/scripts/scenes/sandbox_gameplay.gd::_execute_game_restart
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** sandbox_gameplay.gd possui trigger_game_over e _execute_game_restart, com reinício direto do jogador na sala de spawn.
+
+**Faltante / não comprovado:** Não existe diálogo de Continue via F5 nem restauração do checkpoint a partir do buffer serializado; morte resulta em reinício manual/debug na sala 121 ou reset local sem persistência canônica.
+
+**Notas de evidência:** RestoreGameStat recarrega o estado salvo em GameProgressBuffer e posiciona Snake na sala anterior do checkpoint.
+
+
+<a id="progression-rank-stars"></a>
+### Patente militar (Rank ★1 a ★4) e requisitos de progressão
+
+`progression-rank-stars` · **PARTIAL**
+
+**Original:** Variável Class (Variables.asm:81, 0 a 3 = ★1 a ★4). Incremento ocorre estritamente a cada 5 prisioneiros resgatados em IncRescued (Banks0123.asm:9634-9653, cp 5; inc (hl); SFX 26h). Aumenta barra de vida (24/32/40/48 px via UpdateLevels), limite de munição (Handgun 50/100/200/300) e rações (3/6/9/12). Rank ★4 é requisito indispensável para desbloquear Jennifer no rádio (120.48), permitindo abrir a porta da bússola e obter o lançador de foguetes.
+
+**Classificação:** Estrutura existe e funciona, mas com divergência numérica canônica (4 vs 5 reféns por estrela) e sem a amarração completa de bloqueio de campanha.
+
+**Assembly:** Banks0123.asm:9634-9653 IncRescued
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/rank_system.gd; godot/scripts/systems/hud.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_on_prisoner_rescued; godot/scripts/systems/rank_system.gd::register_rescue
+
+**Testes existentes:** godot-rank-and-prisoners
+
+**Documentação:** docs/reverse_engineering/grey-fox-dialogue.md
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-21 — Etapa 19: Sistema de Prisioneiros, Reféns e Patente Militar (Ranks ★1 a ★4)
+
+**Implementado:** rank_system.gd implementa patentes 1 a 4, cálculo de vida máxima (24 a 48), capacidade de munição e rações, com sinal rank_changed integrado ao HUD.
+
+**Faltante / não comprovado:** rank_system.gd define RESCUED_PER_RANK = 4 em vez do valor canônico da ROM que é 5 (cp 5 em Banks0123.asm:9638); o rádio no Godot ainda não bloqueia Jennifer por rank de forma reativa estrita.
+
+**Notas de evidência:** cp 5 em Banks0123.asm:9638 define que são necessários 5 reféns por estrela.
+
+
+<a id="progression-hostage-penalty-downgrade"></a>
+### Penalidade por morte de refém, rebaixamento de rank e reset de prisioneiros
+
+`progression-hostage-penalty-downgrade` · **PROVISIONAL**
+
+**Original:** Ao matar um refém com tiros ou socos, DowngradeRank (Banks0123.asm:9580-9625) zera RescuedCnt, reseta o status de resgate dos últimos 17 prisioneiros em RescuedArray (ldir preservando apenas os 6 primeiros e o irmão de Jennifer), decrementa Class (se > 0), reduz a vida máxima e capacidades de munição/rações, e toca SFX 27h. Se o refém assassinado for o irmão de Jennifer (prisioneiro 13 / 0Dh), Jennifer corta contato permanentemente pelo resto da campanha (JennifBrotherDead = 1).
+
+**Classificação:** Implementação provisória apenas reduz um contador local sem reproduzir a lógica de penalidade persistente e consequências narrativas do original.
+
+**Assembly:** Banks0123.asm:9580-9625 DowngradeRank
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/rank_system.gd
+
+**Integração inspecionada:** godot/scripts/systems/rank_system.gd::downgrade_rank
+
+**Testes existentes:** godot-rank-and-prisoners
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-21 — Etapa 19: Sistema de Prisioneiros, Reféns e Patente Militar (Ranks ★1 a ★4)
+
+**Implementado:** rank_system.gd possui método downgrade_rank() que decrementa current_rank e emite rank_changed.
+
+**Faltante / não comprovado:** Não executa o reset canônico dos 17 prisioneiros em RescuedArray para permitir re-resgate; não detecta a morte do irmão de Jennifer nem seta JennifBrotherDead; não ajusta vida atual para o novo teto.
+
+**Notas de evidência:** Reset de 17 reféns é punição severa do MSX2 que exige resgatar novamente prisioneiros de salas já visitadas.
+
+
+<a id="progression-grey-fox-rescue"></a>
+### Resgate de Grey Fox na prisão e revelação de Dr. Madnar
+
+`progression-grey-fox-rescue` · **PROVISIONAL**
+
+**Original:** Resgate do agente Grey Fox na cela adjacente (sala 164 / alias 212) após quebrar a primeira parede oca (logic/actors/prisoner.asm:95-120, RescuedArray[22]). Grey Fox revela a existência do Metal Gear e que seu criador Dr. Pettrovich Madnar está preso no complexo. Seta a flag de resgate do prisioneiro 22, contribuindo para a contagem de patentes militares e registrando o avanço narrativo.
+
+**Classificação:** O evento ocorre visualmente e o diálogo é fiel à edição inglesa, mas a persistência no estado global da campanha é provisória em nós GDScript.
+
+**Assembly:** logic/actors/prisoner.asm:95-120
+
+**Extractors:** tools/extractors/extract_grey_fox_dialogue.py
+
+**Dados canônicos locais:** dialogues/grey-fox-en.json
+
+**Godot relacionado:** godot/scripts/systems/prisoner_dialog.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_on_prisoner_rescued
+
+**Testes existentes:** tests/test_grey_fox_dialogue.py; godot-prisoner-dialog
+
+**Documentação:** docs/reverse_engineering/grey-fox-dialogue.md
+
+**Histórico consultado:** docs/progress/2026-10.md::2026-10-04 — Registro do diálogo de Grey Fox
+
+**Implementado:** Diálogo canônico de Grey Fox extraído da ROM e integrado na sala 212 via prisoner_dialog.gd e sandbox_gameplay.gd, com fala e desbloqueio.
+
+**Faltante / não comprovado:** Não persiste o resgate na posição canônica RescuedArray[22]; status é mantido apenas em dicionário de strings em GDScript; não consome o sistema unificado de flags da campanha.
+
+**Notas de evidência:** Grey Fox é o refém índice 22 no array canônico RescuedArray.
+
+
+<a id="progression-equipment-recovery"></a>
+### Recuperação de equipamentos na bolsa e inserção do transmissor
+
+`progression-equipment-recovery` · **PROVISIONAL**
+
+**Original:** Recuperação das armas e itens confiscados ao coletar a bolsa (ITEM_BAG na sala 168 / subsolo, logic/items.asm:295-325, RecoverEquipment). Seta EquipRemoved = 0 e EquipBagTaken = 1. Consequência canônica do Z80: a rotina AddTransmitter (logic/items.asm:314-325) adiciona furtivamente o item TRANSMITTER (SELECTED_TRANSMITTER) ao inventário do jogador (TransmiTaken = 1), atraindo patrulhas até ser descartado.
+
+**Classificação:** Restituição visual e funcional das armas e itens existe, mas a consequência mecânica original de infiltração do transmissor foi ignorada.
+
+**Assembly:** logic/items.asm:295-325 RecoverEquipment
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/capture_system.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_on_equipment_restored; godot/scripts/systems/capture_system.gd::restore_equipment
+
+**Testes existentes:** godot-capture-prison
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-21 — Etapa 21: Evento de Captura na Sala 8, Cela 211, Parede Oca e Restituição de Inventário
+
+**Implementado:** capture_system.gd implementa restore_equipment() restaurando backups de armas e itens, acionado ao coletar a bolsa na sala 168.
+
+**Faltante / não comprovado:** A consequência canônica crucial foi omitida: o transmissor (TRANSMITTER) não é adicionado ao inventário, e a flag TransmiTaken não é acionada; o rádio e as patrulhas não reagem à presença do grampo.
+
+**Notas de evidência:** AddTransmitter em logic/items.asm:314 insere SELECTED_TRANSMITTER automaticamente no inventário.
+
+
+<a id="progression-boss-shotgunner"></a>
+### Derrota de Shoot Gunner na Sala 57 e destrancamento do subsolo
+
+`progression-boss-shotgunner` · **PROVISIONAL**
+
+**Original:** Derrota do chefe Shoot Gunner na sala 57 (logic/actors/shotgunner.asm:8, 59, Banks0123.asm:13001). Ao zerar a vida, ShotGunnerStat bit 0 é setado (morto). Consequência: destranca permanentemente as portas da sala 57 (portas de cartão/acesso ao subsolo), impedindo o respawn do chefe ao reentrar na sala.
+
+**Classificação:** Comportamento de combate e destrancamento de porta existe localmente, mas sem a persistência canônica do Z80.
+
+**Assembly:** logic/actors/shotgunner.asm:55-65; Banks0123.asm:13001
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/scenes/sandbox_gameplay.gd; godot/scripts/systems/shot_gunner.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_on_boss_defeated
+
+**Testes existentes:** godot-boss-shoot-gunner
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 18 concluída: Boss Fight Canônica — Shoot Gunner (Sala 57)
+
+**Implementado:** sandbox_gameplay.gd:2998-3022 registra defeated_bosses[33] = true, destranca portas com LOCKED_BOSS e exibe mensagem de vitória.
+
+**Faltante / não comprovado:** Flag é armazenada em dicionário local do sandbox em vez de ShotGunnerStat / GameDataArea; não persiste em checkpoints ou salvamento de sessão.
+
+**Notas de evidência:** Bit 0 de ShotGunnerStat indica chefe morto; impede reativação do combate.
+
+
+<a id="progression-boss-machinegunkid"></a>
+### Derrota de Machine Gun Kid na Sala 39 e destrancamento do refém do telhado
+
+`progression-boss-machinegunkid` · **NOT_STARTED**
+
+**Original:** Derrota de Machine Gun Kid na sala 39 (Edifício 1, 2º andar) (logic/actors/machinegunkid.asm:9, 48, Banks0123.asm:13017). Ao morrer, seta MachGunStatus bit 0 = 1, destrancando a porta para a sala traseira onde está o prisioneiro que revela a necessidade do paraquedas para descer do telhado.
+
+**Classificação:** Boss e consequências de vitória não iniciados.
+
+**Assembly:** logic/actors/machinegunkid.asm:45-55; Banks0123.asm:13017
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Combate, fala, flag MachGunStatus, destrancamento de porta e refém ausentes.
+
+**Notas de evidência:** MachGunStatus bit 0 = morto, bit 1 = fala feita.
+
+
+<a id="progression-boss-hind-d"></a>
+### Destruição de Hind-D no telhado do Edifício 1
+
+`progression-boss-hind-d` · **NOT_STARTED**
+
+**Original:** Destruição do helicóptero Hind-D na sala 63 (telhado do Edifício 1) via lançador de mísseis teleguiados (logic/actors/hindd.asm:9, 16). Ao ser abatido, seta BossHindD_KO = 1, eliminando o hazard de metralhadora contínua e liberando o tráfego seguro pelo telhado até a borda de salto.
+
+**Classificação:** Chefe e evento de progressão não iniciados.
+
+**Assembly:** logic/actors/hindd.asm:8-25
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Ator do helicóptero, colisão de míssil, flag BossHindD_KO e liberação do telhado ausentes.
+
+**Notas de evidência:** BossHindD_KO elimina o helicóptero nas visitas subsequentes.
+
+
+<a id="progression-roof-parachute-jump"></a>
+### Salto de paraquedas do telhado para o pátio vs queda mortal
+
+`progression-roof-parachute-jump` · **NOT_STARTED**
+
+**Original:** Salto pela borda sul do telhado (sala 63/241) avaliado por ChkParachute (logic/nextroom.asm:204-260). Se SelectedItem == SELECTED_PARACHUTE: Snake abre o paraquedas, cai pela sala 204 por 2 andares (HeightParachuteCnt = 2) e pousa vivo no pátio exterior (sala 10 / Yard), cancelando o alerta. Se não equipado: FreeFall (logic/nextroom.asm:227-238) derruba Snake sem paraquedas, aplicando dano letal imediato (DecrementLife_B com 0FFh) com aterrissagem morto e Game Over.
+
+**Classificação:** Evento mandatório de progressão entre o Edifício 1 e o pátio não iniciado.
+
+**Assembly:** logic/nextroom.asm:204-260 ChkParachute; Banks0123.asm:8564-8575 ParachuteLogic
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** O item paraquedas foi inventariado em weapons-items, mas a mecânica de salto, verificação de equipamento e queda livre mortal não existem no Godot.
+
+**Faltante / não comprovado:** Rotinas ChkParachute, FreeFall, contagem HeightParachuteCnt e pouso na sala 10 não implementadas.
+
+**Notas de evidência:** SelectedItem == SELECTED_PARACHUTE é a única condição que evita morte imediata na saída do telhado.
+
+
+<a id="progression-desert-crossing-compass"></a>
+### Travessia do labirinto do deserto e exigência da bússola
+
+`progression-desert-crossing-compass` · **NOT_STARTED**
+
+**Original:** Travessia das salas de deserto entre o Edifício 1 e o Edifício 2 (salas 64-68). Se Snake não estiver com a bússola (COMPASS) no inventário, a transição entre telas entra em loop infinito retornando para a mesma sala ou desviando a rota. Com a bússola no inventário, a navegação direcional é normalizada, permitindo alcançar o campo minado e o Tanque.
+
+**Classificação:** Bloqueio geográfico de progressão não iniciado.
+
+**Assembly:** logic/nextroom.asm:410-435; constants/Enums.asm:102
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Lógica de desvio/loop de deserto sem bússola e normalização com bússola ausentes.
+
+**Notas de evidência:** Exige ITEM_COMPASS no inventário para atravessar o deserto.
+
+
+<a id="progression-boss-tank"></a>
+### Derrota do Tanque no deserto e abertura do caminho para o Edifício 2
+
+`progression-boss-tank` · **NOT_STARTED**
+
+**Original:** Combate contra o Tanque na sala 69 (deserto) bloqueando o avanço norte (logic/actors/tank.asm:8, 26, 238). O Tanque é imune a armas convencionais e deve ser destruído com minas terrestres (LAND_MINE). Ao ser eliminado, seta BossTank_KO = 1, desobstruindo a passagem de areia para a entrada do Edifício 2 (sala 73).
+
+**Classificação:** Boss de transição entre edifícios não iniciado.
+
+**Assembly:** logic/actors/tank.asm:8-35; logic/actors/tank.asm:235-243
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Ator do Tanque, canhão, dano por minas, flag BossTank_KO e desobstrução da rota ausentes.
+
+**Notas de evidência:** BossTank_KO = 1 libera o avanço para a porta do segundo prédio.
+
+
+<a id="progression-building2-entrance-door"></a>
+### Abertura da porta trancada de entrada do Edifício 2 pelos guardas
+
+`progression-building2-entrance-door` · **NOT_STARTED**
+
+**Original:** A porta 14 entre o deserto (sala 69) e o Edifício 2 (sala 73) está trancada por dentro (logic/doors/opendoor.asm:215-236, ChkDesertDoorBuild2_). Ao se aproximar com uniforme ou acionar a segurança do deserto (logic/actors/desertsecurity.asm:114-134), os guardas dizem 'COME IN...' (Text 127) e abrem a porta (DoorBuild2LockedF = 1). Ao Snake entrar na sala 73, a porta tranca de novo atrás dele (DoorBuild2LockedF = 0).
+
+**Classificação:** Evento obrigatório de acesso ao segundo prédio não iniciado.
+
+**Assembly:** logic/doors/opendoor.asm:215-236 ChkDesertDoorBuild2_; logic/actors/desertsecurity.asm:114-134 DesertSecurity3
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Atores desertsecurity, rotina ChkDesertDoorBuild2_, flag DoorBuild2LockedF e ciclo de tranca imediata pós-entrada ausentes.
+
+**Notas de evidência:** DoorBuild2LockedF fecha imediatamente após Snake cruzar a porta.
+
+
+<a id="progression-antenna-requirement"></a>
+### Requisito da Antena equipada para comunicação no Edifício 2
+
+`progression-antenna-requirement` · **NOT_STARTED**
+
+**Original:** Em todas as salas do Edifício 2 e além (MapZone >= 5, Variables.asm:129), ChkRadioReply (Banks0123.asm:11043-11055) verifica se Snake está com a Antena equipada (SelectedItem == SELECTED_ANTENNA). Se não estiver, todas as frequências recebem estática e falham. Sem a antena, o jogador fica impossibilitado de contatar Jennifer ou receber instruções vitais.
+
+**Classificação:** Bloqueio de comunicação essencial da segunda metade da campanha não iniciado.
+
+**Assembly:** Banks0123.asm:11043-11055 ChkRadioReply; Variables.asm:129
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** O item antena existe no catálogo de itens, mas a checagem no transceptor não está implementada.
+
+**Faltante / não comprovado:** Validação de MapZone >= 5 e exigência de SelectedItem == SELECTED_ANTENNA no rádio não implementadas.
+
+**Notas de evidência:** MapZone >= 5 bloqueia todo o rádio sem antena.
+
+
+<a id="progression-boss-bulldozer"></a>
+### Derrota do Bulldozer no Edifício 2 e liberação do corredor
+
+`progression-boss-bulldozer` · **NOT_STARTED**
+
+**Original:** Combate contra o Bulldozer na sala 88 (Edifício 2) (logic/actors/bulldozer.asm:95-122). Trator esmagador que avança no corredor estreito; vulnerável apenas a granadas (GRENADE_LAUNCHER). Ao ser destruído, seta Bulldozer_KO = 1, liberando permanentemente o acesso ao elevador oeste do Edifício 2.
+
+**Classificação:** Chefe e consequência de avanço no Edifício 2 não iniciados.
+
+**Assembly:** logic/actors/bulldozer.asm:95-122
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Ator do Bulldozer, colisão frontal letal, dano por granada, flag Bulldozer_KO e desobstrução de corredor ausentes.
+
+**Notas de evidência:** Bulldozer_KO = 1 limpa o corredor para o elevador da sala 88.
+
+
+<a id="progression-jennifer-compass-door"></a>
+### Abertura remota da porta da bússola por Jennifer via rádio
+
+`progression-jennifer-compass-door` · **NOT_STARTED**
+
+**Original:** Desbloqueio da porta da sala 87 (Edifício 2, 2º andar) onde está guardada a bússola (logic/doors/opendoor.asm:245-256, ChkCompassDoor). Snake contata Jennifer (120.48) com Rank ★4; ao término do diálogo (Text 118, TextBoxExit em Banks0123.asm:8301-8324), seta JeniOpenDoorF = 1. A porta da sala 87 destranca, permitindo pegar a COMPASS.
+
+**Classificação:** Evento essencial para obtenção da bússola não iniciado.
+
+**Assembly:** Banks0123.asm:8301-8324 TextBoxExit; logic/doors/opendoor.asm:245-256 ChkCompassDoor
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Trigger TextBoxExit para Text 118, flag JeniOpenDoorF e rotina ChkCompassDoor não existem no Godot.
+
+**Notas de evidência:** JeniOpenDoorF = 1 abre porta 87 sem necessidade de cartão de chave.
+
+
+<a id="progression-jennifer-rocket-launcher"></a>
+### Concessão do lançador de foguetes por Jennifer
+
+`progression-jennifer-rocket-launcher` · **NOT_STARTED**
+
+**Original:** Provisão do lançador de foguetes (ROCKET_LAUNCHER) via suporte de Jennifer (Banks0123.asm:8301-8324, JeniRocketF). Após Snake resgatar o irmão de Jennifer e contatá-la com Rank ★4, Jennifer combina de arranjar a arma (Text 117). O fechamento do diálogo seta JeniRocketF = 1, fazendo o item aparecer na sala de suprimentos. Sem o foguete, os chefes Arnolds são invencíveis, gerando softlock de combate.
+
+**Classificação:** Progressão original concedia o item por evento narrativo condicional; concessão direta no Godot ignora o fluxo do Z80.
+
+**Assembly:** Banks0123.asm:8301-8324 TextBoxExit
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** O item lançador de foguetes foi adicionado ao inventário do sandbox de forma estática, mas a cadeia de evento via rádio e flag JeniRocketF não existe.
+
+**Faltante / não comprovado:** Flag JeniRocketF, trigger em TextBoxExit e spawn condicional da arma ausentes.
+
+**Notas de evidência:** JeniRocketF é acionado por Text 117 em TextBoxExit.
+
+
+<a id="progression-boss-firetrooper"></a>
+### Derrota de Fire Trooper no subsolo do Edifício 2
+
+`progression-boss-firetrooper` · **NOT_STARTED**
+
+**Original:** Derrota de Fire Trooper na sala 95 (subsolo do Edifício 2) (logic/actors/firetropper.asm:549, Banks0123.asm:12986). Boss armado com lança-chamas; vulnerável a tiros por trás. Ao ser eliminado, seta FireTrooper_KO = 1, liberando o acesso ao elevador que leva às celas de Ellen e Dr. Madnar.
+
+**Classificação:** Chefe e evento de avanço no subsolo não iniciados.
+
+**Assembly:** logic/actors/firetropper.asm:545-555; Banks0123.asm:12986
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Ator de Fire Trooper, IA de labaredas, flag FireTrooper_KO e desbloqueio de elevador ausentes.
+
+**Notas de evidência:** FireTrooper_KO = 1 desativa o chefe e labaredas no subsolo.
+
+
+<a id="progression-ellen-rescue"></a>
+### Resgate de Ellen e pré-requisito de cooperação de Madnar
+
+`progression-ellen-rescue` · **NOT_STARTED**
+
+**Original:** Resgate de Ellen (filha sequestrada de Dr. Madnar) na cela do subsolo do Edifício 2 (logic/actors/prisoner.asm:152-170, RescuedArray[20]). Condição estrita de progressão da campanha: se Snake falar com Dr. Madnar antes de salvar Ellen, Madnar recusa-se a cooperar. Resgatar Ellen seta RescuedArray[20] = 1, desbloqueando a cooperação de Madnar.
+
+**Classificação:** Pré-requisito narrativo e mecânico mandatório de campanha não iniciado.
+
+**Assembly:** logic/actors/prisoner.asm:152-170
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Refém Ellen, verificação condicional no diálogo de Madnar e flag RescuedArray[20] ausentes.
+
+**Notas de evidência:** RescuedArray[20] é checado por Madnar antes de falar do Metal Gear.
+
+
+<a id="progression-madnar-rescue-formula"></a>
+### Resgate de Dr. Madnar e revelação da fórmula de destruição do Metal Gear
+
+`progression-madnar-rescue-formula` · **NOT_STARTED**
+
+**Original:** Resgate do verdadeiro Dr. Pettrovich Madnar no subsolo do Edifício 2 após libertar Ellen (logic/actors/prisoner.asm:296-317, RescuedArray[21]). Madnar revela a sequência exata de 16 explosivos C4 necessários para destruir as pernas do Metal Gear (R, R, L, R, L, L, R, L, L, R, R, L, R, L, R, R). Seta RescuedArray[21] = 1.
+
+**Classificação:** Evento chave de resolução da missão não iniciado.
+
+**Assembly:** logic/actors/prisoner.asm:296-317
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Entidade de Madnar, validação da flag de Ellen e revelação da sequência de C4 ausentes.
+
+**Notas de evidência:** Sem Ellen salva, Madnar não entrega a sequência de 16 C4.
+
+
+<a id="progression-fake-madnar-trap"></a>
+### Armadilha do Falso Madnar e acionamento de alçapão
+
+`progression-fake-madnar-trap` · **PROVISIONAL**
+
+**Original:** Armadilha na sala 107 (Edifício 2) com impostor disfarçado de Dr. Madnar (logic/actors/prisoner.asm:180-210, data/texts.asm:90). Ao interagir, o impostor revela a farsa ('FOOLED YOU! I'M NOT MADNAR!') e um alçapão (pitfall) abre imediatamente sob Snake, derrubando-o para o subsolo.
+
+**Classificação:** O evento possui apenas representação textual/provisória sem a consequência espacial do Z80.
+
+**Assembly:** logic/actors/prisoner.asm:180-210
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Diálogo do impostor catalogado em radio-dialogue, com mocks parciais.
+
+**Faltante / não comprovado:** A consequência física de progressão (abertura imediata de alçapão com queda forçada para a sala do subsolo) não está implementada no Godot.
+
+**Notas de evidência:** O alçapão abre sob os pés de Snake forçando queda de andar.
+
+
+<a id="progression-madnar-moved-event"></a>
+### Evento da cela vazia na Sala 133 ('Madnar foi transferido')
+
+`progression-madnar-moved-event` · **NOT_STARTED**
+
+**Original:** Ao entrar na sala 133 (primeira cela onde Madnar supostamente estaria), ChkMadnarMsx (logic/madnarbigbossevent.asm:7-22, 40-55) detecta o evento se MadnarMoved == 0. Entra em modo GAME_MODE_MADNAR_MOVED (0x0C), exibe 'IT'S TOO LATE! DR. PETROVICH HAS BEEN MOVED' (Text 89) e seta MadnarMoved = 1, impedindo reativação.
+
+**Classificação:** Ponto de virada narrativo do Edifício 1 para o Edifício 2 não iniciado.
+
+**Assembly:** logic/madnarbigbossevent.asm:7-22 ChkMadnarMsx; logic/madnarbigbossevent.asm:40-55 chkMadnarLate
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Modo de jogo 0x0C, trigger da sala 133 e flag MadnarMoved ausentes.
+
+**Notas de evidência:** MadnarMoved = 1 impede reexecução da mensagem ao reentrar na sala 133.
+
+
+<a id="progression-schneider-captured-event"></a>
+### Evento de captura de Schneider durante transmissão de rádio
+
+`progression-schneider-captured-event` · **NOT_STARTED**
+
+**Original:** Em sala avançada do complexo, Schneider chama Snake no rádio revelando ter descoberto a identidade do chefe de Outer Heaven ('THIS IS MR. SCHNEIDER... I HAVE DISCOVERED WHO THE BOSS OF OUTER HEAVEN IS... OH NO!'). Ao término do diálogo (Text 138, TextBoxExit em Banks0123.asm:8301-8324), seta SchneiderCaptured = 1. A partir deste evento, Schneider nunca mais responde no rádio (retorna apenas estática).
+
+**Classificação:** Evento dramático e alteração permanente de disponibilidade de rádio não iniciados.
+
+**Assembly:** Banks0123.asm:8301-8324 TextBoxExit; Banks0123.asm:11115-11130 ChkReplySchneider
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Despacho de rádio da mensagem 138, trigger em TextBoxExit e flag SchneiderCaptured silenciando o rádio ausentes.
+
+**Notas de evidência:** SchneiderCaptured = 1 zera futuras respostas em 120.79.
+
+
+<a id="progression-water-channel-oxygen"></a>
+### Travessia do canal de água e exigência do tanque de oxigênio
+
+`progression-water-channel-oxygen` · **NOT_STARTED**
+
+**Original:** Travessia subaquática entre o Edifício 2 e o Edifício 3 pelas salas do canal (salas 105, 110, 211, 212 na ROM, logic/nextroom.asm). Se Snake entrar no canal sem o tanque de oxigênio equipado (SelectedItem != SELECTED_OXYGEN_TANK), a barra de vida é esvaziada em alta velocidade por asfixia/afogamento, levando à morte em poucos segundos. Com o tanque equipado, o nado ocorre normalmente.
+
+**Classificação:** Bloqueio fatal de progressão para o Edifício 3 não iniciado, com risco grave de softlock/conflito de salas.
+
+**Assembly:** logic/nextroom.asm:250-280; constants/Enums.asm:103
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** docs/index/rooms.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot. Além disso, existe conflito documentado em rooms.md: as salas 211 e 212 do canal colidem com os aliases da prisão adotados no laboratório.
+
+**Faltante / não comprovado:** Dano por falta de oxigênio, mecânica do canal e resolução do conflito de IDs de sala 211/212 não implementados.
+
+**Notas de evidência:** Conflito de ID de sala 211/212 precisa ser resolvido antes de implementar o canal.
+
+
+<a id="progression-boss-arnolds-card7"></a>
+### Derrota dos ciborgues Arnolds na Sala 104 e obtenção do Cartão 7
+
+`progression-boss-arnolds-card7` · **NOT_STARTED**
+
+**Original:** Combate na sala 104 (Edifício 3) contra a dupla de ciborgues Bloody Brad / Arnolds (Banks0123.asm:6112, 12950, ArnoldsCnt). Os chefes são completamente imunes a armas normais e só sofrem dano com foguetes (ROCKET_LAUNCHER). Ao derrotar os dois (ArnoldsCnt = 2), o Cartão 7 (CARD_7) surge no chão da sala. O Cartão 7 é mandatório para abrir as portas finais rumo ao subsolo do Metal Gear.
+
+**Classificação:** Boss mandatório e entrega da chave mestra do Edifício 3 não iniciados.
+
+**Assembly:** Banks0123.asm:6112; Banks0123.asm:12950
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Atores dos ciborgues, imunidade balística, contador ArnoldsCnt e spawn do Cartão 7 ausentes.
+
+**Notas de evidência:** CARD_7 é gerado no chão somente após eliminar ambos os ciborgues.
+
+
+<a id="progression-bigboss-betrayal-switchoff"></a>
+### Traição de Big Boss na Sala 111 e ordem para desligar o MSX
+
+`progression-bigboss-betrayal-switchoff` · **NOT_STARTED**
+
+**Original:** Ao adentrar a sala 111 (subsolo do Edifício 3), ChkSwitchMsxOff (logic/madnarbigbossevent.asm:27-35) detecta a sala e seta SwitchOffMSXF = 1. No rádio, Big Boss entra em desespero ordenando abortar a missão imediatamente e desligar o console ('SNAKE! ABORT MISSION! SWITCH OFF THE MSX AT ONCE!'). Marca a ruptura explícita e definitiva de Big Boss antes da sala do Metal Gear.
+
+**Classificação:** Evento chave de clímax da narrativa não iniciado.
+
+**Assembly:** logic/madnarbigbossevent.asm:27-35 ChkSwitchMsxOff
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Trigger da sala 111, flag SwitchOffMSXF e diálogo especial no rádio ausentes.
+
+**Notas de evidência:** SwitchOffMSXF altera todas as transmissões de Big Boss para pânico/sabotagem.
+
+
+<a id="progression-metalgear-destruction"></a>
+### Destruição do Metal Gear com 16 C4 e ativação da autodestruição
+
+`progression-metalgear-destruction` · **NOT_STARTED**
+
+**Original:** Destruição do robô bípede Metal Gear na sala 118 (Banks0123.asm:11998, 12304, 12309, logic/destructiontimer.asm:10-39). Snake deve plantar 16 explosivos plásticos C4 nas pernas em sequência estrita alternada (R, R, L, R...). Errar a ordem detona C4 com dano em Snake. Ao plantar o 16º C4: MetalGear_KO = 1; alarme de emergência contínuo (RedAlertFlag = 1); abre a porta norte para o confronto final com Big Boss (OpenBigBossDoor = 1); ativa contagem de autodestruição (DestructionTimerOn = 1, DestructTimer = 0C8h); bloqueia novos checkpoints em ChkSaveGameStatus.
+
+**Classificação:** Objetivo principal da missão e gatilho do clímax não iniciados.
+
+**Assembly:** Banks0123.asm:11998; Banks0123.asm:12304-12315; logic/destructiontimer.asm:10-39 DecNukeTimer
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Ator do Metal Gear, máquina de estados dos 16 C4, flag MetalGear_KO, contagem regressiva e portas ausentes.
+
+**Notas de evidência:** Sequência de 16 C4 é mandatória; erro detona o explosivo e causa dano em Snake.
+
+
+<a id="progression-boss-bigboss-final"></a>
+### Confronto final com Big Boss na Sala 119 e abertura da escada de fuga
+
+`progression-boss-bigboss-final` · **NOT_STARTED**
+
+**Original:** Batalha final contra Big Boss na sala 119 (logic/actors/bigboss.asm:8-55, Banks0123.asm:12935, BigBossStat). Big Boss confessa a liderança de Outer Heaven; combate com tiros sob a contagem regressiva do timer de autodestruição. Ao ser derrotado: BigBossStat = 0; a porta para a escada de escape da base é destrancada (OpenBigBossDoor = 1 em logic/doors/opendoor.asm:265-275, ChkBigBossDoor).
+
+**Classificação:** Duelo final de encerramento de gameplay não iniciado.
+
+**Assembly:** logic/actors/bigboss.asm:8-55; Banks0123.asm:12935; logic/doors/opendoor.asm:265-275 ChkBigBossDoor
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Ator de Big Boss, diálogo de confissão, flag BigBossStat e destrancamento da porta de escape ausentes.
+
+**Notas de evidência:** BigBossStat = 0 libera a porta 265 para a escada final.
+
+
+<a id="progression-escape-ending"></a>
+### Fuga pela escada de escape, evasão de Outer Heaven e créditos finais
+
+`progression-escape-ending` · **NOT_STARTED**
+
+**Original:** Subida da escada antes do timer de autodestruição zerar (logic/ending.asm:7-60). Ao alcançar o topo: seta LeavedOuterHeaven = 1 e carrega a cena de encerramento na sala 251. Snake corre pela floresta, a base Outer Heaven explode ao fundo, helicóptero resgata Snake, relatório final de notícias no rádio e mensagem pós-créditos de Big Boss prometendo retorno.
+
+**Classificação:** Conclusão definitiva da campanha não iniciada.
+
+**Assembly:** logic/ending.asm:7-33 EndingSetup; Variables.asm:74
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não implementado no Godot.
+
+**Faltante / não comprovado:** Escada de escape, validação de tempo, cena 251 e sequência completa de encerramento ausentes.
+
+**Notas de evidência:** LeavedOuterHeaven = 1 conclui o jogo e dispara a sequência de créditos.
+
+
+<a id="progression-moving-lorries-transport"></a>
+### Rede de caminhões móveis e transporte entre setores (Moving Lorries)
+
+`progression-moving-lorries-transport` · **PARTIAL**
+
+**Original:** Mecânica de transporte e armadilha em caminhões móveis (logic/lorry.asm:7-105, ChkLorryMov). Lista de 6 salas de caminhão que se movem: 199, 217, 219, 213, 215, 173 (MovingLorries). Ao entrar, entra em GAME_MODE_LORRY (0x05), Snake exibe 'I GOOFED. THE LORRY STARTED TO MOVE' (Text 91), SFX 1Fh de motor, tremor vertical de tela por scroll e transporte para outro setor da base.
+
+**Classificação:** Transições de caminhão existem como portas normais de salas de itens, mas o sistema de caminhões móveis em trânsito não está implementado.
+
+**Assembly:** logic/lorry.asm:7-24 ChkLorryMov; logic/lorry.asm:34-54 LorryMoving
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_spawn_room_doors
+
+**Testes existentes:** godot-doors-inventory
+
+**Documentação:** Nenhum localizado neste recorte.
+
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-21 — Eliminação de Triggers Radiais Espúrios, Arquitetura de Caminhões Móveis (Moving Lorries) e Pareamento Universal
+
+**Implementado:** O Godot implementa pares de portas de caminhões interiores e transições fixas para salas de baú (salas 128, 130, 131, 132) em sandbox_gameplay.gd.
+
+**Faltante / não comprovado:** As 6 salas originais de caminhões móveis da ROM (MovingLorries), o modo de jogo 0x05, mensagem de erro de Snake e o deslocamento dinâmico de setor não estão reproduzidos.
+
+**Notas de evidência:** MovingLorries define as salas que transportam o jogador dinamicamente.
+
+
+<a id="progression-building-transitions"></a>
+### Cadeia global de transição entre edifícios (Edifício 1 -> 2 -> 3)
+
+`progression-building-transitions` · **NOT_STARTED**
+
+**Original:** Sequenciamento macro de progressão exigido para um playthrough completo: Edifício 1 (infiltração, Shoot Gunner, captura, fuga com Grey Fox, resgate de reféns, Machine Gun Kid, Hind-D, salto de paraquedas para o pátio) -> Deserto 1 (Bússola, campo minado, destruição do Tanque, entrada no Edifício 2) -> Edifício 2 (Antena, Bulldozer, subsolo, Fire Trooper, resgate de Ellen, resgate de Madnar e fórmula do C4) -> Canal de Água (tanque de oxigênio) -> Deserto 2 -> Edifício 3 (Arnolds e Cartão 7, sala 111 traição de Big Boss, sala 118 destruição do Metal Gear, sala 119 confronto com Big Boss, escada de fuga e encerramento).
+
+**Classificação:** O projeto atualmente é um sandbox de salas e subsistemas focados no Edifício 1; a progressão global da campanha do início ao fim não foi iniciada.
+
+**Assembly:** Banks0123.asm:889-918 GetNextRoomNum; data/roomsconnections.asm:1-162
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/room_manager.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** docs/index/rooms.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Não existe progressão macro unificada no Godot; o sandbox permite carregar salas avulsas via room_manager, mas o fluxo de transição entre edifícios é impossível de completar de ponta a ponta.
+
+**Faltante / não comprovado:** A campanha inteira além de partes do Edifício 1 é inalcançável em gameplay contínuo; ausência de conexões de mundo, itens condicionais e bosses intermediários.
+
+**Notas de evidência:** Edifícios 2 e 3 estão fora do loop jogável contínuo no Godot.

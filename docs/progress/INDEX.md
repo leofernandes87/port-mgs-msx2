@@ -100,8 +100,9 @@ Gerado por `tools/context/progress_archive.py`; não editar. Leia uma entrada: `
 | docs/progress/2026-10.md:388 | 2026-10-04 — Auditoria regional da implementação contra a edição inglesa |
 | docs/progress/2026-10.md:420 | 2026-10-04 — Infraestrutura de contexto: regras enxutas, STATUS, progresso arquivado e índices |
 | docs/progress/2026-10.md:439 | 2026-10-04 — Inventário progressivo: atores e bosses |
-| docs/progress.md:6 | 2026-10-04 — Interface enxuta de contexto para agentes |
-| docs/progress.md:20 | 2026-10-04 — Inventário progressivo: armas, itens e equipamentos |
-| docs/progress.md:35 | 2026-10-04 — Barris rolantes revisados: sprites canônicos e comportamento da ROM |
-| docs/progress.md:63 | 2026-10-04 — Inventário progressivo: rádio, diálogos e caixas de texto |
-| docs/progress.md:76 | 2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL |
+| docs/progress/2026-10.md:454 | 2026-10-04 — Interface enxuta de contexto para agentes |
+| docs/progress.md:6 | 2026-10-04 — Inventário progressivo: armas, itens e equipamentos |
+| docs/progress.md:21 | 2026-10-04 — Barris rolantes revisados: sprites canônicos e comportamento da ROM |
+| docs/progress.md:49 | 2026-10-04 — Inventário progressivo: rádio, diálogos e caixas de texto |
+| docs/progress.md:62 | 2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL |
+| docs/progress.md:81 | 2026-10-05 — Inventário progressivo: eventos de campanha e progressão global |

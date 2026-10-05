@@ -1,12 +1,12 @@
 # Estado atual
 
-Atualizado em 2026-10-04. Curto por regra (skill `delivery`); histórico em `docs/progress/`.
+Atualizado em 2026-10-05. Curto por regra (skill `delivery`); histórico em `docs/progress/`.
 Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 ## Onde estamos
 
 - Última tag: `v0.2.3` (núcleo do rádio fiel à ROM).
-- Último commit: `feat(radio)` (confira com `git log --oneline -1`).
+- Último commit: `docs(context)` (confira com `git log --oneline -1`).
 - Implementação recente: núcleo do rádio fiel à ROM. Tabela de salas, zonas e
   textos extraídos por `tools/extractors/extract_radio_dialogue.py`; `radio_system.gd` tick a tick
   (CALL 32/88 ticks, AUTO-REPLY/WAIT-CALL, BCD, LEDs, condições de `ChkRadioReply`).
@@ -21,16 +21,14 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 ## Auditoria atual
 
-- `actors-bosses`: `rolling-barrels` (ID 15) promovido a IMPLEMENTED (1 IMPLEMENTED,
-  20 PARTIAL, 12 PROVISIONAL, 16 NOT_STARTED, 2 UNMAPPED; total 51).
-- `weapons-items`: 38 features — IMPLEMENTED 1, PARTIAL 20, PROVISIONAL 8,
-  NOT_STARTED 9; DEFERRED/UNMAPPED/INVESTIGATING 0. Catálogo via `lookup domain weapons-items`.
-- `radio-dialogue`: 32 features — IMPLEMENTED 7, PARTIAL 19, PROVISIONAL 3,
-  NOT_STARTED 2, UNMAPPED 1; DEFERRED/INVESTIGATING 0. Catálogo via `lookup domain radio-dialogue`.
-- Rádio: flags de evento sem produtor (Schneider capturado, irmão de Jennifer, transmissor,
-  SwitchOffMSX, Madnar), SFX só como sinal, texto 2 da intro hardcoded e TextBoxLogic fragmentado.
+- `actors-bosses`: 51 features (1 IMPLEMENTED, 20 PARTIAL, 12 PROVISIONAL, 16 NOT_STARTED, 2 UNMAPPED).
+- `weapons-items`: 38 features (1 IMPLEMENTED, 20 PARTIAL, 8 PROVISIONAL, 9 NOT_STARTED).
+- `radio-dialogue`: 32 features (7 IMPLEMENTED, 19 PARTIAL, 3 PROVISIONAL, 2 NOT_STARTED, 1 UNMAPPED).
+- `progression-events`: 33 features — IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 5,
+  NOT_STARTED 24; UNMAPPED/INVESTIGATING 0. Catálogo via `lookup domain progression-events`.
+- Progressão: GameProgressBuffer ausente, conflito de salas 211/212, bolsa sem transmissor,
+  downgrade de refém sem reset de 17 prisioneiros e edifícios 2/3 ausentes no playthrough.
 - Próxima tarefa sugerida, só após pedido: priorizar `pitfalls` (ID 16) ou `rocket-launcher`.
-- Pendências de actors-bosses: uso alcançável do ID 56 e produtores do ID 65.
 
 ## Decisões pendentes do usuário
 

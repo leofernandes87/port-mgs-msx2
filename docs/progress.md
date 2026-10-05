@@ -3,20 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Interface enxuta de contexto para agentes
-
-**Feito:** `lookup domain DOMÍNIO`, `lookup status STATUS` e `lookup unmapped` retornam
-somente ID, título e status; `lookup mech ID` expõe os detalhes de uma única feature.
-Regras em `AGENTS.md`, skills de inspeção/implementação/entrega e documentação proíbem
-leitura integral de arquivos grandes com lookup apropriado. `coverage.md` se identifica
-como relatório humano, não contexto padrão de agentes; catálogo e gameplay preservados.
-**Testes:** oito novos testes sintéticos de CLI; 22 testes de contexto aprovados.
-`python3 tools/validate.py` fora do sandbox: exit 0, 37 etapas PASS, 142 testes Python;
-importação/boot Godot 4.7.2 aprovados. Conferência real dos filtros e hashes preservados.
-**Pendências:** auditoria não avançou; lacunas anteriores permanecem no catálogo.
-**Git:** commit `e408782`; entrega registrada na tag anotada `v0.2.1`.
-`godot/project.godot` preservado fora do commit; sem push.
-
 ## 2026-10-04 — Inventário progressivo: armas, itens e equipamentos
 
 **Feito:** inventário inglês antes do cruzamento com extração, Godot, integração, testes e histórico.
@@ -91,3 +77,18 @@ com o JSON e integração no sandbox); `tests/test_radio_dialogue_extractor.py` 
 **Pendências:** SFX só como sinal; flags `SchneiderCaptured`, `JennifBrotherDead`, `TransmiTaken`,
 `SwitchOffMSXF` e `MadnarMoved` sem produtor; texto 2 da intro ainda hardcoded; 120.77 do final.
 **Git:** commit `feat(radio)` com tag `v0.2.3`, sem push; `godot/project.godot` preservado.
+
+## 2026-10-05 — Inventário progressivo: eventos de campanha e progressão global
+
+**Feito:** inventário Z80 da edição inglesa antes do cruzamento com Godot, extrações e testes.
+33 features em `progression-events`: PARTIAL 4, PROVISIONAL 5, NOT_STARTED 24; UNMAPPED/INVESTIGATING 0.
+Evidência: `logic/checkpoints.asm:10-127`, `logic/capturescene.asm:8-118`, `logic/doors/opendoor.asm:215-319`,
+`logic/items.asm:295-325`, `logic/nextroom.asm:204-260`, `logic/lorry.asm:7-105`, `logic/elevatorroom.asm:7-227`,
+`logic/destructiontimer.asm:10-39`, `logic/ending.asm:7-60`, `Banks0123.asm:889-918,8301-8325,9580-9653,10410-10500`.
+Divergências registradas: buffer de checkpoints ausente, conflito de IDs das salas 211/212, omissão do
+transmissor na bolsa, penalidade de refém sem reset de 17 prisioneiros, bosses intermediários ausentes e
+inviabilidade de playthrough contínuo. Nenhum arquivo de gameplay alterado.
+**Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 164 testes Python; `build_index --check`: exit 0.
+**Pendências:** implementação da persistência e expansão dos edifícios 2 e 3 reservadas para etapas sob demanda.
+**Git:** commit `e1bdddd` a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
+
