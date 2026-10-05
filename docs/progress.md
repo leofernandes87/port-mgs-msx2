@@ -3,19 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-04 — Inventário progressivo: rádio, diálogos e caixas de texto
-
-**Feito:** inventário Z80 da edição inglesa antes do cruzamento com Godot, extrações e testes.
-32 features em `radio-dialogue`: PARTIAL 20, PROVISIONAL 5, NOT_STARTED 6, UNMAPPED 1 (`radio-chk-reply-madnar-text15`).
-Evidência: `Banks0123.asm:1689-1745,2379-2448,5305-5345,7790-8350,10695-11350`, `logic/incomingcall.asm:10-36`,
-`logic/textboxappear.asm:10-70`, `data/radiocalls.asm:1-447`, `data/texts.asm:1-350`.
-Divergências registradas: inversão SEND/WAITCALL vs AUTOREPLY, 45 salas omitidas, condições do Edifício 2
-(antena, rank de Jennifer, Big Boss traidor), textos hardcoded/resumidos e fragmentação do motor `TextBoxLogic`.
-Nenhum arquivo de gameplay alterado.
-**Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 159 testes Python; `build_index --check`: exit 0.
-**Pendências:** correções de gameplay e de texto preservadas para etapas de implementação sob demanda.
-**Git:** commit `6bbad2a` a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
-
 ## 2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL
 
 **Feito:** `tools/extractors/extract_radio_dialogue.py` lê da ROM canônica `idxRoomRadio`/`RadioRoom_*`,
@@ -67,4 +54,14 @@ Evidência: `logic/damagegas.asm:9-53`, `logic/damageelectric.asm:8-63`, `data/l
 Divergências registradas: ausência de esteiras (conveyor belts) e correnteza em MG1 MSX2; paredes ocas e quebráveis unificadas como a mesma mecânica (C4 + soco direcional); conflito estrutural de salas 211/212 (canal de água na ROM vs aliases da prisão no Godot); aproximações por overlay alfa/senoidal no Godot vs alteração de paleta direta do VDP MSX2; sala 204 bloqueada como "o limbo" em vez do pátio de paraquedas; loop do deserto (sala 103) contornado no Godot sem checagem de Compass. Nenhum arquivo de gameplay alterado.
 **Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS; `build_index --check`: exit 0.
 **Pendências:** implementação/correção de hazards e resolução do conflito de IDs 211/212 sob demanda.
+**Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
+
+## 2026-10-05 — Inventário progressivo: topologia de salas, conexões espaciais e navegação
+
+**Feito:** inventário Z80 da edição inglesa antes de qualquer alteração no Godot, dados ou testes.
+10 features em `world-rooms-navigation`: PARTIAL 6 (`world-room-identity-mapping`, `world-cardinal-connections`, `world-entry-coordinates`, `world-buildings-zones`, `world-elevator-topology`, `world-desert-navigation`), NOT_STARTED 4 (`world-lorry-navigation`, `world-parachute-courtyard-204`, `world-water-channel-topology`, `world-escape-ladder-topology`); IMPLEMENTED 0, PROVISIONAL 0, UNMAPPED 0, INVESTIGATING 0.
+Evidência: `data/rooms.asm:7-267`, `data/roomsconnections.asm:7-162`, `logic/nextroom.asm:11-285`, `data/musicradioconfig.asm:58-74`, `data/elevatorrooms.asm:6-93`, `logic/lorry.asm:7-105`, `data/doors.asm:724-728`, `logic/capturescene.asm:87-118`.
+Divergências registradas: salas 211/212 mascaradas por `local-aliases/` no Godot (aliases da cela 165 e sala de equipamento 164 com saídas bloqueadas, em vez do canal de água que conecta Prédio 2 ao Prédio 3); sala 204 tratada como "o limbo" e bloqueada no Godot em vez da descida de paraquedas para os pátios 5/6/10; caminhões com trânsito dinâmico não implementados; loop do deserto (sala 103) contornado no Godot sem checagem de Compass; comando `lookup room` adicionado a `tools/context/lookup.py`. Nenhum arquivo de gameplay alterado.
+**Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 165 testes Python; `build_index --check`: exit 0.
+**Pendências:** resolução estrutural dos IDs 211/212 e implementação da navegação de caminhões, canal e paraquedas sob demanda.
 **Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.

@@ -6311,3 +6311,366 @@ Nenhuma entrada.
 **Faltante / não comprovado:** Paleta de cinza autêntica do VDP para o cenário ao usar Goggles; modulação direta de paleta para o piso elétrico em substituição ao overlay alfa moderno.
 
 **Notas de evidência:** Banks0123.asm:2972 carrega paleta 0Ah (gray colors to simulate infrared). O MSX2 altera os 16 registradores de paleta do VDP sem desenhar geometrias transparentes.
+
+## Topologia de salas, conexões espaciais e navegação
+
+Auditoria: 2026-10-05; HEAD de partida: `b57bbd2`; referência inglesa: `30d1b940bede10fdabbaf9767ad4f0ad8dd33291`.
+
+Inventário completo da estrutura espacial da edição inglesa RC750 (JAPANESE equ 0): 251 entradas da tabela idxRooms (0-250 em data/rooms.asm:7), 235 layouts decodificados e 16 entradas indefinidas; grafo de 156 conexões de tela (RoomConnections em data/roomsconnections.asm); coordenadas ortogonais de reentrada (EntryRoomXY em logic/nextroom.asm:362) e offsets por tipo de porta (PlayerInDoorDat em logic/nextroom.asm:463); 11 zones de cobertura do mapa (idxMapZones em data/musicradioconfig.asm:58); 11 eixos verticais de elevadores e limites de andares (idxElevatorRoom em data/elevatorrooms.asm:6); transporte dinâmico de longo alcance por 6 caminhões móveis (MovingLorries em logic/lorry.asm:23); descida vertical em paraquedas pelo pátio 204 com aterrissagem em 5, 6 ou 10 (logic/nextroom.asm:204); navegação no deserto com loop sem bússola na sala 103 (logic/nextroom.asm:33); rota aquática contínua do canal subterrâneo (salas 106, 211, 212, 107 em RoomsWater); e escadas de emergência de fuga pós-Metal Gear (salas 119, 224-227, 251 em logic/ending.asm).
+
+Inventário da desmontagem canônica inglesa (data/rooms.asm, data/roomsconnections.asm, data/elevatorrooms.asm, data/musicradioconfig.asm, data/doors.asm, logic/nextroom.asm, logic/lorry.asm, logic/ending.asm, logic/capturescene.asm, Banks0123.asm). Confronto com RoomManager (room_manager.gd), cena sandbox (sandbox_gameplay.gd), ElevatorSystem (elevator_system.gd), CaptureSystem (capture_system.gd), snapshots canônicos e local-aliases, suítes de teste headless, documentação e histórico. Sem alterações de código de gameplay.
+
+- Domínio dedicado à topologia do mundo, grafo de conexões, coordenadas de reentrada e correspondência de salas entre a ROM e o Godot.
+- Identificado conflito estrutural crítico de IDs 211 e 212: na ROM são o canal subterrâneo de água conectando os edifícios 2 e 3; no Godot foram convertidos em aliases da cela de captura (165) e sala da bolsa (164), bloqueando a rota legítima.
+- Identificada divergência na sala 204: no original é o pátio de descida vertical de paraquedas (Big bricks wall); no Godot é tratada como limbo inacessível e bloqueada.
+- Identificada assimetria no deserto: a sala 103 força loop infinito sem Compass no original; no Godot a conexão avança diretamente para a sala 208.
+- Identificada ausência de transporte dinâmico de caminhões (6 MovingLorries com deslocamento temporal e relocação de portas).
+
+| Status | Features |
+| --- | ---: |
+| `IMPLEMENTED` | 0 |
+| `PARTIAL` | 6 |
+| `PROVISIONAL` | 0 |
+| `NOT_STARTED` | 4 |
+| `DEFERRED` | 0 |
+| `UNMAPPED` | 0 |
+| `INVESTIGATING` | 0 |
+| Total | 10 |
+
+### Entradas
+
+| Feature | IDs | Status |
+| --- | --- | --- |
+| [world-room-identity-mapping](#world-room-identity-mapping) — Identidade canônica das 251 salas da ROM e resolução de aliases locais | transversal | `PARTIAL` |
+| [world-cardinal-connections](#world-cardinal-connections) — Grafo de conexões cardinais entre salas e simetria de bordas | transversal | `PARTIAL` |
+| [world-entry-coordinates](#world-entry-coordinates) — Coordenadas de reentrada de tela e offsets de posicionamento em portas | transversal | `PARTIAL` |
+| [world-buildings-zones](#world-buildings-zones) — Topologia de edifícios, andares e zones de cobertura do mapa | transversal | `PARTIAL` |
+| [world-elevator-topology](#world-elevator-topology) — Topologia dos eixos verticais de elevador e correspondência de andares | transversal | `PARTIAL` |
+| [world-lorry-navigation](#world-lorry-navigation) — Topologia de caminhões estáticos e transporte dinâmico entre edifícios | transversal | `NOT_STARTED` |
+| [world-parachute-courtyard-204](#world-parachute-courtyard-204) — Sala 204 de descida vertical por paraquedas e redirecionamento de aterrissagem | transversal | `NOT_STARTED` |
+| [world-desert-navigation](#world-desert-navigation) — Topologia do deserto e redirecionamento em loop sem bússola na sala 103 | transversal | `PARTIAL` |
+| [world-water-channel-topology](#world-water-channel-topology) — Topologia do canal de água e interligação física Edifício 2 → Edifício 3 | transversal | `NOT_STARTED` |
+| [world-escape-ladder-topology](#world-escape-ladder-topology) — Topologia das escadas verticais de fuga e transição pós-Metal Gear | transversal | `NOT_STARTED` |
+
+### UNMAPPED
+
+Nenhuma entrada.
+
+<a id="world-room-identity-mapping"></a>
+### Identidade canônica das 251 salas da ROM e resolução de aliases locais
+
+`world-room-identity-mapping` · **PARTIAL**
+
+**Original:** Espaço de endereçamento das 251 entradas da tabela idxRooms (data/rooms.asm:7-267, IDs 0..250); 235 layouts decodificados em 172 metatile maps distintos e 16 entradas indefinidas/não utilizadas ([155, 222, 223, 227..239]); divisão canônica de faixas em GetNextRoomNum (Banks0123.asm:889-918); correspondência determinística de Room IDs canônicos da ROM para snapshots de tela e dados de atores/portas; a cela de prisão original é a sala 165 (logic/capturescene.asm:102) e a sala da bolsa de equipamentos é a sala 164 (data/doors.asm:724-728).
+
+**Classificação:** O Godot possui 235 snapshots extraídos fielmente em data/extracted/en-eu-rc750/rooms/, mas a convenção de laboratório export_local_aliases.py intercepta as salas 211 e 212 em local-aliases/ sobrepondo as salas 165 e 164 e reescrevendo portas (ex: porta 12 da sala 54). Na ROM, 211 e 212 são salas reais do canal de água. Além disso, 16 IDs não possuem snapshot decodificado (incluindo 227 na rota de fuga).
+
+**Assembly:** data/rooms.asm:7-267 idxRooms; Banks0123.asm:889-918 GetNextRoomNum; logic/capturescene.asm:87-118 PutInPrison; data/doors.asm:724-728 DoorsRoom_164
+
+**Extractors:** tools/extractors/extract.py; tools/extractors/export_local_aliases.py
+
+**Dados canônicos locais:** rooms/; local-aliases/
+
+**Godot relacionado:** godot/scripts/systems/room_manager.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::change_to_room
+
+**Testes existentes:** godot/tests/room_snapshot_test.gd; godot/tests/capture_prison_test.gd
+
+**Documentação:** docs/index/rooms.md; docs/reverse_engineering/maps.md; docs/reverse_engineering/prison-wall.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Decodificação e renderização estática de 235 snapshots em data/extracted/en-eu-rc750/rooms/ via extract.py.; Suporte a carregamento de snapshots em RoomManager.load_room_snapshot com cache inteligente.
+
+**Faltante / não comprovado:** Resolução definitiva do conflito de IDs 211/212: restituir 165 e 164 como celas e 211/212 como canal de água.; Decodificação das 16 salas indefinidas/especiais remanescentes da ROM, incluindo a sala 227 de fuga.
+
+**Notas de evidência:** logic/capturescene.asm:102: ld (hl), 165 define a cela como sala 165 na ROM original.; data/doors.asm:724-728: DoorsRoom_164 define a sala da bolsa como 164 com porta para a sala 54.; export_local_aliases.py:27: define ALIASES = {211: 165, 212: 164} gerando o mascaramento de dados.
+
+
+<a id="world-cardinal-connections"></a>
+### Grafo de conexões cardinais entre salas e simetria de bordas
+
+`world-cardinal-connections` · **PARTIAL**
+
+**Original:** Grafo bidirecional de conexões de tela da ROM em data/roomsconnections.asm:7-162 (RoomConnections, 156 registros de 4 bytes [UP, DOWN, LEFT, RIGHT]); resolução em Banks0123.asm:889-918 (GetNextRoomNum); salas 0..125 usam indexação 1:1; salas 208..227 usam índice Room - 82 (126..145); salas 241..250 usam índice Room - 95 (146..155); valor 0xFF (255) indica parede ou ausência de conexão de borda; apenas 3 assimetrias canônicas no mapa (222 para 221/124 e 227 para 228); salas isoladas 126..207 e 240 não possuem saídas cardinais.
+
+**Classificação:** A tabela CONNECTIONS_TABLE em room_manager.gd:39-196 contém as 156 entradas exatas da ROM, mas room_manager.gd:205-208 bloqueia ativamente as salas 211 e 212 retornando NO_ROOM. Isso quebra o grafo cardinal canônico que liga a sala 106 à 211 (ao norte) e a sala 107 à 212 (ao sul), aprisionando o jogador na borda ou impedindo o retorno.
+
+**Assembly:** data/roomsconnections.asm:7-162 RoomConnections; Banks0123.asm:889-918 GetNextRoomNum; Banks0123.asm:9418-9441 ChkExitRoom
+
+**Extractors:** tools/extractors/extract.py
+
+**Dados canônicos locais:** rooms/
+
+**Godot relacionado:** godot/scripts/systems/room_manager.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_check_and_handle_room_transition
+
+**Testes existentes:** godot/tests/room_transition_test.gd
+
+**Documentação:** docs/reverse_engineering/stage-6-room-transitions.md; docs/index/rooms.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** CONNECTIONS_TABLE com as 156 quadras de conexão cardinais extraídas da ROM em room_manager.gd.; Lógica de faixas de GetNextRoomNum (<126, <208, <228, <241, <=250) implementada em RoomManager.get_next_room.
+
+**Faltante / não comprovado:** Remoção do bloqueio artificial de NO_ROOM para as salas 211 e 212 em get_next_room.; Restauração da navegabilidade contínua do canal de água pelas bordas norte/sul das salas 106, 211, 212 e 107.
+
+**Notas de evidência:** data/roomsconnections.asm:113-114: sala 106 UP é 211; sala 107 DOWN é 212.; data/roomsconnections.asm:136-137: sala 211 UP é 212, DOWN é 106; sala 212 UP é 107, DOWN é 211.; room_manager.gd:205-208: if room_id == 211: return NO_ROOM trava o trânsito cardinal das salas.
+
+
+<a id="world-entry-coordinates"></a>
+### Coordenadas de reentrada de tela e offsets de posicionamento em portas
+
+`world-entry-coordinates` · **PARTIAL**
+
+**Original:** Reposicionamento determinístico de Snake ao entrar numa nova sala em logic/nextroom.asm:293-482 (LocatePlayerEntry); travessia de borda por SetRoomEntryXY usando a tabela EntryRoomXY (logic/nextroom.asm:362-365), aplicando Y = 184.0 (0B8h) vindo de UP, Y = 18.0 (12h) vindo de DOWN, X = 242.0 (0F2h) vindo de LEFT e X = 12.0 (0Ch) vindo de RIGHT, conservando estritamente a coordenada ortogonal paralela; travessia de porta por SetPlayerInDoor4 usando a tabela de 19 configurações PlayerInDoorDat (logic/nextroom.asm:463-482), somando offsets [offsetY, offsetX, playerDirection] à posição de desenho da porta na tela.
+
+**Classificação:** As 4 constantes ortogonais de borda (ENTRY_Y_FROM_UP = 184.0, etc.) estão implementadas fielmente em room_manager.gd:32-36, mas o reposicionamento através de portas em sandbox_gameplay.gd:2764-2783 utiliza heurísticas aproximadas (entry_dir == -1, entry_pos.y <= 40.0, old_room_id == 0/2), em vez da aplicação exata de PlayerInDoorDat indexada pelo render type da porta.
+
+**Assembly:** logic/nextroom.asm:293-366 LocatePlayerEntry; logic/nextroom.asm:397-482 SetPlayerInDoor2
+
+**Extractors:** tools/extractors/extract.py
+
+**Dados canônicos locais:** rooms/
+
+**Godot relacionado:** godot/scripts/systems/room_manager.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::change_to_room
+
+**Testes existentes:** godot/tests/room_transition_test.gd
+
+**Documentação:** docs/reverse_engineering/stage-6-room-transitions.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Constantes canônicas de reentrada de borda ENTRY_Y_FROM_UP (184.0), ENTRY_Y_FROM_DOWN (18.0), ENTRY_X_FROM_LEFT (242.0), ENTRY_X_FROM_RIGHT (12.0) em room_manager.gd.; Cálculo e preservação de coordenada paralela em RoomManager.get_entry_position.
+
+**Faltante / não comprovado:** Mapeamento completo da tabela PlayerInDoorDat com 19 offsets e direções para reposicionamento em portas.; Eliminação de heurísticas de adivinhação de direção (entry_dir == -1) em change_to_room.
+
+**Notas de evidência:** logic/nextroom.asm:362-365: EntryRoomXY define os valores determinísticos 0B800h, 1200h, 0F200h e 0C00h.; logic/nextroom.asm:463-482: PlayerInDoorDat contém 19 registros de [offsetY, offsetX, direction].
+
+
+<a id="world-buildings-zones"></a>
+### Topologia de edifícios, andares e zones de cobertura do mapa
+
+`world-buildings-zones` · **PARTIAL**
+
+**Original:** Divisão macroscópica do mapa em 11 zones de cobertura em data/musicradioconfig.asm:58-74 (idxMapZones, 126 bytes, nibbles alto/baixo por sala par/ímpar lidos por Banks0123.asm:1060-1069 SetRadioArea); Zone 0 (áreas externas e pátios do Edifício 1), Zone 1 (Edifício 1 Térreo/F1), Zone 2 (Edifício 1 F2), Zone 3 (Edifício 1 F3), Zone 4 (Edifício 1 Telhado e Masmorra), Zone 5 (Deserto e áreas intermediárias), Zone 6 (Edifício 2 F1), Zone 7 (Edifício 2 F2), Zone 8 (Edifício 2 Telhado/Subsolo), Zone 9 (Canal de Água e acessos ao E3), Zone 10 (Edifício 3, Metal Gear e área final); regra global MapZone >= 5 requer antena para comunicação (logic/incomingcall.asm, Banks0123.asm).
+
+**Classificação:** Os dados de idxMapZones foram extraídos pelo extrator de rádio (tools/extractors/extract_radio_dialogue.py) e alimentam radio_system.gd, mas o conceito espacial de zona, edifício e andar não existe estruturado como entidade global em RoomManager ou no mapa de salas do Godot.
+
+**Assembly:** data/musicradioconfig.asm:58-74 idxMapZones; Banks0123.asm:1060-1069 SetRadioArea; Banks0123.asm:1721-1725
+
+**Extractors:** tools/extractors/extract_radio_dialogue.py
+
+**Dados canônicos locais:** radio/radio_dialogue.json
+
+**Godot relacionado:** godot/scripts/systems/radio_system.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_radio_enter_room
+
+**Testes existentes:** tests/test_radio_dialogue_extractor.py; godot/tests/radio_system_test.gd
+
+**Documentação:** docs/reverse_engineering/maps.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Extração completa de idxMapZones para todas as salas em data/extracted/en-eu-rc750/radio/radio_dialogue.json.; Checagem da regra MapZone >= 5 em radio_system.gd para bloqueio de transmissões sem antena.
+
+**Faltante / não comprovado:** Estruturação formal das zonas, edifícios e andares em RoomManager como propriedade de mundo.; Integração de MapZone aos carregamentos de ambiente e regras de transição de salas.
+
+**Notas de evidência:** Banks0123.asm:1066: ld (MapZone), a; Values of 5 or more need the antenna.; data/musicradioconfig.asm:58-74: tabela completa de 126 bytes indexando 252 nibbles.
+
+
+<a id="world-elevator-topology"></a>
+### Topologia dos eixos verticais de elevador e correspondência de andares
+
+`world-elevator-topology` · **PARTIAL**
+
+**Original:** Mapeamento espacial dos 11 eixos de elevador da ROM (salas 240 a 250) em data/elevatorrooms.asm:6-93 (idxElevatorRoom), data/roomsconnections.asm:152-162 e logic/elevatorroom.asm; limites superior/inferior de cabine (dw LimitUpLimitDown), andares atendidos por eixo com seus room IDs, PlayerY e ElevatorY; eixos multi-telas (ex: 241 conectando a 242; 243 a 244; 245 a 246; 247 a 250); posicionamento ao entrar em logic/nextroom.asm:179-194 (SetElevatorPosY), alinhando Snake em PlayerX = 0D8h = 216.0 e cabine em ElevatorX = 70h = 112.0.
+
+**Classificação:** A topologia dos eixos e os limites de andares foram mapeados em godot/scripts/systems/elevator_system.gd, e a sala 240 opera no sandbox com testes em floor1_and_card1_test.gd. Contudo, o sistema replica conexões num dicionário hardcoded local, opera com física contínua por delta em vez de ticks discretos e a integração dos demais eixos multi-telas dos Edifícios 2 e 3 ainda não está verificada no SceneTree.
+
+**Assembly:** data/elevatorrooms.asm:6-93 idxElevatorRoom; data/roomsconnections.asm:152-162; logic/nextroom.asm:64-97 SetNextRoomElev; logic/nextroom.asm:179-194 SetElevatorPosY; logic/elevatorroom.asm:7-227
+
+**Extractors:** tools/extractors/extract.py
+
+**Dados canônicos locais:** rooms/
+
+**Godot relacionado:** godot/scripts/systems/elevator_system.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_transition_elevator_room
+
+**Testes existentes:** godot/tests/elevator_test.gd
+
+**Documentação:** docs/reverse_engineering/maps.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Estrutura de dados ELEVATOR_DATA e limites de cabine em godot/scripts/systems/elevator_system.gd.; Navegação funcional no elevador 240 conectando o piso 1 (sala 3) e o telhado (sala 31).
+
+**Faltante / não comprovado:** Substituição do dicionário redundante ELEVATOR_CONNECTIONS pela consulta direta à CONNECTIONS_TABLE de RoomManager.; Verificação no SceneTree dos eixos multi-telas (241/242, 243/244, 245/246, 247-250) e cadência exata por tick.
+
+**Notas de evidência:** data/elevatorrooms.asm:27-93: define os 11 eixos verticais da ROM.; data/roomsconnections.asm:152-162: define as ligações entre salas de elevador multi-telas.; logic/nextroom.asm:186-190: define PlayerX = 216 e ElevatorX = 112 na entrada.
+
+
+<a id="world-lorry-navigation"></a>
+### Topologia de caminhões estáticos e transporte dinâmico entre edifícios
+
+`world-lorry-navigation` · **NOT_STARTED**
+
+**Original:** Sistema de transporte geográfico por caminhões da ROM em logic/lorry.asm:7-105 (ChkLorryMov, LorryMoving, MovingLorries) e portas em data/doors.asm; 6 caminhões móveis que realizam viagens de longa distância ao serem ocupados (salas 173, 199, 213, 215, 217, 219); cada caminhão possui porta de saída em (40h, 0D0h) = (64, 208) levando a um pátio externo de destino (ex: sala 173 entra na 64 e sai na 9; salas 213/219 entram na 104 e saem na 9; salas 215/217 entram na 104 e saem na 65); portas falsas nos pátios receptores para posicionamento de saída (Fake door used to locate the player).
+
+**Classificação:** Os layouts das salas de caminhão foram extraídos como snapshots estáticos, mas a rotina de viagem de caminhão (ChkLorryMov, timer 90h, vibração de tela VDP e transposição geográfica entre Edifícios 1, 2 e 3) inexiste no Godot, impedindo o fast travel original entre pátios.
+
+**Assembly:** logic/lorry.asm:7-105 ChkLorryMov; data/doors.asm:720-745
+
+**Extractors:** tools/extractors/extract.py
+
+**Dados canônicos locais:** rooms/
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** docs/reverse_engineering/maps.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhum localizado neste recorte.
+
+**Faltante / não comprovado:** Detecção de sala de caminhão móvel (MovingLorries: 199, 217, 219, 213, 215, 173) ao entrar pela porta.; Execução da sequência de viagem (GAME_MODE_LORRY, timer 90h, texto 91, SFX 1Fh, scroll de tela).; Mapeamento das portas falsas nos pátios exteriores receptores e relocação de Snake na saída do caminhão.
+
+**Notas de evidência:** logic/lorry.asm:23: MovingLorries: db 199, 217, 219, 213, 215, 173.; data/doors.asm:160, 260: fake doors utilizadas para reposicionar Snake ao sair do caminhão em movimento.
+
+
+<a id="world-parachute-courtyard-204"></a>
+### Sala 204 de descida vertical por paraquedas e redirecionamento de aterrissagem
+
+`world-parachute-courtyard-204` · **NOT_STARTED**
+
+**Original:** Mecânica espacial da sala 204 (pátio de parede de tijolos para descida em queda livre / paraquedas) em logic/nextroom.asm:12-15, 204-285 (ChkParachute, NextParachuteRoom, SetLandingRoom); saltar do telhado com paraquedas nas salas 45, 46 ou 117 transiciona para a sala 204 com HeightParachuteCnt = 2; a sala 204 itera a contagem e no final SetLandingRoom redireciona determinística e espacialmente Snake para os pátios inferiores: sala 5 (se saltou da 45), sala 6 (se saltou da 46) ou sala 10 (se saltou da 117); posições exatas de pouso em SetLandingDogsR (160, 128), SetLandingLorries (104, 56) e SetLandingDogsL (128, 168).
+
+**Classificação:** A sala 204 é tratada no Godot como o limbo inacessível (sandbox_gameplay.gd:1388, 1393), tendo qualquer transição para ela expressamente cancelada (dest_room == 204). Toda a topologia de descida vertical aérea e redirecionamento para os pátios 5, 6 e 10 está ausente.
+
+**Assembly:** logic/nextroom.asm:12-15 SetNextRoom; logic/nextroom.asm:204-285 ChkParachute; logic/nextroom.asm:528-574 SetLandingXY
+
+**Extractors:** tools/extractors/extract.py
+
+**Dados canônicos locais:** rooms/
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** docs/reverse_engineering/maps.md; docs/reverse_engineering/stage-6-room-transitions.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhum localizado neste recorte.
+
+**Faltante / não comprovado:** Remoção do bloqueio de limbo da sala 204 em sandbox_gameplay.gd:1393.; Implementação do loop de descida com paraquedas em HeightParachuteCnt através da sala 204.; Redirecionamento determinístico de aterrissagem para os pátios 5, 6 e 10 com as coordenadas canônicas.
+
+**Notas de evidência:** logic/nextroom.asm:209: ld a, 204; ld (Room), a define a sala 204 como tela de queda/paraquedas.; logic/nextroom.asm:262-273: SetLandingRoom seleciona as salas 5, 6 ou 10 com base em JumpRoomId.; sandbox_gameplay.gd:1393: if dest_room == -1 or dest_room == 204 cancela a transição e impede seu uso.
+
+
+<a id="world-desert-navigation"></a>
+### Topologia do deserto e redirecionamento em loop sem bússola na sala 103
+
+`world-desert-navigation` · **PARTIAL**
+
+**Original:** Navegação na região do deserto entre os Edifícios 2 e 3 em data/roomsconnections.asm:110-111, 133-135 (salas 102, 103, 104, 208, 209, 210) e logic/nextroom.asm:12-48; a sala 103 conecta para o sul de volta à sala 102; ao avançar para qualquer outra direção (norte, oeste, leste), SetNextRoom verifica se SelectedItem == SELECTED_COMPASS; se o jogador não estiver usando a Compass, a rotina força ld a, 103; ld (Room), a, mantendo Snake indefinidamente preso na sala 103; se estiver com a bússola, avança normalmente para a sequência linear 208 -> 209 -> 210 -> 104.
+
+**Classificação:** As conexões cardinais da tabela estão replicadas em room_manager.gd, mas o desvio de loop forçado da sala 103 em SetNextRoom não está implementado na transição de salas no Godot. Atualmente, mover para o norte na sala 103 leva diretamente à sala 208 mesmo sem equipar a bússola.
+
+**Assembly:** logic/nextroom.asm:12-48 SetNextRoom; data/roomsconnections.asm:110-111; data/roomsconnections.asm:133-135
+
+**Extractors:** tools/extractors/extract.py
+
+**Dados canônicos locais:** rooms/
+
+**Godot relacionado:** godot/scripts/systems/room_manager.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_check_and_handle_room_transition
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** docs/reverse_engineering/maps.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Snapshots decodificados das salas 102, 103, 104, 208, 209 e 210.; Conexões da tabela CONNECTIONS_TABLE presentes para o deserto.
+
+**Faltante / não comprovado:** Checagem de SELECTED_COMPASS em SetNextRoom ao tentar sair da sala 103 para direções que não sejam o sul.; Redirecionamento para a própria sala 103 na ausência da bússola para gerar o loop infinito autêntico.
+
+**Notas de evidência:** logic/nextroom.asm:37-46: checa SELECTED_COMPASS; sem ela e sem DIR_DOWN, força Room = 103.; room_manager.gd:143: conecta [208, 102, 103, 103] de forma estática sem checar itens.
+
+
+<a id="world-water-channel-topology"></a>
+### Topologia do canal de água e interligação física Edifício 2 → Edifício 3
+
+`world-water-channel-topology` · **NOT_STARTED**
+
+**Original:** Rota aquática contínua da ROM conectando a saída sul do Edifício 2 ao pátio do Edifício 3 em data/roomsconnections.asm:112-117, 136-137: Sala 77 (sul) -> 78 (canal estreito, Shape 2) -> 105 (água rasa) -> 106 (início do canal subterrâneo) -> 211 (canal profundo 1) -> 212 (canal profundo 2) -> 107 (desembocadura no E3) -> 108 -> 109 -> 110; salas 211 e 212 são indexadas em RoomConnections com índice Room - 82 (129 e 130), conectando perfeitamente 211 UP = 212 e 212 UP = 107; todas pertencem a RoomsWater (Banks0123.asm:9257-9277).
+
+**Classificação:** A rota está quebrada e inacessível no Godot: 211 e 212 foram convertidas em aliases da cela de prisão e sala da bag (local-aliases/), e room_manager.gd:205-208 retorna NO_ROOM em todas as bordas dessas salas. Seguir ao norte na sala 106 desvia para a prisão em vez do canal de água, impossibilitando a travessia legítima para o Edifício 3.
+
+**Assembly:** data/roomsconnections.asm:112-117; data/roomsconnections.asm:136-137; Banks0123.asm:889-918 GetNextRoomNum; Banks0123.asm:9257-9277 RoomsWater
+
+**Extractors:** tools/extractors/extract.py
+
+**Dados canônicos locais:** rooms/
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** docs/index/rooms.md; docs/reverse_engineering/maps.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhum localizado neste recorte.
+
+**Faltante / não comprovado:** Restauração das salas canônicas 211 e 212 como canal subterrâneo de água profunda em vez de aliases da prisão.; Liberação das conexões de borda 106 -> 211 -> 212 -> 107 em RoomManager.get_next_room.; Integração física contínua da travessia aquática com dano de asfixia sem Tanque de Oxigênio.
+
+**Notas de evidência:** data/roomsconnections.asm:136-137: db 212, 106, 255, 255 ; 129>211 e db 107, 211, 255, 255 ; 130>212.; room_manager.gd:205-208: bloqueio artificial de 211/212 com NO_ROOM impede a travessia.
+
+
+<a id="world-escape-ladder-topology"></a>
+### Topologia das escadas verticais de fuga e transição pós-Metal Gear
+
+`world-escape-ladder-topology` · **NOT_STARTED**
+
+**Original:** Rota linear de escadas verticais de emergência após a derrota de Big Boss em data/doors.asm:730-745, logic/nextroom.asm:307-308, 581-597 (SetLadderRoomEntry), data/roomsconnections.asm:149-152 e logic/ending.asm; na sala 119 (Big Boss), a porta 6Bh leva à sala 224; SetLadderRoomEntry ativa PlayerControlMod = 6 (Ladders room mode), direção esquerda (DIR_LEFT), PlayerY = 9Eh (158.0) e PlayerX = 0D8h (216.0); as salas de escada 224 -> 225 -> 226 -> 227 conectam-se verticalmente de baixo para cima (Room - 82); na sala 227, o topo da escada aciona a cutscene final de destruição na sala 251 (EndingSetup).
+
+**Classificação:** A sala 227 é uma das 16 salas não decodificadas em data/extracted/en-eu-rc750/rooms/; a porta 6Bh, o modo de escalada de escadas verticais e a transição final de fuga para a sala 251 não existem no sandbox do Godot.
+
+**Assembly:** data/doors.asm:730-745; logic/nextroom.asm:307-308; logic/nextroom.asm:581-597 SetLadderRoomEntry; data/roomsconnections.asm:149-152; logic/ending.asm:7-60 EndingSetup
+
+**Extractors:** tools/extractors/extract.py
+
+**Dados canônicos locais:** rooms/
+
+**Godot relacionado:** Nenhum localizado neste recorte.
+
+**Integração inspecionada:** Nenhum localizado neste recorte.
+
+**Testes existentes:** Nenhum localizado neste recorte.
+
+**Documentação:** docs/reverse_engineering/maps.md
+
+**Histórico consultado:** Nenhum localizado neste recorte.
+
+**Implementado:** Nenhum localizado neste recorte.
+
+**Faltante / não comprovado:** Decodificação da sala 227 (topo das escadas) e suporte à sala 251 (cena de final).; Modo de controle PlayerControlMod = 6 e spawn em (216, 158) ao entrar pela porta 6Bh.; Conexão das salas 224, 225, 226 e 227 com transição para a cena de final de jogo.
+
+**Notas de evidência:** logic/nextroom.asm:586-597: SetLadderRoomEntry fixa modo 6, direção esquerda, coordenadas (216, 158).; data/roomsconnections.asm:149-152: salas 224..227 conectam-se em sequência vertical.; logic/ending.asm:12: ld a, 251; ld (Room), a carrega a sala 251 para a cena final.

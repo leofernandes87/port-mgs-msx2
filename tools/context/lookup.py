@@ -151,6 +151,176 @@ def cmd_progress(args):
     return 0 if chosen else 1
 
 
+def cmd_room(args):
+    if args.id is None:
+        print('Faixas de salas da ROM (idxRooms: 251 entradas, IDs 0-250):')
+        print('  Salas 0–125   : Conexões de borda 1:1 na tabela RoomConnections')
+        print('  Salas 126–207 : Salas isoladas, caminhões e interiores; trânsito apenas por portas')
+        print('  Salas 208–227 : Deserto (208-210), canal (211-212), caminhões (213-219), escuras (220-221), escadas (224-227)')
+        print('  Salas 228–239 : Indefinidas na ROM')
+        print('  Sala 240      : Elevador 1 (Prédio 1)')
+        print('  Salas 241–250 : Elevadores 2–11 (Prédio 1, 2 e 3)')
+        print('Use: python3 -m tools.context.lookup room <ID> para detalhes de uma sala.')
+        return 0
+
+    room_id = args.id
+    if room_id < 0 or room_id > 250:
+        print(f'Room ID inválido: {room_id}. O intervalo canônico é 0–250.', file=sys.stderr)
+        return 1
+
+    conns_asm = ROOT / 'external/MetalGear/data/roomsconnections.asm'
+    conns = []
+    if conns_asm.exists():
+        for l in conns_asm.read_text().splitlines():
+            if 'db' in l:
+                idx = l.find('db')
+                parts = [p.strip() for p in l[idx + 2:].split(';')[0].split(',') if p.strip()]
+                if len(parts) == 4:
+                    conns.append([int(p) for p in parts])
+
+    idx = -1
+    if room_id < 126:
+        idx = room_id
+    elif room_id < 208:
+        idx = -1
+    elif room_id < 228:
+        idx = room_id - 82
+    elif room_id < 241:
+        idx = -1
+    elif room_id <= 250:
+        idx = room_id - 95
+
+    conn_str = 'Nenhuma (sala isolada / sem saída de borda)'
+    if 0 <= idx < len(conns):
+        c = conns[idx]
+        conn_str = f'UP: {c[0]}, DOWN: {c[1]}, LEFT: {c[2]}, RIGHT: {c[3]}'
+
+    zone_names = {
+        0: 'Pátios externos / Fachada / Praia (Edifício 1)',
+        1: 'Edifício 1 — 1º Andar (Térreo)',
+        2: 'Edifício 1 — 2º Andar',
+        3: 'Edifício 1 — 3º Andar',
+        4: 'Edifício 1 — Telhado e Masmorra / Subsolo',
+        5: 'Deserto e Pátios Externos Intermediários',
+        6: 'Edifício 2 — 1º Andar (Térreo)',
+        7: 'Edifício 2 — 2º Andar',
+        8: 'Edifício 2 — Telhado e Subsolo',
+        9: 'Canal Subterrâneo de Água e Acessos ao Edifício 3',
+        10: 'Edifício 3 — Área Final e Fuga',
+    }
+    zones_asm = ROOT / 'external/MetalGear/data/musicradioconfig.asm'
+    zone_val = None
+    if zones_asm.exists():
+        txt = zones_asm.read_text()
+        bytes_list = []
+        for l in txt.split('idxMapZones:')[1].split(';')[0].splitlines():
+            l = l.strip()
+            if not l.startswith('db'):
+                continue
+            for p in l[2:].split(','):
+                p = p.strip()
+                bytes_list.append(int(p[:-1], 16) if p.endswith('h') else int(p))
+        if room_id // 2 < len(bytes_list):
+            b = bytes_list[room_id // 2]
+            zone_val = (b >> 4) if (room_id % 2 == 0) else (b & 0xF)
+
+    zone_desc = f'Zone {zone_val} ({zone_names.get(zone_val, "Desconhecida")})' if zone_val is not None else 'Desconhecida'
+
+    doors_asm = ROOT / 'external/MetalGear/data/doors.asm'
+    doors = []
+    if doors_asm.exists():
+        txt = doors_asm.read_text()
+        patterns = [f'DoorsRoom{room_id:03d}:', f'DoorsRoom{room_id}:', f'DoorsRoom_{room_id}:', f'Door_{room_id}:', f'DoorsRoom_{room_id:03d}:']
+        start = -1
+        for p in patterns:
+            start = txt.find(p)
+            if start != -1:
+                break
+        if start != -1:
+            first = True
+            for line in txt[start:].splitlines():
+                line = line.strip()
+                if first:
+                    first = False
+                    if ':' in line:
+                        line = line.split(':', 1)[1].strip()
+                if not line.startswith('db'):
+                    if line and not line.startswith(';'):
+                        break
+                    continue
+                parts = [x.strip() for x in line[2:].split(';')[0].split(',') if x.strip()]
+                if not parts or parts[0] in ('0FFh', '255'):
+                    break
+                def parse_n(s): return int(s[:-1], 16) if s.endswith('h') else int(s)
+                i = 0
+                while i + 4 < len(parts):
+                    d_id = parse_n(parts[i])
+                    r_type = parse_n(parts[i+1])
+                    dy = parse_n(parts[i+2])
+                    dx = parse_n(parts[i+3])
+                    dest = parse_n(parts[i+4])
+                    doors.append({'id': d_id, 'render_type': r_type, 'y': dy, 'x': dx, 'dest': dest})
+                    i += 5
+                    if i < len(parts) and parts[i] in ('0FFh', '255'):
+                        break
+
+    props = []
+    water_rooms = [70, 73, 74, 77, 78, 107, 105, 106, 211, 212]
+    gas_rooms = [29, 94, 96, 97, 98, 100, 101, 112, 114]
+    elec_rooms = [16, 37, 40, 110, 116]
+    dark_rooms = [123, 124, 125, 220, 221]
+    lorry_moving = [199, 217, 219, 213, 215, 173]
+    if room_id in water_rooms:
+        props.append('Água profunda / asfixia (RoomsWater, Banks0123.asm:9267)')
+    if room_id in gas_rooms:
+        props.append('Gás tóxico ambiental (GasRooms, logic/damagegas.asm:53)')
+    if room_id in elec_rooms:
+        props.append('Piso eletrificado (logic/damageelectric.asm:8-63)')
+    if room_id in dark_rooms:
+        props.append('Sala escura / paleta 0Bh sem Lanterna (Banks0123.asm:2946)')
+    if room_id in lorry_moving:
+        props.append('Caminhão em movimento / teletransporte geográfico (logic/lorry.asm:23)')
+    if 240 <= room_id <= 250:
+        props.append('Eixo de elevador (data/elevatorrooms.asm)')
+    if room_id == 204:
+        props.append('Descida vertical em paraquedas (Big bricks wall, logic/nextroom.asm:209)')
+    if room_id == 103:
+        props.append('Deserto com loop infinito sem Compass (logic/nextroom.asm:46)')
+    if room_id == 53:
+        props.append('Corrente de ar / vento no telhado (AirFlowLogic, Banks0123.asm:9284)')
+    if room_id in (45, 46):
+        props.append('Ponte móvel com queda para andar inferior 58/59 (logic/bridge.asm)')
+    if room_id == 165:
+        props.append('Cela de prisão original (PutInPrison, logic/capturescene.asm:102)')
+    if room_id == 164:
+        props.append('Sala original da bolsa de equipamentos (DoorsRoom_164, data/doors.asm:724)')
+
+    prop_str = '; '.join(props) if props else 'Normal'
+
+    godot_status = 'Mapeada normalmente'
+    snap_canon = ROOT / f'data/extracted/en-eu-rc750/rooms/room-{room_id:03d}.json'
+    if room_id in (211, 212):
+        orig = 165 if room_id == 211 else 164
+        godot_status = f'CONFLITO CRÍTICO — Mascarada por local-aliases/room-{room_id:03d}.json (alias da sala {orig}); get_next_room retorna NO_ROOM'
+    elif room_id == 204:
+        godot_status = "DIVERGÊNCIA — Tratada como 'o limbo' em sandbox_gameplay.gd:1393 e bloqueada"
+    elif not snap_canon.exists():
+        godot_status = 'NÃO DECODIFICADA — Sem snapshot extraído em data/extracted/en-eu-rc750/rooms/'
+
+    print(f'== Sala {room_id} (0x{room_id:02X}) ==')
+    print(f'  MapZone            : {zone_desc}')
+    print(f'  Conexões cardinais : {conn_str}')
+    print(f'  Propriedades ROM   : {prop_str}')
+    print(f'  Status no Godot    : {godot_status}')
+    if doors:
+        print('  Portas             :')
+        for d in doors:
+            print(f'    - Porta {d["id"]} (tipo {d["render_type"]}) em ({d["x"]}, {d["y"]}) -> Destino: Sala {d["dest"]}')
+    else:
+        print('  Portas             : Nenhuma')
+    return 0
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Consulta índices de contexto')
     sub = parser.add_subparsers(dest='command', required=True)
@@ -169,6 +339,9 @@ def main(argv=None):
     p = sub.add_parser('unmapped', help='atalho para status UNMAPPED, somente resumo')
     p.set_defaults(func=cmd_status, status='UNMAPPED')
     p = sub.add_parser('progress'); p.add_argument('text', nargs='?'); p.set_defaults(func=cmd_progress)
+    p = sub.add_parser('room', help='identidade, conexões e status da sala por ID')
+    p.add_argument('id', type=int, nargs='?', help='Room ID canônico (0-250)')
+    p.set_defaults(func=cmd_room)
     args = parser.parse_args(argv)
     return args.func(args)
 

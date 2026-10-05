@@ -117,6 +117,20 @@ class MechanicsLookupTests(unittest.TestCase):
                 self.assertEqual((code, output), (2, ''))
                 self.assertIn('error:', errors)
 
+    def test_room_lookup_command_summary_and_specific_room(self):
+        code, output, errors = self.run_lookup('room')
+        self.assertEqual((code, errors), (0, ''))
+        self.assertIn('idxRooms: 251 entradas', output)
+
+        code, output, errors = self.run_lookup('room', '999')
+        self.assertEqual(code, 1)
+        self.assertIn('Room ID inválido', errors)
+
+        code, output, errors = self.run_lookup('room', '211')
+        self.assertEqual((code, errors), (0, ''))
+        self.assertIn('Sala 211', output)
+        self.assertIn('CONFLITO CRÍTICO', output)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -16,7 +16,7 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 - Sandbox jogável a partir da sala 121; catálogo progressivo e cadeias em
   `python3 -m tools.context.lookup mech` (`docs/index/mechanics.json`).
 - Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 38 etapas PASS,
-  164 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
+  165 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
 - `godot/project.godot` tem alteração local do usuário: nunca incluir em commits.
 
 ## Auditoria atual
@@ -27,7 +27,8 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 - `progression-events`: 33 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 5, NOT_STARTED 24).
 - `player-core`: 17 features (IMPLEMENTED 0, PARTIAL 10, PROVISIONAL 3, NOT_STARTED 4; UNMAPPED 0).
 - `hazards-special-rooms`: 14 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 1, NOT_STARTED 9).
-- Lacunas: GameProgressBuffer, IDs 211/212 (canal vs cela), física 8.8 vs float, VDP vs alfa.
+- `world-rooms-navigation`: 10 features (IMPLEMENTED 0, PARTIAL 6, PROVISIONAL 0, NOT_STARTED 4).
+- Lacunas: IDs 211/212 (canal vs cela), sala 204 (paraquedas vs limbo), caminhões, 8.8 vs float.
 - Próxima tarefa sugerida, só após pedido: priorizar `pitfalls` (ID 16) ou `rocket-launcher`.
 
 ## Decisões pendentes do usuário
