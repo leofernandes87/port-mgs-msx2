@@ -1,6 +1,6 @@
 # Estado atual
 
-Atualizado em 2026-10-05. Curto por regra (skill `delivery`); histórico em `docs/progress/`.
+Atualizado em 2026-10-06. Curto por regra (skill `delivery`); histórico em `docs/progress/`.
 Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 ## Onde estamos
@@ -29,7 +29,7 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 - `hazards-special-rooms`: 14 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 1, NOT_STARTED 9).
 - `world-rooms-navigation`: 10 features (IMPLEMENTED 0, PARTIAL 6, PROVISIONAL 0, NOT_STARTED 4).
 - Catálogo: 201 features normalizadas, ownership consolidado e 0 erros de integridade.
-- Próxima tarefa sugerida, só após pedido: priorizar `scenes-flow` ou `pitfalls` (ID 16).
+- Próxima tarefa sugerida, só após pedido: executar Milestone 1 (CORE-001) de docs/IMPLEMENTATION_PLAN.md.
 
 ## Decisões pendentes do usuário
 
