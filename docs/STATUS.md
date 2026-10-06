@@ -17,7 +17,7 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
   `python3 -m tools.context.lookup mech` (`docs/index/mechanics.json`).
 - Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 39 etapas PASS,
   165 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
-- `godot/project.godot` tem alteração local do usuário: nunca incluir em commits.
+- `godot/project.godot` versionado sem `[physics]` nem `resizable` (60 Hz definido por `GameClock`).
 
 ## Auditoria atual
 
