@@ -5,17 +5,17 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 ## Onde estamos
 
-- Última tag: `v0.2.3` (núcleo do rádio fiel à ROM).
-- Último commit: `docs(context)` (confira com `git log --oneline -1`).
-- Implementação recente: núcleo do rádio fiel à ROM. Tabela de salas, zonas e
-  textos extraídos por `tools/extractors/extract_radio_dialogue.py`; `radio_system.gd` tick a tick
-  (CALL 32/88 ticks, AUTO-REPLY/WAIT-CALL, BCD, LEDs, condições de `ChkRadioReply`).
-- Anterior: `rolling-barrels` (ID 15) com sprites extraídos, tag `v0.2.2`.
+- Última tag: `v0.2.4` (CORE-001: relógio de jogo determinístico), branch feature/core-001-game-clock.
+- Último commit: `feat(core)` (confira com `git log --oneline -1`).
+- Implementação recente: CORE-001, relógio determinístico `GameClock`. Interrupção de
+  60 Hz em `_physics_process`, iteração `game_tick()` a cada 2 interrupções em jogo e a cada 1 na janela
+  de texto (cadência medida no openMSX; a máquina europeia real é PAL 50 Hz, R#9 = 82h).
+- Anterior: núcleo do rádio fiel à ROM (`radio_system.gd`, tag `v0.2.3`).
 - ROM canônica `en-eu-rc750` por SHA-256 (`tools/rom.py`); o Godot só aceita dados de
-  `data/extracted/en-eu-rc750/` com essa proveniência. Godot em 60 Hz.
+  `data/extracted/en-eu-rc750/` com essa proveniência.
 - Sandbox jogável a partir da sala 121; catálogo progressivo e cadeias em
   `python3 -m tools.context.lookup mech` (`docs/index/mechanics.json`).
-- Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 38 etapas PASS,
+- Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 39 etapas PASS,
   165 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
 - `godot/project.godot` tem alteração local do usuário: nunca incluir em commits.
 
@@ -25,11 +25,11 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 - `weapons-items`: 38 features (1 IMPLEMENTED, 20 PARTIAL, 8 PROVISIONAL, 9 NOT_STARTED).
 - `radio-dialogue`: 32 features (7 IMPLEMENTED, 19 PARTIAL, 3 PROVISIONAL, 2 NOT_STARTED, 1 UNMAPPED).
 - `progression-events`: 33 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 5, NOT_STARTED 24).
-- `player-core`: 17 features (IMPLEMENTED 0, PARTIAL 10, PROVISIONAL 3, NOT_STARTED 4; UNMAPPED 0).
+- `player-core`: 18 features (IMPLEMENTED 0, PARTIAL 11, PROVISIONAL 3, NOT_STARTED 4; UNMAPPED 0).
 - `hazards-special-rooms`: 14 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 1, NOT_STARTED 9).
 - `world-rooms-navigation`: 10 features (IMPLEMENTED 0, PARTIAL 6, PROVISIONAL 0, NOT_STARTED 4).
 - Catálogo: 201 features normalizadas, ownership consolidado e 0 erros de integridade.
-- Próxima tarefa sugerida, só após pedido: executar Milestone 1 (CORE-001) de docs/IMPLEMENTATION_PLAN.md.
+- Próxima tarefa sugerida, só após pedido: próxima issue do Milestone 1 de docs/IMPLEMENTATION_PLAN.md.
 
 ## Decisões pendentes do usuário
 
@@ -43,7 +43,9 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
   (`Banks0123.asm:9634-9641`; `docs/reverse_engineering/grey-fox-dialogue.md`).
 - Rádio: produtores das flags de evento (texto 138, bolsa com transmissor, sala 111) e texto 62 da `BAG`.
 - Grey Fox: SFX e captura dinâmica do diálogo.
-- Fora do escopo até pedido: 50 Hz × 60 Hz; bloco de RAM 0xF29C–0xF2D9.
+- Tick: `RadioDialog`/typewriter ainda em tempo real; cadência de rádio/menus/binóculos/captura não
+  medida; `game_tick` não segue rotina a rotina `PlayModeLogic` (`game-loop`).
+- Fora do escopo até pedido: modo 50 Hz opcional; bloco de RAM 0xF29C–0xF2D9.
 
 ## Onde procurar
 

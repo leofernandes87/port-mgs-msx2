@@ -54,7 +54,7 @@ func _run() -> void:
 	# 2. Simular alguns ticks e verificar que eles permanecem parados e não olham para UP
 	var seen_directions: Dictionary = {}
 	for i in range(120):
-		sandbox.call("_physics_process", 1.0 / 60.0)
+		sandbox.call("game_tick")
 		seen_directions[g_left.current_direction] = true
 		seen_directions[g_right.current_direction] = true
 		if not require(is_equal_approx(g_left.position.x, 80.0) and is_equal_approx(g_left.position.y, 48.0), "Guarda esquerdo deve permanecer parado no posto durante IDLE"): return
@@ -67,7 +67,7 @@ func _run() -> void:
 	var chow_time_seen: bool = false
 	var banner: Label = sandbox.get("dialog_banner_label") as Label
 	for i in range(160):
-		sandbox.call("_physics_process", 1.0 / 60.0)
+		sandbox.call("game_tick")
 		if banner and banner.visible and "Chow time" in banner.text:
 			chow_time_seen = true
 
@@ -79,7 +79,7 @@ func _run() -> void:
 
 	# 4. Avançar 260 ticks: a 0.7 px/tick, guardas devem sair completamente da tela sem que novos guardas surjam ainda
 	for i in range(260):
-		sandbox.call("_physics_process", 1.0 / 60.0)
+		sandbox.call("game_tick")
 
 	var active_leaving_guards: int = 0
 	var relieve_spawned_premature: bool = false
@@ -95,7 +95,7 @@ func _run() -> void:
 
 	# 5. Avançar 160 ticks adicionais (~2.5s de intervalo): os sentinelas de revezamento devem agora surgir da direita
 	for i in range(160):
-		sandbox.call("_physics_process", 1.0 / 60.0)
+		sandbox.call("game_tick")
 
 	var relieve_spawned: bool = false
 	for e in sandbox.get("enemies"):
@@ -107,7 +107,7 @@ func _run() -> void:
 
 	# 6. Avançar 270 ticks: novos guardas devem alcançar seus postos (X=144 e X=80) a 0.7 px/tick e entrar em IDLE
 	for i in range(270):
-		sandbox.call("_physics_process", 1.0 / 60.0)
+		sandbox.call("game_tick")
 
 	var settled_left: bool = false
 	var settled_right: bool = false

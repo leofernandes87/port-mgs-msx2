@@ -3,16 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-05 — Inventário progressivo: núcleo do jogador, física e estados de controle
-
-**Feito:** inventário Z80 da edição inglesa antes do cruzamento com Godot, integração e testes.
-17 features em `player-core`: PARTIAL 10, PROVISIONAL 3, NOT_STARTED 4; IMPLEMENTED 0, UNMAPPED/INVESTIGATING 0.
-Evidência: `Banks0123.asm:5486-5515,8397-8439,8447-8512,8564-8644,8702-8760,8791-8926,8972-9008,9141-9277,9284-9325,9332-9441,9520-9573,9654-9765,9886-9928,12151-12290`, `Variables.asm:79,88-92,105,142-181`, `logic/collisions.asm:15-169`, `logic/nextroom.asm:204-480`, `logic/touchenemy.asm:8-190`, `logic/hud.asm:107-145`, `logic/damagegas.asm:36-47`, `logic/damageelectric.asm:51-61`, `logic/pitfall.asm:10-41`.
-Divergências registradas: física float/delta vs aritmética 8.8 (0x0200 = 2.0 px/tick), precedência direcional sem memória Z80, dano com flash vermelho alternado por frame vs invisibilidade, sequência de morte de 128 ticks (DeadTimer = 0x80) com 3 poses antes de Game Over, ausência de knockback físico e timers de recuperação por hazard (32/16/8 ticks). Nenhum arquivo de gameplay alterado.
-**Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS, 164 testes Python; `build_index --check`: exit 0.
-**Pendências:** convergência de física 8.8 e sequência de morte reservadas para etapas sob demanda.
-**Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
-
 ## 2026-10-05 — Inventário progressivo: hazards ambientais e lógica especial de salas
 
 **Feito:** inventário Z80 da edição inglesa antes de qualquer alteração no Godot, dados ou testes.
@@ -46,3 +36,19 @@ Divergências registradas: salas 211/212 mascaradas por `local-aliases/` no Godo
 **Testes:** `python3 tools/validate.py`: exit 0, 38 etapas PASS, 165 testes Python; `build_index --check`: exit 0.
 **Pendências:** início da execução por CORE-001 conforme demanda.
 **Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
+
+## 2026-10-06 — CORE-001: relógio de jogo determinístico e cadência medida
+
+**Feito:** `GameClock` é a única base temporal: `_physics_process` do sandbox = interrupção de 60 Hz,
+`game_tick()` = uma iteração (`InterruptTick`/`TickInProgress`, `Banks0123.asm:440-471,10058-10060`),
+`TickCounter` de 8 bits e `TICK_DELTA` fixo para os contadores portados. Sonda openMSX
+`tools/emulation/tick_rate.tcl` (`C-BIOS_MSX2_EU`): R#9 = 82h, 50,1 Hz; em jogo 1 iteração a cada 2
+interrupções, janela de texto a cada 1; a ROM inglesa não força frequência. Por decisão do usuário, mesma
+estratégia a 60 Hz (jogo a 30 it/s). Prisioneiros, captura e CALL do HUD saíram do tempo real; intro
+deriva a cadência do relógio. Ordem de `PlayModeLogic` em `architecture.md`.
+**Testes:** `game_clock_test.gd` (novo, registrado no `validate.py`); `prisoner_dialog_test` usa
+`game_tick()` (também room_transition, elevator_guard, room_007_patrol, doors_and_inventory e
+rolling_barrel) e `capture_prison_test` usa `step_tick`. `validate.py`: exit 0, 39 etapas, 165 testes Python.
+**Pendências:** máquina europeia é 50 Hz; cadência de rádio/menus/binóculos/captura não medida;
+overrun variável não modelado; `RadioDialog`/typewriter em tempo real; ordem fina de `PlayModeLogic`.
+**Git:** commit desta entrega na branch feature/core-001-game-clock, tag `v0.2.4`.

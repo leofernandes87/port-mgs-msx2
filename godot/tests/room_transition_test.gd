@@ -192,7 +192,7 @@ func _run() -> void:
 	# Entrar no caminhão central (Sala 127) pela traseira
 	p.set_grid_position(108.0, 118.0)
 	p.current_direction = PlayerController.Direction.UP
-	sandbox.call("_physics_process", 1.0 / 60.0)
+	sandbox.call("game_tick")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
 	if not require(current_snap.room_id == 127, "Snake deve entrar no caminhão central (Sala 127)"): return
@@ -202,7 +202,7 @@ func _run() -> void:
 	# Sair pela abertura direita da carroceria de volta à Sala 5
 	p.set_grid_position(210.0, 100.0)
 	p.current_direction = PlayerController.Direction.RIGHT
-	sandbox.call("_physics_process", 1.0 / 60.0)
+	sandbox.call("game_tick")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
 	if not require(current_snap.room_id == 5, "Snake deve sair do caminhão de volta para o pátio da Sala 5"): return

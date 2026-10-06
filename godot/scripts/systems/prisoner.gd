@@ -81,10 +81,7 @@ func _ready() -> void:
 	load_prisoner_textures()
 	_configure_prisoner()
 
-func _process(delta: float) -> void:
-	step_tick(delta)
-
-## Avança o ciclo temporal calibrado a 60Hz NTSC.
+## Avança um tick de jogo (GameClock.TICK_DELTA), chamado pelo sandbox a cada iteração.
 func step_tick(delta: float = 1.0 / 60.0) -> void:
 	if is_dead or is_freed():
 		return

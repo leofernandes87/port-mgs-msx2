@@ -131,7 +131,8 @@ func start_cutscene(player: PlayerController) -> void:
 	cutscene_started.emit()
 	queue_redraw()
 
-func _process(delta: float) -> void:
+## Avança um tick de jogo (GameClock.TICK_DELTA), chamado pelo sandbox a cada iteração.
+func step_tick(delta: float) -> void:
 	if not is_active:
 		return
 

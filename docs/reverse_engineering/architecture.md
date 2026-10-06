@@ -30,7 +30,46 @@ flowchart TD
 | Submodos de gameplay | Banks0123.asm:12015 `GameLogic`, `GameModeLogic` | Atualiza apresentação conforme modo, lê controles, despacha Playing/NextRoom/menus/rádio/caminhão/elevador/porta/binóculos/morte/texto/captura/evento. |
 | Ordem da simulação | Banks0123.asm:12151 `PlayModeLogic`; logic/common.asm:8 `CommonLogic` | Alerta, temporizadores e chamada recebida; jogador; disparo; tiros; inimigos; colisões de combate, ambiente, portas e itens; veneno e atualização de sprites. Alguns estados pulam passos. |
 
-A ordem importa para fidelidade: o fluxo não é simplesmente “mover todos e depois desenhar”. A lógica pode mudar modo durante a iteração. O remake deverá modelar passos discretos antes de interpolar apresentação. **P:** duração real do tick por variante/região, eventuais frames perdidos, ordem exata de todos os submodos. Não se converte ainda velocidade para pixels/segundo.
+A ordem importa para fidelidade: o fluxo não é simplesmente “mover todos e depois desenhar”. A lógica pode mudar modo durante a iteração. O remake deverá modelar passos discretos antes de interpolar apresentação. **P:** ordem exata de todos os submodos. Não se converte ainda velocidade para pixels/segundo.
+
+## Tick e cadência real
+
+**E (asm):** uma iteração de jogo por interrupção do VDP (`InterruptTick`, Banks0123.asm:440-471,
+instalada em `HTIMI` em 599-601); se `TickInProgress` (0xC005) indica iteração anterior em curso, a
+interrupção só atualiza o som. Não há `halt` nem espera explícita: a cadência depende do tempo de CPU.
+`TickCounter` (0xC003) só é incrementado por `GameStatusLogic` (Banks0123.asm:10058-10060); as demais
+referências (`Banks0123.asm:6572`, `tankshell.asm`, `scorpion.asm`, `dog.asm`) só o leem como semente.
+A edição inglesa não grava o registrador 9 do VDP nem consulta `BASVER` (`RegionLock` vazio fora do ramo
+japonês, `logic/regionlock.asm`; `InitVdpDat` só grava R#1, R#5, R#6 e R#11): a frequência é a da máquina.
+
+**E (openMSX 21, `C-BIOS_MSX2_EU`, ROM canônica, sem teclas, `tools/emulation/tick_rate.tcl`, 120 s
+emulados após 2 s):** R#9 = 82h (PAL); 6016 interrupções = 50,1 Hz. Iterações por interrupção:
+
+| GameStatus.GameMode | Interrupções | Iterações | Intervalo dominante |
+| --- | --- | --- | --- |
+| 0.0 logo | 1482 | 1144 | 1 (1098×); cargas de 13–158 |
+| 1.0 menu | 768 | 768 | 1 |
+| 2.0 demo jogando | 2645 | 1077 | **2** (1026×; 1 em 41×, 3 em 2×) |
+| 2.10 demo, janela de texto | 1112 | 1105 | 1 (1098×) |
+
+**H:** a cadência 2 em jogo vem de iterações que excedem um quadro; salas com mais atores podem chegar a
+3, e o BIOS real (mais pesado que o C-BIOS) pode alterar a margem. Rádio, menus, binóculos e captura não
+foram medidos.
+
+**Port (decisão do projeto, 2026-10-06):** mesma estratégia com interrupção de 60 Hz em `GameClock`
+(`godot/scripts/systems/game_clock.gd`): `_physics_process` do sandbox é a interrupção e `game_tick()` a
+iteração; jogo a cada 2 interrupções (30 it/s), janela de texto a cada 1; modos não medidos a cada 1.
+A máquina europeia real roda a 50 Hz (25 it/s em jogo).
+
+### Ordem de `PlayModeLogic` versus `game_tick`
+
+ROM (Banks0123.asm:12151-12208; logic/common.asm:8-47): `ChkAlarmEnd` → `DamageDelayTimer` →
+`ChkIncomingCall` → `DecNukeTimer` → (morto: só sprites) → `PlayerControlLogic` (exceto Metal Gear
+explodindo) → `ChkWeaponShot` → `PlayerShotsLogic` → `EnemiesLogic` → `CommonLogic` (`ChkPlayerShots`,
+`ChkTouchEnemies`, `ChkOnBridge`, `ChkElectricFloor`, `ChkGasRooms`, `ChkDoors`, `ChkTakeItems`, captura)
+→ veneno a cada 64 ticks. Antes disso, `GameLogic` (12015-12089) desenha HUD/sprites e lê controles.
+`game_tick` segue jogador → atores/colisões por sistema; a reordenação fina por rotina fica para as
+issues de cada sistema.
 
 ## Hardware gráfico e áudio
 

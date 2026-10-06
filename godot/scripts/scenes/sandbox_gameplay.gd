@@ -23,6 +23,7 @@ var enemies: Array[EnemyGuard] = []
 var inventory: InventoryManager = InventoryManager.new()
 var weapon_system: WeaponSystem = WeaponSystem.new()
 var radio_system: RadioSystem = RadioSystem.new()
+var game_clock: GameClock = GameClock.new()
 var radio_dialog: RadioDialog
 var cameras: Array[SecurityCamera] = []
 var laser_system: LaserSystem
@@ -138,6 +139,7 @@ var guard3_exited_lorry: bool = false
 
 func _ready() -> void:
 	print("BOOT_OK: cena principal pronta")
+	Engine.physics_ticks_per_second = GameClock.INTERRUPT_HZ
 	# Área central de jogo autêntica MSX2 (256x212: Gameplay 256x192 + GameHUD 256x20)
 	viewport_area = Control.new()
 	viewport_area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -2195,7 +2197,27 @@ func _input(event: InputEvent) -> void:
 				inventory.use_selected_item(player)
 			get_viewport().set_input_as_handled()
 
-func _physics_process(delta: float) -> void:
+## One VDP interrupt per physics frame; game iterations follow GameClock's cadence.
+func _physics_process(_delta: float) -> void:
+	if game_clock.interrupt(_iteration_cadence()):
+		if hud:
+			hud.call_tick_counter = game_clock.tick_counter
+		game_tick()
+
+func _iteration_cadence() -> int:
+	if prisoner_dialog and prisoner_dialog.is_active:
+		return GameClock.CADENCE_TEXT_BOX
+	# IntroCutscene keeps CADENCE_PLAYING internally (LOGIC_STEP_SEC) and is fed every interrupt.
+	if intro_cutscene and intro_cutscene.is_active:
+		return 1
+	if (binocular_system and binocular_system.is_active) or (capture_cutscene and capture_cutscene.is_active):
+		return GameClock.CADENCE_UNMEASURED
+	return GameClock.CADENCE_PLAYING
+
+## One game iteration (GameStatusLogic -> GameLogic -> PlayModeLogic, Banks0123.asm:10058-10081,
+## 12015-12208). Ported counters advance one tick per call; no real-time delta is used.
+func game_tick() -> void:
+	var delta: float = GameClock.TICK_DELTA
 	if prisoner_dialog and prisoner_dialog.is_active:
 		prisoner_dialog.step_tick(delta)
 		return
@@ -2212,6 +2234,9 @@ func _physics_process(delta: float) -> void:
 	if binocular_system and binocular_system.is_active:
 		_process_binoculars(delta)
 		return
+
+	if capture_cutscene and capture_cutscene.is_active:
+		capture_cutscene.step_tick(delta)
 
 	# Atualiza a mecânica da Caixa de Papelão e Arma Equipada
 	player.is_in_box = (inventory.get_selected_item() == InventoryManager.ITEM_BOX)
@@ -2390,6 +2415,7 @@ func _physics_process(delta: float) -> void:
 	for pris: Prisoner in prisoners:
 		if is_instance_valid(pris) and not pris.is_dead:
 			pris.actor_tick()
+			pris.step_tick(delta)
 			pris.check_touch(player.position, player.is_punching)
 			for b: Bullet in bullets:
 				if is_instance_valid(b) and not b.is_enemy:
@@ -3021,7 +3047,7 @@ func _on_boss_defeated() -> void:
 	print("BOSS_DEFEATED: Shoot Gunner eliminado! (ShotGunnerStat bit0 = 1)")
 
 ## Verifica colisão de balas do player com o boss Shoot Gunner
-## Chamado dentro do loop de bullets em _physics_process
+## Chamado dentro do loop de bullets em game_tick
 func _check_boss_bullet_collision(b: Bullet) -> bool:
 	if not is_instance_valid(shot_gunner) or shot_gunner.is_dead:
 		return false

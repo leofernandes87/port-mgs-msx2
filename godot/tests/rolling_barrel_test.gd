@@ -152,7 +152,7 @@ func _run() -> void:
 	snake.invulnerable_timer_sec = 0.0
 	snake.can_control = true
 	snake.position = Vector2(128, 100)
-	sandbox.call("_physics_process", 1.0 / 60.0)
+	sandbox.call("game_tick")
 	if not require(snake.life == 0 and snake.is_dead, "Contato com a coluna mata Snake"): return
 	sandbox.call("_spawn_room_enemies", 1)
 	if not require((sandbox.get("rolling_barrels") as Array).is_empty(), "Sala 1 sem barris"): return

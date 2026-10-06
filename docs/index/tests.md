@@ -7,6 +7,7 @@ marcador aparecer e não houver `ERROR:`. Suíte nova: acrescentar a `GODOT_TEST
 ## Godot (ordem do validate)
 
 - `godot-smoke` · `smoke_test.gd` · `SMOKE_OK:` · scenes/main.tscn
+- `godot-game-clock` · `game_clock_test.gd` · `GAME_CLOCK_OK:` · scenes/sandbox_gameplay.tscn, scripts/scenes/sandbox_gameplay.gd, scripts/systems/game_clock.gd, scripts/systems/intro_cutscene.gd
 - `godot-room-snapshot` · `room_snapshot_test.gd` · `ROOM_SNAPSHOT_OK:` · scenes/room_inspector.tscn, scripts/systems/rom_provenance.gd, scripts/systems/room_canvas.gd, scripts/systems/room_manager.gd, scripts/systems/room_snapshot.gd
 - `godot-player-movement` · `player_movement_test.gd` · `PLAYER_MOVEMENT_OK:` · scenes/player.tscn, scenes/sandbox_gameplay.tscn, scripts/systems/player.gd
 - `godot-room-transition` · `room_transition_test.gd` · `ROOM_TRANSITION_OK:` · scenes/sandbox_gameplay.tscn, scripts/systems/enemy.gd, scripts/systems/player.gd, scripts/systems/room_manager.gd, scripts/systems/room_snapshot.gd

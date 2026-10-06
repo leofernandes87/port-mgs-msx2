@@ -61,7 +61,7 @@ func _run() -> void:
 
 	# 2. Testar saída do guarda do caminhão do meio (Y=120 -> Y=136 -> patrulha)
 	g_mid.lorry_timer = 1
-	sandbox.call("_physics_process", 1.0 / 60.0)
+	sandbox.call("game_tick")
 	if not require(g_mid.visible, "Guarda do meio deve tornar-se visível ao zerar o timer"): return
 	if not require(g_mid.is_exiting_lorry, "Guarda do meio deve iniciar animação de saída da caçamba"): return
 	if not require(g_mid.current_direction == PlayerController.Direction.DOWN, "Guarda deve sair caminhando para o Sul (DOWN)"): return
@@ -69,7 +69,7 @@ func _run() -> void:
 	# Avançar até concluir a saída (16 pixels)
 	var max_ticks: int = 60
 	while g_mid.is_exiting_lorry and max_ticks > 0:
-		sandbox.call("_physics_process", 1.0 / 60.0)
+		sandbox.call("game_tick")
 		max_ticks -= 1
 	if not require(not g_mid.is_exiting_lorry, "Guarda do meio deve concluir a descida da carroceria"): return
 	if not require(is_equal_approx(g_mid.position.y, 136.0), "Guarda do meio deve estar em Y=136 (waypoint 0) ao fim da saída"): return
@@ -116,7 +116,7 @@ func _run() -> void:
 	# Fazer o guarda sair da caçamba
 	g_mid_new.lorry_timer = 1
 	for i in range(50):
-		sandbox.call("_physics_process", 1.0 / 60.0)
+		sandbox.call("game_tick")
 	if not require(g_mid_new.visible, "Guarda do meio deve estar fora da caçamba"): return
 
 	# Entrar no caminhão 131 enquanto o guarda está fora
@@ -156,7 +156,7 @@ func _run() -> void:
 	# Fazer o segundo guarda sair da caçamba
 	g_right_new.lorry_timer = 1
 	for i in range(50):
-		sandbox.call("_physics_process", 1.0 / 60.0)
+		sandbox.call("game_tick")
 	if not require(g_right_new.visible, "Segundo guarda deve estar visível fora do caminhão"): return
 
 	# Entrar no caminhão 132 com o guarda fora

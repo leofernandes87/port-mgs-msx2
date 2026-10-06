@@ -37,9 +37,9 @@ const BRIEFING_PAGES: Array[String] = [
 # Offsets de salto do MSX2 (logic/introscene.asm:380)
 const BOUNCE_OFFSETS: Array[int] = [2, 1, 0, -2, -2, -2, -3, -5, -7, -5, -3, -2]
 
-# Aproxima a cadência observada nesta intro NTSC, sem mudar o relógio do gameplay.
-# Banks0123.asm:440-466 permite pular interrupções; não é uma regra universal do MSX.
-const LOGIC_STEP_SEC: float = 1.0 / 30.0
+# A intro (PlayerControlMod 8) roda em GameMode 0: uma iteração a cada CADENCE_PLAYING
+# interrupções (InterruptTick, Banks0123.asm:440-471); o sandbox a chama a cada interrupção.
+const LOGIC_STEP_SEC: float = GameClock.CADENCE_PLAYING * GameClock.TICK_DELTA
 var current_state: State = State.INACTIVE
 var state_counter: int = 0
 var is_active: bool = false

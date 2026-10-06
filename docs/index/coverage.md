@@ -5240,18 +5240,19 @@ Inventário do comportamento original a partir da desmontagem canônica inglesa 
 | Status | Features |
 | --- | ---: |
 | `IMPLEMENTED` | 0 |
-| `PARTIAL` | 10 |
+| `PARTIAL` | 11 |
 | `PROVISIONAL` | 3 |
 | `NOT_STARTED` | 4 |
 | `DEFERRED` | 0 |
 | `UNMAPPED` | 0 |
 | `INVESTIGATING` | 0 |
-| Total | 17 |
+| Total | 18 |
 
 ### Entradas
 
 | Feature | IDs | Status |
 | --- | --- | --- |
+| [game-loop](#game-loop) — Loop principal de interrupção, tick e despacho de GameMode | transversal | `PARTIAL` |
 | [player-movement](#player-movement) — Movimento cardinal, velocidade e aritmética de posição | transversal | `PARTIAL` |
 | [player-facing-animation](#player-facing-animation) — Direção, ciclo de passos e animação de caminhada | transversal | `PARTIAL` |
 | [player-world-collision](#player-world-collision) — Colisão do jogador com tiles do cenário e obstáculos | transversal | `PARTIAL` |
@@ -5273,6 +5274,38 @@ Inventário do comportamento original a partir da desmontagem canônica inglesa 
 ### UNMAPPED
 
 Nenhuma entrada.
+
+<a id="game-loop"></a>
+### Loop principal de interrupção, tick e despacho de GameMode
+
+`game-loop` · **PARTIAL**
+
+**Original:** InterruptTick (Banks0123.asm:440-471, em HTIMI por 599-601) roda GameStatusLogic uma vez por interrupção do VDP e pula a interrupção enquanto TickInProgress indica iteração em curso; GameStatusLogic incrementa TickCounter de 8 bits e despacha GameStatus (Banks0123.asm:10058-10081); GameLogic desenha HUD/sprites, lê controles e despacha GameMode (12015-12089); PlayModeLogic define a ordem de atualização em jogo (12151-12208) com CommonLogic (logic/common.asm:8-47). A edição inglesa não força 50/60 Hz: a frequência é a da máquina.
+
+**Classificação:** Base temporal determinística e cadência fundamentadas em asm e medição; frequência, cadência fina e ordem por rotina ainda divergem.
+
+**Assembly:** Banks0123.asm:440-471 InterruptTick; Banks0123.asm:599-601; Banks0123.asm:10058-10081 GameStatusLogic; Banks0123.asm:12015-12089 GameLogic; Banks0123.asm:12151-12208 PlayModeLogic; logic/common.asm:8-47 CommonLogic; logic/inithardware.asm:68-71 InitVdpDat; logic/regionlock.asm:27-37 RegionLock
+
+**Extractors:** Nenhum localizado neste recorte.
+
+**Dados canônicos locais:** Nenhum localizado neste recorte.
+
+**Godot relacionado:** godot/scripts/systems/game_clock.gd; godot/scripts/scenes/sandbox_gameplay.gd
+
+**Integração inspecionada:** godot/scripts/scenes/sandbox_gameplay.gd::_physics_process; godot/scripts/scenes/sandbox_gameplay.gd::game_tick
+
+**Testes existentes:** godot-game-clock; godot-main
+
+**Documentação:** docs/reverse_engineering/architecture.md
+
+**Histórico consultado:** docs/progress.md::2026-10-06 — CORE-001: relógio de jogo determinístico e cadência medida
+
+**Implementado:** GameClock (godot/scripts/systems/game_clock.gd) é a única base temporal: _physics_process do sandbox = uma interrupção de 60 Hz, game_tick() = uma iteração; TickCounter de 8 bits; cadência por modo medida no openMSX (jogo a cada 2 interrupções, janela de texto a cada 1).; Sistemas recebem TICK_DELTA fixo (uma unidade dos contadores X/60) em vez do delta real; animação dos prisioneiros, cutscene de captura e piscar do CALL deixaram de usar _process com tempo real; a intro deriva sua cadência do GameClock.; Ordem de PlayModeLogic documentada em docs/reverse_engineering/architecture.md.
+
+**Faltante / não comprovado:** Frequência: o port usa interrupção de 60 Hz por decisão do projeto; a máquina europeia é PAL 50 Hz (25 it/s em jogo).; Cadência medida só para jogo (GameMode 0) e janela de texto (0Ah) na sala da demo; overrun variável (3 interrupções com mais atores) não é modelado; rádio, menus, binóculos, captura e morte usam cadência 1 sem medição.; game_tick não segue rotina a rotina a ordem de PlayModeLogic/CommonLogic; despacho formal de GameStatus/GameMode ausente; RadioDialog e o typewriter dos textos ainda usam tempo real em _process.
+
+**Notas de evidência:** openMSX 21 (C-BIOS_MSX2_EU, ROM canônica, tools/emulation/tick_rate.tcl, 120 s): R#9 = 82h, 6016 interrupções (50,1 Hz); demo jogando 2645 interrupções/1077 iterações (intervalo 2 em 1026 casos); janela de texto 1112/1105.; TickCounter só é escrito por GameStatusLogic; não há halt nem espera explícita, a cadência vem do overrun de CPU.
+
 
 <a id="player-movement"></a>
 ### Movimento cardinal, velocidade e aritmética de posição
@@ -5771,15 +5804,15 @@ Nenhuma entrada.
 
 **Godot relacionado:** godot/scripts/systems/player.gd
 
-**Integração inspecionada:** godot/scripts/systems/player.gd::step_tick; godot/scripts/scenes/sandbox_gameplay.gd::_physics_process
+**Integração inspecionada:** godot/scripts/systems/player.gd::step_tick; godot/scripts/scenes/sandbox_gameplay.gd::game_tick
 
-**Testes existentes:** godot-player-movement; godot-combat-health
+**Testes existentes:** godot-player-movement; godot-combat-health; godot-game-clock
 
 **Documentação:** docs/reverse_engineering/movement-and-collision.md
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4; docs/progress.md::2026-10-06 — CORE-001: relógio de jogo determinístico e cadência medida
 
-**Implementado:** Flag can_control impedindo movimento e ações quando falsa; congelamento em soco (is_punching), morte (is_dead), rádio, diálogo e menus.
+**Implementado:** Flag can_control impedindo movimento e ações quando falsa; congelamento em soco (is_punching), morte (is_dead), rádio, diálogo e menus.; PlayerControlLogic equivalente (player.step_tick e congelamentos) roda uma vez por iteração do GameClock, com TICK_DELTA fixo, na cadência de jogo.
 
 **Faltante / não comprovado:** Máquina de estados canônica PlayerControlMod com enum de 9 modos e despacho por índice; congelamento automático de controle durante a explosão do Metal Gear.
 
