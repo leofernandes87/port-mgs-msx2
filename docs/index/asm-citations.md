@@ -1,0 +1,1526 @@
+# Citações reversas do assembly
+
+Gerado por `tools/context/build_index.py`; não editar. Para cada trecho de `external/MetalGear/`
+citado como `arquivo.asm:linhas`, os arquivos do projeto que o citam (histórico de progresso
+excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic/items.asm" -A20`.
+
+## Banks0123.asm
+- arquivo: .agents/skills/delivery/SKILL.md, .agents/skills/implement-faithful-mechanic/SKILL.md, .agents/skills/inspect-msx-disassembly/SKILL.md, AGENTS.md, docs/index/README.md, docs/index/mechanics.json, docs/reverse_engineering/architecture.md, docs/reverse_engineering/enemies.md, docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/movement-and-collision.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-19-gas-hazard.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-5-movement-and-collision.md, godot/scripts/systems/elevator_system.gd, godot/scripts/systems/room_manager.gd, tests/test_region_tools.py, tools/extractors/extract.py, tools/extractors/extract_hud_assets.py, tools/extractors/extract_radio_dialogue.py, tools/extractors/extract_rolling_barrel.py, tools/extractors/extract_transceiver_sprites.py, tools/extractors/reference.py
+- 7: docs/reference.md
+- 8: docs/reverse_engineering/architecture.md
+- 440: docs/index/mechanics.json, docs/reverse_engineering/architecture.md
+- 440-466: docs/reverse_engineering/intro-fence-timing.md, godot/scripts/systems/intro_cutscene.gd
+- 552: docs/reverse_engineering/architecture.md
+- 554: docs/reverse_engineering/en-eu-reextraction.md, tools/reverse_engineering/compare_regions.py
+- 621: docs/reverse_engineering/memory-and-banks.md
+- 889: docs/reverse_engineering/stage-6-room-transitions.md, godot/scripts/systems/room_manager.gd
+- 889-918: docs/index/mechanics.json, docs/index/rooms.md
+- 1005-1020: docs/reverse_engineering/prison-wall.md
+- 1009-1026: docs/reverse_engineering/stage-10-lorries-and-canonical-items.md
+- 1030: godot/tests/binocular_test.gd
+- 1030-1048: godot/scripts/systems/binocular_system.gd, godot/scripts/systems/room_manager.gd
+- 1038: docs/index/mechanics.json, docs/index/rooms.md
+- 1060-1069: docs/index/mechanics.json
+- 1066: docs/index/mechanics.json
+- 1081-1093: docs/index/mechanics.json
+- 1270: docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/stage-4-results.md
+- 1283: docs/reverse_engineering/stage-3-results.md
+- 1480-1531: docs/reverse_engineering/prison-wall.md, tools/extractors/extract_prison_wall.py
+- 1590-1603: docs/index/mechanics.json
+- 1688-1745: docs/index/mechanics.json, godot/scripts/systems/radio_system.gd, tools/extractors/extract_radio_dialogue.py
+- 1689-1701: docs/index/mechanics.json
+- 1689-1743: .agents/skills/inspect-msx-disassembly/SKILL.md
+- 1689-1745: docs/index/mechanics.json
+- 1692-1694: docs/index/mechanics.json
+- 1692-1701: docs/index/mechanics.json
+- 1696-1701: docs/index/mechanics.json
+- 1703-1715: docs/index/mechanics.json
+- 1708-1710: docs/index/mechanics.json
+- 1712-1714: docs/index/mechanics.json
+- 1720-1727: docs/index/mechanics.json
+- 1721-1725: docs/index/mechanics.json
+- 1729-1733: docs/reverse_engineering/en-eu-reextraction.md
+- 1729-1743: docs/index/mechanics.json
+- 1734-1741: tools/extractors/extract_radio_dialogue.py
+- 1824-1913: docs/index/mechanics.json
+- 1858-1896: docs/index/mechanics.json
+- 2025: docs/reverse_engineering/en-eu-reextraction.md
+- 2092-2141: docs/index/mechanics.json, godot/scripts/systems/hud.gd
+- 2139: godot/scripts/systems/hud.gd
+- 2270-2312: docs/index/mechanics.json, godot/scripts/systems/hud.gd
+- 2379-2448: docs/index/mechanics.json
+- 2379-2461: godot/scripts/systems/radio_system.gd, tools/extractors/extract_radio_dialogue.py
+- 2380-2448: docs/index/mechanics.json
+- 2413-2425: docs/reverse_engineering/en-eu-reextraction.md
+- 2421-2426: docs/index/mechanics.json
+- 2427-2435: docs/index/mechanics.json
+- 2455-2461: tools/extractors/extract_radio_dialogue.py
+- 2455-2462: docs/index/mechanics.json
+- 2549: docs/reverse_engineering/stage-4b-vram-inheritance.md
+- 2886-2910: docs/index/mechanics.json
+- 2890: tools/extractors/extract_hud_assets.py
+- 2936-2965: docs/index/mechanics.json
+- 2937-2965: docs/index/mechanics.json
+- 2946-2965: docs/index/mechanics.json
+- 2958-2964: docs/index/mechanics.json
+- 2963: docs/index/mechanics.json
+- 2967-2974: docs/index/mechanics.json
+- 2967-2975: docs/index/mechanics.json
+- 2972: docs/index/mechanics.json
+- 2998-3002: tools/extractors/extract_transceiver_sprites.py
+- 2999: tests/test_hud_extractor.py, tools/extractors/extract_hud_assets.py
+- 3390: docs/reverse_engineering/maps.md
+- 3391: docs/reverse_engineering/stage-4-results.md
+- 3394: docs/reverse_engineering/stage-4b-vram-inheritance.md
+- 3684: docs/reverse_engineering/architecture.md
+- 3776: docs/reverse_engineering/stage-4-results.md
+- 3982: docs/reverse_engineering/stage-4-results.md
+- 4148-4170: godot/scripts/systems/prisoner_dialog.gd
+- 4550: tools/extractors/extract_hud_assets.py
+- 4703: godot/scripts/systems/radio_dialog.gd
+- 4726-4744: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+- 4741-4744: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+- 4806-4809: godot/scripts/systems/prison_wall_door.gd
+- 4885: docs/reverse_engineering/stage-4-results.md
+- 5204: docs/reverse_engineering/stage-3-results.md, tools/extractors/extract_hud_assets.py, tools/extractors/extract_transceiver_sprites.py
+- 5274: docs/reverse_engineering/inventory-and-events.md
+- 5280-5283: tools/extractors/extract_radio_dialogue.py
+- 5305-5340: godot/scripts/systems/radio_system.gd
+- 5305-5345: docs/index/mechanics.json
+- 5305-5391: docs/reverse_engineering/grey-fox-dialogue.md, tools/extractors/extract_grey_fox_dialogue.py
+- 5353: docs/reverse_engineering/en-eu-reextraction.md
+- 5405-5457: docs/reverse_engineering/intro-water-colors.md
+- 5414-5424: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd
+- 5486-5498: docs/index/mechanics.json
+- 5486-5515: docs/index/mechanics.json
+- 5489-5498: docs/index/mechanics.json
+- 5543-5580: tools/extractors/extract_enemy_sprites.py, tools/extractors/extract_prisoner_sprites.py, tools/extractors/extract_shoot_gunner_sprites.py, tools/extractors/extract_snake_sprites.py
+- 5653-5680: docs/index/mechanics.json
+- 5653-5847: godot/scripts/systems/laser_system.gd
+- 5797: godot/scripts/systems/laser_system.gd
+- 5961: tools/extractors/extract_rolling_barrel.py
+- 6088-6150: docs/index/mechanics.json
+- 6112: docs/index/mechanics.json
+- 6117: godot/scripts/scenes/sandbox_gameplay.gd
+- 6141-6147: docs/index/mechanics.json, tools/extractors/extract_rolling_barrel.py
+- 6145: docs/reverse_engineering/stage-3-results.md
+- 6358-6402: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd
+- 6358-6468: docs/index/mechanics.json
+- 6359-6402: godot/scripts/systems/rolling_barrel.gd
+- 6404: docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, godot/scripts/scenes/sandbox_gameplay.gd
+- 6409: godot/scripts/systems/security_camera.gd
+- 6458-6459: docs/index/mechanics.json
+- 6470-6471: docs/index/mechanics.json
+- 6550-6720: godot/scripts/systems/alert_system.gd
+- 6559-6628: docs/index/mechanics.json, docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md, godot/scripts/systems/alert_system.gd
+- 6576: godot/scripts/systems/alert_system.gd
+- 6635-6640: docs/index/mechanics.json
+- 6635-6713: docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md
+- 6644-6670: docs/index/mechanics.json, godot/scripts/systems/alert_system.gd
+- 6646: godot/scripts/systems/alert_system.gd, godot/tests/alert_system_test.gd
+- 6669: godot/scripts/systems/alert_system.gd
+- 6698: godot/scripts/systems/alert_system.gd
+- 6726: godot/scripts/systems/enemy.gd
+- 6815-6844: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/enemy.gd, godot/tests/sleepy_guard_test.gd
+- 6822: docs/reverse_engineering/stage-19-gas-hazard.md
+- 6832-6837: godot/scripts/systems/enemy.gd
+- 6834-6837: godot/tests/sleepy_guard_test.gd
+- 6852: docs/reverse_engineering/enemies.md
+- 6852-6923: docs/index/mechanics.json
+- 7039: godot/scripts/systems/enemy.gd
+- 7042: godot/scripts/systems/enemy.gd
+- 7045: godot/scripts/systems/enemy.gd
+- 7120: godot/scripts/systems/enemy.gd
+- 7188: docs/reverse_engineering/stage-3-results.md
+- 7324-7332: godot/scripts/systems/prisoner.gd
+- 7570: docs/reverse_engineering/movement-and-collision.md
+- 7570-7586: docs/index/mechanics.json
+- 7790-8350: docs/index/mechanics.json
+- 7798-7816: docs/index/mechanics.json
+- 7798-8303: godot/scripts/systems/prisoner_dialog.gd
+- 7808-7829: docs/index/mechanics.json
+- 7808-7860: docs/index/mechanics.json
+- 7813-7816: docs/index/mechanics.json
+- 7824-7828: docs/reverse_engineering/grey-fox-dialogue.md
+- 7824-7829: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/scenes/sandbox_gameplay.gd
+- 7837-7860: docs/index/mechanics.json
+- 7915-7920: docs/index/mechanics.json
+- 7932-7945: docs/index/mechanics.json
+- 7952-7968: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+- 7952-7969: docs/index/mechanics.json
+- 7952-8043: docs/index/mechanics.json
+- 7987-7997: docs/reverse_engineering/grey-fox-dialogue.md
+- 7988-7997: docs/index/mechanics.json
+- 7994-8045: docs/index/mechanics.json
+- 8010-8033: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+- 8024-8035: docs/index/mechanics.json
+- 8024-8036: docs/index/mechanics.json
+- 8035-8043: docs/reverse_engineering/grey-fox-dialogue.md
+- 8037-8044: docs/index/mechanics.json
+- 8043: docs/index/mechanics.json
+- 8058-8097: docs/index/mechanics.json
+- 8059-8064: docs/index/mechanics.json
+- 8063-8064: docs/index/mechanics.json
+- 8072: godot/scripts/systems/radio_dialog.gd
+- 8102-8107: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd, godot/tests/prisoner_dialog_test.gd
+- 8102-8108: docs/index/mechanics.json
+- 8113-8125: docs/index/mechanics.json
+- 8117-8125: docs/index/mechanics.json
+- 8118: godot/scripts/systems/radio_dialog.gd
+- 8130-8136: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+- 8143-8174: docs/index/mechanics.json
+- 8179-8185: docs/reverse_engineering/grey-fox-dialogue.md
+- 8183-8186: docs/index/mechanics.json
+- 8201-8219: godot/scripts/systems/radio_dialog.gd
+- 8207-8219: docs/index/mechanics.json
+- 8207-8220: docs/index/mechanics.json
+- 8271-8304: docs/index/mechanics.json
+- 8286-8289: docs/index/mechanics.json
+- 8290: docs/index/mechanics.json
+- 8301-8304: docs/index/mechanics.json
+- 8301-8324: docs/index/mechanics.json
+- 8301-8325: docs/index/mechanics.json
+- 8305-8324: docs/index/mechanics.json
+- 8338-8387: docs/index/mechanics.json
+- 8345: godot/scripts/systems/capture_cutscene.gd
+- 8365-8387: docs/reverse_engineering/grey-fox-dialogue.md
+- 8397: docs/reverse_engineering/movement-and-collision.md
+- 8397-8439: docs/index/mechanics.json
+- 8400-8402: godot/scripts/systems/hud.gd
+- 8405-8439: docs/index/mechanics.json
+- 8407: godot/scripts/systems/player.gd
+- 8415: godot/scripts/systems/player.gd
+- 8415-8416: docs/index/mechanics.json
+- 8422-8438: godot/scripts/systems/intro_cutscene.gd
+- 8447-8460: docs/index/mechanics.json
+- 8455: docs/index/mechanics.json
+- 8456: docs/index/mechanics.json
+- 8457-8458: docs/index/mechanics.json
+- 8467-8512: docs/index/mechanics.json
+- 8468: godot/scripts/scenes/sandbox_gameplay.gd
+- 8468-8470: docs/reverse_engineering/stage-20-rc-missile.md
+- 8479-8484: docs/index/mechanics.json
+- 8499-8507: docs/index/mechanics.json
+- 8499-8511: docs/index/mechanics.json
+- 8532-8563: docs/index/mechanics.json
+- 8540-8556: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/elevator_system.gd
+- 8564-8575: docs/index/mechanics.json
+- 8564-8580: docs/index/mechanics.json
+- 8587-8603: docs/index/mechanics.json
+- 8610-8629: docs/index/mechanics.json
+- 8610-8644: docs/index/mechanics.json
+- 8630-8644: docs/index/mechanics.json
+- 8702-8760: docs/index/mechanics.json
+- 8767-8783: docs/index/mechanics.json
+- 8791-8807: docs/index/mechanics.json
+- 8808-8817: docs/index/mechanics.json
+- 8825-8914: docs/index/mechanics.json
+- 8840-8842: godot/scripts/systems/intro_cutscene.gd
+- 8850-8895: docs/reverse_engineering/intro-fence-timing.md
+- 8915-8926: docs/index/mechanics.json
+- 8919-8925: docs/index/mechanics.json
+- 8934: docs/reverse_engineering/stage-8-combat-and-health.md
+- 8934-8962: docs/index/mechanics.json
+- 8939-8941: docs/index/mechanics.json
+- 8943-8945: docs/index/mechanics.json
+- 8947-8948: docs/index/mechanics.json
+- 8949: godot/scripts/systems/player.gd
+- 8949-8954: docs/reverse_engineering/prison-wall.md
+- 8972: docs/reverse_engineering/movement-and-collision.md
+- 8972-8997: docs/reverse_engineering/intro-fence-timing.md, godot/scripts/systems/intro_cutscene.gd
+- 8972-9008: docs/index/mechanics.json
+- 8999-9008: docs/index/mechanics.json
+- 9003: docs/index/mechanics.json
+- 9141-9208: docs/index/mechanics.json
+- 9141-9229: docs/index/mechanics.json
+- 9201-9204: docs/index/mechanics.json
+- 9218-9229: docs/index/mechanics.json
+- 9230-9249: docs/index/mechanics.json
+- 9230-9260: docs/index/mechanics.json
+- 9248-9260: docs/index/mechanics.json
+- 9250-9259: docs/index/mechanics.json
+- 9257: docs/index/mechanics.json
+- 9257-9258: docs/index/mechanics.json
+- 9257-9277: docs/index/mechanics.json
+- 9267-9277: docs/index/mechanics.json
+- 9273-9277: docs/index/mechanics.json
+- 9280-9295: docs/index/mechanics.json
+- 9284-9325: docs/index/mechanics.json
+- 9310-9316: docs/index/mechanics.json
+- 9332-9368: docs/index/mechanics.json
+- 9360: godot/scripts/systems/player.gd
+- 9369-9411: docs/index/mechanics.json
+- 9418: docs/reverse_engineering/movement-and-collision.md, docs/reverse_engineering/stage-6-room-transitions.md, godot/scripts/systems/room_manager.gd
+- 9418-9441: docs/index/mechanics.json
+- 9473-9486: docs/index/mechanics.json
+- 9477: docs/index/mechanics.json
+- 9520-9527: docs/index/mechanics.json
+- 9549: docs/reverse_engineering/movement-and-collision.md
+- 9549-9565: docs/index/mechanics.json
+- 9566-9573: docs/index/mechanics.json
+- 9574-9679: godot/scripts/systems/rank_system.gd, godot/tests/rank_and_prisoners_test.gd
+- 9580-9625: docs/index/mechanics.json
+- 9581-9625: godot/scripts/systems/rank_system.gd
+- 9593: docs/reverse_engineering/grey-fox-dialogue.md
+- 9634-9641: docs/STATUS.md, docs/index/mechanics.json
+- 9634-9653: docs/index/mechanics.json
+- 9638: docs/index/mechanics.json
+- 9651-9677: godot/tests/prisoner_dialog_test.gd
+- 9654-9679: docs/index/mechanics.json
+- 9656: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/scenes/sandbox_gameplay.gd
+- 9672: docs/reverse_engineering/stage-8-combat-and-health.md, godot/scripts/systems/player.gd
+- 9687: docs/reverse_engineering/movement-and-collision.md
+- 9687-9700: docs/index/mechanics.json
+- 9687-9707: docs/index/mechanics.json
+- 9708-9765: docs/index/mechanics.json
+- 9724: godot/scripts/systems/player.gd
+- 9827-9843: docs/reverse_engineering/intro-water-colors.md, godot/scripts/systems/intro_cutscene.gd
+- 9827-9877: docs/reverse_engineering/intro-fence-timing.md
+- 9886-9906: docs/index/mechanics.json
+- 9913-9928: docs/index/mechanics.json
+- 9946-9949: docs/index/mechanics.json
+- 10058: docs/reverse_engineering/architecture.md
+- 10410-10430: docs/index/mechanics.json
+- 10410-10500: docs/index/mechanics.json
+- 10435-10455: docs/index/mechanics.json
+- 10676-10853: godot/scripts/systems/radio_dialog.gd, godot/scripts/systems/radio_system.gd, godot/tests/radio_system_test.gd
+- 10695-10730: godot/scripts/systems/radio_dialog.gd
+- 10695-10731: docs/index/mechanics.json
+- 10695-11350: docs/index/mechanics.json
+- 10701-10702: docs/index/mechanics.json
+- 10742-10779: docs/index/mechanics.json
+- 10757-10779: docs/index/mechanics.json
+- 10759-10771: tools/extractors/extract_radio_dialogue.py
+- 10780-10790: tools/extractors/extract_radio_dialogue.py
+- 10787: godot/scripts/systems/radio_dialog.gd
+- 10787-10809: docs/index/mechanics.json
+- 10837-10850: docs/index/mechanics.json
+- 10842: docs/index/mechanics.json
+- 10904-10953: godot/tests/radio_system_test.gd
+- 10906-10957: docs/index/mechanics.json
+- 10912-10917: tools/extractors/extract_radio_dialogue.py
+- 10921-10927: tools/extractors/extract_radio_dialogue.py
+- 10965-11039: docs/index/mechanics.json
+- 10971-10990: docs/reverse_engineering/en-eu-reextraction.md
+- 10993-11020: docs/index/mechanics.json
+- 11034-11039: tools/extractors/extract_radio_dialogue.py
+- 11043-11055: docs/index/mechanics.json
+- 11043-11056: docs/index/mechanics.json
+- 11043-11175: docs/index/mechanics.json
+- 11047-11165: godot/tests/radio_system_test.gd
+- 11049-11055: docs/index/mechanics.json
+- 11071-11080: docs/index/mechanics.json
+- 11071-11081: tools/extractors/extract_radio_dialogue.py
+- 11088-11106: tools/extractors/extract_radio_dialogue.py
+- 11095-11108: docs/index/mechanics.json
+- 11115-11130: docs/index/mechanics.json
+- 11135-11149: docs/index/mechanics.json
+- 11136-11148: docs/index/mechanics.json
+- 11156-11164: docs/index/mechanics.json
+- 11180-11270: docs/index/mechanics.json
+- 11271-11340: docs/index/mechanics.json
+- 11343-11350: docs/index/mechanics.json
+- 11485-11524: docs/index/mechanics.json
+- 11672-11743: godot/scripts/systems/capture_cutscene.gd
+- 11775: godot/scripts/systems/inventory.gd
+- 11775-11780: docs/index/mechanics.json
+- 11797-11799: docs/reverse_engineering/prison-wall.md, godot/scripts/systems/capture_system.gd, tools/extractors/extract_capture_prison_data.py
+- 11847-11856: godot/scripts/scenes/sandbox_gameplay.gd
+- 11908: docs/reverse_engineering/stage-4-results.md
+- 11914-11916: docs/reverse_engineering/intro-water-colors.md, tools/extractors/extract_snake_sprites.py
+- 11998: docs/index/mechanics.json
+- 12015: docs/reverse_engineering/architecture.md
+- 12072-12087: docs/reverse_engineering/grey-fox-dialogue.md
+- 12151: .agents/skills/implement-faithful-mechanic/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/architecture.md
+- 12151-12153: docs/index/mechanics.json
+- 12151-12209: docs/index/mechanics.json
+- 12154-12160: docs/index/mechanics.json
+- 12161-12167: godot/scripts/scenes/sandbox_gameplay.gd
+- 12169-12185: docs/index/mechanics.json
+- 12190-12191: godot/scripts/scenes/sandbox_gameplay.gd
+- 12193-12195: docs/index/mechanics.json
+- 12197-12208: docs/index/mechanics.json
+- 12223-12224: godot/tests/prisoner_dialog_test.gd
+- 12250: godot/scripts/scenes/sandbox_gameplay.gd
+- 12250-12604: godot/scripts/systems/binocular_system.gd, godot/tests/binocular_test.gd
+- 12256: godot/scripts/scenes/sandbox_gameplay.gd
+- 12276-12290: docs/index/mechanics.json
+- 12304-12315: docs/index/mechanics.json
+- 12402-12528: docs/index/mechanics.json
+- 12481: godot/scripts/systems/binocular_system.gd
+- 12513-12515: godot/tests/binocular_test.gd
+- 12553-12554: tools/extractors/extract_rolling_barrel.py
+- 12572-12604: godot/scripts/systems/binocular_overlay.gd
+- 12599: godot/scripts/systems/binocular_overlay.gd
+- 12612: docs/reverse_engineering/enemies.md
+- 12612-12648: docs/index/mechanics.json
+- 12612-12672: docs/index/mechanics.json
+- 12635-12638: godot/scripts/systems/rolling_barrel.gd
+- 12657-12739: docs/index/mechanics.json
+- 12729-12730: docs/index/mechanics.json
+- 12739: docs/index/mechanics.json
+- 12815: docs/reverse_engineering/stage-8-combat-and-health.md
+- 12819: godot/scripts/systems/enemy.gd
+- 12822: godot/scripts/systems/enemy.gd
+- 12832-12865: docs/index/mechanics.json
+- 12875-12919: docs/index/mechanics.json
+- 12935: docs/index/mechanics.json
+- 12950: docs/index/mechanics.json
+- 12986: docs/index/mechanics.json
+- 12996-13003: docs/reverse_engineering/stage-18-shoot-gunner.md, godot/scripts/systems/shot_gunner.gd
+- 13001: docs/index/mechanics.json
+- 13017: docs/index/mechanics.json
+- 13192-13241: docs/index/mechanics.json
+
+## Banks456.asm
+- arquivo: docs/reverse_engineering/memory-and-banks.md
+- 9: docs/reference.md
+- 66: docs/reverse_engineering/en-eu-reextraction.md
+- 66-84: docs/reverse_engineering/en-eu-reextraction.md
+
+## Banks789.asm
+- arquivo: docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/stage-3-results.md, tools/extractors/reference.py
+- 9: docs/reference.md
+
+## BanksABC.asm
+- arquivo: docs/reverse_engineering/memory-and-banks.md, tools/extractors/extract_radio_dialogue.py
+- 9: docs/reference.md
+- 22: tools/extractors/extract_radio_dialogue.py
+- 24: docs/reverse_engineering/en-eu-reextraction.md
+- 36-58: docs/index/mechanics.json
+
+## BanksDEF.asm
+- arquivo: docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/rom-compatibility.md, tools/extractors/extract_radio_dialogue.py, tools/extractors/reference.py
+- 9: docs/reference.md
+- 11: docs/reverse_engineering/maps.md
+- 21: docs/reverse_engineering/en-eu-reextraction.md
+- 24: tools/extractors/extract_radio_dialogue.py
+
+## MetalGear.asm
+- arquivo: docs/reverse_engineering/README.md, tools/reverse_engineering/compare_regions.py, tools/rom.py
+- 38: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/reference.md, docs/reverse_engineering/README.md, docs/reverse_engineering/rom-compatibility.md
+- 59: docs/reverse_engineering/memory-and-banks.md
+
+## Variables.asm
+- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json, docs/reference.md, docs/reverse_engineering/README.md, docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/stage-5-movement-and-collision.md, tools/emulation/README.md, tools/extractors/extract_radio_dialogue.py, tools/reverse_engineering/analyze.py
+- 8: docs/reverse_engineering/memory-and-banks.md
+- 32: docs/reverse_engineering/architecture.md
+- 74: docs/index/mechanics.json
+- 79: docs/index/mechanics.json
+- 81: docs/index/mechanics.json
+- 88: docs/index/mechanics.json
+- 90: docs/index/mechanics.json
+- 105: docs/index/mechanics.json
+- 129: docs/index/mechanics.json
+- 142: docs/index/mechanics.json
+- 143: docs/index/mechanics.json
+- 144: docs/reverse_engineering/movement-and-collision.md
+- 173: docs/index/mechanics.json
+- 177: docs/index/mechanics.json
+- 180: docs/index/mechanics.json
+- 202: docs/reverse_engineering/stage-4-results.md
+- 214: docs/reverse_engineering/inventory-and-events.md
+- 272-285: docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md
+- 351: docs/index/mechanics.json
+- 359-360: docs/reverse_engineering/intro-fence-timing.md
+- 365: docs/index/mechanics.json
+- 402: docs/reverse_engineering/stage-4-results.md
+
+## constants/Enums.asm
+- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, tests/test_region_tools.py, tools/extractors/reference.py
+- 4-10: docs/index/mechanics.json
+- 14-23: docs/index/mechanics.json
+- 15-22: godot/scripts/systems/radio_system.gd
+- 15-36: tools/extractors/extract_radio_dialogue.py
+- 27-36: docs/index/mechanics.json
+- 51: docs/index/mechanics.json
+- 63: docs/reverse_engineering/movement-and-collision.md
+- 83-108: docs/index/mechanics.json
+- 96-103: docs/index/mechanics.json
+- 102: docs/index/mechanics.json
+- 103: docs/index/mechanics.json
+- 113-122: docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, godot/tests/building_doors_test.gd
+- 127-155: docs/index/mechanics.json
+- 169-234: docs/index/mechanics.json
+- 175: godot/scripts/systems/security_camera.gd
+- 202: docs/reverse_engineering/stage-18-shoot-gunner.md
+- 212: docs/reverse_engineering/stage-18-shoot-gunner.md
+- 225: docs/index/mechanics.json
+
+## constants/SystemVariables.asm
+- arquivo: docs/reverse_engineering/memory-and-banks.md
+- 16: docs/reverse_engineering/architecture.md
+
+## constants/bios.asm
+- arquivo: docs/reverse_engineering/architecture.md, docs/reverse_engineering/memory-and-banks.md
+
+## constants/structures.asm
+- arquivo: docs/reverse_engineering/enemies.md
+
+## data/actorsinrooms.asm
+- arquivo: docs/reverse_engineering/enemies.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-19-gas-hazard.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-7-enemy-patrols.md, godot/tests/dog_patrol_test.gd, tools/extractors/extract_electrified_floor_data.py, tools/extractors/reference.py
+- 370-372: docs/reverse_engineering/stage-18-shoot-gunner.md
+- 860-866: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd, tools/extractors/extract_rolling_barrel.py
+- 1167: docs/index/mechanics.json, tools/extractors/extract_rolling_barrel.py
+- 1167-1231: godot/scripts/systems/rolling_barrel.gd
+
+## data/actorspriteattr.asm
+- arquivo: godot/scripts/systems/shot_gunner.gd, tools/extractors/extract_enemy_sprites.py, tools/extractors/extract_prisoner_sprites.py, tools/extractors/extract_rolling_barrel.py, tools/extractors/extract_shoot_gunner_sprites.py
+- 6: tools/extractors/extract_rolling_barrel.py
+- 40: godot/scripts/systems/enemy.gd
+- 87: tools/extractors/extract_rolling_barrel.py
+- 127-130: docs/reverse_engineering/stage-18-shoot-gunner.md
+- 129: godot/scripts/systems/shot_gunner.gd
+- 361-372: tools/extractors/extract_rolling_barrel.py
+- 378-380: tools/extractors/extract_prisoner_sprites.py
+- 434-437: godot/scripts/systems/shot_gunner_bullet.gd
+- 593-610: tools/extractors/extract_rolling_barrel.py
+
+## data/doors.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/maps.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-9-doors-and-inventory.md, godot/scripts/systems/door.gd, tools/extractors/reference.py
+- 15-35: docs/index/mechanics.json, godot/scripts/systems/door.gd
+- 26-29: godot/scripts/systems/prison_wall_door.gd
+- 27: docs/reverse_engineering/prison-wall.md
+- 28-29: docs/reverse_engineering/prison-wall.md, godot/scripts/systems/capture_system.gd
+- 160: docs/index/mechanics.json
+- 293-305: docs/index/mechanics.json
+- 311-316: docs/reverse_engineering/stage-10-lorries-and-canonical-items.md
+- 314: godot/scripts/scenes/sandbox_gameplay.gd
+- 427: docs/reverse_engineering/prison-wall.md
+- 634-638: docs/reverse_engineering/stage-10-lorries-and-canonical-items.md
+- 720-745: docs/index/mechanics.json
+- 724: docs/reverse_engineering/prison-wall.md
+- 724-728: docs/index/mechanics.json, docs/index/rooms.md, docs/reverse_engineering/prison-wall.md, godot/scripts/systems/room_manager.gd, tools/extractors/export_local_aliases.py
+- 728: tools/extractors/extract_capture_prison_data.py
+- 730-745: docs/index/mechanics.json
+- 887-902: docs/reverse_engineering/stage-3-results.md
+- 917-918: docs/reverse_engineering/stage-10-lorries-and-canonical-items.md
+- 923-1085: docs/index/mechanics.json
+- 992-1031: tools/extractors/extract_prison_wall.py
+- 1001-1015: tools/extractors/extract_capture_prison_data.py
+- 1001-1031: docs/reverse_engineering/prison-wall.md
+
+## data/elevatorrooms.asm
+- arquivo: docs/index/mechanics.json, godot/scripts/systems/elevator_system.gd
+- 6: docs/index/mechanics.json
+- 6-93: docs/index/mechanics.json
+- 27-93: docs/index/mechanics.json
+
+## data/hudstartendtexts.asm
+- 45: godot/scripts/systems/hud.gd
+- 55: godot/scripts/systems/hud.gd
+
+## data/itemgfxxy.asm
+- arquivo: tools/extractors/extract_hud_assets.py
+- 4-30: godot/scripts/systems/item_box.gd
+
+## data/itemnames.asm
+- arquivo: docs/reverse_engineering/en-eu-reextraction.md
+
+## data/itemsinrooms.asm
+- arquivo: docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/stage-10-lorries-and-canonical-items.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-9-doors-and-inventory.md, godot/scripts/systems/inventory.gd, godot/scripts/systems/item_box.gd, tools/extractors/extract_capture_prison_data.py, tools/extractors/reference.py, tools/reverse_engineering/compare_regions.py
+- 19-46: docs/reverse_engineering/stage-12b-actors-and-items-evidence.md
+- 91: docs/reverse_engineering/stage-19-gas-hazard.md
+- 155: godot/scripts/systems/capture_system.gd
+
+## data/itemtakeamount.asm
+- arquivo: godot/scripts/systems/item_box.gd
+
+## data/itemtaketextid.asm
+- 9: docs/reverse_engineering/en-eu-reextraction.md
+
+## data/laserconfig.asm
+- arquivo: docs/index/mechanics.json, godot/scripts/systems/laser_system.gd
+- 6-33: docs/index/mechanics.json
+- 39-51: docs/index/mechanics.json
+- 41-51: godot/scripts/systems/laser_system.gd
+
+## data/menuradiotexts.asm
+- 7: godot/scripts/systems/radio_dialog.gd
+- 11: godot/scripts/systems/radio_dialog.gd
+
+## data/metatiles.asm
+- arquivo: docs/reverse_engineering/maps.md, docs/reverse_engineering/rom-compatibility.md, docs/reverse_engineering/stage-3-results.md, tools/extractors/reference.py, tools/reverse_engineering/analyze.py
+- 6: docs/reverse_engineering/maps.md
+- 229: docs/reverse_engineering/maps.md
+- 359: docs/reverse_engineering/maps.md
+- 472: docs/reverse_engineering/maps.md
+- 498: docs/reverse_engineering/maps.md
+- 602: docs/reverse_engineering/maps.md
+
+## data/musicradioconfig.asm
+- arquivo: docs/index/mechanics.json, tests/test_region_tools.py, tools/extractors/extract_radio_dialogue.py
+- 16: docs/reverse_engineering/en-eu-reextraction.md
+- 58: docs/index/mechanics.json
+- 58-74: docs/index/mechanics.json
+
+## data/palettes.asm
+- arquivo: docs/reverse_engineering/stage-3-results.md, tools/extractors/extract_shoot_gunner_sprites.py, tools/extractors/extract_transceiver_sprites.py, tools/extractors/reference.py
+- 4-10: docs/reverse_engineering/intro-water-colors.md
+- 7: tools/extractors/extract_hud_assets.py
+- 8-9: godot/scripts/systems/player.gd, tools/extractors/extract_snake_sprites.py
+- 15: tools/extractors/extract_transceiver_sprites.py
+- 70-168: docs/reverse_engineering/intro-water-colors.md
+- 284-286: tools/extractors/extract_rolling_barrel.py
+
+## data/paths.asm
+- arquivo: docs/reverse_engineering/enemies.md, docs/reverse_engineering/intermediate-data-model.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-7-enemy-patrols.md, godot/scripts/systems/enemy.gd, tools/extractors/extract.py, tools/extractors/reference.py
+- 235: docs/reverse_engineering/stage-3-results.md
+
+## data/playersprite.asm
+- arquivo: tools/extractors/extract_snake_sprites.py
+- 44-45: docs/reverse_engineering/intro-water-colors.md
+- 112-116: godot/scripts/systems/player.gd, tools/extractors/extract_snake_sprites.py
+
+## data/radiocalls.asm
+- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md, tests/test_region_tools.py, tools/extractors/extract_radio_dialogue.py
+- 1-11: docs/index/mechanics.json
+- 1-447: docs/index/mechanics.json
+- 5-10: docs/reverse_engineering/en-eu-reextraction.md
+- 9: docs/index/mechanics.json
+- 13-20: godot/scripts/systems/radio_system.gd
+- 45: docs/index/mechanics.json
+- 63: docs/index/mechanics.json
+- 188: docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md
+- 195-447: docs/index/mechanics.json
+
+## data/radiocallsjp.asm
+- arquivo: docs/reverse_engineering/en-eu-reextraction.md
+
+## data/respawninfo.asm
+- arquivo: docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md, godot/scripts/systems/alert_system.gd, tools/extractors/extract_respawn_info.py
+- 13: docs/reverse_engineering/en-eu-reextraction.md, tools/extractors/extract_respawn_info.py, tools/reverse_engineering/compare_regions.py
+
+## data/rooms.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/maps.md, docs/reverse_engineering/rom-compatibility.md, docs/reverse_engineering/stage-3-results.md, tools/extractors/reference.py, tools/reverse_engineering/analyze.py
+- 7: docs/index/mechanics.json, docs/reverse_engineering/maps.md
+- 7-267: docs/index/mechanics.json
+- 268: docs/reverse_engineering/maps.md
+- 282: docs/reverse_engineering/maps.md
+- 295: docs/reverse_engineering/maps.md
+
+## data/roomsconnections.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-6-room-transitions.md, godot/scripts/systems/room_manager.gd, tools/extractors/reference.py, tools/reverse_engineering/analyze.py
+- 1-162: docs/index/mechanics.json
+- 7: docs/reverse_engineering/maps.md
+- 7-162: docs/index/mechanics.json
+- 110-111: docs/index/mechanics.json
+- 112-117: docs/index/mechanics.json
+- 113-114: docs/index/mechanics.json, docs/index/rooms.md
+- 133-135: docs/index/mechanics.json
+- 136-137: docs/index/mechanics.json
+- 149-151: docs/index/mechanics.json
+- 149-152: docs/index/mechanics.json
+- 152-162: docs/index/mechanics.json, godot/scripts/systems/elevator_system.gd
+
+## data/roomtileset.asm
+- arquivo: docs/reference.md, docs/reverse_engineering/maps.md, tools/reverse_engineering/analyze.py
+- 10: docs/reverse_engineering/maps.md
+
+## data/shapes.asm
+- arquivo: godot/scripts/systems/plastic_bomb.gd, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd, tools/extractors/extract_rolling_barrel.py
+- 36: docs/reverse_engineering/stage-8-combat-and-health.md, godot/scripts/systems/enemy.gd
+- 36-43: docs/index/mechanics.json
+- 37: godot/scripts/systems/enemy.gd, godot/tests/dog_patrol_test.gd
+
+## data/spritesets.asm
+- arquivo: tools/extractors/extract_rolling_barrel.py
+- 183-185: tools/extractors/extract_rolling_barrel.py
+
+## data/texts.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md, docs/reverse_engineering/inventory-and-events.md, tools/extractors/extract_grey_fox_dialogue.py, tools/extractors/extract_radio_dialogue.py
+- 1: docs/index/mechanics.json
+- 1-350: docs/index/mechanics.json
+- 15: docs/index/mechanics.json
+- 28: docs/index/mechanics.json
+- 58: docs/index/mechanics.json
+- 59: docs/index/mechanics.json
+- 64: docs/reverse_engineering/grey-fox-dialogue.md, tools/extractors/extract_grey_fox_dialogue.py
+- 155: docs/index/mechanics.json
+- 156: docs/index/mechanics.json
+- 167: docs/index/mechanics.json
+- 182: docs/index/mechanics.json
+- 189: godot/tests/capture_prison_test.gd
+- 189-190: godot/scripts/systems/capture_cutscene.gd, godot/tests/capture_prison_test.gd
+- 190: godot/tests/capture_prison_test.gd
+- 191: docs/index/mechanics.json
+- 193: docs/index/mechanics.json
+- 203-228: docs/index/mechanics.json
+- 370: docs/index/mechanics.json
+
+## data/textsjp.asm
+- arquivo: docs/reverse_engineering/en-eu-reextraction.md, docs/reverse_engineering/inventory-and-events.md
+- 349-363: docs/reverse_engineering/grey-fox-dialogue.md
+
+## data/tileblocks.asm
+- arquivo: tools/extractors/extract_transceiver_sprites.py
+
+## data/weapondamage.asm
+- arquivo: docs/reverse_engineering/inventory-and-events.md, godot/scripts/systems/shot_gunner.gd, tools/extractors/extract_rolling_barrel.py
+- 4-58: docs/index/mechanics.json
+- 4-62: tools/extractors/extract_rolling_barrel.py
+- 18: docs/reverse_engineering/stage-18-shoot-gunner.md, godot/scripts/systems/enemy.gd, godot/scripts/systems/shot_gunner.gd
+- 18-58: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd
+- 42: godot/scripts/scenes/sandbox_gameplay.gd
+- 58: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/remote_missile.gd
+
+## data/weapongfxxy.asm
+- arquivo: tools/extractors/extract_hud_assets.py
+- 5-12: godot/scripts/systems/item_box.gd
+
+## data/weaponnames.asm
+- arquivo: docs/reverse_engineering/en-eu-reextraction.md
+
+## data/weaponspratt.asm
+- arquivo: tools/extractors/extract_rolling_barrel.py
+
+## gfx/doors.asm
+- arquivo: godot/scripts/systems/door.gd, tools/extractors/extract_door_sprites.py
+
+## gfx/font.asm
+- arquivo: godot/tests/prisoner_dialog_test.gd, tests/test_grey_fox_dialogue.py, tools/extractors/extract_grey_fox_dialogue.py, tools/extractors/extract_hud_assets.py, tools/extractors/extract_title_intro_sprites.py, tools/extractors/extract_transceiver_sprites.py, tools/reverse_engineering/compare_regions.py
+- 29: docs/reverse_engineering/en-eu-reextraction.md
+- 29-33: docs/reverse_engineering/en-eu-reextraction.md, tools/extractors/extract_transceiver_sprites.py, tools/reverse_engineering/compare_regions.py
+- 29-35: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+
+## gfx/items.asm
+- arquivo: tools/extractors/extract_hud_assets.py
+
+## gfx/konamilogo.asm
+- arquivo: tools/extractors/extract_title_intro_sprites.py
+
+## gfx/metalgearlogo.asm
+- arquivo: tools/extractors/extract_title_intro_sprites.py
+
+## gfx/powerswitch.asm
+- arquivo: docs/reverse_engineering/stage-3-results.md, tools/extractors/reference.py
+
+## gfx/radio.asm
+- arquivo: tools/extractors/extract_transceiver_sprites.py
+
+## gfx/snakeportrait.asm
+- arquivo: tools/extractors/extract_transceiver_sprites.py
+
+## gfx/sprites.asm
+- arquivo: tools/extractors/extract_enemy_sprites.py, tools/extractors/extract_prisoner_sprites.py, tools/extractors/extract_rolling_barrel.py, tools/extractors/extract_shoot_gunner_sprites.py, tools/extractors/extract_snake_sprites.py
+- 365-372: docs/reverse_engineering/intro-water-colors.md
+- 837: tools/extractors/extract_rolling_barrel.py
+
+## logic/actors.asm
+- arquivo: docs/reverse_engineering/enemies.md
+
+## logic/actors/arnold.asm
+- 32-71: docs/index/mechanics.json
+
+## logic/actors/bigboss.asm
+- 8-55: docs/index/mechanics.json
+- 27-69: docs/index/mechanics.json
+- 59: docs/index/mechanics.json
+
+## logic/actors/bigexplosion.asm
+- 7-35: docs/index/mechanics.json
+
+## logic/actors/bridge.asm
+- 8-48: docs/index/mechanics.json
+
+## logic/actors/bulldozer.asm
+- 8-71: docs/index/mechanics.json
+- 95-122: docs/index/mechanics.json
+
+## logic/actors/bullethv.asm
+- arquivo: docs/reverse_engineering/enemies.md, godot/scripts/systems/bullet.gd
+- 9-45: docs/index/mechanics.json
+- 43-46: godot/scripts/systems/bullet.gd
+
+## logic/actors/camera.asm
+- arquivo: .agents/skills/inspect-msx-disassembly/SKILL.md, godot/scripts/systems/security_camera.gd
+- 93-121: godot/scripts/systems/security_camera.gd
+- 129-186: docs/index/mechanics.json
+- 145-186: godot/scripts/systems/security_camera.gd
+- 146-148: godot/scripts/systems/security_camera.gd
+- 174: godot/scripts/systems/security_camera.gd
+- 206-210: godot/scripts/systems/security_camera.gd
+- 234-238: godot/scripts/systems/security_camera.gd
+- 241-248: godot/scripts/systems/security_camera.gd
+- 248-275: docs/index/mechanics.json
+
+## logic/actors/chkdiscover.asm
+- arquivo: docs/reverse_engineering/stage-7-enemy-patrols.md, godot/scripts/systems/enemy.gd, godot/scripts/systems/security_camera.gd
+- 7: docs/reverse_engineering/enemies.md
+- 7-71: docs/index/mechanics.json
+- 12-47: docs/index/mechanics.json
+- 30-48: godot/scripts/systems/security_camera.gd
+- 212: godot/scripts/systems/enemy.gd
+- 447-491: docs/index/mechanics.json, godot/scripts/systems/enemy.gd
+- 502-535: godot/scripts/systems/enemy.gd, godot/tests/sleepy_guard_test.gd
+
+## logic/actors/cowardduck.asm
+- 12-45: docs/index/mechanics.json
+- 41: docs/index/mechanics.json
+- 160-173: docs/index/mechanics.json
+
+## logic/actors/desertsecurity.asm
+- 29-73: docs/index/mechanics.json
+- 65-74: docs/index/mechanics.json
+- 114-134: docs/index/mechanics.json
+
+## logic/actors/dog.asm
+- arquivo: godot/scripts/systems/enemy.gd
+- 7-22: godot/tests/dog_patrol_test.gd
+- 11-17: godot/scripts/systems/enemy.gd
+- 29-36: godot/scripts/systems/enemy.gd
+- 29-81: docs/index/mechanics.json
+- 29-201: godot/scripts/systems/enemy.gd
+- 45-83: godot/tests/dog_patrol_test.gd
+- 49-53: godot/scripts/systems/enemy.gd
+- 74-81: godot/scripts/systems/enemy.gd
+- 88-98: godot/scripts/systems/enemy.gd
+- 88-103: godot/tests/dog_patrol_test.gd
+- 95: godot/scripts/systems/enemy.gd
+- 123-146: godot/scripts/systems/enemy.gd
+- 127-147: godot/scripts/systems/enemy.gd
+- 163: godot/scripts/systems/enemy.gd
+- 193-200: godot/scripts/systems/enemy.gd
+- 193-201: docs/index/mechanics.json, godot/scripts/systems/enemy.gd
+
+## logic/actors/dogbasement.asm
+- 83-114: docs/index/mechanics.json
+
+## logic/actors/dogspawner.asm
+- 30-45: docs/index/mechanics.json
+
+## logic/actors/elevatorguardspawner.asm
+- arquivo: godot/scripts/scenes/sandbox_gameplay.gd
+- 8-43: docs/index/mechanics.json
+- 29: godot/scripts/scenes/sandbox_gameplay.gd
+
+## logic/actors/fakemadnar.asm
+- 7-65: docs/index/mechanics.json
+- 30-45: docs/index/mechanics.json
+- 39-44: docs/index/mechanics.json
+- 41: docs/index/mechanics.json
+
+## logic/actors/firetropper.asm
+- 7-48: docs/index/mechanics.json
+- 32: docs/index/mechanics.json
+- 545-555: docs/index/mechanics.json
+- 549: docs/index/mechanics.json
+
+## logic/actors/flame.asm
+- 7-39: docs/index/mechanics.json
+
+## logic/actors/gas.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/stage-19-gas-hazard.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/gas_cloud.gd, godot/tests/gas_hazard_test.gd
+- 7-53: docs/index/mechanics.json
+- 11: godot/scripts/systems/gas_cloud.gd
+- 34: godot/scripts/systems/gas_cloud.gd
+- 36-37: godot/scripts/systems/gas_cloud.gd
+
+## logic/actors/guard.asm
+- arquivo: godot/scripts/systems/enemy.gd, godot/tests/sleepy_guard_test.gd
+- 29: docs/reverse_engineering/enemies.md
+- 29-56: docs/index/mechanics.json
+- 187-260: docs/index/mechanics.json, godot/scripts/systems/enemy.gd
+- 198-216: godot/tests/sleepy_guard_test.gd
+- 204: godot/tests/sleepy_guard_test.gd
+- 205: godot/scripts/systems/enemy.gd
+- 226-232: godot/tests/sleepy_guard_test.gd
+- 230-260: godot/tests/sleepy_guard_test.gd
+- 233: godot/scripts/systems/enemy.gd, godot/tests/sleepy_guard_test.gd
+
+## logic/actors/guardalert.asm
+- arquivo: docs/reverse_engineering/enemies.md, godot/scripts/systems/enemy.gd
+- 7-38: docs/index/mechanics.json
+- 14-38: godot/scripts/scenes/sandbox_gameplay.gd
+- 91-101: docs/index/mechanics.json
+- 91-200: godot/scripts/systems/enemy.gd, godot/tests/combat_and_health_test.gd
+- 124: godot/scripts/systems/enemy.gd
+- 125: godot/tests/combat_and_health_test.gd
+- 148-154: godot/scripts/systems/enemy.gd
+- 174: docs/reverse_engineering/en-eu-reextraction.md
+- 315-316: godot/scripts/systems/enemy.gd
+
+## logic/actors/guardelevator.asm
+- arquivo: godot/scripts/systems/enemy.gd
+- 19: godot/scripts/scenes/sandbox_gameplay.gd
+- 68-112: docs/index/mechanics.json
+- 305: godot/scripts/systems/enemy.gd
+
+## logic/actors/guardlorry.asm
+- 8-55: docs/index/mechanics.json
+- 32: godot/scripts/scenes/sandbox_gameplay.gd, godot/tests/room_007_patrol_test.gd
+- 67-113: docs/index/mechanics.json
+
+## logic/actors/guardshot.asm
+- arquivo: docs/reverse_engineering/enemies.md
+- 9-19: docs/index/mechanics.json
+
+## logic/actors/guardsupressor.asm
+- 47-79: docs/index/mechanics.json
+
+## logic/actors/guardswitch.asm
+- 29-62: docs/index/mechanics.json
+
+## logic/actors/hideguards.asm
+- arquivo: godot/scripts/scenes/sandbox_gameplay.gd
+- 10: godot/scripts/scenes/sandbox_gameplay.gd
+- 10-172: docs/index/mechanics.json
+- 34: godot/scripts/scenes/sandbox_gameplay.gd
+- 48: godot/scripts/scenes/sandbox_gameplay.gd
+- 62: godot/scripts/scenes/sandbox_gameplay.gd
+- 76: godot/scripts/scenes/sandbox_gameplay.gd
+- 104: godot/scripts/scenes/sandbox_gameplay.gd
+- 123: godot/scripts/scenes/sandbox_gameplay.gd
+- 138: godot/scripts/scenes/sandbox_gameplay.gd
+- 161: godot/scripts/scenes/sandbox_gameplay.gd
+
+## logic/actors/hindd.asm
+- 8-25: docs/index/mechanics.json
+- 9: docs/index/mechanics.json
+- 43-81: docs/index/mechanics.json
+
+## logic/actors/jetpack.asm
+- 7-65: docs/index/mechanics.json
+- 174-192: docs/index/mechanics.json
+
+## logic/actors/lasershot.asm
+- 7-32: docs/index/mechanics.json
+
+## logic/actors/lorryshooter.asm
+- 41-88: docs/index/mechanics.json
+
+## logic/actors/machinegunkid.asm
+- 9: docs/index/mechanics.json
+- 26-56: docs/index/mechanics.json
+- 45-55: docs/index/mechanics.json
+- 54: docs/index/mechanics.json
+- 287-305: docs/index/mechanics.json
+
+## logic/actors/mine.asm
+- arquivo: docs/index/mechanics.json
+- 7-27: docs/index/mechanics.json
+- 7-38: docs/index/mechanics.json
+- 7-39: docs/index/mechanics.json
+- 7-75: docs/index/mechanics.json
+- 22-38: docs/index/mechanics.json
+- 55-75: docs/index/mechanics.json
+- 75-103: docs/index/mechanics.json
+
+## logic/actors/pitfall.asm
+- arquivo: docs/index/mechanics.json
+- 7-51: docs/index/mechanics.json
+- 7-99: docs/index/mechanics.json
+
+## logic/actors/powerswitch.asm
+- arquivo: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/electrified_floor_system.gd, godot/scripts/systems/power_panel.gd, godot/tests/electrified_floor_test.gd, tools/extractors/extract_electrified_floor_data.py
+- 7-67: docs/index/mechanics.json
+- 37-67: docs/index/mechanics.json
+
+## logic/actors/prisoner.asm
+- arquivo: docs/index/mechanics.json, godot/scripts/systems/prisoner.gd, godot/tests/rank_and_prisoners_test.gd
+- 55-96: docs/index/mechanics.json
+- 63-67: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner.gd
+- 79-80: godot/scripts/systems/prisoner.gd
+- 90-95: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner.gd, godot/tests/prisoner_dialog_test.gd
+- 94: godot/scripts/systems/prisoner.gd
+- 95-120: docs/index/mechanics.json
+- 105-112: docs/index/mechanics.json
+- 112-250: docs/index/mechanics.json
+- 151-168: docs/index/mechanics.json
+- 152-170: docs/index/mechanics.json
+- 181-190: docs/index/mechanics.json
+- 212-223: docs/index/mechanics.json
+- 244-256: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/scenes/sandbox_gameplay.gd
+- 244-277: docs/index/mechanics.json, tools/extractors/extract_grey_fox_dialogue.py
+- 296-317: docs/index/mechanics.json
+
+## logic/actors/rendercameras.asm
+- 8-42: docs/index/mechanics.json
+
+## logic/actors/rollingbarrels.asm
+- arquivo: docs/index/mechanics.json, godot/scripts/scenes/sandbox_gameplay.gd, godot/tests/rolling_barrel_test.gd, tools/extractors/extract_rolling_barrel.py
+- 8-132: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, godot/tests/rolling_barrel_test.gd
+- 14-56: godot/scripts/systems/rolling_barrel.gd
+- 101-107: godot/scripts/systems/rolling_barrel.gd
+- 115-132: godot/scripts/systems/rolling_barrel.gd
+
+## logic/actors/scorpion.asm
+- 26-74: docs/index/mechanics.json
+
+## logic/actors/sentinel.asm
+- 58-94: docs/index/mechanics.json
+
+## logic/actors/shellspawner.asm
+- 28-55: docs/index/mechanics.json
+
+## logic/actors/shooter.asm
+- arquivo: godot/scripts/systems/enemy.gd
+- 111-138: docs/index/mechanics.json
+
+## logic/actors/shotgunner.asm
+- arquivo: docs/reverse_engineering/stage-18-shoot-gunner.md, godot/scripts/systems/shot_gunner.gd, godot/tests/shot_gunner_test.gd
+- 7-10: godot/scripts/scenes/sandbox_gameplay.gd
+- 8: docs/index/mechanics.json
+- 13: godot/scripts/systems/shot_gunner.gd
+- 16-23: godot/scripts/systems/shot_gunner.gd
+- 18-22: godot/scripts/systems/shot_gunner.gd
+- 28: godot/scripts/systems/shot_gunner.gd
+- 29: godot/scripts/systems/shot_gunner.gd
+- 40-70: docs/index/mechanics.json
+- 55-65: docs/index/mechanics.json
+- 55-70: godot/scripts/systems/shot_gunner.gd
+- 66: docs/index/mechanics.json
+- 80-103: godot/scripts/systems/shot_gunner.gd
+- 80-148: docs/index/mechanics.json
+- 100: godot/scripts/systems/shot_gunner.gd
+- 102: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/shot_gunner.gd
+- 113-148: godot/scripts/systems/shot_gunner.gd
+- 117-123: godot/scripts/systems/shot_gunner.gd
+- 126-131: godot/scripts/systems/shot_gunner.gd
+- 127: godot/scripts/systems/shot_gunner.gd
+- 135-146: godot/scripts/systems/shot_gunner.gd
+- 161-162: godot/scripts/systems/shot_gunner.gd
+- 174-177: godot/scripts/systems/shot_gunner.gd
+- 188-235: docs/index/mechanics.json, godot/scripts/systems/shot_gunner_bullet.gd
+
+## logic/actors/shottoplayer.asm
+- arquivo: docs/reverse_engineering/enemies.md
+- 7-14: docs/index/mechanics.json
+
+## logic/actors/snoringsymbol.asm
+- arquivo: godot/scripts/systems/enemy.gd
+- 25-49: docs/index/mechanics.json
+
+## logic/actors/tank.asm
+- 8: docs/index/mechanics.json
+- 8-35: docs/index/mechanics.json
+- 45-79: docs/index/mechanics.json
+- 235-243: docs/index/mechanics.json
+
+## logic/actors/tankshell.asm
+- 9-26: docs/index/mechanics.json
+
+## logic/actors/tankshot.asm
+- 7-40: docs/index/mechanics.json
+
+## logic/addroomitems.asm
+- arquivo: tools/extractors/reference.py
+- 8: docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/maps.md
+- 8-75: docs/index/mechanics.json
+- 15-20: docs/reverse_engineering/stage-3-results.md
+- 19-35: docs/reverse_engineering/stage-10-lorries-and-canonical-items.md
+
+## logic/bridge.asm
+- arquivo: docs/index/mechanics.json
+- 8-48: docs/index/mechanics.json
+- 15-48: docs/index/mechanics.json
+- 24-32: docs/index/mechanics.json
+
+## logic/capturescene.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/inventory-and-events.md, godot/tests/capture_prison_test.gd, tools/extractors/extract_capture_prison_data.py
+- 1-280: godot/scripts/systems/capture_cutscene.gd
+- 8-18: docs/index/mechanics.json
+- 8-118: docs/index/mechanics.json
+- 27-36: godot/scripts/systems/capture_cutscene.gd, godot/tests/capture_prison_test.gd
+- 32-34: godot/tests/capture_prison_test.gd
+- 38-47: godot/scripts/systems/capture_cutscene.gd
+- 69-72: godot/scripts/systems/capture_cutscene.gd
+- 69-118: godot/tests/capture_prison_test.gd
+- 87-118: docs/index/mechanics.json, docs/index/rooms.md, docs/reverse_engineering/prison-wall.md, godot/scripts/systems/capture_system.gd, tools/extractors/export_local_aliases.py, tools/extractors/extract_capture_prison_data.py
+- 102: docs/index/mechanics.json
+- 115: godot/tests/capture_prison_test.gd
+- 115-118: godot/scripts/systems/capture_cutscene.gd
+- 141-159: docs/index/mechanics.json
+- 170-186: godot/scripts/systems/capture_cutscene.gd
+- 174: docs/index/mechanics.json
+- 177-184: godot/scripts/systems/capture_cutscene.gd
+- 179: godot/tests/capture_prison_test.gd
+- 182: godot/tests/capture_prison_test.gd
+- 208-213: godot/scripts/systems/capture_cutscene.gd
+- 208-260: godot/tests/capture_prison_test.gd
+- 216-225: godot/scripts/systems/capture_cutscene.gd
+- 232-239: godot/scripts/systems/capture_cutscene.gd
+- 242: godot/scripts/systems/capture_cutscene.gd
+- 251-260: godot/scripts/systems/capture_cutscene.gd
+- 259: docs/index/mechanics.json
+- 266: godot/scripts/systems/capture_cutscene.gd
+
+## logic/checkpoints.asm
+- arquivo: docs/index/mechanics.json
+- 10: docs/reverse_engineering/inventory-and-events.md
+- 10-36: docs/index/mechanics.json
+- 10-127: docs/index/mechanics.json
+- 37-58: docs/index/mechanics.json
+- 44-51: docs/index/mechanics.json
+- 59-103: docs/index/mechanics.json
+- 114-126: docs/index/mechanics.json
+- 134-155: docs/index/mechanics.json
+- 134-164: docs/index/mechanics.json
+
+## logic/checkweaponalert.asm
+- arquivo: docs/reverse_engineering/enemies.md
+- 37-40: docs/reverse_engineering/stage-18-shoot-gunner.md
+
+## logic/collisions.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/stage-5-movement-and-collision.md, godot/scripts/systems/shot_gunner.gd, tools/reverse_engineering/analyze.py
+- 15: docs/reverse_engineering/movement-and-collision.md
+- 15-67: docs/index/mechanics.json
+- 19-67: docs/index/mechanics.json
+- 77-97: docs/index/mechanics.json
+- 122-142: docs/index/mechanics.json
+- 155: godot/scripts/systems/electrified_floor_system.gd
+- 155-169: docs/index/mechanics.json
+
+## logic/common.asm
+- arquivo: godot/tests/capture_prison_test.gd, tools/extractors/extract_capture_prison_data.py
+- 8: docs/index/mechanics.json, docs/reverse_engineering/architecture.md
+- 15: docs/index/mechanics.json
+- 21: docs/reverse_engineering/prison-wall.md
+- 26-47: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/capture_cutscene.gd, godot/scripts/systems/capture_system.gd, godot/tests/capture_prison_test.gd, tools/extractors/extract_capture_prison_data.py
+- 43: godot/scripts/systems/capture_cutscene.gd, godot/tests/capture_prison_test.gd
+- 64-70: docs/index/mechanics.json
+
+## logic/controls.asm
+- 8: docs/reverse_engineering/architecture.md, docs/reverse_engineering/movement-and-collision.md
+- 53-57: docs/reverse_engineering/grey-fox-dialogue.md
+
+## logic/damageelectric.asm
+- arquivo: docs/index/mechanics.json, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/electrified_floor_system.gd, godot/tests/electrified_floor_test.gd, tools/extractors/extract_electrified_floor_data.py
+- 8-27: docs/index/mechanics.json
+- 28-50: docs/index/mechanics.json
+- 51-61: docs/index/mechanics.json
+- 51-63: docs/index/mechanics.json
+- 56: docs/index/mechanics.json, godot/scripts/systems/electrified_floor_system.gd
+- 59-60: docs/index/mechanics.json, godot/scripts/systems/electrified_floor_system.gd
+- 62: godot/scripts/systems/electrified_floor_system.gd
+
+## logic/damagegas.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/stage-19-gas-hazard.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/gas_hazard_system.gd, godot/tests/gas_hazard_test.gd, tools/extractors/extract_gas_hazard.py
+- 9-21: docs/index/mechanics.json
+- 9-47: docs/reverse_engineering/stage-19-gas-hazard.md
+- 29-46: docs/index/mechanics.json
+- 29-47: docs/index/mechanics.json
+- 34: godot/scripts/systems/gas_hazard_system.gd, tools/extractors/extract_gas_hazard.py
+- 34-42: docs/index/mechanics.json
+- 36-46: docs/index/mechanics.json
+- 36-47: docs/index/mechanics.json
+- 44-47: docs/index/mechanics.json
+- 45: godot/scripts/systems/gas_hazard_system.gd, godot/tests/gas_hazard_test.gd, tools/extractors/extract_gas_hazard.py
+- 53: docs/index/mechanics.json, docs/reverse_engineering/stage-19-gas-hazard.md, godot/scripts/systems/gas_hazard_system.gd, godot/tests/gas_hazard_test.gd, tools/extractors/extract_gas_hazard.py
+
+## logic/damagetoenemy.asm
+- arquivo: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/power_panel.gd, godot/scripts/systems/remote_missile.gd, godot/tests/electrified_floor_test.gd, tools/extractors/extract_electrified_floor_data.py
+- 7: docs/reverse_engineering/inventory-and-events.md
+- 7-77: docs/index/mechanics.json
+- 92-131: godot/scripts/systems/rolling_barrel.gd
+- 92-225: docs/index/mechanics.json
+- 92-228: docs/index/mechanics.json
+- 98-102: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, tools/extractors/extract_rolling_barrel.py
+- 108-132: godot/scripts/systems/enemy.gd
+- 129-152: docs/index/mechanics.json
+- 159-223: godot/scripts/systems/rolling_barrel.gd
+- 159-228: godot/scripts/scenes/sandbox_gameplay.gd
+- 189-223: docs/index/mechanics.json
+- 216: godot/scripts/systems/enemy.gd
+
+## logic/destructiontimer.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/inventory-and-events.md
+- 10-39: docs/index/mechanics.json
+
+## logic/doors/drawdoors.asm
+- arquivo: docs/index/mechanics.json, tools/extractors/extract_door_sprites.py
+- 92: docs/reverse_engineering/maps.md
+- 233-261: docs/index/mechanics.json
+- 262-269: docs/reverse_engineering/prison-wall.md
+- 262-319: docs/index/mechanics.json, godot/scripts/systems/prison_wall_door.gd, tools/extractors/extract_prison_wall.py
+- 272-319: docs/reverse_engineering/prison-wall.md
+
+## logic/doors/enterdoor.asm
+- arquivo: godot/scripts/systems/door.gd
+- 64-88: docs/index/mechanics.json, docs/reverse_engineering/prison-wall.md, godot/scripts/systems/prison_wall_door.gd, godot/scripts/systems/room_manager.gd
+- 66-84: godot/scripts/scenes/sandbox_gameplay.gd
+
+## logic/doors/erasedoor.asm
+- 24: docs/reverse_engineering/prison-wall.md
+- 25: godot/scripts/systems/capture_system.gd, godot/scripts/systems/prison_wall_door.gd, tools/extractors/extract_capture_prison_data.py
+- 25-26: docs/reverse_engineering/prison-wall.md
+- 65-76: docs/reverse_engineering/prison-wall.md
+- 67: docs/index/mechanics.json
+
+## logic/doors/opendoor.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/stage-9-doors-and-inventory.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/door.gd, godot/tests/capture_prison_test.gd, tools/extractors/extract_capture_prison_data.py
+- 8: docs/reverse_engineering/inventory-and-events.md
+- 68: docs/reverse_engineering/stage-4b-vram-inheritance.md
+- 121: docs/reverse_engineering/inventory-and-events.md
+- 121-134: docs/index/mechanics.json
+- 215-236: docs/index/mechanics.json
+- 245-256: docs/index/mechanics.json
+- 265-275: docs/index/mechanics.json
+- 280-324: docs/index/mechanics.json
+- 285-319: docs/index/mechanics.json, docs/reverse_engineering/prison-wall.md, godot/scripts/systems/capture_system.gd
+- 300-319: godot/scripts/systems/capture_system.gd
+- 300-320: tools/extractors/extract_capture_prison_data.py
+- 307-316: docs/reverse_engineering/prison-wall.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/capture_system.gd
+- 325-393: godot/scripts/systems/door.gd
+- 331-348: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/door.gd
+- 350-373: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/door.gd
+- 369-372: docs/reverse_engineering/prison-wall.md
+- 369-375: docs/index/mechanics.json
+- 379-385: docs/index/mechanics.json
+- 384: docs/reverse_engineering/prison-wall.md
+- 385: docs/reverse_engineering/prison-wall.md
+
+## logic/drawitemsinroom.asm
+- arquivo: godot/tests/item_box_sprites_test.gd
+- 1-75: godot/scripts/systems/item_box.gd
+- 17-68: godot/scripts/systems/item_box.gd
+- 21-68: godot/scripts/systems/item_box.gd
+
+## logic/drawlaserbeams.asm
+- arquivo: godot/scripts/systems/laser_system.gd
+- 7-24: docs/index/mechanics.json
+- 8-10: godot/scripts/systems/laser_system.gd
+
+## logic/elevatorroom.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/stage-3-results.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/elevator_system.gd, tools/extractors/reference.py
+- 7-36: docs/index/mechanics.json
+- 7-70: docs/index/mechanics.json
+- 7-227: docs/index/mechanics.json
+- 41-70: docs/index/mechanics.json
+- 227-241: godot/scripts/systems/elevator_cabin.gd
+
+## logic/ending.asm
+- arquivo: docs/index/mechanics.json
+- 7-33: docs/index/mechanics.json
+- 7-60: docs/index/mechanics.json
+- 12: docs/index/mechanics.json
+- 170-200: docs/index/mechanics.json
+- 181-189: docs/index/mechanics.json
+- 304: docs/index/mechanics.json
+
+## logic/gamedemo.asm
+- 216: docs/reverse_engineering/en-eu-reextraction.md
+- 216-238: docs/reverse_engineering/en-eu-reextraction.md
+
+## logic/helperdirections.asm
+- 52: godot/scripts/systems/enemy.gd
+
+## logic/hud.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/inventory-and-events.md
+- 25-56: docs/index/mechanics.json, godot/scripts/systems/hud.gd
+- 40: godot/scripts/systems/hud.gd
+- 96-120: docs/index/mechanics.json
+- 107: docs/reverse_engineering/inventory-and-events.md
+- 107-127: docs/index/mechanics.json
+- 113-116: docs/index/mechanics.json
+- 128-145: docs/index/mechanics.json
+- 162-205: docs/index/mechanics.json, godot/scripts/systems/hud.gd
+- 166-170: godot/scripts/systems/hud.gd
+- 179-184: godot/scripts/systems/hud.gd
+- 214-244: docs/index/mechanics.json, godot/scripts/systems/hud.gd
+
+## logic/hudspritemask.asm
+- 37-41: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+
+## logic/incomingcall.asm
+- arquivo: docs/index/mechanics.json
+- 10-36: docs/index/mechanics.json, godot/scripts/systems/radio_system.gd, godot/tests/radio_system_test.gd, tools/extractors/extract_radio_dialogue.py
+
+## logic/inithardware.asm
+- 14: docs/reverse_engineering/architecture.md
+- 27-31: docs/reverse_engineering/stage-4-results.md
+
+## logic/introscene.asm
+- arquivo: docs/index/mechanics.json, godot/scripts/systems/intro_cutscene.gd, godot/scripts/systems/radio_dialog.gd
+- 32-166: docs/index/mechanics.json, godot/scripts/systems/intro_cutscene.gd
+- 51-58: docs/reverse_engineering/intro-water-colors.md
+- 170-205: docs/index/mechanics.json
+- 196-203: godot/scripts/systems/radio_dialog.gd
+- 224-235: docs/index/mechanics.json, docs/reverse_engineering/intro-fence-timing.md, godot/scripts/systems/intro_cutscene.gd
+- 243-267: docs/reverse_engineering/intro-fence-timing.md
+- 255-261: docs/reverse_engineering/intro-fence-timing.md, godot/scripts/systems/intro_cutscene.gd
+- 275-285: docs/reverse_engineering/intro-fence-timing.md
+- 288-299: docs/reverse_engineering/intro-fence-timing.md, godot/scripts/systems/intro_cutscene.gd
+- 307-333: docs/reverse_engineering/intro-fence-timing.md
+- 312-318: godot/scripts/systems/intro_cutscene.gd
+- 321-333: godot/scripts/systems/intro_cutscene.gd
+- 341-364: docs/reverse_engineering/intro-fence-timing.md, godot/scripts/systems/intro_cutscene.gd
+- 372-378: godot/scripts/systems/intro_cutscene.gd
+- 380: godot/scripts/systems/intro_cutscene.gd
+
+## logic/items.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/inventory-and-events.md, godot/scripts/systems/weapon_system.gd, godot/tests/capture_prison_test.gd, tools/extractors/extract_capture_prison_data.py
+- 7: docs/reverse_engineering/inventory-and-events.md
+- 7-129: docs/index/mechanics.json
+- 60-98: godot/scripts/systems/item_box.gd
+- 60-129: docs/index/mechanics.json
+- 120-124: godot/scripts/systems/capture_system.gd, tools/extractors/extract_capture_prison_data.py
+- 139-189: docs/index/mechanics.json
+- 159-170: docs/index/mechanics.json
+- 163-170: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/radio_system.gd
+- 184-189: docs/index/mechanics.json
+- 188: godot/scripts/systems/weapon_system.gd
+- 199-285: docs/index/mechanics.json
+- 253-261: docs/index/mechanics.json, godot/scripts/systems/weapon_system.gd
+- 295-320: docs/index/mechanics.json
+- 295-325: docs/index/mechanics.json
+- 314: docs/index/mechanics.json
+- 314-325: docs/index/mechanics.json
+- 333-356: docs/index/mechanics.json, godot/scripts/systems/weapon_system.gd
+- 399: .agents/skills/inspect-msx-disassembly/SKILL.md
+- 399-414: docs/index/mechanics.json, docs/reverse_engineering/en-eu-reextraction.md
+- 409: docs/reverse_engineering/en-eu-reextraction.md
+- 409-413: docs/reverse_engineering/en-eu-reextraction.md
+- 425-442: docs/index/mechanics.json
+- 430-435: docs/index/mechanics.json
+- 445-479: docs/index/mechanics.json
+- 490-516: docs/index/mechanics.json
+
+## logic/konamilogo.asm
+- arquivo: tools/extractors/extract_title_intro_sprites.py
+- 61: docs/index/mechanics.json
+
+## logic/laserbeams.asm
+- arquivo: docs/index/mechanics.json, godot/scripts/systems/laser_system.gd
+- 11-48: docs/index/mechanics.json
+- 11-68: docs/index/mechanics.json, godot/scripts/systems/laser_system.gd
+- 43-47: docs/index/mechanics.json
+- 88-101: docs/index/mechanics.json
+
+## logic/loadfont.asm
+- 10-18: docs/reverse_engineering/grey-fox-dialogue.md
+- 28: godot/scripts/systems/hud.gd
+- 57: tools/extractors/extract_hud_assets.py
+
+## logic/lorry.asm
+- arquivo: docs/index/mechanics.json
+- 7-24: docs/index/mechanics.json
+- 7-105: docs/index/mechanics.json
+- 23: docs/index/mechanics.json, godot/scripts/scenes/sandbox_gameplay.gd
+- 34-54: docs/index/mechanics.json
+
+## logic/madnarbigbossevent.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/inventory-and-events.md
+- 7-22: docs/index/mechanics.json
+- 27-35: docs/index/mechanics.json
+- 40-55: docs/index/mechanics.json
+
+## logic/mainmenu.asm
+- arquivo: tools/extractors/extract_title_intro_sprites.py
+- 240: godot/scripts/scenes/title_screen.gd
+
+## logic/maxammo.asm
+- arquivo: godot/scripts/systems/rank_system.gd, godot/scripts/systems/weapon_system.gd, godot/tests/remote_missile_test.gd, tools/extractors/extract_missile_data.py
+- 10-103: docs/index/mechanics.json
+- 10-147: docs/index/mechanics.json
+- 20-35: godot/scripts/systems/inventory.gd
+- 112-146: tools/extractors/extract_missile_data.py
+- 112-147: docs/index/mechanics.json, godot/scripts/systems/weapon_system.gd
+
+## logic/menuequipment.asm
+- arquivo: docs/reverse_engineering/stage-9-doors-and-inventory.md, godot/scripts/systems/inventory.gd
+- 186-195: docs/index/mechanics.json
+- 208-231: docs/index/mechanics.json
+- 208-284: docs/index/mechanics.json
+- 228: docs/reverse_engineering/stage-9-doors-and-inventory.md, godot/scripts/systems/inventory.gd
+- 238-248: docs/index/mechanics.json
+- 254-266: docs/index/mechanics.json
+- 255-261: docs/index/mechanics.json
+- 268-284: docs/index/mechanics.json
+- 295: godot/scripts/scenes/sandbox_gameplay.gd
+- 295-350: godot/scripts/systems/binocular_system.gd
+- 295-361: godot/tests/binocular_test.gd
+- 299-349: docs/index/mechanics.json
+- 300: godot/scripts/systems/binocular_system.gd, godot/scripts/systems/room_manager.gd
+- 326-327: docs/index/mechanics.json
+- 338-361: godot/scripts/systems/binocular_overlay.gd
+- 355: godot/scripts/systems/binocular_overlay.gd
+
+## logic/nextroom.asm
+- arquivo: docs/index/mechanics.json, godot/scripts/systems/elevator_system.gd, godot/scripts/systems/room_manager.gd
+- 12-15: docs/index/mechanics.json
+- 12-48: docs/index/mechanics.json
+- 12-51: docs/index/mechanics.json
+- 13: docs/reverse_engineering/maps.md
+- 33: docs/index/mechanics.json
+- 33-48: docs/index/mechanics.json
+- 37-46: docs/index/mechanics.json
+- 42-43: docs/index/mechanics.json
+- 46: docs/index/mechanics.json
+- 64-97: docs/index/mechanics.json
+- 64-98: godot/scripts/scenes/sandbox_gameplay.gd
+- 74-94: docs/index/mechanics.json
+- 90: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+- 120-155: docs/reverse_engineering/stage-9-doors-and-inventory.md
+- 179-194: docs/index/mechanics.json
+- 186-190: docs/index/mechanics.json
+- 204: docs/index/mechanics.json
+- 204-219: docs/index/mechanics.json
+- 204-226: docs/index/mechanics.json
+- 204-260: docs/index/mechanics.json
+- 204-285: docs/index/mechanics.json
+- 209: docs/index/mechanics.json
+- 227-239: docs/index/mechanics.json
+- 250-280: docs/index/mechanics.json
+- 262-273: docs/index/mechanics.json
+- 293-366: docs/index/mechanics.json
+- 293-482: docs/index/mechanics.json
+- 307-308: docs/index/mechanics.json
+- 342: docs/reverse_engineering/stage-6-room-transitions.md, godot/scripts/systems/room_manager.gd
+- 342-361: docs/index/mechanics.json
+- 342-366: docs/index/mechanics.json
+- 362: docs/index/mechanics.json, godot/scripts/systems/room_manager.gd
+- 362-365: docs/index/mechanics.json
+- 362-366: docs/index/mechanics.json
+- 380-384: docs/index/mechanics.json
+- 393-454: docs/index/mechanics.json
+- 393-456: docs/index/mechanics.json
+- 397-482: docs/index/mechanics.json
+- 398-453: docs/reverse_engineering/prison-wall.md, godot/scripts/scenes/sandbox_gameplay.gd
+- 418-453: docs/reverse_engineering/stage-10-lorries-and-canonical-items.md
+- 457-480: docs/index/mechanics.json, godot/scripts/systems/door.gd, godot/tests/building_doors_test.gd
+- 463: docs/index/mechanics.json
+- 463-480: docs/index/mechanics.json
+- 463-482: docs/index/mechanics.json, docs/reverse_engineering/stage-10-lorries-and-canonical-items.md
+- 474-475: docs/reverse_engineering/prison-wall.md
+- 476-477: godot/scripts/systems/door.gd
+- 528-574: docs/index/mechanics.json
+- 581-597: docs/index/mechanics.json
+- 586-597: docs/index/mechanics.json
+
+## logic/passwords.asm
+- arquivo: docs/reverse_engineering/inventory-and-events.md
+
+## logic/pitfall.asm
+- arquivo: docs/index/mechanics.json
+- 10-41: docs/index/mechanics.json
+- 24-41: docs/index/mechanics.json
+- 48-69: docs/index/mechanics.json
+
+## logic/punchenemy.asm
+- arquivo: docs/reverse_engineering/inventory-and-events.md, godot/scripts/systems/enemy.gd, godot/tests/combat_and_health_test.gd
+- 6-17: godot/scripts/systems/rolling_barrel.gd
+- 6-87: docs/index/mechanics.json
+- 29-87: godot/scripts/systems/enemy.gd, godot/tests/sleepy_guard_test.gd
+- 46-87: docs/reverse_engineering/stage-8-combat-and-health.md
+- 101-126: godot/scripts/systems/rolling_barrel.gd
+
+## logic/regionlock.asm
+- 28: docs/reverse_engineering/en-eu-reextraction.md
+
+## logic/saveload.asm
+- arquivo: docs/reverse_engineering/inventory-and-events.md
+
+## logic/setalert.asm
+- arquivo: godot/scripts/systems/alert_system.gd
+- 11-40: docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md
+- 12: docs/reverse_engineering/enemies.md
+- 14-40: docs/index/mechanics.json, godot/scripts/systems/alert_system.gd
+- 25-36: godot/scripts/systems/inventory.gd
+- 35-39: godot/scripts/systems/alert_system.gd
+- 36: godot/tests/alert_system_test.gd
+
+## logic/shrinkitems.asm
+- 8-28: docs/index/mechanics.json
+- 8-58: docs/index/mechanics.json
+- 30-58: docs/index/mechanics.json
+
+## logic/spawnitem.asm
+- 15-75: docs/index/mechanics.json
+- 71-75: docs/index/mechanics.json
+
+## logic/textboxappear.asm
+- arquivo: docs/index/mechanics.json
+- 10-62: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+- 10-70: docs/index/mechanics.json
+- 51-62: docs/reverse_engineering/grey-fox-dialogue.md, godot/scripts/systems/prisoner_dialog.gd
+
+## logic/touchenemy.asm
+- arquivo: docs/index/mechanics.json, godot/tests/combat_and_health_test.gd
+- 8: docs/reverse_engineering/inventory-and-events.md
+- 8-139: docs/index/mechanics.json
+- 10-190: docs/index/mechanics.json
+- 54-189: docs/index/mechanics.json
+- 55-57: godot/scripts/systems/prisoner.gd, godot/tests/prisoner_dialog_test.gd
+- 83-107: godot/scripts/systems/rolling_barrel.gd
+- 87-93: docs/index/mechanics.json, godot/scripts/systems/rolling_barrel.gd, tools/extractors/extract_rolling_barrel.py
+- 121-122: docs/index/mechanics.json
+- 137: godot/scripts/systems/enemy.gd
+- 137-189: docs/reverse_engineering/stage-8-combat-and-health.md
+- 148-189: godot/scripts/scenes/sandbox_gameplay.gd
+- 148-190: docs/index/mechanics.json
+- 155: godot/scripts/systems/player.gd
+- 155-156: docs/index/mechanics.json
+- 181-189: docs/index/mechanics.json
+
+## logic/updatesprites.asm
+- arquivo: docs/reverse_engineering/architecture.md
+
+## logic/weapon/grenade.asm
+- 8-153: docs/index/mechanics.json
+
+## logic/weapon/handgun.asm
+- arquivo: godot/scripts/systems/bullet.gd
+- 8-80: docs/index/mechanics.json
+- 8-89: docs/index/mechanics.json
+- 39-65: godot/scripts/systems/player.gd
+- 86-90: godot/scripts/systems/bullet.gd
+
+## logic/weapon/mine.asm
+- 7-76: docs/index/mechanics.json
+
+## logic/weapon/missile.asm
+- arquivo: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/remote_missile.gd, godot/tests/remote_missile_test.gd, tools/extractors/extract_missile_data.py
+- 8-51: docs/index/mechanics.json
+- 23-25: docs/reverse_engineering/stage-20-rc-missile.md
+- 37-47: godot/scripts/systems/remote_missile.gd
+- 80: tools/extractors/extract_missile_data.py
+- 80-86: docs/index/mechanics.json
+- 112-133: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/remote_missile.gd
+- 112-172: docs/index/mechanics.json
+- 150-165: godot/scripts/systems/remote_missile.gd
+- 165: tools/extractors/extract_missile_data.py
+
+## logic/weapon/plasticbomb.asm
+- arquivo: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/plastic_bomb.gd
+- 7-83: docs/index/mechanics.json
+- 80-84: godot/scripts/systems/plastic_bomb.gd, godot/tests/basement_and_plastic_bomb_test.gd
+- 108-134: docs/index/mechanics.json
+- 144-164: docs/reverse_engineering/stage-20-rc-missile.md
+- 150: godot/scripts/systems/remote_missile.gd
+
+## logic/weapon/rocket.asm
+- 8-142: docs/index/mechanics.json
+
+## logic/weapon/smg.asm
+- 25-128: docs/index/mechanics.json
+
+## logic/weaponuse.asm
+- arquivo: docs/index/mechanics.json, docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/bullet.gd, godot/scripts/systems/remote_missile.gd, godot/scripts/systems/weapon_system.gd
+- 8: docs/reverse_engineering/inventory-and-events.md
+- 8-30: docs/index/mechanics.json
+- 8-40: docs/index/mechanics.json
+- 8-73: docs/index/mechanics.json
+- 24-26: docs/index/mechanics.json
+- 52: docs/reverse_engineering/inventory-and-events.md
+- 338: godot/scripts/systems/bullet.gd
+- 338-375: docs/index/mechanics.json
+- 365: godot/scripts/systems/remote_missile.gd
+- 365-375: docs/reverse_engineering/stage-20-rc-missile.md, godot/scripts/systems/remote_missile.gd
+- 366-376: godot/scripts/systems/bullet.gd
+
+## sound/bgmdriver.asm
+- arquivo: docs/reverse_engineering/architecture.md
+- 12: docs/reverse_engineering/architecture.md
+
+## sound/instruments.asm
+- arquivo: docs/reverse_engineering/architecture.md
+
+## sound/setsound.asm
+- arquivo: docs/reverse_engineering/architecture.md
+
+## sound/sound.asm
+- arquivo: docs/reference.md, docs/reverse_engineering/architecture.md
+
+## sound/sounddata.asm
+- arquivo: docs/reverse_engineering/architecture.md

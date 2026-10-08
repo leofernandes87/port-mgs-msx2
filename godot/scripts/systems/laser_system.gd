@@ -57,16 +57,24 @@ const ROOM_72_SEQUENCES: Array[Array] = [
 signal laser_triggered()
 
 var room_id: int = 0
+const ROOM_72_CYCLE_TICKS: int = 192 ## 0xC0 em Banks0123.asm:5797
+const ROOM_72_CYCLE_SEC: float = 192.0 / 60.0
+
 var beams: Array[Dictionary] = []
 var goggles_equipped: bool = false
 var in_alert_mode: bool = false
-var room_72_timer: int = 0
+var room_72_timer_sec: float = 0.0
+var room_72_timer: int:
+	get:
+		return int(ceil(room_72_timer_sec * 60.0 - 0.0001))
+	set(v):
+		room_72_timer_sec = float(v) / 60.0
 var room_72_seq_idx: int = 0
 
 func setup(p_room_id: int) -> void:
 	room_id = p_room_id
 	beams.clear()
-	room_72_timer = 0
+	room_72_timer_sec = 0.0
 	room_72_seq_idx = 0
 
 	var template: Array[Dictionary] = []
@@ -85,7 +93,7 @@ func setup(p_room_id: int) -> void:
 
 	queue_redraw()
 
-func tick(player_pos: Vector2, p_goggles_equipped: bool, p_in_alert_mode: bool) -> void:
+func tick(player_pos: Vector2, p_goggles_equipped: bool, p_in_alert_mode: bool, delta: float = 1.0 / 60.0) -> void:
 	goggles_equipped = p_goggles_equipped
 	in_alert_mode = p_in_alert_mode
 
@@ -94,11 +102,11 @@ func tick(player_pos: Vector2, p_goggles_equipped: bool, p_in_alert_mode: bool) 
 		queue_redraw()
 		return
 
-	# Sala 72: cicla as 5 sequências dinâmicas a cada 192 ticks (0xC0 em Banks0123.asm:5797)
+	# Sala 72: cicla as 5 sequências dinâmicas a cada 192 ticks (0xC0 em Banks0123.asm:5797, 3.2s a 60fps)
 	if room_id == 72:
-		room_72_timer += 1
-		if room_72_timer >= 192:
-			room_72_timer = 0
+		room_72_timer_sec += delta
+		while room_72_timer_sec >= ROOM_72_CYCLE_SEC - 0.0001:
+			room_72_timer_sec = maxf(0.0, room_72_timer_sec - ROOM_72_CYCLE_SEC)
 			room_72_seq_idx = (room_72_seq_idx + 1) % ROOM_72_SEQUENCES.size()
 			var seq: Array = ROOM_72_SEQUENCES[room_72_seq_idx]
 			for i in range(mini(beams.size(), seq.size())):

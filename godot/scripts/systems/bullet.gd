@@ -15,17 +15,19 @@ var damage: int = 2             # BulletDamage da ROM = 2 pontos (derrota soldad
 func _ready() -> void:
 	z_index = 12
 
-func step_tick(collision_grid: Array) -> bool:
+func step_tick(collision_grid: Array, delta: float = 1.0 / 60.0) -> bool:
+	var speed_px_per_sec: float = speed * 60.0
+	var step_dist: float = speed_px_per_sec * delta
 	var step_vec := Vector2.ZERO
 	match direction:
 		PlayerController.Direction.UP:
-			step_vec = Vector2(0.0, -speed)
+			step_vec = Vector2(0.0, -step_dist)
 		PlayerController.Direction.DOWN:
-			step_vec = Vector2(0.0, speed)
+			step_vec = Vector2(0.0, step_dist)
 		PlayerController.Direction.LEFT:
-			step_vec = Vector2(-speed, 0.0)
+			step_vec = Vector2(-step_dist, 0.0)
 		PlayerController.Direction.RIGHT:
-			step_vec = Vector2(speed, 0.0)
+			step_vec = Vector2(step_dist, 0.0)
 
 	position += step_vec
 	ticks_remaining -= 1
@@ -52,14 +54,8 @@ func step_tick(collision_grid: Array) -> bool:
 	return true
 
 func _draw() -> void:
-	# Representação visual autêntica do projétil MSX2 (2x2 / 3x2 pixels)
-	var color := Color("ff3322") if is_enemy else Color("ffff66")
-	var bullet_size := Vector2(2.0, 2.0)
-	if direction == PlayerController.Direction.LEFT or direction == PlayerController.Direction.RIGHT:
-		bullet_size = Vector2(3.0, 2.0)
-	else:
-		bullet_size = Vector2(2.0, 3.0)
-
-	var bullet_rect := Rect2(-bullet_size.x / 2.0, -bullet_size.y / 2.0, bullet_size.x, bullet_size.y)
+	# Representação visual autêntica do projétil MSX2 (SprBullet / SprBulletAttr: 2x2 pixels)
+	var color := Color("ff3322") if is_enemy else Color("ffff77")
+	var bullet_rect := Rect2(-1.0, -1.0, 2.0, 2.0)
 	draw_rect(bullet_rect, color)
-	draw_rect(Rect2(bullet_rect.position, Vector2(1, 1)), Color.WHITE)
+	draw_rect(Rect2(-1.0, -1.0, 1.0, 1.0), Color.WHITE)

@@ -10,6 +10,7 @@ var pixels: PackedByteArray = PackedByteArray()
 var collision: PackedByteArray = PackedByteArray()
 var colors: PackedColorArray = PackedColorArray()
 var source: String = ""
+var provenance: RomProvenance.Status = RomProvenance.Status.REJECTED
 var error_message: String = ""
 var loaded: bool = false
 
@@ -20,6 +21,7 @@ func _reset() -> void:
 	collision.clear()
 	colors.clear()
 	source = ""
+	provenance = RomProvenance.Status.REJECTED
 	error_message = ""
 
 func _fail(message: String) -> Error:
@@ -75,12 +77,16 @@ func decode(data: Dictionary) -> Error:
 	hash_pattern.compile("^[0-9a-f]{64}$")
 	if hash_pattern.search(data["input_sha256"]) == null:
 		return _fail("Hash de origem inválido.")
+	var origin: RomProvenance.Status = RomProvenance.classify_record(data)
+	if origin == RomProvenance.Status.REJECTED:
+		return _fail("Snapshot não extraído da ROM canônica.")
 	room_id = int(data["room_id"])
 	pixels = PackedByteArray(raw_pixels)
 	collision = PackedByteArray(raw_collision)
 	for row: Array in palette:
 		colors.append(Color8(int(row[0]), int(row[1]), int(row[2])))
 	source = data["source"]
+	provenance = origin
 	loaded = true
 	return OK
 

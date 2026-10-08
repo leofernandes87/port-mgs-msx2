@@ -70,8 +70,8 @@ func _run() -> void:
 
 	# Transição Sala 121 -> Sala 0 (avançando ao Norte pela água)
 	p.set_grid_position(128.0, 18.0)
-	p.step_tick(Vector2i(0, -1))
-	p.step_tick(Vector2i(0, -1))
+	while p.position.y >= RoomManager.EXIT_UP_Y:
+		p.step_tick(Vector2i(0, -1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -79,18 +79,31 @@ func _run() -> void:
 
 	# Transição Sala 0 -> Sala 1 (avançando ao Norte)
 	p.set_grid_position(128.0, 18.0)
-	p.step_tick(Vector2i(0, -1))
-	p.step_tick(Vector2i(0, -1))
+	while p.position.y >= RoomManager.EXIT_UP_Y:
+		p.step_tick(Vector2i(0, -1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
 	if not require(current_snap.room_id == 1, "Transição UP da Sala 0 deve carregar Sala 1"): return
 
+	# Validação canônica HideGuardRoom1 (Sul -> Sala 1): guarda médio ativo deve ser o superior (Y=24)
+	var enemies_s0_to_s1: Array = sandbox.get("enemies") as Array
+	if not require(enemies_s0_to_s1.size() == 2, "Sala 1 deve ter 2 inimigos ao entrar pelo Sul (HideGuardRoom1)"): return
+	var has_top_guard: bool = false
+	var has_bottom_guard: bool = false
+	for e in enemies_s0_to_s1:
+		if e is EnemyGuard and e.guard_type == EnemyGuard.GuardType.MEDIUM:
+			if e.position.y <= 40.0:
+				has_top_guard = true
+			if e.position.y >= 150.0:
+				has_bottom_guard = true
+	if not require(has_top_guard and not has_bottom_guard, "Ao entrar pelo Sul, o guarda médio deve patrulhar o topo (Y=24) e o inferior deve estar oculto"): return
+
 	# Transição Sala 1 -> Sala 2 (avançando ao Norte)
 	# Na Sala 1, columns 12..19 são livres na borda norte
 	p.set_grid_position(128.0, 18.0)
-	p.step_tick(Vector2i(0, -1)) # Y vai para 16.0
-	p.step_tick(Vector2i(0, -1)) # Y vai para 14.0 (< 16.0)
+	while p.position.y >= RoomManager.EXIT_UP_Y:
+		p.step_tick(Vector2i(0, -1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -99,8 +112,8 @@ func _run() -> void:
 
 	# Transição Sala 2 -> Sala 3 (avançando ao Norte pelo corredor direito: colunas 16..21, X=144)
 	p.set_grid_position(144.0, 18.0)
-	p.step_tick(Vector2i(0, -1))
-	p.step_tick(Vector2i(0, -1))
+	while p.position.y >= RoomManager.EXIT_UP_Y:
+		p.step_tick(Vector2i(0, -1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -109,7 +122,8 @@ func _run() -> void:
 
 	# Transição Sala 3 -> Sala 2 (voltando ao Sul pelo mesmo corredor em X=144)
 	p.set_grid_position(144.0, 184.0)
-	p.step_tick(Vector2i(0, 1)) # Y vai para 186.0 (>= 186.0)
+	while p.position.y < RoomManager.EXIT_DOWN_Y:
+		p.step_tick(Vector2i(0, 1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -118,16 +132,31 @@ func _run() -> void:
 
 	# Transição Sala 2 -> Sala 1 (voltando ao Sul)
 	p.set_grid_position(128.0, 184.0)
-	p.step_tick(Vector2i(0, 1))
+	while p.position.y < RoomManager.EXIT_DOWN_Y:
+		p.step_tick(Vector2i(0, 1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
 	if not require(current_snap.room_id == 1, "Transição DOWN da Sala 2 deve retornar à Sala 1"): return
 	if not require(p.position == Vector2(128.0, 18.0), "Snake deve aparecer em (128, 18) na Sala 1"): return
 
+	# Validação canônica HideGuardRoom1 (Norte -> Sala 1): guarda médio ativo deve ser o inferior (Y=176)
+	var enemies_s2_to_s1: Array = sandbox.get("enemies") as Array
+	if not require(enemies_s2_to_s1.size() == 2, "Sala 1 deve ter 2 inimigos ao entrar pelo Norte (HideGuardRoom1)"): return
+	var has_top_guard_north: bool = false
+	var has_bottom_guard_north: bool = false
+	for e in enemies_s2_to_s1:
+		if e is EnemyGuard and e.guard_type == EnemyGuard.GuardType.MEDIUM:
+			if e.position.y <= 40.0:
+				has_top_guard_north = true
+			if e.position.y >= 150.0:
+				has_bottom_guard_north = true
+	if not require(has_bottom_guard_north and not has_top_guard_north, "Ao entrar pelo Norte, o guarda médio deve patrulhar a área inferior (Y=176) e o superior deve estar oculto"): return
+
 	# Transição Sala 1 -> Sala 0 (descendo para o pátio externo)
 	p.set_grid_position(128.0, 184.0)
-	p.step_tick(Vector2i(0, 1))
+	while p.position.y < RoomManager.EXIT_DOWN_Y:
+		p.step_tick(Vector2i(0, 1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -136,7 +165,8 @@ func _run() -> void:
 
 	# Transição Sala 0 -> Sala 121 (descendo até a praia inicial)
 	p.set_grid_position(128.0, 184.0)
-	p.step_tick(Vector2i(0, 1))
+	while p.position.y < RoomManager.EXIT_DOWN_Y:
+		p.step_tick(Vector2i(0, 1))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot
@@ -151,7 +181,8 @@ func _run() -> void:
 
 	# Avançar para o Leste rumo à Sala 5
 	p.set_grid_position(242.0, 104.0)
-	p.step_tick(Vector2i(1, 0)) # X vai para 244.0 (limite RIGHT)
+	while p.position.x < RoomManager.EXIT_RIGHT_X:
+		p.step_tick(Vector2i(1, 0))
 	sandbox.call("_check_and_handle_room_transition")
 
 	current_snap = sandbox.get("snapshot") as RoomSnapshot

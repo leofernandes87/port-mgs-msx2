@@ -2,7 +2,7 @@ class_name GasHazardSystem
 extends RefCounted
 
 ## Gerenciador de perigo ambiental de gás tóxico e proteção por máscara de gás (Etapa 19).
-## Lógica revertida de logic/damagegas.asm (ChkGasRooms, ChkGasMask, GasRooms no offset 0x4C79).
+## Lógica revertida de logic/damagegas.asm (ChkGasRooms, ChkGasMask, GasRooms).
 
 signal gas_damage_taken(damage: int, remaining_life: int)
 signal gas_protection_status_changed(is_protected: bool)
@@ -22,25 +22,14 @@ func _init() -> void:
 func reset() -> void:
 	_last_protection_state = false
 
-## Carrega especificação neutra exportada de data/extracted/gas_hazard.json com fallback canônico
-func load_gas_hazard_data(custom_path: String = "") -> void:
+## Carrega data/extracted/en-eu-rc750/gas_hazard.json com fallback canônico
+func load_gas_hazard_data() -> void:
 	gas_rooms.clear()
-	var path: String = custom_path
-	if path.is_empty():
-		for p: String in ["res://../data/extracted/gas_hazard.json", "res://data/gas_hazard.json"]:
-			if FileAccess.file_exists(p):
-				path = p
-				break
-
-	if not path.is_empty() and FileAccess.file_exists(path):
-		var file := FileAccess.open(path, FileAccess.READ)
-		if file:
-			var json_obj = JSON.parse_string(file.get_as_text())
-			file.close()
-			if json_obj is Dictionary and json_obj.has("gas_rooms"):
-				for r in json_obj["gas_rooms"]:
-					gas_rooms.append(int(r))
-				return
+	var json_obj: Dictionary = RomProvenance.load_canonical_json("gas_hazard.json")
+	if json_obj.has("gas_rooms"):
+		for r: Variant in json_obj["gas_rooms"]:
+			gas_rooms.append(int(r))
+		return
 
 	# Fallback canônico
 	gas_rooms = CANONICAL_GAS_ROOMS.duplicate()

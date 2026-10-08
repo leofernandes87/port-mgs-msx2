@@ -62,15 +62,15 @@ func test_camera_patrol_movement() -> void:
 	assert(cam.position == Vector2(64.0, 8.0), "Posição inicial da câmera incorreta")
 	assert(cam.is_moving, "Câmera com 2 waypoints deve iniciar em movimento")
 
-	# Avançar 10 ticks a 1 px/tick rumo a (64.0, 152.0)
-	for _i in range(10):
+	# Avançar 20 ticks a 0.5 px/tick rumo a (64.0, 152.0)
+	for _i in range(20):
 		cam.tick(Vector2(200.0, 200.0), [], false, false)
 
 	assert(is_equal_approx(cam.position.x, 64.0), "Câmera não deve oscilar no eixo X")
-	assert(is_equal_approx(cam.position.y, 18.0), "Câmera deveria ter avançado 10 px em Y (esperado: 18.0, obtido: %.1f)" % cam.position.y)
+	assert(is_equal_approx(cam.position.y, 18.0), "Câmera deveria ter avançado 10 px em Y em 20 ticks a 0.5 px/tick (esperado: 18.0, obtido: %.1f)" % cam.position.y)
 
 	cam.free()
-	print("CAMERA_PATROL_OK: patrulha a 1 px/tick em waypoints validada")
+	print("CAMERA_PATROL_OK: patrulha a 0.5 px/tick em waypoints validada")
 
 func test_camera_vision_and_alert() -> void:
 	var cam: SecurityCamera = SecurityCamera.new()

@@ -1,6 +1,22 @@
 # Compatibilidade das ROMs locais
 
-## Resultado
+## ROM canônica (2026-10-04)
+
+**Única entrada aceita pelo pipeline:** edição inglesa oficial (europeia), perfil `en-eu-rc750` em `data/rom-profiles.json`.
+
+- size `131072`, crc32 `E85C5731`, sha1 `b656bd19df58fc1ba4628342b87beeec5948e0b3`
+- sha256 `d16fff4a59ce26b570851c7200f67e05f385978598dcad91c83bf9c671a295ae`
+- Evidência primária: montagem com Sjasm 0.39j de `external/MetalGear` (revisão `30d1b940bede10fdabbaf9767ad4f0ad8dd33291`, `MetalGear.asm:38` `JAPANESE equ 0`) é **idêntica byte a byte** à ROM. Reproduzível com `SJASM=… python3 -m tools.rom --verify-build`. O CRC coincide com o declarado em `external/MetalGear/README.md:26`.
+- Seleção por conteúdo (`tools/rom.py`): `--rom`, senão `$MG_ROM`, senão busca por SHA-256 em `roms/`. Nome e ordem são irrelevantes; não há fallback.
+- Captura: máquina openMSX `C-BIOS_MSX2_EU`. O Godot permanece em 60 Hz por decisão do usuário.
+
+Perfis conhecidos e **recusados** (identificados pelo nome do perfil na mensagem de erro): `jp-rc750-local` (dump japonês local descrito abaixo, 1 byte diferente da montagem `JAPANESE equ 1` em 0x1322), `en-nekura-hoka-1.995c` (tradução de fãs) e `en-6873-bitflip` (variante inglesa com dois bits trocados em 0x7CE1 e 0x13272, movida para fora de `roms/`). A ROM japonesa só deve ser usada a pedido explícito; nunca como fallback, fonte de tradução ou mistura.
+
+**Dados reextraídos (fase 4):** todos os dados consumidos estão em `data/extracted/en-eu-rc750/` com `rom_profile = en-eu-rc750` e o SHA-256 canônico. O Godot (`godot/scripts/systems/rom_provenance.gd`) aceita somente esse par ou o par sintético; não há mais exceção para o dump japonês. Os dados antigos ficam em `data/extracted/legacy-jp-rc750-local/` apenas para comparação. Relatório e divergências EN×JP a tratar: [en-eu-reextraction.md](en-eu-reextraction.md).
+
+O restante deste documento é o histórico da análise anterior, quando apenas o dump japonês estava disponível.
+
+## Resultado (histórico)
 
 **Compatibilidade parcial comprovada, identidade integral/região exata pendente.** As duas ROMs preservam o segmento de salas/metatiles e as demais tabelas descritas abaixo. O CRC diferente não as invalida para o estudo. A candidata principal é a de 128 KiB, por ter os 16 bancos correspondentes à organização da referência; isso não prova qual lançamento/revisão é.
 

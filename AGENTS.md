@@ -1,35 +1,56 @@
 # Regras permanentes
 
-Projeto de aprendizagem: engenharia reversa do Metal Gear original MSX2 RC750, reimplementação fiel em Godot 4 e, posteriormente, remake com arte própria desenhada à mão e melhorias opcionais.
+Projeto de aprendizagem: engenharia reversa do Metal Gear MSX2 RC750, reimplementação fiel 1:1 em
+Godot 4 e, depois, remake com arte própria desenhada à mão. Melhorias modernas só opcionais e
+separadas do comportamento fiel.
 
-1. Trabalhar com autonomia: investigar, executar comandos e corrigir erros quando permitido.
-2. Não inventar estruturas da ROM ou mecânicas. Registrar evidências, endereços, bancos, arquivos, revisão da fonte e hipóteses separadamente.
-3. Nunca modificar a ROM original. Ferramentas devem abrir entradas em modo somente leitura e escrever em outro destino.
-4. Não versionar ROMs, código de terceiros ou assets protegidos sem verificar permissões. Referências externas ficam isoladas em external/, ignoradas. Não usar git add -f para contornar essa política.
-5. Priorizar ferramentas automáticas reutilizáveis em Python 3.
-6. Usar Godot 4 e GDScript com tipagem estática; sistemas pequenos e independentes.
-7. Manter dados extraídos separados da implementação Godot.
-8. Executar testes e relatar resultados reais, inclusive falhas.
-9. Atualizar docs/progress.md a cada entrega.
-10. Não declarar funcionalidade concluída sem verificar seu funcionamento.
-11. Não avançar para nova etapa principal antes de concluir e apresentar os resultados da anterior.
-12. Não executar ações destrutivas nem instalar componentes de sistema sem autorização apropriada.
-13. Verificar arquitetura e versões reais no macOS, sem presumir configurações.
+## Fonte de verdade
 
-## Arquitetura proposta
+1. `external/MetalGear/` (edição inglesa, `JAPANESE equ 0`) define o comportamento. **Passo zero
+   não negociável:** antes de escrever ou alterar código de qualquer mecânica, cutscene, animação,
+   temporizador, velocidade, colisão ou comportamento, inspecione a rotina Z80 e cite
+   `arquivo.asm:linhas` como evidência primária. Sem evidência, registre hipótese ou pendência;
+   não suponha, estime nem modernize.
+2. Separe evidência (arquivo, linha, banco, revisão) de hipótese. Ausência de feature não é bug.
+3. `external/` é invisível às buscas padrão: use `python3 -m tools.context.lookup` ou
+   `rg --no-ignore`. Procedimento: skill `inspect-msx-disassembly`.
 
-- docs/: evidências, decisões, progresso e planos.
-- tools/reverse_engineering/: identificação, inventário e tradução de endereços, somente após evidência.
-- tools/extractors/: extração reproduzível, sem modificar entradas.
-- roms/ e external/: entradas privadas, fora do conteúdo versionado.
-- data/schemas/: contratos neutros; data/fixtures/: dados sintéticos próprios; data/extracted/: resultados locais ignorados.
-- assets/original/: fontes autorais; assets/protected/: referências privadas ignoradas.
-- godot/: projeto independente; scenes/, scripts/systems/, assets/original/, tests/.
-- tests/: testes Python com unittest e fixtures sintéticas.
-- reports/: logs locais ignorados; resultados consolidados em docs/progress.md.
+## ROM
 
-Fluxo futuro: ROM somente leitura → ferramentas Python → dados intermediários validados → importação explícita para Godot. A cena inicial não depende de ROM. Sistemas futuros (salas, movimento, colisão, atores, alerta, inventário, áudio) só serão implementados após especificação baseada em evidências. Melhorias modernas deverão ser opcionais e separadas do comportamento fiel.
+4. Única ROM canônica: a inglesa oficial `en-eu-rc750` de `data/rom-profiles.json`, obtida só por
+   `tools/rom.py` (SHA-256; nunca nome, ordem ou offset fixo). A japonesa é ignorada salvo pedido
+   explícito: não misturar, traduzir nem usar como fallback.
+5. ROMs são somente leitura. Não versionar ROMs, código de terceiros, textos ou assets protegidos;
+   `external/`, `roms/` e `data/extracted/` ficam ignorados; nunca `git add -f`.
 
-## Verificação
+## Trabalho
 
-Executar `python3 tools/validate.py`. GODOT_BIN pode selecionar o executável. Não adicionar dependências Python sem necessidade. Versionar arquivos .gd.uid; ignorar .godot/. Testes de dados devem usar fixtures próprias, não bytes do jogo. Antes de commits, revisar `git diff --cached` e arquivos candidatos para conteúdo protegido; .gitignore não substitui revisão.
+6. Autonomia para investigar, executar e corrigir. Escopo mínimo; preserve alterações não
+   commitadas fora da tarefa (inclusive o `godot/project.godot` local).
+7. Python 3 só com biblioteca padrão, ferramentas reutilizáveis; Godot 4 com GDScript tipado e
+   sistemas pequenos; dados extraídos separados do Godot; testes com fixtures próprias, nunca bytes
+   do jogo. Versionar `.gd.uid`; ignorar `.godot/`.
+8. Entrega = código + teste + `python3 tools/validate.py` (fora do sandbox) + entrada curta em
+   `docs/progress.md` + `docs/STATUS.md`. Relate resultados reais, inclusive falhas; não declare
+   pronto sem verificar; apresente uma etapa principal antes de iniciar a próxima. Skill `delivery`.
+9. Sem commit, tag ou push sem autorização; revisar `git diff --cached` antes. Sem ações
+   destrutivas ou instalação de sistema sem autorização. Verificar versões reais do macOS.
+
+## Contexto: ler por índice, não por inteiro
+
+- Estado atual: `docs/STATUS.md`. Histórico: `docs/progress/INDEX.md` e
+  `python3 -m tools.context.lookup progress "título"`.
+- **Proibido ler integralmente arquivos grandes quando houver lookup apropriado.**
+  `docs/index/mechanics.json`: use `lookup domain DOMÍNIO`, `lookup status STATUS` ou
+  `lookup unmapped` (só ID, título e status); detalhes somente por `lookup mech ID`.
+  Todos os comandos abreviados usam `python3 -m tools.context.lookup`.
+- `docs/index/coverage.md` é relatório gerado para leitura humana, não contexto padrão de
+  agentes. Não o leia integralmente nem o use como atalho para despejar o catálogo.
+- Índices: `docs/index/` (mecânicas, citações reversas, testes, esboço Godot, salas) e
+  `data/extracted/index/` (símbolos asm, RAM). Regenerar: `python3 -m tools.context.build_index`.
+- `Banks0123.asm`: `lookup asm SÍMBOLO -n N`; `sandbox_gameplay.gd` e `enemy.gd`:
+  `lookup gd ARQUIVO FUNÇÃO`; progresso atual/arquivado: `lookup progress "título"`.
+  Sem leitura integral; consulte faixas pelos índices quando necessário. Isso também vale
+  para `data/extracted/**/package.json`. Mapa do repositório: `docs/README.md`.
+- Skills (`.agents/skills/`): `inspect-msx-disassembly`, `implement-faithful-mechanic`,
+  `rom-extraction`, `godot-testing`, `openmsx-probe`, `delivery`.

@@ -19,6 +19,8 @@ signal alert_cleared()
 
 const RESPAWN_INTERVAL: int = 24 # ~20 a 35 ticks na ROM (Banks0123.asm:6576)
 const EVASION_COUNTDOWN_TICKS: int = 99 # Temporizador regressivo de busca
+const RESPAWN_INTERVAL_SEC: float = 24.0 / 60.0 # 0.400s
+const EVASION_COUNTDOWN_SEC: float = 99.0 / 60.0 # 1.650s
 
 var current_state: AlertState = AlertState.NORMAL
 var is_red_alert: bool = false
@@ -26,8 +28,21 @@ var current_room_id: int = 0
 var room_alert_origin: int = 0
 
 var num_respawn_guards: int = 0
-var respawn_timer: int = 0
-var evasion_timer: int = 0
+
+var respawn_timer_sec: float = 0.0
+var respawn_timer: int:
+	get:
+		return int(ceil(respawn_timer_sec * 60.0 - 0.0001))
+	set(v):
+		respawn_timer_sec = float(v) / 60.0
+
+var evasion_timer_sec: float = 0.0
+var evasion_timer: int:
+	get:
+		return int(ceil(evasion_timer_sec * 60.0 - 0.0001))
+	set(v):
+		evasion_timer_sec = float(v) / 60.0
+
 var spawn_point_index: int = 0
 var max_active_reinforcements: int = 3
 
@@ -37,35 +52,22 @@ var respawn_table: Dictionary = {}
 func _init() -> void:
 	load_respawn_table()
 
-## Carrega a tabela RespawnInfo neutra exportada de data/extracted/respawn_info.json
-func load_respawn_table(custom_path: String = "") -> void:
+## Carrega a tabela RespawnInfo de data/extracted/en-eu-rc750/respawn_info.json
+func load_respawn_table() -> void:
 	respawn_table.clear()
-	var path: String = custom_path
-	if path.is_empty():
-		# Tenta caminhos do projeto Godot
-		for p in ["res://../data/extracted/respawn_info.json", "res://data/respawn_info.json"]:
-			if FileAccess.file_exists(p):
-				path = p
-				break
-
-	if not path.is_empty() and FileAccess.file_exists(path):
-		var file := FileAccess.open(path, FileAccess.READ)
-		if file:
-			var text := file.get_as_text()
-			file.close()
-			var json_obj = JSON.parse_string(text)
-			if json_obj is Dictionary and json_obj.has("rooms"):
-				for r in json_obj["rooms"]:
-					var rid: int = int(r.get("room_id", 0))
-					var eid: int = int(r.get("enemy_id", 0))
-					var pts: Array[Vector2] = []
-					for pt in r.get("spawn_points", []):
-						pts.append(Vector2(float(pt.get("x", 0)), float(pt.get("y", 0))))
-					respawn_table[rid] = {
-						"enemy_id": eid,
-						"spawn_points": pts,
-					}
-				return
+	var json_obj: Dictionary = RomProvenance.load_canonical_json("respawn_info.json")
+	if json_obj.has("rooms"):
+		for r in json_obj["rooms"]:
+			var rid: int = int(r.get("room_id", 0))
+			var eid: int = int(r.get("enemy_id", 0))
+			var pts: Array[Vector2] = []
+			for pt in r.get("spawn_points", []):
+				pts.append(Vector2(float(pt.get("x", 0)), float(pt.get("y", 0))))
+			respawn_table[rid] = {
+				"enemy_id": eid,
+				"spawn_points": pts,
+			}
+		return
 
 	# Fallback sintético canônico para salas críticas de teste caso o JSON não esteja montado
 	_init_fallback_table()
@@ -146,20 +148,20 @@ func reset() -> void:
 
 
 ## Atualização de lógica a cada tick de física
-func tick(has_vision_on_snake: bool, current_active_guards: int, room_id: int) -> void:
+func tick(has_vision_on_snake: bool, current_active_guards: int, room_id: int, delta: float = 1.0 / 60.0) -> void:
 	current_room_id = room_id
 
 	match current_state:
 		AlertState.ALERT:
 			if has_vision_on_snake:
 				# Inimigos mantêm visada direta sobre Snake
-				evasion_timer = EVASION_COUNTDOWN_TICKS
+				evasion_timer_sec = EVASION_COUNTDOWN_SEC
 
 				# Ciclo de Respawn de Reforços (Banks0123.asm:6559-6628)
 				if num_respawn_guards > 0:
-					respawn_timer -= 1
-					if respawn_timer <= 0:
-						respawn_timer = RESPAWN_INTERVAL
+					respawn_timer_sec = maxf(0.0, respawn_timer_sec - delta)
+					if respawn_timer_sec <= 0.0001:
+						respawn_timer_sec = RESPAWN_INTERVAL_SEC
 						if current_active_guards < max_active_reinforcements:
 							var info: Dictionary = get_respawn_info(room_id)
 							var eid: int = int(info.get("enemy_id", 10))
@@ -177,7 +179,7 @@ func tick(has_vision_on_snake: bool, current_active_guards: int, room_id: int) -
 				# Transição imediata para EVASÃO
 				var old_state: AlertState = current_state
 				current_state = AlertState.EVASION
-				evasion_timer = EVASION_COUNTDOWN_TICKS
+				evasion_timer_sec = EVASION_COUNTDOWN_SEC
 				state_changed.emit(old_state, current_state)
 				print("ALERT_SYSTEM: Snake fora de vista! Transição para EVASÃO (Contador: %d)" % evasion_timer)
 
@@ -186,13 +188,14 @@ func tick(has_vision_on_snake: bool, current_active_guards: int, room_id: int) -
 				# Snake foi reavistado durante a busca de evasão!
 				var old_state: AlertState = current_state
 				current_state = AlertState.ALERT
-				evasion_timer = EVASION_COUNTDOWN_TICKS
+				evasion_timer_sec = EVASION_COUNTDOWN_SEC
 				state_changed.emit(old_state, current_state)
 				print("ALERT_SYSTEM: Snake reavistado! Retorno ao modo de ALERTA!")
 			else:
 				# Contagem regressiva de evasão
-				evasion_timer -= 1
-				if evasion_timer <= 0:
+				evasion_timer_sec = maxf(0.0, evasion_timer_sec - delta)
+				if evasion_timer_sec <= 0.0001:
+					evasion_timer_sec = 0.0
 					print("ALERT_SYSTEM: Temporizador de evasão esgotado com sucesso!")
 					stop_alert()
 

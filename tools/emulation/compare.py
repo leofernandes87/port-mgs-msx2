@@ -10,6 +10,7 @@ sys.path.insert(0,str(ROOT))
 from tools.extractors.codecs import rgb_palette, png_indexed
 from tools.extractors.extract import encode, publish
 from tools.extractors.schema import validate_package, validate
+from tools.rom import require_canonical_provenance
 
 
 def screen_pixels(vram):
@@ -145,7 +146,7 @@ def compare_room(package,ram,initial_vram,settled_vram,prior_vram=None,doors_vra
     palette=rgb_palette(pairs)+[[255,0,255],[40,0,40]]
     snapshot={'format_version':'1.0.0','room_id':room_id,'width':256,'height':192,
               'pixels':expected,'palette_rgb':palette,'collision':room['static_collision'],
-              'input_sha256':package['manifest']['input_sha256'],
+              'input_sha256':package['manifest']['input_sha256'],'rom_profile':package['manifest']['rom_profile'],
               'source':'Emulator-matched background before doors/entities; nominal room palette'}
     missing=sorted(set(room['expanded_tiles'])&set(ts['unloaded_tile_ids']))
     report={'room_id':room_id,'graphics_set':gfx,'ram_bytes_matched':768,
@@ -170,9 +171,9 @@ def run(package_path,capture,output):
         raise ValueError('Choose a new directory under data/extracted')
     package_bytes=package_path.read_bytes();package=json.loads(package_bytes)
     validate_package(package)
+    require_canonical_provenance(package['manifest'])
     manifest=json.loads((capture/'manifest.json').read_text())
-    if manifest['input_sha256']!=package['manifest']['input_sha256']:
-        raise ValueError('Capture/extraction input identities differ')
+    require_canonical_provenance(manifest)
     for name,digest in manifest['files'].items():
         if Path(name).name!=name or hashlib.sha256((capture/name).read_bytes()).hexdigest()!=digest:
             raise ValueError('Capture hash/path invalid: '+name)

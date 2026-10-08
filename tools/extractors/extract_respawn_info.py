@@ -1,7 +1,8 @@
-"""Extract reinforcement respawn table (RespawnInfo) from MSX2 Metal Gear ROM.
+"""Extract reinforcement respawn table (RespawnInfo) from the canonical Metal Gear MSX2 ROM.
 
-Offset in ROM: 0xC445 (Bank 6, offset 0x445).
-Structure per room (189 rooms, 0 to 188):
+RespawnInfo is located by its source bytes (data/respawninfo.asm:13); the entry count
+comes from that table, never from a fixed offset or length.
+Structure per room:
   Byte 0: Enemy ID (0=No respawn, 0x0A=Guard Alert, 0x0B=Guard Red Alert, 0x16=Jetpack)
   Byte 1: Location 1 nibbles: Y = loc & 0xF0, X = (loc & 0x0F) * 16
   Byte 2: Location 2 nibbles: Y = loc & 0xF0, X = (loc & 0x0F) * 16
@@ -16,10 +17,13 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ROM = ROOT / "roms" / "Metal Gear - Konami (1987) [Does not work on Non Japanese systems] [RC-750] [1473].rom"
-DEFAULT_OUTPUT = ROOT / "data" / "extracted" / "respawn_info.json"
-RESPAWN_INFO_ROM_OFFSET = 0xC445
-TOTAL_ROOMS = 189
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools.rom import resolve_canonical_rom, REFERENCE, canonical_data_dir
+from tools.extractors.reference import Reference
+
+DEFAULT_OUTPUT = canonical_data_dir() / "respawn_info.json"
+ENTRY_SIZE = 3
 
 ENEMY_NAMES = {
     0: "NONE",
@@ -29,22 +33,16 @@ ENEMY_NAMES = {
 }
 
 
-def extract_respawn_info(rom_path: Path) -> dict:
-    if not rom_path.exists():
-        raise FileNotFoundError(f"ROM not found at {rom_path}")
-
-    with rom_path.open("rb") as f:
-        rom_bytes = f.read()
-
-    if len(rom_bytes) < RESPAWN_INFO_ROM_OFFSET + TOTAL_ROOMS * 3:
+def extract_respawn_info(rom_bytes: bytes, offset: int, total_rooms: int) -> dict:
+    if len(rom_bytes) < offset + total_rooms * ENTRY_SIZE:
         raise ValueError("ROM size too small for RespawnInfo table")
 
     rooms = []
-    for room_id in range(TOTAL_ROOMS):
-        offset = RESPAWN_INFO_ROM_OFFSET + room_id * 3
-        enemy_id = rom_bytes[offset]
-        loc1 = rom_bytes[offset + 1]
-        loc2 = rom_bytes[offset + 2]
+    for room_id in range(total_rooms):
+        entry = offset + room_id * ENTRY_SIZE
+        enemy_id = rom_bytes[entry]
+        loc1 = rom_bytes[entry + 1]
+        loc2 = rom_bytes[entry + 2]
 
         y1 = loc1 & 0xF0
         x1 = (loc1 & 0x0F) * 16
@@ -68,12 +66,19 @@ def extract_respawn_info(rom_path: Path) -> dict:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Extract RespawnInfo from Metal Gear MSX2 ROM")
-    parser.add_argument("--rom", type=Path, default=DEFAULT_ROM, help="Path to input ROM")
+    parser = argparse.ArgumentParser(description="Extract RespawnInfo from the canonical Metal Gear MSX2 ROM")
+    parser.add_argument("--rom", type=Path, help="Explicit ROM path; validated against the canonical hash")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Path to output JSON")
     args = parser.parse_args()
 
-    data = extract_respawn_info(args.rom)
+    rom = resolve_canonical_rom(args.rom)
+    ref = Reference(REFERENCE, rom.data)
+    table = ref.literal("data/respawninfo.asm", "RespawnInfo")
+    if len(table) % ENTRY_SIZE:
+        raise ValueError("RespawnInfo source table is not a whole number of entries")
+    data = extract_respawn_info(rom.data, ref.symbols["RespawnInfo"], len(table) // ENTRY_SIZE)
+    data.update(rom.provenance(), evidence=ref.evidence("RespawnInfo", len(table)))
+    rom.assert_unchanged()
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as f:

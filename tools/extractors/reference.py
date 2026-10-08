@@ -28,9 +28,12 @@ class Reference:
     def read(self, file):
         return (self.path / file).read_text(encoding='latin-1')
 
-    def add(self, files, group, offset=None):
-        """group physical base maps CPU 6000..BFFF. Verify entire segment."""
-        sources = [(f, self.read(f)) for f in files]
+    def add(self, files, group, offset=None, transform=None):
+        """group physical base maps CPU 6000..BFFF. Verify entire segment.
+
+        transform(file, text) may rewrite source syntax the strict parser rejects
+        (English IF branch, constant expressions); the bytes are still compared in full."""
+        sources = [(f, transform(f, self.read(f)) if transform else self.read(f)) for f in files]
         if offset is None:
             prototype, _, _ = data_segment(sources, 0, self.constants)
             # Call sites use data-only leading blocks. Full reassembly below
@@ -58,9 +61,34 @@ class Reference:
 
     def literal(self, file, symbol):
         payload, line = literal_block(self.read(file), symbol)
+        self._locate(file, symbol, payload, line)
+        return payload
+
+    def table(self, file, symbol, end_symbol):
+        """DB/DW lines from symbol up to end_symbol, located once by content."""
+        lines = self.read(file).splitlines()
+        start = self._label_line(lines, symbol)
+        end = self._label_line(lines, end_symbol, start + 1)
+        payload, _, _ = data_segment([(file, '\n'.join(lines[start:end]))], 0, self.constants)
+        self._locate(file, symbol, payload, start + 1)
+        return payload
+
+    def signature(self, file, symbol, payload):
+        """Code has no literal source bytes here; a reviewed signature must occur exactly once."""
+        self._locate(file, symbol, payload, self._label_line(self.read(file).splitlines(), symbol) + 1)
+        return payload
+
+    @staticmethod
+    def _label_line(lines, symbol, start=0):
+        for index in range(start, len(lines)):
+            if re.match(re.escape(symbol) + r':', lines[index]):
+                return index
+        raise ValueError('Label not found: ' + symbol)
+
+    def _locate(self, file, symbol, payload, line):
         found = hits(self.rom, payload)
         if len(found) != 1:
-            raise ValueError('Ambiguous literal block: ' + symbol)
+            raise ValueError(f'Block for {symbol} must occur exactly once; found {len(found)}')
         offset = found[0]
         self.symbols[symbol] = offset
         self.locations[symbol] = {'file': file, 'line': line,

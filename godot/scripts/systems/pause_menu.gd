@@ -11,17 +11,23 @@ signal collision_toggled(enabled: bool)
 signal enemy_vision_toggled(enabled: bool)
 signal colliders_toggled(enabled: bool)
 signal reset_room_requested
+signal title_screen_requested
+signal map_mode_toggled(use_remaster: bool)
+signal replay_intro_requested
+
 
 var is_god_mode: bool = false
 var show_collision: bool = false
 var show_enemy_vision: bool = false
 var show_colliders: bool = false
+var use_remastered_maps: bool = false
 
 var panel: PanelContainer
 var god_mode_btn: Button
 var collision_btn: Button
 var vision_btn: Button
 var colliders_btn: Button
+var map_mode_btn: Button
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -117,6 +123,15 @@ func _ready() -> void:
 	)
 	vbox.add_child(colliders_btn)
 
+	# 7. Alternar Modo de Mapa (Original MSX2 vs Remaster HD)
+	map_mode_btn = _create_option_button("", Color(0.9, 0.9, 0.9))
+	map_mode_btn.pressed.connect(func() -> void:
+		use_remastered_maps = not use_remastered_maps
+		_update_buttons_text()
+		emit_signal("map_mode_toggled", use_remastered_maps)
+	)
+	vbox.add_child(map_mode_btn)
+
 	# 7. Reiniciar Sala Atual
 	var reset_btn := _create_option_button("⟲ Reiniciar Snake na Sala Atual", Color(1.0, 0.4, 0.4))
 	reset_btn.pressed.connect(func() -> void:
@@ -124,6 +139,23 @@ func _ready() -> void:
 		close_menu()
 	)
 	vbox.add_child(reset_btn)
+
+	# 8. Rever Abertura (Infiltração na Água e Grade)
+	var intro_btn := _create_option_button("▶ Rever Abertura (Infiltração)", Color(0.4, 0.9, 0.9))
+	intro_btn.pressed.connect(func() -> void:
+		emit_signal("replay_intro_requested")
+		close_menu()
+	)
+	vbox.add_child(intro_btn)
+
+	# 9. Voltar à Tela de Título
+	var title_btn := _create_option_button("⌂ Voltar à Tela de Título", Color(0.7, 0.8, 1.0))
+	title_btn.pressed.connect(func() -> void:
+		emit_signal("title_screen_requested")
+		close_menu()
+	)
+	vbox.add_child(title_btn)
+
 
 	var sep2 := HSeparator.new()
 	vbox.add_child(sep2)
@@ -156,11 +188,12 @@ func _create_option_button(label_text: String, text_color: Color) -> Button:
 	btn.add_theme_color_override("font_color", text_color)
 	return btn
 
-func open_menu(god_mode: bool, col: bool, vis: bool, colliders: bool) -> void:
+func open_menu(god_mode: bool, col: bool, vis: bool, colliders: bool, use_remaster: bool = false) -> void:
 	is_god_mode = god_mode
 	show_collision = col
 	show_enemy_vision = vis
 	show_colliders = colliders
+	use_remastered_maps = use_remaster
 	_update_buttons_text()
 	visible = true
 	grab_focus()
@@ -181,6 +214,9 @@ func _update_buttons_text() -> void:
 	if colliders_btn:
 		colliders_btn.text = "● Hitbox / Pontos de Snake: " + ("[ LIGADOS ]" if show_colliders else "[ DESLIGADOS ]")
 		colliders_btn.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4) if show_colliders else Color(0.8, 0.8, 0.8))
+	if map_mode_btn:
+		map_mode_btn.text = "🎨 Mapa de Fundo: " + ("[ REMASTER HD ]" if use_remastered_maps else "[ ORIGINAL MSX2 ]")
+		map_mode_btn.add_theme_color_override("font_color", Color(0.4, 0.8, 1.0) if use_remastered_maps else Color(0.3, 1.0, 0.4))
 
 func handle_input(event: InputEvent) -> bool:
 	if not visible:

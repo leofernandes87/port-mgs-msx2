@@ -1,7 +1,7 @@
-"""Extract Electrified Floor & Power Switchboard/Panel data from MSX2 Metal Gear ROM (RC750).
+"""Extract Electrified Floor & Power Switchboard/Panel data from the canonical Metal Gear MSX2 ROM.
 
 Evidence:
-- Routine ChkElectricFloor in ROM: offset 0x4C0D to 0x4C50
+- Routine ChkElectricFloor (logic/damageelectric.asm): reviewed instruction signature, located once in the ROM
 - Disassembly: logic/damageelectric.asm, logic/actors/powerswitch.asm, logic/damagetoenemy.asm, data/actorsinrooms.asm
 - Rooms: 16, 37, 40, 110, 116
 - Power Switch Actor ID: 0x2C (44)
@@ -20,11 +20,14 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ROM = ROOT / "roms" / "Metal Gear - Konami (1987) [Does not work on Non Japanese systems] [RC-750] [1473].rom"
-DEFAULT_PACKAGE = ROOT / "data" / "extracted" / "rc750-verified" / "package.json"
-DEFAULT_OUTPUT = ROOT / "data" / "extracted" / "electrified_floor.json"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools.rom import resolve_canonical_rom, REFERENCE, canonical_data_dir, require_canonical_provenance
+from tools.extractors.reference import Reference
 
-CHK_ELECTRIC_FLOOR_ROM_OFFSET = 0x4C0D
+DEFAULT_PACKAGE = canonical_data_dir() / "package" / "package.json"
+DEFAULT_OUTPUT = canonical_data_dir() / "electrified_floor.json"
+
 CHK_ELECTRIC_FLOOR_SIGNATURE = (
     b"\x3a\x30\xc1\xfe\x10\x01\x61\x60\x28\x15\xfe\x25\x28\x11\xfe\x6e\x28\x0d"
     b"\xfe\x28\x01\x46\x45\x28\x06\xfe\x74\x01\x41\x40\xc0"
@@ -104,31 +107,20 @@ ROOMS_METADATA = [
 ]
 
 
-def extract_electrified_floor_data(rom_path: Path | None = None, package_path: Path | None = None) -> dict:
-    source_info = "MSX2 Metal Gear RC750 Disassembly (logic/damageelectric.asm, logic/actors/powerswitch.asm)"
+def extract_electrified_floor_data(rom_bytes: bytes, routine_offset: int, package: dict) -> dict:
+    actual_bytes = rom_bytes[routine_offset:routine_offset + len(CHK_ELECTRIC_FLOOR_SIGNATURE)]
+    if actual_bytes != CHK_ELECTRIC_FLOOR_SIGNATURE:
+        raise ValueError("ChkElectricFloor signature not found at the resolved offset")
+    source_info = f"ROM verified: ChkElectricFloor at offset {hex(routine_offset)}"
 
-    if rom_path and rom_path.exists():
-        with rom_path.open("rb") as f:
-            rom_bytes = f.read()
-
-        # Check signature at exact offset
-        if len(rom_bytes) > CHK_ELECTRIC_FLOOR_ROM_OFFSET + len(CHK_ELECTRIC_FLOOR_SIGNATURE):
-            actual_bytes = rom_bytes[
-                CHK_ELECTRIC_FLOOR_ROM_OFFSET : CHK_ELECTRIC_FLOOR_ROM_OFFSET + len(CHK_ELECTRIC_FLOOR_SIGNATURE)
-            ]
-            if actual_bytes == CHK_ELECTRIC_FLOOR_SIGNATURE:
-                source_info = f"ROM RC750 verified at offset {hex(CHK_ELECTRIC_FLOOR_ROM_OFFSET)}"
-
-    # Load expanded tiles from package.json if available
     room_tiles_map: dict[int, list[int]] = {}
-    if package_path and package_path.exists():
-        with package_path.open("r", encoding="utf-8") as pf:
-            pkg = json.load(pf)
-            rooms = pkg.get("rooms", [])
-            for r_entry in rooms:
-                rid = r_entry.get("id")
-                if rid is not None and "expanded_tiles" in r_entry:
-                    room_tiles_map[rid] = r_entry["expanded_tiles"]
+    for r_entry in package.get("rooms", []):
+        rid = r_entry.get("id")
+        if rid is not None and "expanded_tiles" in r_entry:
+            room_tiles_map[rid] = r_entry["expanded_tiles"]
+    missing = [meta["room_id"] for meta in ROOMS_METADATA if meta["room_id"] not in room_tiles_map]
+    if missing:
+        raise ValueError(f"Package lacks expanded tiles for electrified rooms {missing}")
 
     rooms_data = []
     for meta in ROOMS_METADATA:
@@ -166,12 +158,19 @@ def extract_electrified_floor_data(rom_path: Path | None = None, package_path: P
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Extrai dados dos pisos eletrificados e painéis de força da ROM MSX2")
-    parser.add_argument("--rom", type=Path, default=DEFAULT_ROM, help="Caminho para o binário da ROM")
+    parser.add_argument("--rom", type=Path, help="ROM explícita; validada pelo hash canônico")
     parser.add_argument("--package", type=Path, default=DEFAULT_PACKAGE, help="Caminho para package.json")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Destino do arquivo JSON")
     args = parser.parse_args()
 
-    data = extract_electrified_floor_data(args.rom, args.package)
+    rom = resolve_canonical_rom(args.rom)
+    package = json.loads(args.package.read_text(encoding="utf-8"))
+    require_canonical_provenance(package["manifest"])
+    ref = Reference(REFERENCE, rom.data)
+    ref.signature("logic/damageelectric.asm", "ChkElectricFloor", CHK_ELECTRIC_FLOOR_SIGNATURE)
+    data = extract_electrified_floor_data(rom.data, ref.symbols["ChkElectricFloor"], package)
+    data.update(rom.provenance(), evidence=ref.evidence("ChkElectricFloor", len(CHK_ELECTRIC_FLOOR_SIGNATURE)))
+    rom.assert_unchanged()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, sort_keys=True)

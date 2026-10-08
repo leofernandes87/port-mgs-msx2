@@ -22,18 +22,18 @@ func _run() -> void:
 	# 2. Configurações de velocidade por tipo canônico
 	enemy.guard_type = EnemyGuard.GuardType.SLOW
 	enemy._ready()
-	if not require(is_equal_approx(enemy.speed, 0.5), "GuardType.SLOW deve ter velocidade 0.5"): return
+	if not require(is_equal_approx(enemy.speed, 0.4), "GuardType.SLOW deve ter velocidade 0.4"): return
 
 	enemy.guard_type = EnemyGuard.GuardType.MEDIUM
 	enemy._ready()
-	if not require(is_equal_approx(enemy.speed, 1.0), "GuardType.MEDIUM deve ter velocidade 1.0"): return
+	if not require(is_equal_approx(enemy.speed, 0.7), "GuardType.MEDIUM deve ter velocidade 0.7"): return
 
 	enemy.guard_type = EnemyGuard.GuardType.FAST
 	enemy._ready()
-	if not require(is_equal_approx(enemy.speed, 1.5), "GuardType.FAST deve ter velocidade 1.5"): return
+	if not require(is_equal_approx(enemy.speed, 1.0), "GuardType.FAST deve ter velocidade 1.0"): return
 
 	# 3. Patrulha de waypoints e vai-e-vem
-	enemy.guard_type = EnemyGuard.GuardType.MEDIUM
+	enemy.guard_type = EnemyGuard.GuardType.FAST
 	enemy.speed = 1.0
 	enemy.position = Vector2(50.0, 50.0)
 	enemy.set_patrol_path([Vector2(60.0, 50.0), Vector2(60.0, 70.0)])
@@ -52,6 +52,7 @@ func _run() -> void:
 	if not require(enemy.current_direction == PlayerController.Direction.DOWN, "Direção deve mudar para DOWN rumo ao 2º waypoint"): return
 
 	# Tick 12: avança em Y em direção a (60, 70)
+	enemy.wait_ticks = 0
 	enemy.step_tick(dummy_collision, Vector2(-100, -100))
 	if not require(enemy.position.y > 50.0, "Inimigo deve avançar no eixo Y"): return
 

@@ -1,5 +1,20 @@
+class_name SandboxGameplay
 extends Control
+
+# ==============================================================================
+# O CORAÇÃO DO JOGO (GAME MANAGER PRINCIPAL)
+# Este é o script mestre que une todos os outros pedaços do jogo.
+# Se algo acontece na tela inteira (tiros, menus, carregar fases, IA dos 
+# inimigos da sala), é este arquivo que controla.
+# ==============================================================================
 ## Cena de teste jogável de Snake com movimentação e colisão fiéis ao MSX2 (Etapa 5).
+
+## Flag estática para iniciar com a animação de infiltração na água (acionada pela Title Screen)
+static var start_with_intro: bool = false
+
+## Cutscene de Infiltração na Água e Escalada da Grade (MSX2 Sala 121)
+var intro_cutscene: IntroCutscene
+@export var play_intro_cutscene: bool = false
 
 var snapshot: RoomSnapshot = RoomSnapshot.new()
 var player: PlayerController
@@ -12,11 +27,19 @@ var radio_dialog: RadioDialog
 var cameras: Array[SecurityCamera] = []
 var laser_system: LaserSystem
 var bullets: Array[Bullet] = []
+var hud: GameHUD = null
 var silencer_dropped_room_150: bool = false
 var item_boxes: Array[ItemBox] = []
 var room_doors: Array[RoomDoor] = []
 var runtime_collision: Array = []
 var room_texture: ImageTexture
+
+## = RENDERIZAÇÃO DE MAPAS: ORIGINAL MSX2 vs REMAKE / REMASTER =
+## Se 'false' (padrão): utiliza os mapas autênticos do MSX2 extraídos da ROM (via snapshot.make_image()).
+##    Garante 100% de fidelidade pixel a pixel com colisões, portas, vãos de elevador e passagens secretas.
+## Se 'true': utiliza os planos de fundo ilustrados da pasta assets/remastered/room-XXX.png.
+@export var use_remastered_maps: bool = false
+
 var show_collision: bool = false
 var show_enemy_vision: bool = false
 var infinite_life: bool = false
@@ -27,6 +50,8 @@ var alert_system: AlertSystem = AlertSystem.new()
 var rank_system: RankSystem = RankSystem.new()
 var prisoners: Array[Prisoner] = []
 var dialog_banner_label: Label = null
+var prisoner_dialog: PrisonerDialog
+var _world_process_before_dialog: ProcessMode = Node.PROCESS_MODE_INHERIT
 var is_game_over: bool = false
 var game_over_banner: Label = null
 
@@ -40,11 +65,19 @@ var defeated_bosses: Dictionary = {}
 var gas_hazard_system: GasHazardSystem = GasHazardSystem.new()
 var gas_clouds: Array[GasCloud] = []
 
+## Barris Rolantes (ID_ROLLING_BARREL = 15) — logic/actors/rollingbarrels.asm
+var rolling_barrels: Array[RollingBarrel] = []
+
 ## Míssil Teleguiado por Controle Remoto (Etapa 20) — logic/weapon/missile.asm
 var active_missile: RemoteMissile = null
 
+## Bomba Plástica C4 (Etapa 25) — logic/weapon/plasticbomb.asm
+var active_plastic_bomb: PlasticBomb = null
+var broken_basement_walls: Dictionary = {} # "room_id_door_id": true
+
 ## Evento de Captura na Sala 8 e Cela da Sala 211 (Etapa 21)
 var capture_system: CaptureSystem = CaptureSystem.new()
+var capture_cutscene: CaptureCutscene = null
 var tilemap_layer: TileMapLayer = null
 
 ## Pisos Eletrificados e Painéis de Força (Etapa 22) — logic/damageelectric.asm e logic/actors/powerswitch.asm
@@ -60,6 +93,7 @@ const ROOMS_SHOT_SECURE: Array[int] = [
 ]
 
 var previous_room_id: int = -1
+var room_entry_direction: int = PlayerController.Direction.UP
 var is_in_elevator: bool = false
 var elevator_cabin: ElevatorCabin
 var elevator_y: float = 180.0
@@ -67,6 +101,19 @@ var elevator_target_y: float = 180.0
 var elevator_state: int = ELEVATOR_STATE_IDLE
 const ELEVATOR_STATE_IDLE: int = 0
 const ELEVATOR_STATE_MOVING: int = 1
+var elevator_spawner_timer_sec: float = 0.0
+var elevator_spawner_timer: int:
+	get:
+		return int(ceil(elevator_spawner_timer_sec * 60.0 - 0.0001))
+	set(v):
+		elevator_spawner_timer_sec = float(v) / 60.0
+
+var elevator_guard2_delay_sec: float = 0.0
+var elevator_guard2_delay: int:
+	get:
+		return int(ceil(elevator_guard2_delay_sec * 60.0 - 0.0001))
+	set(v):
+		elevator_guard2_delay_sec = float(v) / 60.0
 
 var status_label: Label
 var call_badge: Label
@@ -75,66 +122,32 @@ var weapon_menu: WeaponMenu
 var item_menu: ItemMenu
 var pause_menu: PauseMenu
 
+# Sistema de Binóculo / Telescópio (MSX: logic/menuequipment.asm:295 e Banks0123.asm:12250)
+var binocular_system: BinocularSystem
+var binocular_overlay: BinocularOverlay
+var home_enemies_backup: Array[Dictionary] = []
+
 # Posição inicial oficial na Sala 121 em terra firme (após introdução: X = 128.0, Y = 80.0)
 const INITIAL_ROOM_ID: int = 121
 const DEFAULT_SPAWN_X: float = 128.0
 const DEFAULT_SPAWN_Y: float = 80.0
 
+var guard1_exited_lorry: bool = false
+var guard2_exited_lorry: bool = false
+var guard3_exited_lorry: bool = false
+
 func _ready() -> void:
 	print("BOOT_OK: cena principal pronta")
-	# Montar interface
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 12)
-	add_child(margin)
-
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 6)
-	margin.add_child(column)
-
-	# Linha 1: Título, Status de Vida/Alerta e Botão de Pause
-	var header_bar := HBoxContainer.new()
-	header_bar.add_theme_constant_override("separation", 12)
-	column.add_child(header_bar)
-
-	var title := Label.new()
-	title.text = "Metal Gear MSX2"
-	title.add_theme_color_override("font_color", Color(0.4, 0.9, 0.5))
-	header_bar.add_child(title)
-
-	call_badge = Label.new()
-	call_badge.text = " CALL [R] "
-	call_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	call_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	call_badge.add_theme_color_override("font_color", Color(1.0, 0.25, 0.25))
-	call_badge.modulate = Color(0.0, 0.0, 0.0, 0.0)  # Inicia invisível sem afetar layout
-	header_bar.add_child(call_badge)
-
-	status_label = Label.new()
-	status_label.text = "Carregando..."
-	status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	status_label.clip_text = true
-	status_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	status_label.custom_minimum_size = Vector2(80, 0)
-	header_bar.add_child(status_label)
-
-	var pause_btn := Button.new()
-	pause_btn.text = "PAUSE [ESC]"
-	pause_btn.focus_mode = Control.FOCUS_NONE
-	pause_btn.pressed.connect(_toggle_pause_menu)
-	header_bar.add_child(pause_btn)
-
-	# Área central de jogo (Control que contém e centraliza o mundo do jogo)
+	# Área central de jogo autêntica MSX2 (256x212: Gameplay 256x192 + GameHUD 256x20)
 	viewport_area = Control.new()
-	viewport_area.custom_minimum_size = Vector2(256, 192)
+	viewport_area.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	viewport_area.custom_minimum_size = Vector2(256, 212)
 	viewport_area.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	viewport_area.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	viewport_area.clip_contents = true
 	viewport_area.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	viewport_area.resized.connect(_on_viewport_resized)
-	column.add_child(viewport_area)
+	add_child(viewport_area)
 
 	# Overlay flutuante de diálogo do boss (dentro de viewport_area, preservando a altura e o zoom 100%)
 	boss_dialog_label = Label.new()
@@ -175,6 +188,11 @@ func _ready() -> void:
 	# Nó container 2D escalado (mundo nativo 256x192)
 	game_world = Node2D.new()
 	viewport_area.add_child(game_world)
+	prisoner_dialog = PrisonerDialog.new()
+	game_world.add_child(prisoner_dialog)
+	prisoner_dialog.closed.connect(func() -> void:
+		game_world.process_mode = _world_process_before_dialog
+	)
 
 	# Fundo da sala
 	room_display = Node2D.new()
@@ -200,13 +218,29 @@ func _ready() -> void:
 	_load_initial_room()
 	reset_player()
 
+	# HUD original do MSX2 (256x20 px em Y=192..211)
+	hud = GameHUD.new()
+	game_world.add_child(hud)
+	hud.bind_systems(player, rank_system, weapon_system, inventory, radio_system)
+
 
 	# Sistema de Rádio Transceptor (Etapa 15)
 	radio_dialog = RadioDialog.new()
+	radio_dialog.radio_system = radio_system
 	add_child(radio_dialog)
 	radio_dialog.radio_closed.connect(_on_radio_closed)
-	if snapshot and snapshot.loaded:
-		radio_system.check_incoming_call(snapshot.room_id)
+
+	# Sistema da Cutscene de Abertura / Infiltração na Água e Escalada da Grade (Sala 121)
+	intro_cutscene = IntroCutscene.new()
+	intro_cutscene.radio_requested.connect(_on_intro_radio_requested)
+	intro_cutscene.intro_finished.connect(_on_intro_finished)
+	add_child(intro_cutscene)
+
+	if (start_with_intro or play_intro_cutscene) and snapshot and snapshot.room_id == INITIAL_ROOM_ID:
+		start_with_intro = false
+		intro_cutscene.start_intro(player)
+	elif snapshot and snapshot.loaded:
+		_radio_enter_room(snapshot.room_id)
 	# Máquina de Estados de Alerta Global e Reforços (Etapa 17)
 	alert_system.state_changed.connect(_on_alert_state_changed)
 	alert_system.reinforcement_requested.connect(_on_reinforcement_requested)
@@ -221,6 +255,17 @@ func _ready() -> void:
 	item_menu.visible = false
 	item_menu.item_selected.connect(_on_item_menu_selected)
 	add_child(item_menu)
+
+	# Sistema e Overlay do Binóculo / Telescópio
+	binocular_system = BinocularSystem.new()
+	binocular_overlay = BinocularOverlay.new()
+	game_world.add_child(binocular_overlay)
+
+	# Sistema da Cutscene Canônica de Captura da Sala 8
+	capture_cutscene = CaptureCutscene.new()
+	game_world.add_child(capture_cutscene)
+	capture_cutscene.teleport_requested.connect(_on_capture_teleport_requested)
+	capture_cutscene.cutscene_finished.connect(_on_capture_cutscene_finished)
 
 	pause_menu = PauseMenu.new()
 	pause_menu.visible = false
@@ -254,32 +299,60 @@ func _ready() -> void:
 	)
 	pause_menu.give_arsenal_requested.connect(_give_debug_arsenal)
 	pause_menu.reset_room_requested.connect(reset_player)
+	pause_menu.replay_intro_requested.connect(func() -> void:
+		if snapshot and snapshot.room_id != INITIAL_ROOM_ID:
+			var s121: RoomSnapshot = room_manager.load_room_snapshot(INITIAL_ROOM_ID)
+			if s121:
+				snapshot = s121
+				_apply_snapshot()
+		if intro_cutscene:
+			intro_cutscene.start_intro(player)
+	)
+	pause_menu.title_screen_requested.connect(func() -> void:
+		get_tree().change_scene_to_file("res://scenes/title_screen.tscn")
+	)
+	pause_menu.map_mode_toggled.connect(func(use_rem: bool) -> void:
+		use_remastered_maps = use_rem
+		_apply_snapshot()
+		queue_redraw()
+	)
 	add_child(pause_menu)
+
 
 	call_deferred("_post_ready_layout")
 
 func _on_weapon_menu_selected(w_name: String) -> void:
 	if player:
 		player.queue_redraw()
+	if hud:
+		hud.update_hud_state()
+		hud.queue_redraw()
 	print("WEAPON_MENU: Arma selecionada: %s" % (w_name if not w_name.is_empty() else "[DESARMADO]"))
 
 func _on_item_menu_selected(i_name: String) -> void:
 	if player:
 		player.queue_redraw()
+	if hud:
+		hud.update_hud_state()
+		hud.queue_redraw()
 	print("ITEM_MENU: Item selecionado: %s" % (i_name if not i_name.is_empty() else "[NENHUM]"))
+	if i_name == InventoryManager.ITEM_BINOCULARS:
+		open_binoculars()
 
 func _toggle_pause_menu() -> void:
 	if pause_menu:
 		if pause_menu.visible:
 			pause_menu.close_menu()
 		else:
+			if binocular_system and binocular_system.is_active:
+				close_binoculars()
 			if weapon_menu and weapon_menu.visible:
 				weapon_menu.close_menu()
 			if item_menu and item_menu.visible:
 				item_menu.close_menu()
 			if radio_dialog and radio_dialog.is_active:
 				radio_dialog.close_radio()
-			pause_menu.open_menu(infinite_life, show_collision, show_enemy_vision, player.show_debug_colliders if player else false)
+			pause_menu.open_menu(infinite_life, show_collision, show_enemy_vision, player.show_debug_colliders if player else false, use_remastered_maps)
 
 func _give_debug_arsenal() -> void:
 	weapon_system.add_weapon(WeaponSystem.WEAPON_HANDGUN, 50)
@@ -299,11 +372,45 @@ func _give_debug_arsenal() -> void:
 		player.max_life = 24
 		player.life = 24
 		player.queue_redraw()
+	if hud:
+		hud.update_hud_state()
+		hud.queue_redraw()
 	print("DEBUG_ARSENAL: Arsenal e equipamentos completos concedidos!")
 
 func _on_radio_closed() -> void:
+	if intro_cutscene and intro_cutscene.is_active:
+		intro_cutscene.on_radio_finished()
 	if player:
 		player.queue_redraw()
+
+func _on_intro_radio_requested(pages: Array[String]) -> void:
+	if radio_dialog:
+		if radio_system:
+			radio_system.current_freq = RadioSystem.FREQ_BIGBOSS_PR1
+			radio_system.is_send_mode = false
+			radio_dialog.radio_system = radio_system
+		radio_dialog.start_briefing(RadioSystem.CONTACT_BIG_BOSS, "BIG BOSS", pages, radio_system)
+
+func _on_intro_finished() -> void:
+	print("SANDBOX: Cutscene de abertura concluída. Snake assumiu controle em terra firme!")
+	if player:
+		player.queue_redraw()
+	if snapshot and snapshot.loaded:
+		_radio_enter_room(snapshot.room_id)
+
+## NextRoomLogic: SetRadioArea, UpdateRadio, SetAreaMusic2 -> ChkRadioCalls (Banks0123.asm:11847-11856).
+func _radio_enter_room(room_id: int) -> void:
+	_sync_radio_conditions()
+	radio_system.enter_room(room_id)
+
+func _sync_radio_conditions() -> void:
+	var has_antenna: bool = inventory.has_item("ANTENNA")
+	# AddItemInventory3: taking the antenna forces pending calls (logic/items.asm:163-170).
+	if has_antenna and not radio_system.antenna_taken:
+		radio_system.force_pending_call()
+	radio_system.antenna_taken = has_antenna
+	radio_system.class_rank = rank_system.current_rank - 1
+
 
 var viewport_area: Control
 var game_world: Node2D
@@ -321,9 +428,9 @@ func _update_world_transform(area_size: Vector2) -> void:
 	if not game_world or area_size.x <= 0.0 or area_size.y <= 0.0:
 		return
 	var zoom_x: float = floorf(area_size.x / 256.0)
-	var zoom_y: float = floorf(area_size.y / 192.0)
+	var zoom_y: float = floorf(area_size.y / 212.0)
 	zoom = maxf(1.0, minf(zoom_x, zoom_y))
-	canvas_origin = ((area_size - Vector2(256, 192) * zoom) / 2.0).floor()
+	canvas_origin = ((area_size - Vector2(256, 212) * zoom) / 2.0).floor()
 	game_world.position = canvas_origin
 	game_world.scale = Vector2(zoom, zoom)
 
@@ -386,55 +493,21 @@ func _load_initial_room() -> void:
 
 func _apply_snapshot() -> void:
 	var base_img: Image = null
-	var rem_path: String = "res://../assets/remastered/room-%03d.png" % snapshot.room_id
-	if ResourceLoader.exists(rem_path) or FileAccess.file_exists(ProjectSettings.globalize_path(rem_path)):
-		base_img = Image.load_from_file(ProjectSettings.globalize_path(rem_path))
-		if base_img:
-			print("REMASTER: Carregada arte remasterizada para a Sala %d" % snapshot.room_id)
+	if use_remastered_maps:
+		var rem_path: String = "res://../assets/remastered/room-%03d.png" % snapshot.room_id
+		if ResourceLoader.exists(rem_path) or FileAccess.file_exists(ProjectSettings.globalize_path(rem_path)):
+			base_img = Image.load_from_file(ProjectSettings.globalize_path(rem_path))
+			if base_img:
+				print("REMASTER: Carregada arte remasterizada para a Sala %d" % snapshot.room_id)
 	
 	if not base_img:
 		base_img = snapshot.make_image()
+		if not use_remastered_maps:
+			print("MAPA_ORIGINAL: Carregada arte autêntica MSX2 para a Sala %d" % snapshot.room_id)
 	
 	if base_img:
 		room_texture = ImageTexture.create_from_image(base_img)
 	runtime_collision = Array(snapshot.collision)
-	if snapshot.room_id == CaptureSystem.ROOM_PRISON and capture_system.wall_broken:
-		for tile_coord: Vector2i in CaptureSystem.WALL_TILES:
-			var idx: int = tile_coord.y * 32 + tile_coord.x
-			if idx >= 0 and idx < runtime_collision.size():
-				runtime_collision[idx] = 0
-			if tilemap_layer != null:
-				tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
-		if room_texture != null:
-			var img: Image = room_texture.get_image()
-			var floor_col: Color = img.get_pixel(64, 80)
-			for py in range(64, 96):
-				for px in range(0, 48):
-					img.set_pixel(px, py, floor_col)
-			room_texture.update(img)
-	elif snapshot.room_id == CaptureSystem.ROOM_ADJACENT and capture_system.wall_broken:
-		for tile_coord: Vector2i in CaptureSystem.ADJACENT_WALL_TILES:
-			var idx: int = tile_coord.y * 32 + tile_coord.x
-			if idx >= 0 and idx < runtime_collision.size():
-				runtime_collision[idx] = 0
-			if tilemap_layer != null:
-				tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
-		if room_texture != null:
-			var img: Image = room_texture.get_image()
-			var floor_col: Color = img.get_pixel(192, 80)
-			for py in range(64, 96):
-				for px in range(208, 256):
-					img.set_pixel(px, py, floor_col)
-			room_texture.update(img)
-		
-		# A porta sul da Sala 212 não tem portão físico nos arquivos de door.asm
-		# mas possui colisão de tiles preenchida que impede a transição.
-		# Vamos desobstruir a passagem (X=12 a 15, Y=19 a 23)
-		for ty in range(19, 24):
-			for tx in range(12, 16):
-				var idx: int = ty * 32 + tx
-				if idx >= 0 and idx < runtime_collision.size():
-					runtime_collision[idx] = 0
 	if player:
 		player.set_collision_grid(runtime_collision)
 	_spawn_room_enemies(snapshot.room_id)
@@ -463,6 +536,11 @@ func _spawn_room_enemies(room_id: int) -> void:
 		if is_instance_valid(gc):
 			gc.queue_free()
 	gas_clouds.clear()
+
+	for rb: RollingBarrel in rolling_barrels:
+		if is_instance_valid(rb):
+			rb.queue_free()
+	rolling_barrels.clear()
 
 	# Limpa boss anterior ao trocar de sala
 	if is_instance_valid(shot_gunner):
@@ -526,14 +604,11 @@ func _spawn_room_enemies(room_id: int) -> void:
 				continue
 
 			# Boss Shoot Gunner — ID_SHOT_GUNNER = 0x21 = 33 (Etapa 18)
+			# Fonte: logic/actors/shotgunner.asm:7-10 (InitShotGunner: bit 0, (ShotGunnerStat) -> jp nz, DismissActor)
 			if type_id == 33:
 				if defeated_bosses.get(33, false):
-					var sg_dead: ShotGunner = ShotGunner.new()
-					sg_dead.setup(spawn_pos, runtime_collision, Vector2.ZERO)
-					sg_dead.is_dead = true
-					game_world.add_child(sg_dead)
-					sg_dead.queue_redraw()
-					shot_gunner = sg_dead
+					# No original MSX2, se já derrotado, DismissActor é chamado e nada é gerado na sala
+					shot_gunner = null
 					continue
 				var sg: ShotGunner = ShotGunner.new()
 				var player_initial: Vector2 = player.position if player else Vector2(128.0, 96.0)
@@ -546,29 +621,68 @@ func _spawn_room_enemies(room_id: int) -> void:
 				print("BOSS_SPAWNED: Shoot Gunner na sala %d em %s (HP: %d)" % [room_id, spawn_pos, sg.boss_hp])
 				continue
 
+			# Barril Rolante — ID_ROLLING_BARREL = 15 (logic/actors/rollingbarrels.asm)
+			if type_id == RollingBarrel.ACTOR_ID:
+				var barrel: RollingBarrel = RollingBarrel.new()
+				var player_initial_x: int = int(player.position.x) if player else 0
+				barrel.setup(int(spawn_pos.x), int(spawn_pos.y), player_initial_x, room_id)
+				game_world.add_child(barrel)
+				rolling_barrels.append(barrel)
+				print("BARREL_SPAWNED: Barril rolante na sala %d em %s (Vel: %d, Dir: %d)" % [room_id, spawn_pos, barrel.signed_speed_x(), barrel.direction])
+				continue
+
 			if not type_id in valid_enemy_types:
+				continue
+
+			# Descarte canônico dos guardas de alerta dentro dos caminhões (logic/actors/guardalert.asm:14-38)
+			# Se o alarme NÃO estiver ativo, e o guarda correspondente saiu para o pátio, os sentinelas da emboscada são descartados.
+			var is_alert_active: bool = alert_system != null and alert_system.current_state == AlertSystem.AlertState.ALERT
+			if not is_alert_active:
+				if room_id == 127 and type_id in [10, 11] and guard1_exited_lorry:
+					continue
+				if room_id == 131 and type_id in [10, 11] and guard2_exited_lorry:
+					continue
+				if room_id == 132 and type_id in [10, 11] and guard3_exited_lorry:
+					continue
+
+			# Regra canônica MSX: remoção de guardas conforme direção de entrada (logic/actors/hideguards.asm)
+			if _should_hide_guard(room_id, int(act.get("y", 0)), int(act.get("x", 0))):
 				continue
 
 			var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 			g.actor_type_id = type_id
 			if type_id in [13, 57]:
 				g.is_shooter = true
+			if type_id in [25, 27]:
+				g.init_dog()
 			# Mapeamento fiel das velocidades da ROM
-			if type_id in [4, 14, 24, 31, 46, 48]:
+			if type_id in [4, 19, 24, 31, 46, 48]:
 				g.guard_type = EnemyGuard.GuardType.SLOW
 			elif type_id in [25, 27, 30]:
 				g.guard_type = EnemyGuard.GuardType.FAST
 			else:
 				g.guard_type = EnemyGuard.GuardType.MEDIUM
 
+			# Na Sala 7, o segundo guarda caminha mais rápido (guardlorry.asm:32 IdxGuardSpeed = 8 -> MEDIUM)
+			if room_id == 7 and type_id == 19 and is_equal_approx(spawn_pos.x, 112.0):
+				g.guard_type = EnemyGuard.GuardType.MEDIUM
+				g.speed = 0.7
+
+			if room_id == 5 and type_id == 19:
+				g.lorry_id = 1
+			elif room_id == 7 and type_id == 19:
+				if is_equal_approx(spawn_pos.x, 80.0):
+					g.lorry_id = 2
+				elif is_equal_approx(spawn_pos.x, 112.0):
+					g.lorry_id = 3
+
 			g.position = spawn_pos
 
 			var raw_path: Array = act.get("patrol_path", [])
 			var waypoints: Array[Vector2] = []
 
-			# Cães de guarda (ID 25, 27) não utilizam waypoints na ROM (dog.asm: InitDog / DogSleep)
-			# Eles iniciam adormecidos/vigilantes no ponto de spawn e só perseguem com alarme
-			if type_id in [25, 27]:
+			# Cães de guarda (ID 25, 27) e GuardElevator (ID 14) não utilizam waypoints na ROM
+			if type_id in [14, 25, 27]:
 				raw_path = []
 
 			for pt_variant: Variant in raw_path:
@@ -578,14 +692,41 @@ func _spawn_room_enemies(room_id: int) -> void:
 					waypoints.append(Vector2(float(pt[1]), float(pt[0])))
 
 			if waypoints.is_empty():
-				if type_id == 48 or type_id in [25, 27]:
-					# Sentinela ou Cão no posto: permanece na posição de spawn
+				if type_id in [14, 48, 25, 27]:
+					# Sentinela, Cão ou Guarda de Elevador no posto: permanece na posição de spawn
 					waypoints.append(spawn_pos)
 				else:
 					var left_x: float = clampf(spawn_pos.x - 32.0, 16.0, 240.0)
 					var right_x: float = clampf(spawn_pos.x + 32.0, 16.0, 240.0)
 					waypoints.append(Vector2(left_x, spawn_pos.y))
 					waypoints.append(Vector2(right_x, spawn_pos.y))
+
+			# Simulação MSX: Alguns guardas alteram sua posição/sentido de início 
+			# com base no frame counter do jogo quando a sala é carregada.
+			# Isso evita insta-kills previsíveis nas bordas das salas! GuardLorry (19) e GuardElevator (14) são fixos.
+			if type_id not in [14, 19] and room_id not in [26, 85, 138] and waypoints.size() > 1 and randf() > 0.5:
+				waypoints.reverse()
+				
+			# Para garantir a lógica orgânica do MSX, o guarda de patrulha nasce
+			# dinamicamente já no primeiro waypoint da rota escolhida!
+			if not waypoints.is_empty() and type_id not in [14, 19, 25, 27, 48] and room_id not in [26, 85, 138]:
+				g.position = waypoints[0]
+
+			if type_id == 14:
+				if previous_room_id == 240:
+					# Se Snake veio do elevador, os guardas não estão no posto inicialmente (guardelevator.asm:19)
+					g.queue_free()
+					continue
+				g.is_elevator_guard = true
+				g.elev_guard_state = EnemyGuard.ElevatorGuardState.IDLE
+				g.elev_guard_target_x = spawn_pos.x
+				g.is_relieve_speaker = is_equal_approx(spawn_pos.x, 80.0)
+				g.chow_time_called.connect(_on_chow_time_called)
+
+			# Inicialização canônica do Guarda Sonolento (Salas 26, 85, 138 - Banks0123.asm:6815-6844)
+			if room_id in [26, 85, 138]:
+				g.init_sleepy_guard()
+				g.sleepy_dialog_called.connect(_on_guard_sleepy_dialog)
 
 			g.set_patrol_path(waypoints)
 			g.show_debug_vision = show_enemy_vision
@@ -594,20 +735,80 @@ func _spawn_room_enemies(room_id: int) -> void:
 	else:
 		_spawn_room_enemies_fallback(room_id, enemy_scene)
 
+	# Inicializar temporizador de revezamento dos guardas do elevador (Sala 3)
+	if room_id == 3:
+		if previous_room_id == 240:
+			elevator_spawner_timer = 150 # ~2.5s se veio do elevador
+		else:
+			elevator_spawner_timer = 570 # ~9.5s ciclo normal inicial
+		elevator_guard2_delay = 0
+	else:
+		elevator_spawner_timer = 0
+		elevator_guard2_delay = 0
+
 	# Configurar feixes laser da sala (Salas 24, 25, 72)
 	if laser_system:
 		laser_system.setup(room_id)
 
+## Determina se um guarda deve ser removido na inicialização da sala (MSX: logic/actors/hideguards.asm)
+## A remoção ocorre para evitar que o jogador colida imediatamente com um guarda ao cruzar a borda da sala.
+func _should_hide_guard(room_id: int, act_y: int, act_x: int) -> bool:
+	if room_id == 1:
+		# HideGuardRoom1 (external/MetalGear/logic/actors/hideguards.asm:10)
+		# D = NextRoomDirect (1 = UP / vindo do Sul, 2 = DOWN / vindo do Norte)
+		var entering_from_south: bool = (room_entry_direction == PlayerController.Direction.UP or previous_room_id == 0)
+		if entering_from_south:
+			return act_y == 176
+		else:
+			return act_y == 24
+	elif room_id == 13:
+		# HideGuardRoom13 (external/MetalGear/logic/actors/hideguards.asm:34)
+		if previous_room_id == 137:
+			return act_x == 136
+	elif room_id == 15:
+		# HideGuardRoom15 (external/MetalGear/logic/actors/hideguards.asm:48)
+		if room_entry_direction == PlayerController.Direction.RIGHT or previous_room_id == 14:
+			return act_x == 16
+	elif room_id == 17:
+		# HideGuardRoom17 (external/MetalGear/logic/actors/hideguards.asm:62)
+		if room_entry_direction == PlayerController.Direction.UP or previous_room_id == 16:
+			return act_y != 48
+		else:
+			return act_y == 48
+	elif room_id == 18:
+		# HideGuardRoom18 (external/MetalGear/logic/actors/hideguards.asm:76)
+		if room_entry_direction == PlayerController.Direction.UP or previous_room_id == 17:
+			return act_y != 19
+		else:
+			return act_y == 19
+	elif room_id == 19:
+		# HideGuardRoom19 (external/MetalGear/logic/actors/hideguards.asm:104)
+		if previous_room_id == 141:
+			return act_y == 120
+		elif room_entry_direction == PlayerController.Direction.UP or previous_room_id == 18:
+			return act_y == 168
+	elif room_id == 22:
+		# HideGuardRoom22 (external/MetalGear/logic/actors/hideguards.asm:123)
+		if previous_room_id == 20:
+			return act_x == 32
+		else:
+			return act_x == 240
+	elif room_id == 35:
+		# HideGuardRoom35 (external/MetalGear/logic/actors/hideguards.asm:138)
+		if previous_room_id == 156:
+			return act_y == 40
+		elif previous_room_id == 33:
+			return act_x == 24
+	elif room_id == 39:
+		# HideGuardRoom39 (external/MetalGear/logic/actors/hideguards.asm:161)
+		if previous_room_id == 242:
+			return act_y == 72
+		else:
+			return act_y == 176
+	return false
+
 func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> void:
 	if room_id == 1:
-		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
-		g0.guard_type = EnemyGuard.GuardType.MEDIUM
-		g0.position = Vector2(64.0, 176.0)
-		g0.set_patrol_path([Vector2(200.0, 176.0), Vector2(56.0, 176.0)])
-		g0.show_debug_vision = show_enemy_vision
-		game_world.add_child(g0)
-		enemies.append(g0)
-
 		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g1.guard_type = EnemyGuard.GuardType.SLOW
 		g1.position = Vector2(80.0, 80.0)
@@ -619,13 +820,23 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		game_world.add_child(g1)
 		enemies.append(g1)
 
-		var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
-		g2.guard_type = EnemyGuard.GuardType.MEDIUM
-		g2.position = Vector2(192.0, 24.0)
-		g2.set_patrol_path([Vector2(56.0, 24.0), Vector2(200.0, 24.0)])
-		g2.show_debug_vision = show_enemy_vision
-		game_world.add_child(g2)
-		enemies.append(g2)
+		var entering_from_south: bool = (room_entry_direction == PlayerController.Direction.UP or previous_room_id == 0)
+		if entering_from_south:
+			var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			g2.guard_type = EnemyGuard.GuardType.MEDIUM
+			g2.position = Vector2(192.0, 24.0)
+			g2.set_patrol_path([Vector2(56.0, 24.0), Vector2(200.0, 24.0)])
+			g2.show_debug_vision = show_enemy_vision
+			game_world.add_child(g2)
+			enemies.append(g2)
+		else:
+			var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			g0.guard_type = EnemyGuard.GuardType.MEDIUM
+			g0.position = Vector2(64.0, 176.0)
+			g0.set_patrol_path([Vector2(200.0, 176.0), Vector2(56.0, 176.0)])
+			g0.show_debug_vision = show_enemy_vision
+			game_world.add_child(g0)
+			enemies.append(g0)
 	elif room_id == 2:
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.SLOW
@@ -642,6 +853,36 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		g1.show_debug_vision = show_enemy_vision
 		game_world.add_child(g1)
 		enemies.append(g1)
+	elif room_id == 3:
+		if previous_room_id != 240:
+			var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			g1.actor_type_id = 14
+			g1.guard_type = EnemyGuard.GuardType.MEDIUM
+			g1.speed = 0.7
+			g1.position = Vector2(80.0, 48.0)
+			g1.current_direction = PlayerController.Direction.DOWN
+			g1.is_elevator_guard = true
+			g1.elev_guard_state = EnemyGuard.ElevatorGuardState.IDLE
+			g1.elev_guard_target_x = 80.0
+			g1.is_relieve_speaker = true
+			g1.show_debug_vision = show_enemy_vision
+			g1.chow_time_called.connect(_on_chow_time_called)
+			game_world.add_child(g1)
+			enemies.append(g1)
+
+			var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+			g2.actor_type_id = 14
+			g2.guard_type = EnemyGuard.GuardType.MEDIUM
+			g2.speed = 0.7
+			g2.position = Vector2(144.0, 48.0)
+			g2.current_direction = PlayerController.Direction.DOWN
+			g2.is_elevator_guard = true
+			g2.elev_guard_state = EnemyGuard.ElevatorGuardState.IDLE
+			g2.elev_guard_target_x = 144.0
+			g2.show_debug_vision = show_enemy_vision
+			g2.chow_time_called.connect(_on_chow_time_called)
+			game_world.add_child(g2)
+			enemies.append(g2)
 	elif room_id == 5:
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.MEDIUM
@@ -650,6 +891,48 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		g0.show_debug_vision = show_enemy_vision
 		game_world.add_child(g0)
 		enemies.append(g0)
+	elif room_id == 6:
+		var dog1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		dog1.actor_type_id = 25
+		dog1.position = Vector2(160.0, 64.0)
+		dog1.init_dog()
+		dog1.show_debug_vision = show_enemy_vision
+		game_world.add_child(dog1)
+		enemies.append(dog1)
+
+		var dog2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		dog2.actor_type_id = 25
+		dog2.position = Vector2(112.0, 48.0)
+		dog2.init_dog()
+		dog2.show_debug_vision = show_enemy_vision
+		game_world.add_child(dog2)
+		enemies.append(dog2)
+	elif room_id == 7:
+		var g1: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g1.actor_type_id = 19
+		g1.guard_type = EnemyGuard.GuardType.SLOW
+		g1.position = Vector2(80.0, 120.0)
+		g1.lorry_id = 2
+		g1.set_patrol_path([Vector2(80.0, 136.0), Vector2(80.0, 168.0)])
+		g1.show_debug_vision = show_enemy_vision
+		game_world.add_child(g1)
+		enemies.append(g1)
+
+		var g2: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g2.actor_type_id = 19
+		g2.guard_type = EnemyGuard.GuardType.MEDIUM
+		g2.speed = 0.7
+		g2.position = Vector2(112.0, 120.0)
+		g2.lorry_id = 3
+		g2.set_patrol_path([
+			Vector2(112.0, 136.0), Vector2(112.0, 176.0), Vector2(144.0, 176.0),
+			Vector2(144.0, 48.0), Vector2(48.0, 48.0), Vector2(48.0, 80.0),
+			Vector2(48.0, 48.0), Vector2(144.0, 48.0), Vector2(144.0, 152.0),
+			Vector2(112.0, 152.0)
+		])
+		g2.show_debug_vision = show_enemy_vision
+		game_world.add_child(g2)
+		enemies.append(g2)
 	elif room_id == 127:
 		var g0: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
 		g0.guard_type = EnemyGuard.GuardType.MEDIUM
@@ -658,6 +941,326 @@ func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> voi
 		g0.show_debug_vision = show_enemy_vision
 		game_world.add_child(g0)
 		enemies.append(g0)
+	elif room_id in [26, 85, 138]:
+		var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g.actor_type_id = 4
+		g.guard_type = EnemyGuard.GuardType.SLOW
+		if room_id == 138:
+			g.position = Vector2(184.0, 88.0)
+			g.set_patrol_path([Vector2(72.0, 88.0), Vector2(184.0, 88.0)])
+		else:
+			g.position = Vector2(128.0, 96.0)
+			g.set_patrol_path([Vector2(64.0, 96.0), Vector2(192.0, 96.0)])
+		g.init_sleepy_guard()
+		g.sleepy_dialog_called.connect(_on_guard_sleepy_dialog)
+		g.show_debug_vision = show_enemy_vision
+		game_world.add_child(g)
+		enemies.append(g)
+
+func _on_chow_time_called() -> void:
+	show_dialog_message("SOLDIER", "Chow time!!", 2.0)
+	print("ELEVATOR_GUARDS: Chow time!! Sentinelas do elevador iniciam revezamento.")
+
+func _on_guard_sleepy_dialog(text: String) -> void:
+	show_dialog_message("SOLDIER", text, 2.0)
+	print("SLEEPY_GUARD: %s" % text)
+
+## Lógica do spawner de sentinelas de revezamento do elevador (MSX: logic/actors/elevatorguardspawner.asm)
+func _process_elevator_spawner(delta: float = 1.0 / 60.0) -> void:
+	# Não gera novos sentinelas durante alarme ativo (MSX: elevatorguardspawner.asm:29)
+	if alert_system.current_state == AlertSystem.AlertState.ALERT:
+		return
+
+	# Não gera substitutos enquanto guardas anteriores ainda estiverem saindo da sala
+	for enemy: EnemyGuard in enemies:
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion() and enemy.is_elevator_guard:
+			if enemy.elev_guard_state == EnemyGuard.ElevatorGuardState.LEAVING:
+				# Mantém o temporizador armado em 150 ticks (~2.5s) para garantir o intervalo de corredor vazio após a saída
+				elevator_spawner_timer = 150
+				return
+
+	# Delay para spawn do segundo guarda de revezamento
+	if elevator_guard2_delay_sec > 0.0001:
+		elevator_guard2_delay_sec = maxf(0.0, elevator_guard2_delay_sec - delta)
+		if elevator_guard2_delay_sec <= 0.0001:
+			elevator_guard2_delay_sec = 0.0
+			_spawn_relieve_guard(144.0, false)
+		return
+
+	if elevator_spawner_timer_sec > 0.0001:
+		elevator_spawner_timer_sec = maxf(0.0, elevator_spawner_timer_sec - delta)
+		if elevator_spawner_timer_sec <= 0.0001:
+			elevator_spawner_timer_sec = 0.0
+			# Dispara o ciclo de revezamento: gera guarda 1 rumo a X=80
+			_spawn_relieve_guard(80.0, true)
+			elevator_guard2_delay = 64 # ~1.0s para gerar o guarda 2
+			elevator_spawner_timer = 720 # Reinicia timer para o próximo ciclo completo
+
+func _spawn_relieve_guard(target_x: float, is_speaker: bool) -> void:
+	var enemy_scene: PackedScene = preload("res://scenes/enemy.tscn")
+	var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+	g.actor_type_id = 14
+	g.guard_type = EnemyGuard.GuardType.MEDIUM
+	g.speed = 0.7
+	g.is_elevator_guard = true
+	g.show_debug_vision = show_enemy_vision
+	g.chow_time_called.connect(_on_chow_time_called)
+	game_world.add_child(g)
+	g.position = Vector2(264.0, 48.0)
+	g.current_direction = PlayerController.Direction.LEFT
+	g.elev_guard_state = EnemyGuard.ElevatorGuardState.ENTERING
+	g.elev_guard_target_x = target_x
+	g.is_relieve_speaker = is_speaker
+	enemies.append(g)
+	print("RELIEVE_GUARD_SPAWNED: Sentinela de revezamento entrando em (264, 48) rumo a X=%.1f" % target_x)
+
+# ==============================================================================
+# SISTEMA DE BINÓCULO / TELESCÓPIO (MSX: menuequipment.asm:295 e Banks0123.asm:12250)
+# ==============================================================================
+
+func open_binoculars() -> bool:
+	if not player or not snapshot:
+		return false
+	if is_game_over or player.is_dead:
+		return false
+	if is_in_elevator or not binocular_system.can_use_in_room(snapshot.room_id):
+		show_dialog_message("BINÓCULO", "[Binóculo inoperante neste local!]", 2.0)
+		print("BINOCULARS_BLOCKED: Não é possível usar o binóculo na sala %d" % snapshot.room_id)
+		return false
+
+	var ok: bool = binocular_system.activate(snapshot.room_id)
+	if not ok:
+		return false
+
+	# Backup canônico dos inimigos da sala de origem (MSX: EnemyList -> EnemyListCopy)
+	_backup_home_enemies()
+
+	player.visible = false
+	player.can_control = false
+
+	if binocular_overlay:
+		binocular_overlay.update_state(true, binocular_system.state, -1, snapshot.room_id, snapshot.room_id)
+
+	print("BINOCULARS_OPENED: Binóculo aberto na sala %d" % snapshot.room_id)
+	return true
+
+func close_binoculars() -> void:
+	if not binocular_system or not binocular_system.is_active:
+		return
+
+	# Se estiver observando uma sala adjacente, retornar a visualização para a sala de origem
+	if binocular_system.state == BinocularSystem.State.LOOKING or (snapshot and snapshot.room_id != binocular_system.home_room_id):
+		_restore_binocular_home()
+
+	binocular_system.deactivate()
+
+	if binocular_overlay:
+		binocular_overlay.update_state(false, BinocularSystem.State.INACTIVE, -1, -1, -1)
+
+	if player:
+		player.visible = true
+		player.can_control = true
+		player.queue_redraw()
+
+	home_enemies_backup.clear()
+	print("BINOCULARS_CLOSED: Binóculo fechado")
+
+func toggle_binoculars() -> void:
+	if binocular_system and binocular_system.is_active:
+		close_binoculars()
+	else:
+		open_binoculars()
+
+func _binocular_look(dir: PlayerController.Direction) -> bool:
+	if not binocular_system or not binocular_system.is_active or binocular_system.state != BinocularSystem.State.IDLE:
+		return false
+
+	var target_room: int = binocular_system.look_direction(dir)
+	if target_room == -1 or target_room == RoomManager.NO_ROOM:
+		print("BINOCULARS_BLOCKED: Sem sala adjacente na direção %d" % dir)
+		return false
+
+	_show_binocular_preview(target_room)
+	return true
+
+func _show_binocular_preview(room_id: int) -> void:
+	var snap: RoomSnapshot = room_manager.load_room_snapshot(room_id)
+	if snap == null:
+		print("BINOCULARS_FAIL: Snapshot da sala %d não encontrado" % room_id)
+		return
+
+	snapshot = snap
+	_apply_snapshot()
+
+	if player:
+		player.visible = false
+		player.can_control = false
+
+	if binocular_overlay:
+		binocular_overlay.update_state(
+			true,
+			binocular_system.state,
+			binocular_system.looking_direction,
+			room_id,
+			binocular_system.home_room_id
+		)
+
+	print("BINOCULARS_PREVIEW_LOADED: Observando sala %d" % room_id)
+
+func _restore_binocular_home() -> void:
+	var home_id: int = binocular_system.home_room_id
+	if home_id == -1:
+		return
+
+	var snap: RoomSnapshot = room_manager.load_room_snapshot(home_id)
+	if snap == null:
+		return
+
+	snapshot = snap
+	_apply_snapshot()
+
+	_restore_home_enemies()
+
+	if player:
+		player.visible = not binocular_system.is_active
+		player.can_control = not binocular_system.is_active
+		player.queue_redraw()
+
+	if binocular_overlay:
+		binocular_overlay.update_state(
+			binocular_system.is_active,
+			binocular_system.state,
+			-1,
+			home_id,
+			home_id
+		)
+
+	print("BINOCULARS_HOME_RESTORED: Sala de origem %d restaurada" % home_id)
+
+func _process_binoculars(delta: float = 1.0 / 60.0) -> void:
+	if not binocular_system or not binocular_system.is_active:
+		return
+
+	if binocular_system.state == BinocularSystem.State.IDLE:
+		if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W):
+			_binocular_look(PlayerController.Direction.UP)
+		elif Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S):
+			_binocular_look(PlayerController.Direction.DOWN)
+		elif Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A):
+			_binocular_look(PlayerController.Direction.LEFT)
+		elif Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
+			_binocular_look(PlayerController.Direction.RIGHT)
+	elif binocular_system.state == BinocularSystem.State.LOOKING:
+		var step_res: Dictionary = binocular_system.step_tick(delta)
+		if step_res.get("returned_home", false):
+			_restore_binocular_home()
+		else:
+			for enemy: EnemyGuard in enemies:
+				if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
+					enemy.step_tick(runtime_collision, Vector2(-1000.0, -1000.0), false, 0, null, delta)
+
+	if binocular_overlay:
+		binocular_overlay.update_state(
+			binocular_system.is_active,
+			binocular_system.state,
+			binocular_system.looking_direction,
+			binocular_system.preview_room_id,
+			binocular_system.home_room_id
+		)
+
+	if status_label:
+		if binocular_system.state == BinocularSystem.State.LOOKING:
+			var dir_names: Array[String] = ["NORTE", "SUL", "OESTE", "LESTE"]
+			var d_str: String = dir_names[binocular_system.looking_direction] if binocular_system.looking_direction >= 0 and binocular_system.looking_direction < dir_names.size() else ""
+			status_label.text = "TELESCOPE MODE | Observando: %s (Sala %03d) | Retorno em %d ticks" % [d_str, binocular_system.preview_room_id, binocular_system.preview_timer]
+		else:
+			status_label.text = "TELESCOPE MODE | Direções: Setas/WASD | Sair: ESC / E / U"
+		status_label.modulate = Color(0.4, 1.0, 0.5)
+
+func _backup_home_enemies() -> void:
+	home_enemies_backup.clear()
+	for e: EnemyGuard in enemies:
+		if is_instance_valid(e):
+			home_enemies_backup.append({
+				"actor_type_id": e.actor_type_id,
+				"guard_type": e.guard_type,
+				"speed": e.speed,
+				"position": e.position,
+				"current_direction": e.current_direction,
+				"is_dead": e.is_dead,
+				"lorry_id": e.lorry_id,
+				"is_lorry_guard": e.is_lorry_guard,
+				"lorry_timer": e.lorry_timer,
+				"is_exiting_lorry": e.is_exiting_lorry,
+				"is_entering_lorry": e.is_entering_lorry,
+				"lorry_anim_pixels": e.lorry_anim_pixels,
+				"visible": e.visible,
+				"waypoints": e.waypoints.duplicate(),
+				"current_waypoint_idx": e.current_waypoint_idx,
+				"is_elevator_guard": e.is_elevator_guard,
+				"elev_guard_state": e.elev_guard_state,
+				"elev_guard_target_x": e.elev_guard_target_x,
+				"is_relieve_speaker": e.is_relieve_speaker,
+				"is_dog": e.is_dog,
+				"dog_state": e.dog_state,
+				"dog_wait_timer": e.dog_wait_timer,
+				"dog_listen_timer": e.dog_listen_timer,
+				"dog_bark_timer": e.dog_bark_timer,
+				"is_sleepy_guard": e.is_sleepy_guard,
+				"sleepy_state": e.sleepy_state,
+				"awake_timer": e.awake_timer,
+				"sleep_timer": e.sleep_timer,
+			})
+
+func _restore_home_enemies() -> void:
+	if home_enemies_backup.is_empty():
+		return
+	for e: EnemyGuard in enemies:
+		if is_instance_valid(e):
+			e.queue_free()
+	enemies.clear()
+
+	var enemy_scene: PackedScene = preload("res://scenes/enemy.tscn")
+	for data: Dictionary in home_enemies_backup:
+		var g: EnemyGuard = enemy_scene.instantiate() as EnemyGuard
+		g.actor_type_id = int(data.get("actor_type_id", 0))
+		g.guard_type = data.get("guard_type", EnemyGuard.GuardType.SLOW) as EnemyGuard.GuardType
+		g.speed = float(data.get("speed", 0.4))
+		g.position = data.get("position", Vector2.ZERO) as Vector2
+		g.current_direction = data.get("current_direction", PlayerController.Direction.DOWN) as PlayerController.Direction
+		g.is_dead = bool(data.get("is_dead", false))
+		g.lorry_id = int(data.get("lorry_id", 0))
+		g.is_lorry_guard = bool(data.get("is_lorry_guard", false))
+		g.lorry_timer = int(data.get("lorry_timer", 0))
+		g.is_exiting_lorry = bool(data.get("is_exiting_lorry", false))
+		g.is_entering_lorry = bool(data.get("is_entering_lorry", false))
+		g.lorry_anim_pixels = float(data.get("lorry_anim_pixels", 0.0))
+		g.visible = bool(data.get("visible", true))
+		var wps: Array = data.get("waypoints", [])
+		var typed_wps: Array[Vector2] = []
+		for pt in wps:
+			typed_wps.append(pt as Vector2)
+		g.waypoints = typed_wps
+		g.current_waypoint_idx = int(data.get("current_waypoint_idx", 0))
+		g.is_elevator_guard = bool(data.get("is_elevator_guard", false))
+		g.elev_guard_state = data.get("elev_guard_state", EnemyGuard.ElevatorGuardState.IDLE) as EnemyGuard.ElevatorGuardState
+		g.elev_guard_target_x = float(data.get("elev_guard_target_x", 0.0))
+		g.is_relieve_speaker = bool(data.get("is_relieve_speaker", false))
+		g.is_dog = bool(data.get("is_dog", false))
+		if g.is_dog:
+			g.dog_state = data.get("dog_state", EnemyGuard.DogState.SLEEP) as EnemyGuard.DogState
+			g.dog_wait_timer = int(data.get("dog_wait_timer", 40))
+			g.dog_listen_timer = int(data.get("dog_listen_timer", 0))
+			g.dog_bark_timer = int(data.get("dog_bark_timer", 0))
+		g.is_sleepy_guard = bool(data.get("is_sleepy_guard", false))
+		if g.is_sleepy_guard:
+			g.sleepy_state = data.get("sleepy_state", EnemyGuard.SleepyState.AWAKE) as EnemyGuard.SleepyState
+			g.awake_timer = int(data.get("awake_timer", 64))
+			g.sleep_timer = int(data.get("sleep_timer", 256))
+			g.sleepy_dialog_called.connect(_on_guard_sleepy_dialog)
+		g.show_debug_vision = show_enemy_vision
+		game_world.add_child(g)
+		enemies.append(g)
 
 func _spawn_room_items(room_id: int) -> void:
 	for box: ItemBox in item_boxes:
@@ -694,14 +1297,24 @@ func _spawn_room_items(room_id: int) -> void:
 						b.item_id = WeaponSystem.WEAPON_SMG
 					3:
 						b.item_id = WeaponSystem.WEAPON_GRENADE_LAUNCHER
+					5:
+						b.item_id = WeaponSystem.WEAPON_PLASTIC_BOMB
+					6:
+						b.item_id = WeaponSystem.WEAPON_LAND_MINE
 					7:
 						b.item_id = WeaponSystem.WEAPON_MISSILE
 					8:
 						b.item_id = InventoryManager.ITEM_SILENCER
+					9:
+						b.item_id = InventoryManager.ITEM_BODY_ARMOR
+					10:
+						b.item_id = InventoryManager.ITEM_BOMB_BLAST_SUIT
 					12:
 						b.item_id = InventoryManager.ITEM_GOGGLES
 					13:
 						b.item_id = InventoryManager.ITEM_GAS_MASK
+					15:
+						b.item_id = InventoryManager.ITEM_MINE_DETECTOR
 					17:
 						b.item_id = InventoryManager.ITEM_BINOCULARS
 					21, 30:
@@ -722,6 +1335,10 @@ func _spawn_room_items(room_id: int) -> void:
 						b.item_id = InventoryManager.ITEM_CARD7
 					29:
 						b.item_id = InventoryManager.ITEM_CARD8
+					32:
+						b.item_id = InventoryManager.ITEM_UNIFORM
+					33:
+						b.item_id = InventoryManager.ITEM_BOX
 					34:
 						b.item_id = InventoryManager.ITEM_BAG
 					35:
@@ -733,14 +1350,7 @@ func _spawn_room_items(room_id: int) -> void:
 			item_boxes.append(b)
 
 	# Salas de progressão especial (salas < 122 onde itens são ativados por narrativa/chaves)
-	if room_id == 4 and item_boxes.is_empty():
-		var b: ItemBox = ItemBox.new()
-		b.item_id = InventoryManager.ITEM_CARD1
-		b.room_id = room_id
-		b.position = Vector2(112.0, 80.0)
-		game_world.add_child(b)
-		item_boxes.append(b)
-	elif room_id == 6 and item_boxes.is_empty():
+	if room_id == 6 and item_boxes.is_empty():
 		var b: ItemBox = ItemBox.new()
 		b.item_id = InventoryManager.ITEM_RATION
 		b.room_id = room_id
@@ -758,7 +1368,7 @@ func _spawn_room_doors(room_id: int) -> void:
 	if not game_world:
 		return
 
-	# Portas canônicas carregadas de stage5-batch ou stage5-lorries
+	# Portas canônicas carregadas de data/extracted/en-eu-rc750
 	var room_data: Dictionary = room_manager.load_room_actors(room_id)
 	var doors_data: Array = room_data.get("doors", [])
 	for door_var: Variant in doors_data:
@@ -775,20 +1385,30 @@ func _spawn_room_doors(room_id: int) -> void:
 		# Exclusão canônica da ROM (logic/doors/enterdoor.asm:66-84):
 		# - Portas sem destino (dest_room == -1)
 		# - Portas dummy / invisíveis (r_type == 6)
-		# - Destino à própria sala (paredes internas rachadas sem transição)
 		# - Destino à Sala 204 (o limbo: tela 100% de parede sólida)
 		# - Portas bloqueadas explicitamente na ROM (Door ID 64 na Sala 6 dos cães e Door ID 108 na Sala 5)
-		# - Portas de paredes de explosivos ainda não detonadas (r_type > 6, exceto 12 e 13 das celas)
-		if dest_room == -1 or dest_room == room_id or dest_room == 204 or d_id in [64, 108] or (r_type >= 6 and r_type not in [12, 13]):
+		# - Portas com destino à própria sala, EXCETO paredes quebráveis do Basement (r_type in [7, 8, 9, 10, 11])
+		var is_prison_wall: bool = rule_id == 15 and ((d_id == 103 and r_type in [14, 15]) or (d_id == 12 and r_type in [12, 13]))
+		var is_breakable: bool = (r_type in [7, 8, 9, 10, 11] or rule_id == 16)
+		if dest_room == -1 or dest_room == 204 or d_id in [64, 108] or r_type == 6:
+			continue
+		if dest_room == room_id and not is_breakable:
+			continue
+		if r_type >= 6 and not is_breakable and not is_prison_wall and r_type not in [12, 13]:
 			continue
 
-		var d: RoomDoor = RoomDoor.new()
+		var d: RoomDoor = PrisonWallDoor.new() if is_prison_wall else RoomDoor.new()
 		d.door_id = d_id
 		d.room_id = room_id
 		d.render_type_id = r_type
 		d.open_rule_id = rule_id
 		d.position = Vector2(dx, dy)
 		d.destination_room = dest_room
+
+		var wall_key: String = "%d_%d" % [room_id, d_id]
+		if is_breakable:
+			d.is_breakable_wall = true
+			d.is_open = broken_basement_walls.get(wall_key, false) or broken_basement_walls.get(str(d_id), false)
 
 		# Portas de retorno de caminhões em movimento nos pátios (data/doors.asm:314, 335-337).
 		# Nos pátios 5 e 9, as portas 117, 133, 146, 152 servem unicamente como âncoras de retorno
@@ -813,6 +1433,20 @@ func _spawn_room_doors(room_id: int) -> void:
 				d.orientation = RoomDoor.DoorOrientation.EAST
 				d.entry_position = Vector2(dx - 10.0, dy + 48.0)
 				d.destination_direction = PlayerController.Direction.LEFT
+			7, 8, 9, 10, 11:
+				d.is_breakable_wall = true
+				if r_type == 9:
+					d.orientation = RoomDoor.DoorOrientation.WEST
+					d.entry_position = Vector2(16.0, dy + 48.0)
+					d.destination_direction = PlayerController.Direction.RIGHT
+				elif r_type == 8:
+					d.orientation = RoomDoor.DoorOrientation.SOUTH
+					d.entry_position = Vector2(dx + 16.0, 40.0)
+					d.destination_direction = PlayerController.Direction.DOWN
+				else:
+					d.orientation = RoomDoor.DoorOrientation.NORTH
+					d.entry_position = Vector2(dx + 16.0, dy + 20.0)
+					d.destination_direction = PlayerController.Direction.DOWN
 			12:
 				# Porta de entrada do isolamento na Sala 54 (Basement): Snake entra pelo vão inferior caminhando para cima
 				d.orientation = RoomDoor.DoorOrientation.NORTH
@@ -823,6 +1457,10 @@ func _spawn_room_doors(room_id: int) -> void:
 				d.orientation = RoomDoor.DoorOrientation.SOUTH
 				d.entry_position = Vector2(dx + 16.0, dy - 8.0) # (112.0, 144.0)
 				d.destination_direction = PlayerController.Direction.UP
+			17, 18, 19:
+				d.orientation = RoomDoor.DoorOrientation.EAST
+				d.entry_position = Vector2(dx - 10.0, dy + 48.0)
+				d.destination_direction = PlayerController.Direction.LEFT
 			_:
 				d.orientation = RoomDoor.DoorOrientation.NORTH
 				d.entry_position = Vector2(dx + 12.0, dy + 40.0)
@@ -836,13 +1474,19 @@ func _spawn_room_doors(room_id: int) -> void:
 			if room_id in lorry_rooms:
 				d.orientation = RoomDoor.DoorOrientation.LORRY_EXIT
 
-		# Portas que exigem cartão (regras 2 a 9: CARD1 a CARD8) NUNCA iniciam abertas
-		if rule_id >= 2 and rule_id <= 9:
+		# Portas que exigem cartão (regras 2 a 9: CARD1 a CARD8) e elevadores (render_type 5) NUNCA iniciam abertas
+		if d.is_breakable_wall:
+			d.is_open = broken_basement_walls.get(wall_key, false)
+		elif r_type == 5:
+			d.is_open = false
+		elif rule_id >= 2 and rule_id <= 9:
 			d.is_open = false
 		else:
 			var raw_logic: int = int(d_info.get("open_logic_raw", 0))
-			if (raw_logic & 0x80) != 0 or rule_id in [1, 10, 11, 15] or dest_room in lorry_rooms or room_id in lorry_rooms or r_type in [12, 13]:
+			if (raw_logic & 0xC0) == 0x80 or dest_room in lorry_rooms or room_id in lorry_rooms or r_type in [12, 13]:
 				d.is_open = true
+			else:
+				d.is_open = false
 
 		if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
 			# Apenas a porta de avanço/saída da arena (Door 15 -> Sala 58) é bloqueada pelo boss.
@@ -852,6 +1496,8 @@ func _spawn_room_doors(room_id: int) -> void:
 				d.is_open = false
 				d.required_card = "LOCKED_BOSS"
 
+		if is_prison_wall:
+			d.is_open = capture_system.is_wall_broken(d_id)
 		game_world.add_child(d)
 		d.inject_collision(runtime_collision)
 		room_doors.append(d)
@@ -882,18 +1528,7 @@ func _spawn_room_prisoners(room_id: int) -> void:
 			if rank_system.is_room_rescued(room_id):
 				pris.is_rescued = true
 
-			pris.rescued.connect(func(p_node: Prisoner):
-				var ranked_up: bool = rank_system.register_rescue(p_node.room_id, p_node.prisoner_name, p_node.message_text)
-				if ranked_up:
-					player.set_rank_life(rank_system.get_max_life(), true)
-					weapon_system.update_rank_capacities(rank_system.current_rank)
-					inventory.update_rank_capacities(rank_system.current_rank)
-					show_dialog_message("PROMOÇÃO MILITAR!", "Solid Snake promovido para Rank ★%d (%s)!" % [
-						rank_system.current_rank, rank_system.get_rank_stars()
-					], 5.0)
-				else:
-					show_dialog_message(p_node.prisoner_name, p_node.message_text, 6.0)
-			)
+			pris.rescued.connect(_on_prisoner_rescued)
 
 			pris.killed.connect(func(p_node: Prisoner):
 				rank_system.register_kill(p_node.room_id, p_node.is_vital)
@@ -910,6 +1545,34 @@ func _spawn_room_prisoners(room_id: int) -> void:
 
 			game_world.add_child(pris)
 			prisoners.append(pris)
+
+func _on_prisoner_rescued(prisoner: Prisoner) -> void:
+	# prisoner.asm:244-256,277: text 59 still opens when this rescue raises rank.
+	var ranked_up: bool = rank_system.register_rescue(prisoner.room_id, prisoner.prisoner_name, prisoner.message_text)
+	if ranked_up:
+		player.set_rank_life(rank_system.get_max_life(), true)
+		weapon_system.update_rank_capacities(rank_system.current_rank)
+		inventory.update_rank_capacities(rank_system.current_rank)
+		# IncRescued redraws class and life in this tick (Banks0123.asm:9656,9675-9677);
+		# the HUD's own _process stops once the world is frozen below.
+		if hud:
+			hud.update_hud_state()
+			hud.queue_redraw()
+	if prisoner.actor_type_id == Prisoner.TYPE_GREY_FOX:
+		if prisoner_dialog.open_grey_fox():
+			if dialog_banner_label:
+				dialog_banner_label.hide()
+			# SetText switches GameMode; restore it at TextBoxExit (:7824-7828,8301-8303).
+			_world_process_before_dialog = game_world.process_mode
+			game_world.process_mode = Node.PROCESS_MODE_DISABLED
+		else:
+			show_dialog_message("DIÁLOGO INDISPONÍVEL", prisoner_dialog.last_error)
+	elif ranked_up:
+		show_dialog_message("PROMOÇÃO MILITAR!", "Solid Snake promovido para Rank ★%d (%s)!" % [
+			rank_system.current_rank, rank_system.get_rank_stars()
+		], 5.0)
+	else:
+		show_dialog_message(prisoner.prisoner_name, prisoner.message_text, 6.0)
 
 func _spawn_room_power_panel(room_id: int) -> void:
 	if is_instance_valid(power_panel):
@@ -1003,7 +1666,8 @@ func _create_synthetic_fallback_room() -> void:
 	snapshot.decode({
 		"format_version": "1.0.0", "room_id": 999, "width": 256, "height": 192,
 		"pixels": pixels, "collision": collision, "palette_rgb": palette,
-		"source": "synthetic_sandbox", "input_sha256": "0".repeat(64)
+		"source": "synthetic_sandbox", "rom_profile": RomProvenance.SYNTHETIC_PROFILE,
+		"input_sha256": RomProvenance.SYNTHETIC_SHA256
 	})
 	_apply_snapshot()
 
@@ -1052,8 +1716,12 @@ func _get_safe_spawn_position() -> Vector2:
 	return pref_pos
 
 func reset_player() -> void:
+	if intro_cutscene and intro_cutscene.is_active:
+		intro_cutscene.is_active = false
+		intro_cutscene.current_state = IntroCutscene.State.FINISHED
 	if player:
 		player.revive()
+
 		var spawn_pos: Vector2 = _get_safe_spawn_position()
 		player.set_grid_position(spawn_pos.x, spawn_pos.y)
 		player.current_direction = PlayerController.Direction.UP
@@ -1081,6 +1749,8 @@ func reset_player() -> void:
 
 ## Reseta e limpa absolutamente todas as variáveis de estado, inventário e atores (evita vazamento de memória)
 func reset_game_state() -> void:
+	if prisoner_dialog:
+		prisoner_dialog.close()
 	# 1. Limpar e liberar projéteis e entidades dinâmicas
 	for b: Bullet in bullets:
 		if is_instance_valid(b):
@@ -1122,6 +1792,11 @@ func reset_game_state() -> void:
 			gc.queue_free()
 	gas_clouds.clear()
 
+	for rb: RollingBarrel in rolling_barrels:
+		if is_instance_valid(rb):
+			rb.queue_free()
+	rolling_barrels.clear()
+
 	if is_instance_valid(active_missile):
 		active_missile.queue_free()
 		active_missile = null
@@ -1143,6 +1818,13 @@ func reset_game_state() -> void:
 		gas_hazard_system.reset()
 	if capture_system:
 		capture_system.reset_state()
+	if capture_cutscene:
+		capture_cutscene.is_active = false
+		capture_cutscene.fade_alpha = 0.0
+		capture_cutscene.guard_a_visible = false
+		capture_cutscene.guard_b_visible = false
+		capture_cutscene.show_message_box = false
+		capture_cutscene.queue_redraw()
 	if electrified_floor_system:
 		electrified_floor_system.reset_state()
 	ItemBox.collected_boxes.clear()
@@ -1219,12 +1901,26 @@ func _execute_game_restart() -> void:
 		reset_player()
 
 func _input(event: InputEvent) -> void:
-	if player and (player.is_dead or not player.can_control or is_game_over):
+	if prisoner_dialog and prisoner_dialog.is_active:
+		prisoner_dialog.handle_input(event)
+		get_viewport().set_input_as_handled()
+		return
+	# 0. Interceptação durante a cutscene de abertura (infiltração na água e escalada)
+	if intro_cutscene and intro_cutscene.is_active:
+		if radio_dialog and radio_dialog.is_active:
+			radio_dialog.handle_input(event)
+			if not event is InputEventMouse and get_viewport():
+				get_viewport().set_input_as_handled()
+			return
+		# Durante o nado e a escalada da grade, o jogador aguarda a cutscene concluir.
+		# Consome inputs para evitar ações acidentais antes de Snake assumir a terra firme.
+		if not event is InputEventMouse and get_viewport():
+			get_viewport().set_input_as_handled()
 		return
 
 	# 1. Repasse para menus modais abertos
-
 	if radio_dialog and radio_dialog.is_active:
+
 		radio_dialog.handle_input(event)
 		if not event is InputEventMouse:
 			get_viewport().set_input_as_handled()
@@ -1246,6 +1942,56 @@ func _input(event: InputEvent) -> void:
 		pause_menu.handle_input(event)
 		if not event is InputEventMouse:
 			get_viewport().set_input_as_handled()
+		return
+
+	# 2. Interceptação de entrada do modo Binóculo / Telescópio (MSX: Banks0123.asm:12256 e 12461)
+	if binocular_system and binocular_system.is_active:
+		if event is InputEventKey and event.pressed and not event.echo:
+			if event.keycode in [KEY_ESCAPE, KEY_E, KEY_U]:
+				close_binoculars()
+				if get_viewport():
+					get_viewport().set_input_as_handled()
+				return
+			elif event.keycode in [KEY_CTRL, KEY_ALT]:
+				close_binoculars()
+				if get_viewport():
+					get_viewport().set_input_as_handled()
+				return
+			elif event.keycode in [KEY_Q, KEY_SHIFT]:
+				close_binoculars()
+				if weapon_menu:
+					weapon_menu.open_menu(weapon_system)
+				if get_viewport():
+					get_viewport().set_input_as_handled()
+				return
+			elif binocular_system.state == BinocularSystem.State.IDLE:
+				if event.keycode in [KEY_UP, KEY_W]:
+					_binocular_look(PlayerController.Direction.UP)
+					if get_viewport():
+						get_viewport().set_input_as_handled()
+					return
+				elif event.keycode in [KEY_DOWN, KEY_S]:
+					_binocular_look(PlayerController.Direction.DOWN)
+					if get_viewport():
+						get_viewport().set_input_as_handled()
+					return
+				elif event.keycode in [KEY_LEFT, KEY_A]:
+					_binocular_look(PlayerController.Direction.LEFT)
+					if get_viewport():
+						get_viewport().set_input_as_handled()
+					return
+				elif event.keycode in [KEY_RIGHT, KEY_D]:
+					_binocular_look(PlayerController.Direction.RIGHT)
+					if get_viewport():
+						get_viewport().set_input_as_handled()
+					return
+		if not event is InputEventMouse:
+			if get_viewport():
+				get_viewport().set_input_as_handled()
+		return
+
+	# 3. Bloqueio de controle durante Game Over / morte de Snake
+	if player and (player.is_dead or not player.can_control or is_game_over):
 		return
 
 	# 2. Tela Cheia: Tecla F11 ou Alt+Enter
@@ -1338,11 +2084,58 @@ func _input(event: InputEvent) -> void:
 					print("MISSILE_LAUNCHED: Míssil teleguiado disparado em %s! Controle transferido." % player.position)
 				else:
 					print("WEAPON_NO_AMMO: Sem mísseis!")
+			elif weapon_system.selected_weapon == WeaponSystem.WEAPON_PLASTIC_BOMB:
+				if is_instance_valid(active_plastic_bomb):
+					print("BOMB_BUSY: Bomba plástica já armada!")
+				elif weapon_system.can_fire():
+					weapon_system.consume_ammo()
+					var b: PlasticBomb = PlasticBomb.new()
+					b.setup(player.position, player.current_direction)
+					b.bomb_exploded.connect(_on_plastic_bomb_exploded)
+					b.bomb_finished.connect(_on_plastic_bomb_finished)
+					game_world.add_child(b)
+					active_plastic_bomb = b
+					print("BOMB_PLANTED: Bomba plástica armada em %s!" % b.position)
+				else:
+					print("WEAPON_NO_AMMO: Sem bombas plásticas!")
 			elif weapon_system.can_fire():
 				var b: Bullet = player.fire_weapon(weapon_system)
 				if b != null:
-					bullets.append(b)
-					game_world.add_child(b)
+					# Detecção de acerto à queima-roupa (point-blank)
+					var point_blank_hit: bool = false
+					var muzzle_box := Rect2(
+						minf(player.position.x, b.position.x) - 4.0,
+						minf(player.position.y - 12.0, b.position.y) - 4.0,
+						absf(b.position.x - player.position.x) + 8.0,
+						absf(b.position.y - (player.position.y - 12.0)) + 8.0
+					)
+					for enemy: EnemyGuard in enemies:
+						if is_instance_valid(enemy) and not enemy.is_dead:
+							var enemy_box := Rect2(enemy.position.x - 8.0, enemy.position.y - 10.0, 16.0, 20.0)
+							var is_in_point_blank: bool = enemy_box.intersects(muzzle_box) or enemy.check_bullet_hit(b.position) or enemy.position.distance_to(player.position) <= 14.0
+							if is_in_point_blank:
+								var dx: float = enemy.position.x - player.position.x
+								var dy: float = enemy.position.y - player.position.y
+								var in_front: bool = false
+								match player.current_direction:
+									PlayerController.Direction.UP:
+										in_front = dy <= 4.0 and absf(dx) <= 14.0
+									PlayerController.Direction.DOWN:
+										in_front = dy >= -4.0 and absf(dx) <= 14.0
+									PlayerController.Direction.LEFT:
+										in_front = dx <= 4.0 and absf(dy) <= 14.0
+									PlayerController.Direction.RIGHT:
+										in_front = dx >= -4.0 and absf(dy) <= 14.0
+								if in_front:
+									enemy.take_bullet_hit(b.damage)
+									point_blank_hit = true
+									break
+
+					if point_blank_hit:
+						b.queue_free()
+					else:
+						bullets.append(b)
+						game_world.add_child(b)
 					if not weapon_system.has_silencer and not snapshot.room_id in ROOMS_SHOT_SECURE:
 						alert_system.trigger_alert(false, inventory.get_card_level(), snapshot.room_id)
 						for enemy: EnemyGuard in enemies:
@@ -1350,6 +2143,12 @@ func _input(event: InputEvent) -> void:
 								enemy.transform_to_alert_guard()
 						print("GUNSHOT_ALERT: Disparo sem silenciador na sala %d alertou a guarnição!" % snapshot.room_id)
 					else:
+						for enemy: EnemyGuard in enemies:
+							if is_instance_valid(enemy) and not enemy.is_dead:
+								if enemy.is_dog:
+									enemy.wake_up_to_chase()
+								elif not weapon_system.has_silencer and enemy.is_sleepy_guard:
+									enemy.transform_to_alert_guard()
 						print("GUNSHOT_SILENT: Disparo furtivo com silenciador!")
 			else:
 				print("WEAPON_NO_AMMO: Arma sem munição! (Click SFX 15h)")
@@ -1390,12 +2189,38 @@ func _input(event: InputEvent) -> void:
 			print("GOD_MODE: Vida infinita %s" % ("LIGADA" if infinite_life else "DESLIGADA"))
 			get_viewport().set_input_as_handled()
 		elif event.keycode == KEY_U:
-			inventory.use_selected_item(player)
+			if inventory.get_selected_item() == InventoryManager.ITEM_BINOCULARS:
+				toggle_binoculars()
+			else:
+				inventory.use_selected_item(player)
 			get_viewport().set_input_as_handled()
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	if prisoner_dialog and prisoner_dialog.is_active:
+		prisoner_dialog.step_tick(delta)
+		return
 	if not player:
 		return
+
+	# Cutscene de Abertura / Infiltração na Água e Escalada da Grade (Sala 121)
+	if intro_cutscene and intro_cutscene.is_active:
+		if not (radio_dialog and radio_dialog.is_active):
+			intro_cutscene.tick(player, delta)
+		return
+
+	# Modo Binóculo / Telescópio ativo: processa temporizador e atualização de inimigos da sala observada
+	if binocular_system and binocular_system.is_active:
+		_process_binoculars(delta)
+		return
+
+	# Atualiza a mecânica da Caixa de Papelão e Arma Equipada
+	player.is_in_box = (inventory.get_selected_item() == InventoryManager.ITEM_BOX)
+	player.equipped_weapon = weapon_system.selected_weapon if weapon_system else ""
+
+	# PlayModeLogic2 runs ChkIncomingCall before the dead check (Banks0123.asm:12161-12167).
+	if not ((radio_dialog and radio_dialog.is_active) or (weapon_menu and weapon_menu.visible) or (item_menu and item_menu.visible) or (pause_menu and pause_menu.visible)):
+		_sync_radio_conditions()
+		radio_system.tick_incoming_call()
 
 	# Bloqueio de física e ações durante Game Over / morte de Snake
 	if player.is_dead or not player.can_control or is_game_over:
@@ -1423,7 +2248,7 @@ func _physics_process(_delta: float) -> void:
 		player.is_moving = false
 		player.queue_redraw()
 
-		var missile_alive: bool = active_missile.step_tick(runtime_collision)
+		var missile_alive: bool = active_missile.step_tick(runtime_collision, Rect2(RemoteMissile.MIN_X, RemoteMissile.MIN_Y, RemoteMissile.MAX_X - RemoteMissile.MIN_X, RemoteMissile.MAX_Y - RemoteMissile.MIN_Y), delta)
 
 		# Colisão do míssil com soldados inimigos (Etapa 20)
 		if is_instance_valid(active_missile) and (active_missile.state == RemoteMissile.MissileState.FLIGHT or active_missile.state == RemoteMissile.MissileState.EXPLODING):
@@ -1459,7 +2284,7 @@ func _physics_process(_delta: float) -> void:
 			# Snake fica imóvel (SetSprIdle) dentro da cabine
 			player.is_moving = false
 			var dir_y: float = -1.0 if elevator_target_y < elevator_y else 1.0
-			elevator_y += dir_y * ElevatorSystem.ELEVATOR_SPEED
+			elevator_y += dir_y * (ElevatorSystem.ELEVATOR_SPEED_PX_PER_SEC * delta)
 			if elevator_cabin:
 				elevator_cabin.elevator_y = elevator_y
 			# Snake é transportado pela cabine (PlayerY dec/inc junto com ElevatorY)
@@ -1503,7 +2328,7 @@ func _physics_process(_delta: float) -> void:
 			# Snake NUNCA se move no eixo Y por comando de pernas no elevador.
 			var walk_dir := Vector2i(input_dir.x, 0)
 			if walk_dir.x != 0:
-				player.step_tick(walk_dir)
+				player.step_tick(walk_dir, delta)
 				# Limite esquerdo da cabine (parede esquerda)
 				if player.position.x < ElevatorSystem.SHAFT_MIN_X:
 					player.position.x = ElevatorSystem.SHAFT_MIN_X
@@ -1522,23 +2347,27 @@ func _physics_process(_delta: float) -> void:
 				player.is_moving = false
 				player.queue_redraw()
 	else:
-		var moved: bool = player.step_tick(input_dir)
+		_update_prison_wall(delta)
+		var moved: bool = player.step_tick(input_dir, delta)
 		if moved:
 			_check_and_handle_room_transition()
+
+	# Atualizar bomba plástica se ativa (logic/weapon/plasticbomb.asm)
+	if is_instance_valid(active_plastic_bomb):
+		active_plastic_bomb.step_tick(delta)
 
 	# Checar evento de captura na Sala 8 (logic/common.asm:26-47)
 	if snapshot and snapshot.room_id == CaptureSystem.ROOM_CAPTURE and capture_system.check_capture_trigger(snapshot.room_id, player.position):
 		_trigger_capture_event()
 		return
 
-	# Checar socos contra a parede oca na Cela da Sala 211 (logic/doors/opendoor.asm:300-320)
-	if snapshot and snapshot.room_id == CaptureSystem.ROOM_PRISON and not capture_system.wall_broken:
-		var hit: bool = capture_system.check_wall_punch(player.position, player.current_direction, player.is_punching, player.punch_timer)
-		if hit:
-			if capture_system.wall_broken:
-				break_prison_wall()
-			elif status_label != null:
-				status_label.text = "[PAREDE OCA! ACERTO %d/4]" % capture_system.wall_hit_counter
+	# Checar socos contra paredes ocas quebráveis do Basement (logic/doors/opendoor.asm:350-373)
+	if player.is_punching and player.punch_timer == 7:
+		for door: RoomDoor in room_doors:
+			if is_instance_valid(door) and door.is_breakable_wall and not door.is_open:
+				if door.check_punch(player.position, player.current_direction):
+					if status_label != null:
+						status_label.text = "[PAREDE OCA DETECTADA! USE BOMBA PLÁSTICA]"
 
 	# Atualizar caixas de itens e armas coletáveis
 	for box: ItemBox in item_boxes:
@@ -1557,8 +2386,10 @@ func _physics_process(_delta: float) -> void:
 				break
 
 	# Atualizar prisioneiros / reféns (resgate por toque desarmado ou dano por soco/tiro)
+	# SetText only switches GameMode; the rest of this tick still runs (Banks0123.asm:7824-7829,12072-12087).
 	for pris: Prisoner in prisoners:
 		if is_instance_valid(pris) and not pris.is_dead:
+			pris.actor_tick()
 			pris.check_touch(player.position, player.is_punching)
 			for b: Bullet in bullets:
 				if is_instance_valid(b) and not b.is_enemy:
@@ -1573,9 +2404,13 @@ func _physics_process(_delta: float) -> void:
 	var active_guards: int = 0
 	var defeated_count: int = 0
 
+	var surviving_enemies: Array[EnemyGuard] = []
 	for enemy: EnemyGuard in enemies:
-		if is_instance_valid(enemy):
-			enemy.step_tick(runtime_collision, player.position, player.is_punching, player.current_direction, player)
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
+			enemy.step_tick(runtime_collision, player.position, player.is_punching, player.current_direction, player, delta)
+			if enemy.is_queued_for_deletion():
+				continue
+			surviving_enemies.append(enemy)
 			if enemy.is_dead:
 				defeated_count += 1
 			else:
@@ -1587,20 +2422,23 @@ func _physics_process(_delta: float) -> void:
 					game_world.add_child(enemy_shot)
 				if not in_box and enemy.check_line_of_sight(player.position, runtime_collision):
 					any_enemy_sees_snake = true
+				elif enemy.is_alert and not enemy.is_dead:
+					any_enemy_sees_snake = true
+	enemies = surviving_enemies
 
 	# Atualizar câmeras de vigilância móveis (Etapa 16)
 	var is_alert_active: bool = (alert_system.current_state == AlertSystem.AlertState.ALERT)
 	for cam: SecurityCamera in cameras:
 		if is_instance_valid(cam):
 			cam.show_debug_vision = show_enemy_vision
-			cam.tick(player.position, runtime_collision, in_box, is_alert_active)
+			cam.tick(player.position, runtime_collision, in_box, is_alert_active, delta)
 			if not in_box and (cam.has_seen_player or cam.alert_flashing):
 				any_enemy_sees_snake = true
 
 	# Atualizar sistema de feixes laser infravermelhos (Etapa 16)
 	if laser_system:
 		var goggles_on: bool = (inventory.get_selected_item() == InventoryManager.ITEM_GOGGLES)
-		laser_system.tick(player.position, goggles_on, is_alert_active)
+		laser_system.tick(player.position, goggles_on, is_alert_active, delta)
 
 	# Atualizar nuvens visuais de gás (Etapa 19)
 	for gc: GasCloud in gas_clouds:
@@ -1613,7 +2451,7 @@ func _physics_process(_delta: float) -> void:
 
 	# Atualizar sistema de pisos eletrificados e choque elétrico (Etapa 22 — logic/damageelectric.asm)
 	if electrified_floor_system and snapshot and not is_in_elevator:
-		var shock_damage: int = electrified_floor_system.check_player_hazard(player.position, snapshot.room_id)
+		var shock_damage: int = electrified_floor_system.check_player_hazard(player.position, snapshot.room_id, delta)
 		if shock_damage > 0:
 			player.apply_damage(shock_damage)
 			is_player_shocked_flash = 4
@@ -1625,7 +2463,27 @@ func _physics_process(_delta: float) -> void:
 			player.modulate = Color(1.0, 1.0, 1.0)
 
 	if is_instance_valid(power_panel):
-		power_panel.tick()
+		power_panel.tick(delta)
+
+	# Barris rolantes: EnemiesLogic antes de ChkTouchEnemies (Banks0123.asm:12190-12191)
+	var surviving_barrels: Array[RollingBarrel] = []
+	for rb: RollingBarrel in rolling_barrels:
+		if not is_instance_valid(rb):
+			continue
+		rb.step_tick(delta)
+		if rb.is_dismissed:
+			rb.queue_free()
+			continue
+		surviving_barrels.append(rb)
+		# ActorTouchDamage FFh esgota a vida; o atraso de dano fica em player.apply_damage (touchenemy.asm:148-189)
+		if player and not player.is_dead and player.can_control and rb.touches_player(player.position):
+			if player.apply_damage(RollingBarrel.TOUCH_DAMAGE):
+				print("BARREL_HIT_PLAYER: Snake atingido pelo barril rolante (dano %d)" % RollingBarrel.TOUCH_DAMAGE)
+	rolling_barrels = surviving_barrels
+
+	# Atualizar spawner de guardas do elevador (Sala 3 — MSX: logic/actors/elevatorguardspawner.asm)
+	if snapshot and snapshot.room_id == 3:
+		_process_elevator_spawner(delta)
 
 	# Se Snake for detectado durante o estado NORMAL, aciona ALERTA
 	if any_enemy_sees_snake and alert_system.current_state == AlertSystem.AlertState.NORMAL:
@@ -1633,14 +2491,14 @@ func _physics_process(_delta: float) -> void:
 		_trigger_alarm()
 
 	# Atualização do subsistema de alerta (respawn, transição para evasão e temporizador regressivo)
-	alert_system.tick(any_enemy_sees_snake, active_guards, snapshot.room_id if snapshot and snapshot.loaded else 0)
+	alert_system.tick(any_enemy_sees_snake, active_guards, snapshot.room_id if snapshot and snapshot.loaded else 0, delta)
 
 	# Atualizar física e colisões dos projéteis balísticos (balas de Snake e de soldados)
 	var surviving_bullets: Array[Bullet] = []
 	for b: Bullet in bullets:
 		if not is_instance_valid(b):
 			continue
-		var alive: bool = b.step_tick(runtime_collision)
+		var alive: bool = b.step_tick(runtime_collision, delta)
 		if not alive:
 			b.queue_free()
 			continue
@@ -1666,6 +2524,14 @@ func _physics_process(_delta: float) -> void:
 				power_panel.take_hit("BULLET", 0)
 				hit = true
 
+		# Barril rolante absorve o tiro sem perder vida (damagetoenemy.asm:159-228, BulletDamage[14] = 0)
+		if not hit and not b.is_enemy:
+			for rb: RollingBarrel in rolling_barrels:
+				if is_instance_valid(rb) and rb.shot_hits(b.position):
+					rb.apply_weapon_hit(RollingBarrel.Weapon.HAND_GUN)
+					hit = true
+					break
+
 
 		if hit:
 			b.queue_free()
@@ -1677,7 +2543,7 @@ func _physics_process(_delta: float) -> void:
 	# Tick do Boss Shoot Gunner (Etapa 18)
 	# -----------------------------------------------------------------------
 	if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
-		shot_gunner.step_tick(player.position, runtime_collision)
+		shot_gunner.step_tick(player.position, runtime_collision, delta)
 		shot_gunner.queue_redraw()
 
 		# Dano por contato do boss quando parado (shotgunner.asm:102: COLLISION_CFG = 3, ActorTouchDamage = 4)
@@ -1689,7 +2555,7 @@ func _physics_process(_delta: float) -> void:
 	var surviving_boss_bullets: Array[ShotGunnerBullet] = []
 	for sgb: ShotGunnerBullet in shot_gunner_bullets:
 		if is_instance_valid(sgb) and sgb.is_active:
-			sgb.step_tick(player.position, runtime_collision)
+			sgb.step_tick(player.position, runtime_collision, delta)
 			sgb.queue_redraw()
 			surviving_boss_bullets.append(sgb)
 	shot_gunner_bullets = surviving_boss_bullets
@@ -1724,6 +2590,9 @@ func _physics_process(_delta: float) -> void:
 			item_boxes.append(silencer_box)
 			print("SILENCER_DROPPED: 4 guardas silenciadores derrotados! Silenciador liberado em (36, 98)!")
 
+	if not player or (status_label == null and call_badge == null):
+		return
+
 	var blocks: int = maxi(0, player.life / 3)
 	var empty_blocks: int = maxi(0, (player.max_life - player.life) / 3)
 	var life_bar: String = "■".repeat(blocks) + "□".repeat(empty_blocks)
@@ -1743,6 +2612,16 @@ func _physics_process(_delta: float) -> void:
 	if radio_dialog and radio_dialog.is_active:
 		status_label.text = "TRANSCEIVER CODEC ATIVO | Sintonize: A/D | Enviar: W | R/Tab sair"
 		status_label.modulate = Color("50e080")
+		return
+
+	if binocular_system and binocular_system.is_active:
+		if binocular_system.state == BinocularSystem.State.LOOKING:
+			var dir_names: Array[String] = ["NORTE", "SUL", "OESTE", "LESTE"]
+			var d_str: String = dir_names[binocular_system.looking_direction] if binocular_system.looking_direction >= 0 and binocular_system.looking_direction < dir_names.size() else ""
+			status_label.text = "TELESCOPE MODE | Observando: %s (Sala %03d) | Retorno em %d ticks" % [d_str, binocular_system.preview_room_id, binocular_system.preview_timer]
+		else:
+			status_label.text = "TELESCOPE MODE | Direções: Setas/WASD | Sair: ESC / E / U"
+		status_label.modulate = Color(0.4, 1.0, 0.5)
 		return
 
 	var life_val_str: String = "INF" if infinite_life else "%02d/%02d" % [player.life, player.max_life]
@@ -1793,7 +2672,7 @@ func _physics_process(_delta: float) -> void:
 				gas_tag = " [GÁS TÓXICO!]"
 		elif snapshot.room_id == CaptureSystem.ROOM_PRISON:
 			if not capture_system.wall_broken:
-				gas_tag = " [CELA: SOQUE A PAREDE ESQUERDA (%d/4)]" % capture_system.wall_hit_counter
+				gas_tag = " [CELA: SOQUE A PAREDE ESQUERDA]"
 			else:
 				gas_tag = " [CELA: PAREDE QUEBRADA - FUGA ABERTA]"
 		elif snapshot.room_id == CaptureSystem.ROOM_ADJACENT:
@@ -1860,7 +2739,7 @@ func _check_and_handle_room_transition() -> void:
 	var next_room_id: int = RoomManager.get_next_room(snapshot.room_id, exit_dir)
 	if next_room_id != RoomManager.NO_ROOM:
 		var entry_pos: Vector2 = RoomManager.get_entry_position(exit_dir, player.position)
-		var entry_dir: int = -1
+		var entry_dir: int = exit_dir
 		if snapshot.room_id == 212 and next_room_id == 54:
 			entry_pos = Vector2(112.0, 168.0)
 			entry_dir = PlayerController.Direction.DOWN
@@ -1883,8 +2762,44 @@ func _clamp_to_room_bounds(exit_dir: int) -> void:
 	player.queue_redraw()
 
 func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, from_door_id: int = -1) -> bool:
+	if binocular_system and binocular_system.is_active:
+		close_binoculars()
+
 	var old_room_id: int = snapshot.room_id if snapshot and snapshot.loaded else -1
 	previous_room_id = old_room_id
+
+	if entry_dir != -1:
+		room_entry_direction = entry_dir
+	elif old_room_id == 0:
+		room_entry_direction = PlayerController.Direction.UP
+	elif old_room_id == 2:
+		room_entry_direction = PlayerController.Direction.DOWN
+	elif entry_pos.y <= 40.0:
+		room_entry_direction = PlayerController.Direction.DOWN
+	elif entry_pos.y >= 160.0:
+		room_entry_direction = PlayerController.Direction.UP
+	else:
+		room_entry_direction = PlayerController.Direction.UP
+
+	if old_room_id == 5:
+		for e in enemies:
+			if e.is_lorry_guard and e.lorry_id == 1:
+				guard1_exited_lorry = e.visible or e.is_dead
+				break
+
+	if old_room_id == 7:
+		for e in enemies:
+			if e.is_lorry_guard:
+				if e.lorry_id == 2:
+					guard2_exited_lorry = e.visible or e.is_dead
+				elif e.lorry_id == 3:
+					guard3_exited_lorry = e.visible or e.is_dead
+
+	if new_room_id == 5:
+		guard1_exited_lorry = false
+	if new_room_id == 7:
+		guard2_exited_lorry = false
+		guard3_exited_lorry = false
 
 	var snap: RoomSnapshot = room_manager.load_room_snapshot(new_room_id)
 	if snap == null:
@@ -1893,7 +2808,7 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 
 	snapshot = snap
 	_apply_snapshot()
-	radio_system.check_incoming_call(new_room_id)
+	_radio_enter_room(new_room_id)
 
 	for b: Bullet in bullets:
 		if is_instance_valid(b):
@@ -1908,6 +2823,14 @@ func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, f
 		for child in game_world.get_children():
 			if child is ShotGunnerBullet:
 				child.queue_free()
+
+	if is_instance_valid(active_missile):
+		active_missile.queue_free()
+		active_missile = null
+
+	if is_instance_valid(active_plastic_bomb):
+		active_plastic_bomb.queue_free()
+		active_plastic_bomb = null
 
 	if ElevatorSystem.is_elevator_room(new_room_id):
 		is_in_elevator = true
@@ -1970,7 +2893,7 @@ func _transition_elevator_room(next_room_id: int, move_dir_y: int) -> void:
 
 	snapshot = snap
 	_apply_snapshot()
-	radio_system.check_incoming_call(next_room_id)
+	_radio_enter_room(next_room_id)
 
 	if move_dir_y < 0:
 		# Entrou por baixo (subindo): inicia em Y = ENTRY_UP_Y (208.0)
@@ -2120,45 +3043,99 @@ func _on_missile_exploded(pos: Vector2) -> void:
 				enemy.transform_to_alert_guard()
 		print("MISSILE_ALERT: Explosão na sala %d alertou a guarnição!" % snapshot.room_id)
 
+func _on_plastic_bomb_exploded(bomb_pos: Vector2, radius: float, damage: int) -> void:
+	# 1. Checa destruição de paredes quebráveis no raio da explosão (logic/doors/opendoor.asm:331-348)
+	for door: RoomDoor in room_doors:
+		if is_instance_valid(door) and door.is_breakable_wall and not door.is_open:
+			if door.check_bomb_explosion(bomb_pos, radius, runtime_collision):
+				var wall_key: String = "%d_%d" % [snapshot.room_id, door.door_id]
+				broken_basement_walls[wall_key] = true
+				broken_basement_walls[str(door.door_id)] = true
+				if room_display:
+					room_display.queue_redraw()
+
+	# 2. Dano ao jogador se estiver dentro do raio de detonação
+	if player and not player.is_dead:
+		if player.position.distance_to(bomb_pos) <= radius:
+			player.apply_damage(damage)
+			print("PLASTIC_BOMB_DAMAGE: Snake apanhado pela explosão! Dano sofrido: %d" % damage)
+
+	# 3. Dano e alerta a inimigos / cães na sala
+	for enemy: EnemyGuard in enemies:
+		if is_instance_valid(enemy) and not enemy.is_dead:
+			if enemy.position.distance_to(bomb_pos) <= radius:
+				enemy.take_bullet_hit(damage)
+			elif enemy.is_dog:
+				enemy.wake_up_to_chase()
+			else:
+				enemy.transform_to_alert_guard()
+
+	# 4. Dano ao chefe Shoot Gunner se presente
+	if is_instance_valid(shot_gunner) and not shot_gunner.is_dead:
+		if shot_gunner.position.distance_to(bomb_pos) <= radius:
+			for _i in range(5):
+				shot_gunner.apply_bullet_hit()
+
+	# 5. Barris rolantes: ActorShapeExpl 11h, PlasBombDamage[14] = 0 (weapondamage.asm:42)
+	for rb: RollingBarrel in rolling_barrels:
+		if is_instance_valid(rb) and rb.explosive_hits(bomb_pos):
+			rb.apply_weapon_hit(RollingBarrel.Weapon.PLASTIC_BOMB)
+
+func _on_plastic_bomb_finished(bomb_node: Node2D) -> void:
+	if active_plastic_bomb == bomb_node:
+		active_plastic_bomb = null
+
 # ---------------------------------------------------------------------------
 # Handlers do Evento de Captura na Sala 8 e Cela da Sala 211 (Etapa 21)
 # ---------------------------------------------------------------------------
 
 func _trigger_capture_event() -> void:
+	if capture_cutscene != null and capture_cutscene.is_active:
+		return
+	if alert_system != null:
+		alert_system.reset()
+	if status_label != null:
+		status_label.text = "[EMBOSCADA NA SALA 8!]"
+	if capture_cutscene != null:
+		capture_cutscene.start_cutscene(player)
+	else:
+		_on_capture_teleport_requested()
+		_on_capture_cutscene_finished()
+
+func _on_capture_teleport_requested() -> void:
 	capture_system.execute_capture(inventory, weapon_system)
 	change_to_room(CaptureSystem.ROOM_PRISON, CaptureSystem.SPAWN_PRISON, PlayerController.Direction.UP)
-	if status_label:
-		status_label.text = "[EMBOSCADA! CAPTURADO!]"
+	if status_label != null:
+		status_label.text = "[CELA 211: DESARMADO!]"
 	print("CAPTURE_SPAWN: Snake transportado para a cela da Sala 211 sem armas nem itens.")
 
-func break_prison_wall() -> void:
-	capture_system.wall_broken = true
-	# 1. Limpa a colisão dos tiles da parede na grade runtime_collision
-	for tile_coord: Vector2i in CaptureSystem.WALL_TILES:
-		var idx: int = tile_coord.y * 32 + tile_coord.x
-		if idx >= 0 and idx < runtime_collision.size():
-			runtime_collision[idx] = 0
-		if tilemap_layer != null:
-			tilemap_layer.set_cell(tile_coord, 0, Vector2i(0, 0))
+func _on_capture_cutscene_finished() -> void:
+	if player != null:
+		player.can_control = true
+	print("CAPTURE_FINISHED: Snake recuperou a consciência na Cela 211. Controles liberados.")
 
+func _update_prison_wall(delta: float) -> void:
+	# ChkPrisonWalls uses separate life for Door 12: opendoor.asm:307-316.
+	for door: RoomDoor in room_doors:
+		if door is PrisonWallDoor and not door.is_open:
+			capture_system.step_wall_punch(player.position, player.current_direction,
+				player.punch_timer_sec, delta, door.render_type_id)
+			if capture_system.is_wall_broken(door.door_id):
+				break_prison_wall(door.door_id)
+
+func break_prison_wall(door_id: int = 103) -> void:
+	if door_id == 12:
+		capture_system.south_wall_broken = true
+	else:
+		capture_system.wall_broken = true
+	for door: RoomDoor in room_doors:
+		if door is PrisonWallDoor and door.door_id == door_id:
+			door.open_door(runtime_collision)
 	if player != null:
 		player.set_collision_grid(runtime_collision)
-
-	# 2. Atualiza a textura da sala abrindo o buraco de passagem
-	if room_texture != null:
-		var img: Image = room_texture.get_image()
-		var floor_col: Color = img.get_pixel(64, 80)
-		for py in range(64, 96):
-			for px in range(0, 48):
-				img.set_pixel(px, py, floor_col)
-		room_texture.update(img)
-
-	if room_display != null:
-		room_display.queue_redraw()
-
 	if status_label != null:
 		status_label.text = "[PAREDE QUEBRADA - FUGA ABERTA!]"
-	print("PRISON_WALL_BROKEN: Parede oca destruída após 4 acertos! Caminho de fuga aberto.")
+	print("PRISON_WALL_BROKEN: Door %d aberta; fundo e colisão restaurados." % door_id)
 
 func _on_equipment_restored() -> void:
 	if status_label != null:

@@ -15,7 +15,12 @@ signal hit_absorbed(weapon_type: String)
 var room_id: int = -1
 var hp: int = MAX_HP
 var is_destroyed: bool = false
-var anim_tick: int = 0
+var anim_tick_sec: float = 0.0
+var anim_tick: int:
+	get:
+		return int(ceil(anim_tick_sec * 60.0 - 0.0001))
+	set(v):
+		anim_tick_sec = float(v) / 60.0
 
 func _ready() -> void:
 	z_index = 3
@@ -25,6 +30,7 @@ func setup(p_room_id: int, p_pos: Vector2, p_is_destroyed: bool = false) -> void
 	position = p_pos
 	is_destroyed = p_is_destroyed
 	hp = 0 if is_destroyed else MAX_HP
+	anim_tick_sec = 0.0
 	queue_redraw()
 
 func get_bounds() -> Rect2:
@@ -52,8 +58,8 @@ func take_hit(weapon_type: String, damage: int) -> bool:
 		hit_absorbed.emit(weapon_type)
 		return false
 
-func tick() -> void:
-	anim_tick += 1
+func tick(delta: float = 1.0 / 60.0) -> void:
+	anim_tick_sec += delta
 	if not is_destroyed and (anim_tick % 15 == 0):
 		queue_redraw()
 

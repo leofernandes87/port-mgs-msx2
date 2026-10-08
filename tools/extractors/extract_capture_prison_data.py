@@ -1,9 +1,9 @@
-"""Extract Capture, Prison, Hollow Wall, and Bag Restitution mechanics from MSX2 Metal Gear ROM (RC750).
+"""Extract Capture, Prison, Hollow Wall, and Bag Restitution mechanics from the canonical Metal Gear MSX2 ROM.
 
-Offsets in ROM:
-- DoorsRoom165 (Door 103, render type 14 breakable wall): 0x1EE8E
-- ItemBag (Item 0x22 / BAG at X=0x88, Y=0x20): 0xDB0D
-- Logic: common.asm:26-47, capturescene.asm:87-118, opendoor.asm:300-320, items.asm:120-124, 295-325.
+Symbols resolved from verified source segments (load_reference), never fixed offsets:
+- DoorsRoom165 (data/doors.asm:728; Door 103, render type 14 breakable wall)
+- ItemBag (data/itemsinrooms.asm; Item 0x22 / BAG at X=0x88, Y=0x20)
+- Logic: common.asm:26-47, capturescene.asm:87-118, opendoor.asm:300-320, logic/items.asm:120-124, 295-325.
 
 Inputs are opened strictly read-only.
 """
@@ -15,11 +15,12 @@ from pathlib import Path
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_ROM = ROOT / "roms" / "Metal Gear - Konami (1987) [Does not work on Non Japanese systems] [RC-750] [1473].rom"
-DEFAULT_OUTPUT = ROOT / "data" / "extracted" / "capture_prison.json"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from tools.rom import resolve_canonical_rom, REFERENCE, canonical_data_dir
+from tools.extractors.reference import load_reference
 
-DOOR_165_ROM_OFFSET = 0x1EE8E
-ITEM_BAG_ROM_OFFSET = 0xDB0D
+DEFAULT_OUTPUT = canonical_data_dir() / "capture_prison.json"
 
 # Canonical values from ROM
 CAPTURE_ROOM_ID = 8
@@ -32,17 +33,15 @@ SPAWN_X = 128        # 0x80
 SPAWN_Y = 80         # 0x50
 
 # Hollow wall trigger area (DoorOpenEnterDat render type 14)
-HITS_REQUIRED = 4
+WALL_LIFE = 0x28  # Banks0123.asm:11797-11799; decremented per punching iteration
 TRIGGER_X_MIN = 32   # 0x20
 TRIGGER_X_MAX = 58   # 0x20 + 0x1A
 TRIGGER_Y_MIN = 64   # 0x20 + 0x20
 TRIGGER_Y_MAX = 80   # 0x40 + 0x10
 
-# Tiles to clear when wall breaks (tile columns 4-5, rows 8-11)
-WALL_TILES = [
-    [4, 8], [4, 9], [4, 10], [4, 11],
-    [5, 8], [5, 9], [5, 10], [5, 11]
-]
+# The 3x13 block is restored from saved background, not cleared to floor.
+# data/doors.asm:1001-1015; erasedoor.asm:25,365-367,399-414.
+WALL_RECT = [32, 32, 24, 104]
 
 # Adjacent room and item bag
 ADJACENT_ROOM_ID = 212
@@ -51,21 +50,15 @@ BAG_X = 136          # 0x88
 BAG_Y = 64           # 0x40 / 0x20
 
 
-def extract_capture_prison_data(rom_path: Path) -> dict:
-    if not rom_path.exists():
-        raise FileNotFoundError(f"ROM not found at {rom_path}")
-
-    with rom_path.open("rb") as f:
-        rom_bytes = f.read()
-
+def extract_capture_prison_data(rom_bytes: bytes, door_offset: int, bag_offset: int) -> dict:
     # Verify Door 103 in Room 165: 67 0E 20 20 A4
-    door_bytes = rom_bytes[DOOR_165_ROM_OFFSET:DOOR_165_ROM_OFFSET + 5]
+    door_bytes = rom_bytes[door_offset:door_offset + 5]
     expected_door = bytes([0x67, 0x0E, 0x20, 0x20, 0xA4])
     if door_bytes != expected_door:
         raise ValueError(f"Door 165 bytes {list(door_bytes)} do not match expected {list(expected_door)}")
 
     # Verify ItemBag bytes: 22 20 88 FF
-    bag_bytes = rom_bytes[ITEM_BAG_ROM_OFFSET:ITEM_BAG_ROM_OFFSET + 4]
+    bag_bytes = rom_bytes[bag_offset:bag_offset + 4]
     expected_bag = bytes([0x22, 0x20, 0x88, 0xFF])
     if bag_bytes != expected_bag:
         raise ValueError(f"ItemBag bytes {list(bag_bytes)} do not match expected {list(expected_bag)}")
@@ -87,12 +80,13 @@ def extract_capture_prison_data(rom_path: Path) -> dict:
             "spawn_direction": "UP"
         },
         "hollow_wall": {
-            "hits_required": HITS_REQUIRED,
+            "life_ticks": WALL_LIFE,
             "trigger_x_min": TRIGGER_X_MIN,
             "trigger_x_max": TRIGGER_X_MAX,
             "trigger_y_min": TRIGGER_Y_MIN,
             "trigger_y_max": TRIGGER_Y_MAX,
-            "wall_tiles": WALL_TILES
+            "wall_rect": WALL_RECT,
+            "on_break": "restore_saved_background"
         },
         "restitution_bag": {
             "room_id": ADJACENT_ROOM_ID,
@@ -105,11 +99,15 @@ def extract_capture_prison_data(rom_path: Path) -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="Extract capture, prison, and bag restitution data.")
-    parser.add_argument("--rom", type=Path, default=DEFAULT_ROM, help="Path to Metal Gear MSX2 ROM")
+    parser.add_argument("--rom", type=Path, help="Explicit ROM path; validated against the canonical hash")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="Output JSON path")
     args = parser.parse_args()
 
-    data = extract_capture_prison_data(args.rom)
+    rom = resolve_canonical_rom(args.rom)
+    ref = load_reference(REFERENCE, rom.data)
+    data = extract_capture_prison_data(rom.data, ref.symbols["DoorsRoom165"], ref.symbols["ItemBag"])
+    data.update(rom.provenance(), evidence=[ref.evidence("DoorsRoom165", 5), ref.evidence("ItemBag", 4)])
+    rom.assert_unchanged()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)

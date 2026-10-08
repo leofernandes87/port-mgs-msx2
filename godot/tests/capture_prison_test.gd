@@ -32,6 +32,9 @@ func _run_all() -> void:
 	_test_reset_state()
 	_test_prison_flow_integration()
 	_test_room_212_to_room_54_transition()
+	_test_capture_cutscene_spawns_and_positions()
+	_test_capture_cutscene_dialog_and_timing()
+	_test_capture_cutscene_fade_and_completion()
 
 ## Teste 1: Gatilho canônico de captura na Sala 8 (logic/common.asm:26-47)
 func _test_capture_trigger_bounds() -> void:
@@ -124,95 +127,74 @@ func _test_prison_spawn_and_input_restrictions() -> void:
 
 	player.free()
 
-## Teste 4: Detecção precisa de socos na parede oca da Sala 211 (4 acertos)
+## Wall damage follows 40 qualifying iterations, not four button presses.
 func _test_hollow_wall_punch_detection() -> void:
 	var cs := CaptureSystem.new()
+	for point: Vector2 in [Vector2(31, 72), Vector2(58, 72), Vector2(50, 63), Vector2(50, 80)]:
+		_assert(not cs.check_wall_punch(point, PlayerController.Direction.LEFT, true), "Outside exact punch bounds: %s" % point)
+	_assert(not cs.check_wall_punch(Vector2(50, 72), PlayerController.Direction.RIGHT, true), "Wrong direction")
+	_assert(not cs.check_wall_punch(Vector2(50, 72), PlayerController.Direction.LEFT, false), "Walking does not damage wall")
+	for i: int in range(39):
+		_assert(cs.check_wall_punch(Vector2(50, 72), PlayerController.Direction.LEFT, true), "Qualifying iteration")
+	_assert(not cs.wall_broken, "39 damage ticks do not break wall")
+	cs.check_wall_punch(Vector2(50, 72), PlayerController.Direction.LEFT, true)
+	_assert(cs.wall_broken, "40th tick breaks wall")
+	_assert(not cs.check_wall_punch(Vector2(50, 72), PlayerController.Direction.LEFT, true), "Broken wall ignores punches")
+	cs.reset_state()
+	for point: Vector2 in [Vector2(103, 150), Vector2(120, 150), Vector2(112, 141), Vector2(112, 160)]:
+		_assert(not cs.check_wall_punch(point, PlayerController.Direction.DOWN, true, 13), "Outside south punch bounds: %s" % point)
+	_assert(not cs.check_wall_punch(Vector2(112, 148), PlayerController.Direction.UP, true, 13), "South wall requires DOWN")
+	for i: int in range(40):
+		cs.check_wall_punch(Vector2(112, 148), PlayerController.Direction.DOWN, true, 13)
+	_assert(cs.south_wall_broken and not cs.wall_broken and cs.wall_hit_counter == 0, "South and lateral walls have independent life")
+	cs.reset_state()
+	_assert(not cs.south_wall_broken and cs.south_wall_hit_counter == 0, "South wall reset")
+	for hz: int in [30, 60, 120]:
+		cs.reset_state()
+		var player := PlayerController.new()
+		for punch_index: int in range(5):
+			player.punch()
+			while player.is_punching:
+				cs.step_wall_punch(Vector2(50, 72), PlayerController.Direction.LEFT, player.punch_timer_sec, 1.0 / hz)
+				player.step_tick(Vector2i.ZERO, 1.0 / hz)
+			_assert(cs.wall_hit_counter == (punch_index + 1) * 8, "8 ticks per complete punch at %d Hz" % hz)
+		_assert(cs.wall_broken, "Five complete punches break wall at %d Hz" % hz)
+		player.free()
 
-	# Posição adjacente à parede oca interna: (50.0, 72.0)
-	var wall_pos := Vector2(50.0, 72.0)
-
-	# 1. Direção errada não conta
-	var h1: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.RIGHT, 8)
-	_assert(not h1, "Soco para a DIREITA não atinge a parede esquerda")
-	var h2: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.UP, 8)
-	_assert(not h2, "Soco para CIMA não atinge a parede esquerda")
-	_assert(cs.wall_hit_counter == 0, "Contador de acertos permanece 0")
-
-	# 2. Posição longe da parede não conta
-	var far_pos := Vector2(128.0, 80.0)
-	var h3: bool = cs.check_wall_punch(far_pos, PlayerController.Direction.LEFT, 8)
-	_assert(not h3, "Soco longe da parede não registra acerto")
-	_assert(cs.wall_hit_counter == 0, "Contador permanece 0")
-
-	# 3. Multi-hit durante o mesmo golpe é bloqueado
-	var h4: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
-	_assert(h4, "Primeiro contato do soco registra acerto")
-	_assert(cs.wall_hit_counter == 1, "wall_hit_counter == 1")
-	# Frame seguinte do MESMO soco (is_punching continua true) não conta ponto extra
-	var h4_repeat: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
-	_assert(not h4_repeat, "Repetição durante o mesmo soco não duplica acerto")
-	_assert(cs.wall_hit_counter == 1, "Contador permanece 1")
-
-	# 4. Sequência canônica de 4 socos com relaxamento entre golpes
-	# Soco 1 já computado acima; relaxa o golpe
-	cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, false)
-
-	# 2º Soco
-	var hit2: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
-	_assert(hit2, "2º soco válido detectado")
-	_assert(cs.wall_hit_counter == 2, "wall_hit_counter == 2")
-	_assert(not cs.wall_broken, "Parede ainda não quebrou (2/4)")
-	cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, false)
-
-	# 3º Soco
-	var hit3: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
-	_assert(hit3, "3º soco válido detectado")
-	_assert(cs.wall_hit_counter == 3, "wall_hit_counter == 3")
-	_assert(not cs.wall_broken, "Parede ainda não quebrou (3/4)")
-	cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, false)
-
-	# 4º Soco
-	var hit4: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
-	_assert(hit4, "4º soco válido detectado")
-	_assert(cs.wall_hit_counter == 4, "wall_hit_counter == 4")
-	_assert(cs.wall_broken, "Parede quebrada com sucesso após o 4º acerto!")
-
-	# Soco após quebra não incrementa mais
-	cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, false)
-	var hit5: bool = cs.check_wall_punch(wall_pos, PlayerController.Direction.LEFT, true)
-	_assert(not hit5, "Socos adicionais ignorados após quebra")
-
-## Teste 5: Remoção de colisão e alteração de tiles na quebra da parede
+## Synthetic pixels and collision prove precise restore instead of clearing a rectangle.
 func _test_wall_collision_and_tile_break() -> void:
-	# Simula matriz de colisão de 768 tiles (32x24)
+	var wall := PrisonWallDoor.new()
+	wall.render_type_id = 14
+	wall.position = Vector2(32, 32)
+	var pixels: Array = []
+	pixels.resize(24 * 104)
+	pixels.fill(1)
+	pixels[0] = 0
+	var flags: Array = []
+	flags.resize(39)
+	flags.fill(1)
+	_assert(wall.configure_visual({"width": 24, "height": 104, "pixels": pixels, "palette_rgb": [[0,0,0],[20,40,60]], "collision": flags}), "Synthetic wall configured")
+	_assert(wall.wall_texture.get_image().get_pixel(0, 0).a == 0, "TIMP color zero stays transparent")
 	var collision: Array = []
-	for i in range(768):
-		collision.append(1)
-
-	# Aplica quebra da parede limpando os tiles de WALL_TILES
-	for tile: Vector2i in CaptureSystem.WALL_TILES:
-		var idx: int = tile.y * 32 + tile.x
-		collision[idx] = 0
-
-	# Valida desobstrução dos tiles da passagem da Cela 211
-	for tile: Vector2i in CaptureSystem.WALL_TILES:
-		var idx: int = tile.y * 32 + tile.x
-		_assert(collision[idx] == 0, "Tile (%d, %d) desobstruído (colisão == 0)" % [tile.x, tile.y])
-
-	_assert(CaptureSystem.WALL_TILES.size() == 24, "Exatamente 24 tiles liberados na parede da Cela 211 (6x4)")
-
-	# Valida tiles da passagem na Sala 212 adjacente
-	_assert(CaptureSystem.ADJACENT_WALL_TILES.size() == 24, "Exatamente 24 tiles liberados na Sala 212 (6x4)")
+	for i: int in range(768):
+		collision.append(i % 2)
+	var original: Array = collision.duplicate()
+	wall.inject_collision(collision)
+	_assert(collision[4 * 32 + 4] == 1, "Closed wall blocks")
+	_assert(collision[4 * 32 + 3] == original[4 * 32 + 3], "Outside wall unchanged")
+	wall.open_door(collision)
+	_assert(collision == original, "All original collision restored, including solid tiles")
+	wall.free()
 
 ## Teste 6: Conexão bidirecional entre Salas 211 e 212
 func _test_room_connections_211_212() -> void:
 	# Saída para a ESQUERDA na Sala 211 leva à Sala 212
 	var next_left: int = RoomManager.get_next_room(211, PlayerController.Direction.LEFT)
-	_assert(next_left == 212, "Sala 211 -> LEFT conecta com Sala 212")
+	_assert(next_left == RoomManager.NO_ROOM, "Cela não usa transição pela borda esquerda")
 
 	# Saída para a DIREITA na Sala 212 leva de volta à Sala 211
 	var next_right: int = RoomManager.get_next_room(212, PlayerController.Direction.RIGHT)
-	_assert(next_right == 211, "Sala 212 -> RIGHT conecta com Sala 211")
+	_assert(next_right == RoomManager.NO_ROOM, "Retorno usa Door 103, não borda direita")
 
 	# Outras direções na cela 211 são fechadas
 	_assert(RoomManager.get_next_room(211, PlayerController.Direction.UP) == RoomManager.NO_ROOM, "Sala 211 UP fechada")
@@ -309,40 +291,23 @@ func _test_prison_flow_integration() -> void:
 	snake_pos = CaptureSystem.SPAWN_PRISON
 	_assert(snake_pos == Vector2(128.0, 80.0), "Snake spawnou no centro da cela (128, 80)")
 
-	# 4. Desloca Snake até a parede oca esquerda (X=44, Y=80) e desfere 4 socos
-	snake_pos = Vector2(44.0, 80.0)
-	for i in range(4):
-		var hit: bool = cs.check_wall_punch(snake_pos, PlayerController.Direction.LEFT, true)
-		_assert(hit, "Soco %d na parede oca registrado" % (i + 1))
-		cs.check_wall_punch(snake_pos, PlayerController.Direction.LEFT, false)
-
-	_assert(cs.wall_broken, "Parede oca destruída após 4 socos")
-
-	# 5. Aplica desobstrução de colisão da Cela 211 (WALL_TILES)
-	var col211 := Array(snap211.collision)
-	for t in CaptureSystem.WALL_TILES:
-		col211[t.y * 32 + t.x] = 0
-	_assert(col211[8 * 32 + 0] == 0, "Borda esquerda da cela (0, 8) desobstruída")
-
-	# 6. Snake atravessa a parede para a esquerda até cruzar a borda (X < 12.0)
-	snake_pos = Vector2(8.0, 80.0)
-	var exit_dir: int = RoomManager.check_room_exit(snake_pos)
-	_assert(exit_dir == PlayerController.Direction.LEFT, "Saída para a esquerda detectada em X=8")
-
-	var dest_room: int = RoomManager.get_next_room(211, exit_dir)
-	_assert(dest_room == 212, "Transição da Cela 211 leva à Sala 212")
-
-	# 7. Snake entra na Sala 212 no lado direito
-	var entry_pos: Vector2 = RoomManager.get_entry_position(exit_dir, snake_pos)
-	_assert(entry_pos.x == RoomManager.ENTRY_X_FROM_LEFT, "Snake entra no lado direito da Sala 212 (242)")
-
-	var snap212 := rm.load_room_snapshot(212)
-	_assert(snap212 != null and snap212.room_id == 212, "Snapshot canônico da Sala 212 carregado")
-
-	var col212 := Array(snap212.collision)
-	for t in CaptureSystem.ADJACENT_WALL_TILES:
-		col212[t.y * 32 + t.x] = 0
-	_assert(col212[8 * 32 + 30] == 0, "Ponto de entrada na Sala 212 (30, 8) desobstruído")
+	# Damage and transition through Door 103 (original 165/164, local 211/212).
+	for i: int in range(40):
+		cs.check_wall_punch(Vector2(50, 72), PlayerController.Direction.LEFT, true)
+	_assert(cs.wall_broken, "Wall life exhausted")
+	var wall := PrisonWallDoor.new()
+	wall.render_type_id = 14
+	wall.position = Vector2(32, 32)
+	wall.destination_room = 212
+	var player := PlayerController.new()
+	player.position = Vector2(44, 80)
+	_assert(wall.check_interaction(player, inv, []) == -1, "Closed wall prevents transition")
+	wall.is_open = true
+	_assert(wall.check_interaction(player, inv, []) == 212, "Door 103 connects rooms")
+	var entry: Dictionary = RoomDoor.get_door_spawn(Vector2(208, 32), 15)
+	_assert(entry.pos == Vector2(200, 80), "Destination spawn from PlayerInDoorDat")
+	player.free()
+	wall.free()
 
 	# 8. Snake recupera equipamentos na Sala 212
 	var bag := ItemBox.new()
@@ -356,21 +321,13 @@ func _test_prison_flow_integration() -> void:
 	_assert(not cs.is_captured, "Captura finalizada")
 	bag.free()
 
-	# 9. Retorno para a Cela 211 pela direita
-	snake_pos = Vector2(248.0, 80.0)
-	var exit_dir_ret: int = RoomManager.check_room_exit(snake_pos)
-	_assert(exit_dir_ret == PlayerController.Direction.RIGHT, "Saída para a direita detectada em X=248")
-
-	var ret_room: int = RoomManager.get_next_room(212, exit_dir_ret)
-	_assert(ret_room == 211, "Retorno da Sala 212 leva de volta à Cela 211")
-
 ## Teste 10: Transição da porta sul da Sala 212 para a Sala 54 (Basement) com spawn em (112, 168)
 func _test_room_212_to_room_54_transition() -> void:
 	var rm := RoomManager.new()
 
 	# 1. Validação de saída sul via RoomManager
 	var next_down: int = RoomManager.get_next_room(212, PlayerController.Direction.DOWN)
-	_assert(next_down == 54, "Sala 212 -> DOWN conecta com Sala 54 (Basement)")
+	_assert(next_down == RoomManager.NO_ROOM, "Saída sul da Sala 212 usa Door 12, não a borda")
 
 	# 2. Carrega metadados de portas da Sala 212
 	var data212: Dictionary = rm.load_room_actors(212)
@@ -405,4 +362,133 @@ func _test_room_212_to_room_54_transition() -> void:
 	var spawn212: Dictionary = RoomDoor.get_door_spawn(Vector2(96.0, 152.0), 13)
 	_assert(spawn212.get("pos") == Vector2(112.0, 144.0), "Spawn na Sala 212 ocorre dentro da cela em (112, 144)")
 	_assert(int(spawn212.get("dir")) == PlayerController.Direction.UP, "Snake reentra na Sala 212 olhando para o NORTE (UP)")
+
+## Teste 11: Spawns, bloqueio de controles e orientações canônicas dos guardas (logic/capturescene.asm:27-36, 170-186)
+func _test_capture_cutscene_spawns_and_positions() -> void:
+	var cutscene := CaptureCutscene.new()
+	var player := PlayerController.new()
+	player.position = Vector2(200.0, 96.0) # Y < 152.0 (0x98)
+	player.can_control = true
+
+	# 1. Inicia cutscene com Snake na parte superior (Y = 96)
+	cutscene.start_cutscene(player)
+	_assert(cutscene.is_active, "Cutscene de captura ativada")
+	_assert(not player.can_control, "Controles de Snake travados no início da cutscene (logic/common.asm:43)")
+	_assert(cutscene.guard_a_visible, "Guarda A visível imediatamente")
+	_assert(cutscene.guard_a_pos == Vector2(240.0, 96.0), "Guarda A spawna em X=240 e Y=PlayerY (logic/capturescene.asm:32-34)")
+	_assert(cutscene.guard_a_dir == PlayerController.Direction.LEFT, "Guarda A virado para a ESQUERDA encarando Snake")
+	_assert(cutscene.guard_b_pos.y == 176.0, "Guarda B configurado para spawnar abaixo em Y=176 pois PlayerY < 152 (logic/capturescene.asm:179)")
+
+	# 2. Testa cálculo alternativo com Snake na parte inferior (Y = 160 >= 152)
+	player.position = Vector2(200.0, 160.0)
+	cutscene.start_cutscene(player)
+	_assert(cutscene.guard_b_pos.y == 136.0, "Guarda B configurado para spawnar acima em Y=136 pois PlayerY >= 152 (logic/capturescene.asm:182)")
+
+	player.free()
+	cutscene.free()
+
+## Teste 12: Diálogos autênticos, marcha a 120 px/s e máquinas de estados (data/texts.asm:189-190 e logic/capturescene.asm:208-260)
+func _test_capture_cutscene_dialog_and_timing() -> void:
+	var cutscene := CaptureCutscene.new()
+	var player := PlayerController.new()
+	player.position = Vector2(200.0, 100.0)
+	cutscene.start_cutscene(player)
+
+	var msg_box: Array[String] = [""]
+	cutscene.message_displayed.connect(func(msg: String):
+		msg_box[0] = msg
+	)
+
+	# 1. Passa os 2 frames de delay inicial -> Guarda A profere "DON'T MOVE!"
+	cutscene._process(0.04) # > 2/60s
+	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_A_SPEAK, "Transitou para estado GUARD_A_SPEAK")
+	_assert(cutscene.show_message_box, "Caixa de mensagem Type 4 ativa")
+	_assert(cutscene.current_message_text == "DON'T MOVE!", "Texto do Guarda A é o canônico 'DON'T MOVE!' (data/texts.asm:189)")
+	_assert(msg_box[0] == "DON'T MOVE!", "Sinal message_displayed emitido com 'DON'T MOVE!'")
+	_assert(cutscene.guard_b_visible, "Guarda B torna-se visível no spawn")
+
+	# 2. Conclui fala do Guarda A -> Inicia marcha em X do Guarda B
+	cutscene._process(CaptureCutscene.DURATION_SPEAK_A_SEC + 0.01)
+	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_B_WALK_X, "Transitou para GUARD_B_WALK_X")
+	_assert(not cutscene.show_message_box, "Caixa de mensagem fechada durante a marcha")
+	_assert(cutscene.guard_b_moving, "Guarda B em movimento")
+
+	# 3. Guarda B marcha a 120 px/s em X: de 240 até 184 (distância 56 px -> ~0.467s)
+	cutscene._process(0.2)
+	_assert(cutscene.guard_b_pos.x == 240.0 - 120.0 * 0.2, "Guarda B avança em X a exatos 120 px/s (SetWalkSpeedFast)")
+	cutscene._process(0.3)
+	_assert(cutscene.guard_b_pos.x == CaptureCutscene.GUARD_B_STOP_X, "Guarda B atinge X=184 (0xB8) e para avanço horizontal")
+	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_B_WALK_Y, "Transitou para marcha vertical GUARD_B_WALK_Y")
+	_assert(cutscene.guard_b_dir == PlayerController.Direction.UP, "Guarda B vira para CIMA em direção a Snake (Y=176 -> Y=100)")
+
+	# 4. Guarda B marcha em Y até alinhar com Snake
+	cutscene._process(1.0)
+	_assert(cutscene.guard_b_pos.y == player.position.y, "Guarda B alinhou perfeitamente no Y de Snake")
+	_assert(cutscene.guard_b_dir == PlayerController.Direction.LEFT, "Guarda B vira para a ESQUERDA encarando Snake de frente")
+	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_B_ARRIVED, "Transitou para GUARD_B_ARRIVED")
+
+	# 5. Pausa de 2 frames -> Guarda B profere "YOU ARE CAPTURED!"
+	cutscene._process(0.04)
+	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_B_SPEAK, "Transitou para GUARD_B_SPEAK")
+	_assert(cutscene.show_message_box, "Caixa de mensagem ativa para Guarda B")
+	_assert(cutscene.current_message_text == "YOU ARE CAPTURED!", "Texto do Guarda B é o canônico 'YOU ARE CAPTURED!' (data/texts.asm:190)")
+	_assert(msg_box[0] == "YOU ARE CAPTURED!", "Sinal message_displayed emitido com 'YOU ARE CAPTURED!'")
+
+	player.free()
+	cutscene.free()
+
+## Teste 13: Fade Out, emissão de teleporte no escuro e liberação de controles (logic/capturescene.asm:69-118)
+func _test_capture_cutscene_fade_and_completion() -> void:
+	var cutscene := CaptureCutscene.new()
+	var player := PlayerController.new()
+	player.position = Vector2(200.0, 100.0)
+	player.can_control = true
+
+	var flags := {"teleport": false, "finished": false}
+	cutscene.teleport_requested.connect(func():
+		flags["teleport"] = true
+	)
+	cutscene.cutscene_finished.connect(func():
+		flags["finished"] = true
+	)
+
+	cutscene.start_cutscene(player)
+	_assert(not player.can_control, "Controles travados no início")
+
+	# Avança rapidamente pelos diálogos e marcha
+	cutscene.current_state = CaptureCutscene.State.WAIT_BEFORE_FADE
+	cutscene.state_timer = 0.01
+	cutscene._process(0.02)
+	_assert(cutscene.current_state == CaptureCutscene.State.FADE_OUT, "Transitou para FADE_OUT")
+
+	# Simula fade out progressivo
+	cutscene._process(0.5)
+	_assert(cutscene.fade_alpha > 0.0 and cutscene.fade_alpha < 1.0, "fade_alpha intermediário no escurecimento progressivo")
+	cutscene._process(0.6)
+	_assert(cutscene.fade_alpha == 1.0, "fade_alpha atinge 1.0 (100% escuro)")
+	_assert(cutscene.current_state == CaptureCutscene.State.IN_DARKNESS, "Transitou para IN_DARKNESS")
+	_assert(flags["teleport"], "Sinal teleport_requested emitido no ápice da escuridão para transportar Snake")
+
+	# Simula despertar na Cela 211
+	cutscene._process(CaptureCutscene.DURATION_DARKNESS_SEC + 0.01)
+	_assert(cutscene.current_state == CaptureCutscene.State.FADE_IN, "Transitou para FADE_IN na Cela 211")
+	_assert(not cutscene.guard_a_visible, "Guardas ocultados após transporte para a cela")
+	_assert(not cutscene.guard_b_visible, "Guardas ocultados após transporte para a cela")
+
+	# Conclui clareamento
+	cutscene._process(CaptureCutscene.DURATION_FADE_IN_SEC + 0.01)
+	_assert(cutscene.current_state == CaptureCutscene.State.FINISHED, "Estado final FINISHED")
+	_assert(not cutscene.is_active, "Cutscene inativa")
+	_assert(player.can_control, "Controles de Snake liberados com sucesso na Cela 211 (logic/capturescene.asm:115)")
+	_assert(flags["finished"], "Sinal cutscene_finished emitido")
+
+	# Valida rotina de desenho _draw() sem exceções
+	cutscene.fade_alpha = 0.5
+	cutscene.show_message_box = true
+	cutscene.current_message_text = "TEST"
+	cutscene.queue_redraw()
+
+	player.free()
+	cutscene.free()
+
 

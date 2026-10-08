@@ -17,6 +17,7 @@ extends Node2D
 ## - Alcance delimitado: se dissipa no ar após 52 ticks (~0.85s)
 
 const SPEED: float = 2.0
+const SPEED_PX_PER_SEC: float = 120.0 # 2.0 * 60 = 120 px/s
 const PLAYER_DAMAGE: int = 8
 const MAX_LIFETIME_TICKS: int = 52
 
@@ -76,8 +77,12 @@ var collision_grid: Array = []
 signal hit_player(damage: int)
 signal bullet_destroyed
 
+var _bullet_texture: Texture2D = null
+
 func _ready() -> void:
 	z_index = 12
+	if ResourceLoader.exists("res://assets/protected/sprites/shotgun_shot_msx.png"):
+		_bullet_texture = load("res://assets/protected/sprites/shotgun_shot_msx.png")
 
 func setup(origin: Vector2, target: Vector2, grid: Array) -> void:
 	position = origin
@@ -91,7 +96,7 @@ func setup(origin: Vector2, target: Vector2, grid: Array) -> void:
 	current_radius = SHAPE_RADII[0]
 	is_active = true
 
-func step_tick(player_pos: Vector2, grid: Array) -> void:
+func step_tick(player_pos: Vector2, grid: Array, delta: float = 1.0 / 60.0) -> void:
 	if not is_active:
 		return
 	collision_grid = grid
@@ -116,7 +121,8 @@ func step_tick(player_pos: Vector2, grid: Array) -> void:
 		anim_frame = 4
 		current_radius = SHAPE_RADII[3]
 
-	position += velocity
+	var velocity_px_per_sec: Vector2 = velocity * 60.0
+	position += velocity_px_per_sec * delta
 
 	# Colisão com tiles sólidos da sala
 	if _check_tile_collision():
@@ -169,6 +175,15 @@ func _draw() -> void:
 	if not is_active:
 		return
 
+	# 1. Renderização autêntica com spritesheet MSX2 (ShotGunShot1..ShotGunShot4)
+	if _bullet_texture != null:
+		var frame_idx: int = clampi(anim_frame - 1, 0, 3)
+		var src_rect := Rect2(frame_idx * 32.0, 0.0, 32.0, 32.0)
+		var dest_rect := Rect2(-16.0, -16.0, 32.0, 32.0)
+		draw_texture_rect_region(_bullet_texture, dest_rect, src_rect)
+		return
+
+	# 2. Desenho procedural autêntico do Spray de Escopeta MSX2
 	match anim_frame:
 		1:
 			# Flash de saída do cano: losango/cruz branca compacta

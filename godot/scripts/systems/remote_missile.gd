@@ -13,9 +13,11 @@ enum MissileState {
 	FINISHED = 2
 }
 
-const SPEED: float = 4.0               # 4 px/tick constante (MissileIniSpeed no offset 0x48DE)
-const EXPLOSION_DURATION: int = 15      # 0x0F ticks (MedExplosionLogic em plasticbomb.asm:150)
-const DAMAGE: int = 5                  # 5 HP (MissileDamage em weapondamage.asm:58)
+const SPEED: float = 1.5               # 1.5 px/tick (90 px/s calibrado a 60 fps para manobra precisa e responsiva)
+const SPEED_PX_PER_SEC: float = 90.0               # 1.5 px/tick * 60 = 90 px/s (logic/weapon/missile.asm:150-165)
+const EXPLOSION_DURATION: int = 15                 # 0x0F ticks (MedExplosionLogic em plasticbomb.asm:150)
+const EXPLOSION_DURATION_SEC: float = 15.0 / 60.0  # 0.250s
+const DAMAGE: int = 5                              # 5 HP (MissileDamage em weapondamage.asm:58)
 
 # Limites de tela do MSX2 (weaponuse.asm:365-375)
 const MIN_X: float = 9.0
@@ -27,7 +29,14 @@ var speed: float = SPEED
 var state: int = MissileState.FLIGHT
 var current_direction: int = PlayerController.Direction.UP
 var velocity: Vector2 = Vector2(0, -SPEED)
-var explosion_timer: int = EXPLOSION_DURATION
+
+var explosion_timer_sec: float = EXPLOSION_DURATION_SEC
+var explosion_timer: int:
+	get:
+		return int(ceil(explosion_timer_sec * 60.0 - 0.0001))
+	set(v):
+		explosion_timer_sec = float(v) / 60.0
+
 var smoke_trail: Array[Vector2] = []
 var damage: int = DAMAGE
 
@@ -40,7 +49,7 @@ func setup(start_pos: Vector2, initial_dir: int) -> void:
 	current_direction = initial_dir
 	_update_velocity_from_direction()
 	state = MissileState.FLIGHT
-	explosion_timer = EXPLOSION_DURATION
+	explosion_timer_sec = EXPLOSION_DURATION_SEC
 	smoke_trail.clear()
 	queue_redraw()
 
@@ -76,14 +85,15 @@ func steer(input_dir: Vector2i) -> void:
 		queue_redraw()
 
 ## Atualização de física e colisões por tick
-func step_tick(runtime_collision: Array, room_bounds: Rect2 = Rect2(MIN_X, MIN_Y, MAX_X - MIN_X, MAX_Y - MIN_Y)) -> bool:
+func step_tick(runtime_collision: Array, room_bounds: Rect2 = Rect2(MIN_X, MIN_Y, MAX_X - MIN_X, MAX_Y - MIN_Y), delta: float = 1.0 / 60.0) -> bool:
 	if state == MissileState.FINISHED:
 		return false
 
 	if state == MissileState.EXPLODING:
-		explosion_timer -= 1
+		explosion_timer_sec = maxf(0.0, explosion_timer_sec - delta)
 		queue_redraw()
-		if explosion_timer <= 0:
+		if explosion_timer_sec <= 0.0001:
+			explosion_timer_sec = 0.0
 			state = MissileState.FINISHED
 			missile_destroyed.emit()
 			return false
@@ -94,7 +104,8 @@ func step_tick(runtime_collision: Array, room_bounds: Rect2 = Rect2(MIN_X, MIN_Y
 	if smoke_trail.size() > 6:
 		smoke_trail.pop_front()
 
-	position += velocity
+	var velocity_px_per_sec: Vector2 = velocity * 60.0
+	position += velocity_px_per_sec * delta
 
 	# 1. Checar limites de tela (ChkShotBoundaries em weaponuse.asm:365)
 	if position.x < MIN_X or position.x > MAX_X or position.y < MIN_Y or position.y > MAX_Y:

@@ -17,20 +17,25 @@ const BOSS_HP: int = 20
 ## Precisa de 10 tiros para matar.
 const BULLET_DAMAGE: int = 2
 
-## Velocidade de rolagem lateral: ±4 px/tick (shotgunner.asm:18-22)
+## Velocidade de rolagem lateral: ±4 px/tick (shotgunner.asm:18-22) -> 4 * 60 = 240 px/s
 const ROLL_SPEED: float = 4.0
+const ROLL_SPEED_PX_PER_SEC: float = 240.0
 
 ## Duração máxima da rolagem: Wait = 0x0B = 11 ticks (shotgunner.asm:28, 148)
 const ROLL_WAIT: int = 11
+const ROLL_WAIT_SEC: float = 11.0 / 60.0
 
 ## Pausa após parar antes de atirar: Wait = 0x2D = 45 ticks (shotgunner.asm:100)
 const SHOOT_WAIT: int = 45
+const SHOOT_WAIT_SEC: float = 45.0 / 60.0
 
 ## Intervalo entre disparos: ANIM_CNT & 0x0F → 1 tiro a cada 16 ticks (shotgunner.asm:127)
 const SHOT_INTERVAL: int = 16
+const SHOT_INTERVAL_SEC: float = 16.0 / 60.0
 
 ## Delay de intro para refresh de sprites: IntroDelay = 2 ticks (shotgunner.asm:13)
 const INTRO_DELAY: int = 2
+const INTRO_DELAY_SEC: float = 2.0 / 60.0
 
 # ---------------------------------------------------------------------------
 # Máquina de estados — mapeamento direto das 3 fases de ShotGunnerLogic
@@ -89,8 +94,12 @@ signal intro_dialog(text: String)
 # Inicialização
 # ---------------------------------------------------------------------------
 
+var _boss_texture: Texture2D = null
+
 func _ready() -> void:
 	z_index = 10
+	if ResourceLoader.exists("res://assets/protected/sprites/shoot_gunner_msx.png"):
+		_boss_texture = load("res://assets/protected/sprites/shoot_gunner_msx.png")
 
 func setup(spawn_pos: Vector2, grid: Array, initial_player_pos: Vector2) -> void:
 	position = spawn_pos
@@ -105,7 +114,7 @@ func setup(spawn_pos: Vector2, grid: Array, initial_player_pos: Vector2) -> void
 # Lógica principal por tick — chamada pelo sandbox em _physics_process
 # ---------------------------------------------------------------------------
 
-func step_tick(p_pos: Vector2, grid: Array) -> void:
+func step_tick(p_pos: Vector2, grid: Array, delta: float = 1.0 / 60.0) -> void:
 	if is_dead:
 		return
 	player_pos = p_pos
@@ -122,7 +131,7 @@ func step_tick(p_pos: Vector2, grid: Array) -> void:
 		SGunnerState.INTRO:
 			_tick_intro()
 		SGunnerState.ROLL:
-			_tick_roll()
+			_tick_roll(delta)
 		SGunnerState.SHOOT:
 			_tick_shoot()
 
@@ -149,7 +158,7 @@ func _tick_intro() -> void:
 # Fase ROLL — ShotGunnerRoll (shotgunner.asm:80-103)
 # ---------------------------------------------------------------------------
 
-func _tick_roll() -> void:
+func _tick_roll(delta: float = 1.0 / 60.0) -> void:
 	# Atualiza frame de animação: (ANIM_CNT & 6) >> 1 → 0,1,2,1 (shotgunner.asm:161-162)
 	roll_frame = ((anim_tick & 6) >> 1)
 
@@ -158,7 +167,8 @@ func _tick_roll() -> void:
 
 	if not blocked:
 		wait_timer -= 1
-		position.x += speed_x
+		var step_x: float = (speed_x * 60.0) * delta
+		position.x += step_x
 		position.x = clamp(position.x, 8.0, 248.0)
 
 	# Para ao colidir ou ao wait expirar (ShotGunnerStop)
@@ -274,30 +284,60 @@ func apply_bullet_hit() -> bool:
 
 func _on_defeat() -> void:
 	is_dead = true
+	visible = false
 	queue_redraw()
 	emit_signal("boss_defeated")
 
+## Obtém a região retangular exata no spritesheet MSX2 (64x64 px).
+## Linha 0 = Facing Right, Linha 1 = Facing Left (espelhado).
+## Colunas: 0 = Stand (0x5D), 1..3 = Roll 1, 2, 3 (0x5E, 0x5F, 0x60).
+func _get_sprite_rect() -> Rect2:
+	var facing_right: bool = (player_pos.x >= position.x) if state == SGunnerState.SHOOT else (roll_dir >= 0)
+	var row: int = 0 if facing_right else 1
+	var col: int = 0
+	if state == SGunnerState.ROLL:
+		# SGunnerRollSpr: 5Eh, 5Fh, 60h, 5Fh -> colunas 1, 2, 3, 2
+		const ROLL_COLS: Array[int] = [1, 2, 3, 2]
+		col = ROLL_COLS[roll_frame % 4]
+	else:
+		col = 0  # Stand
+	return Rect2(col * 16.0, row * 32.0, 16.0, 32.0)
+
 # ---------------------------------------------------------------------------
-# Desenho procedural autoral (sem sprites protegidos)
+# Desenho autêntico MSX2 com fallback procedural
 # ---------------------------------------------------------------------------
 
 func _draw() -> void:
+	# Fiel ao MSX2 (Banks0123.asm:12996-13003, 13079-13080):
+	# Ao ser derrotado, DismissActor6 chama RemoveActor_ liberando a estrutura do ator.
+	# Não existe sprite de corpo no chão; o ator simplesmente é removido e desaparece.
+	if is_dead:
+		return
+
 	var base_color: Color = Color(0.85, 0.2, 0.1)    # Vermelho: uniforme de boss
 	var shadow_color: Color = Color(0.4, 0.1, 0.05)
 	var highlight: Color = Color(1.0, 1.0, 1.0, 0.7) if flash_timer > 0 else Color.TRANSPARENT
 
-	if is_dead:
-		# Sprite procedural do Boss Derrotado (caído no chão com escopeta solta)
-		# 1. Sombra no piso
-		draw_rect(Rect2(-12.0, 2.0, 24.0, 3.0), Color(0.0, 0.0, 0.0, 0.45))
-		# 2. Corpo caído na horizontal
-		draw_rect(Rect2(-10.0, -3.0, 20.0, 5.0), shadow_color)
-		draw_rect(Rect2(-9.0, -4.0, 18.0, 5.0), base_color)
-		# 3. Capacete caído de lado
-		draw_rect(Rect2(-12.0, -5.0, 6.0, 6.0), Color(0.2, 0.2, 0.2))
-		draw_rect(Rect2(-8.0, -3.0, 3.0, 3.0), Color(1.0, 0.8, 0.6))
-		# 4. Escopeta caída e solta no chão ao lado
-		draw_rect(Rect2(4.0, -1.0, 9.0, 3.0), Color(0.15, 0.15, 0.15))
+	# 1. Renderização autêntica com spritesheet MSX2
+	# Stand: SprOffsets1 (-8, -27); Roll: SprOffsets10 (-8, -32)
+	if _boss_texture != null:
+		var src_rect := _get_sprite_rect()
+		var dest_offset_y: float = -32.0 if state == SGunnerState.ROLL else -27.0
+		var dest_rect := Rect2(-8.0, dest_offset_y, 16.0, 32.0)
+		draw_texture_rect_region(_boss_texture, dest_rect, src_rect)
+
+		# Muzzle flash na ponta do cano da escopeta
+		if muzzle_flash_timer > 0 and state != SGunnerState.ROLL:
+			var facing_right: bool = player_pos.x >= position.x
+			var m_tip: float = 8.0 if facing_right else -8.0
+			draw_rect(Rect2(m_tip - 2.0, -13.0, 5.0, 8.0), Color(1.0, 0.9, 0.2))
+			draw_rect(Rect2(m_tip - 3.0, -12.0, 7.0, 6.0), Color.WHITE)
+
+		# Flash de hit
+		if flash_timer > 0:
+			draw_rect(dest_rect, highlight)
+
+		queue_redraw()
 		return
 
 	match state:

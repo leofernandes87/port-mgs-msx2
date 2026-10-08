@@ -27,6 +27,40 @@ var is_lorry: bool = false
 var is_entry_disabled: bool = false
 var trigger_rect: Rect2 = Rect2()
 
+# Propriedades de paredes quebráveis do Basement (logic/doors/opendoor.asm:325-393)
+var is_breakable_wall: bool = false
+var punch_required_direction: int = PlayerController.Direction.DOWN
+
+# Tabela canônica de especificações das paredes quebráveis do Basement
+# render_type_id: 7 (Room 60), 8 (Room 61), 9 (Room 59), 10 (Room 58), 11 (Room 63)
+const BREAKABLE_WALL_SPECS = {
+	7: { # DrawBasemWall60 (Sala 60): 4 tiles larg x 6 tiles alt (32x48 px), soco DOWN
+		"width": 32.0, "height": 48.0,
+		"punch_dir": PlayerController.Direction.DOWN,
+		"tiles_w": 4, "tiles_h": 6
+	},
+	8: { # DrawBasemWall61 (Sala 61): 4 tiles larg x 1 tile alt (32x8 px), soco DOWN
+		"width": 32.0, "height": 8.0,
+		"punch_dir": PlayerController.Direction.DOWN,
+		"tiles_w": 4, "tiles_h": 1
+	},
+	9: { # DrawBasemWall59_96 (Sala 59): 3 tiles larg x 13 tiles alt (24x104 px), soco LEFT
+		"width": 24.0, "height": 104.0,
+		"punch_dir": PlayerController.Direction.LEFT,
+		"tiles_w": 3, "tiles_h": 13
+	},
+	10: { # DrawBasemWall58 (Sala 58): 5 tiles larg x 13 tiles alt (40x104 px), soco RIGHT
+		"width": 40.0, "height": 104.0,
+		"punch_dir": PlayerController.Direction.RIGHT,
+		"tiles_w": 5, "tiles_h": 13
+	},
+	11: { # DrawBasemWall63 (Sala 63): 5 tiles larg x 12 tiles alt (40x96 px), soco LEFT
+		"width": 40.0, "height": 96.0,
+		"punch_dir": PlayerController.Direction.LEFT,
+		"tiles_w": 5, "tiles_h": 12
+	},
+}
+
 # Tabela canônica de posicionamento de Snake ao entrar/sair de portas (logic/nextroom.asm:457-480)
 # Offset Y, Offset X, Direção (1: UP, 2: DOWN, 3: LEFT, 4: RIGHT)
 const PLAYER_IN_DOOR_DAT = {
@@ -36,8 +70,19 @@ const PLAYER_IN_DOOR_DAT = {
 	4: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT}, # Porta Leste (Parede Direita)
 	5: {"offset_y": 40.0, "offset_x": 12.0, "direction": PlayerController.Direction.DOWN},  # Elevador
 	6: {"offset_y": 40.0, "offset_x": 12.0, "direction": PlayerController.Direction.DOWN},  # Elevador Saída
-	12: {"offset_y": 40.0, "offset_x": 16.0, "direction": PlayerController.Direction.DOWN}, # Cela Basement (Sala 54)
+	7: {"offset_y": 40.0, "offset_x": 16.0, "direction": PlayerController.Direction.DOWN},  # Parede Sala 60
+	8: {"offset_y": -8.0, "offset_x": 16.0, "direction": PlayerController.Direction.UP},    # Parede Sul Sala 61
+	9: {"offset_y": 48.0, "offset_x": 24.0, "direction": PlayerController.Direction.RIGHT}, # Parede Oeste Sala 59
+	10: {"offset_y": 48.0, "offset_x": 16.0, "direction": PlayerController.Direction.RIGHT}, # Parede Sala 58
+	11: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT}, # Parede Sala 63
+	12: {"offset_y": 40.0, "offset_x": 16.0, "direction": PlayerController.Direction.DOWN}, # Cela Basement (Sala 54 / 172)
 	13: {"offset_y": -8.0, "offset_x": 16.0, "direction": PlayerController.Direction.UP},    # Porta Saída Sul Cela (Sala 212/164)
+	# PlayerInDoorDat: logic/nextroom.asm:476-477.
+	14: {"offset_y": 48.0, "offset_x": 24.0, "direction": PlayerController.Direction.RIGHT},
+	15: {"offset_y": 48.0, "offset_x": -8.0, "direction": PlayerController.Direction.LEFT},
+	17: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT}, # Saída Sala 169
+	18: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT},
+	19: {"offset_y": 48.0, "offset_x": -10.0, "direction": PlayerController.Direction.LEFT},
 }
 
 # Tabela canônica DoorOpenEnterDat da ROM (external/MetalGear/data/doors.asm:15-35)
@@ -78,8 +123,29 @@ var collision_tile_indices: Array[int] = []
 # Tiles do vão de passagem desobstruídos quando a porta está aberta (colisão livre 0)
 var clearance_tile_indices: Array[int] = []
 
+# Texturas autênticas de portas MSX2 (extraídas de external/MetalGear/gfx/doors.asm)
+static var _doors_texture: Texture2D = null
+static var _checked_textures: bool = false
+
+static func load_door_textures() -> void:
+	if _checked_textures:
+		return
+	_checked_textures = true
+	var path := "res://assets/protected/sprites/doors_msx.png"
+	var abs_path := ProjectSettings.globalize_path(path)
+	if FileAccess.file_exists(abs_path):
+		var img := Image.load_from_file(abs_path)
+		if img != null and not img.is_empty():
+			_doors_texture = ImageTexture.create_from_image(img)
+			print("DOOR: Spritesheet autêntico MSX2 de Portas carregado com sucesso! (128x64 px)")
+
 func _ready() -> void:
 	z_index = 6
+	load_door_textures()
+	if render_type_id in [7, 8, 9, 10, 11] or open_rule_id == 16:
+		is_breakable_wall = true
+		var spec: Dictionary = BREAKABLE_WALL_SPECS.get(render_type_id, {})
+		punch_required_direction = int(spec.get("punch_dir", PlayerController.Direction.DOWN))
 	if is_lorry:
 		is_open = true
 	_calculate_collision_tiles()
@@ -90,6 +156,20 @@ func _calculate_collision_tiles() -> void:
 
 	var center_tx: int = int(position.x) / 8
 	var center_ty: int = int(position.y) / 8
+
+	if is_breakable_wall:
+		var spec: Dictionary = BREAKABLE_WALL_SPECS.get(render_type_id, {})
+		var tw: int = int(spec.get("tiles_w", 4))
+		var th: int = int(spec.get("tiles_h", 4))
+		for offset_y: int in range(th):
+			var ty: int = center_ty + offset_y
+			for offset_x: int in range(tw):
+				var tx: int = center_tx + offset_x
+				if tx >= 0 and tx < 32 and ty >= 0 and ty < 24:
+					var idx: int = ty * 32 + tx
+					collision_tile_indices.append(idx)
+					clearance_tile_indices.append(idx)
+		return
 
 	match orientation:
 		DoorOrientation.NORTH:
@@ -203,6 +283,12 @@ func get_enter_trigger_rect() -> Rect2:
 	if orientation == DoorOrientation.LORRY_EXIT or (is_lorry and render_type_id == 4):
 		return Rect2(204.0, 88.0, 36.0, 36.0)
 
+	if is_breakable_wall and render_type_id in BREAKABLE_WALL_SPECS:
+		var spec: Dictionary = BREAKABLE_WALL_SPECS.get(render_type_id, {})
+		var w: float = float(spec.get("width", 32.0))
+		var h: float = float(spec.get("height", 32.0))
+		return Rect2(position.x - 4.0, position.y - 4.0, w + 8.0, h + 8.0)
+
 	match render_type_id:
 		12:
 			# Porta do isolamento na Sala 54: Snake entra pelo vão inferior caminhando para cima
@@ -229,7 +315,7 @@ func get_enter_trigger_rect() -> Rect2:
 func get_open_trigger_rect() -> Rect2:
 	match orientation:
 		DoorOrientation.NORTH:
-			return Rect2(position.x, position.y + 20.0, 32.0, 20.0)
+			return Rect2(position.x, position.y + 8.0, 32.0, 32.0)
 		DoorOrientation.SOUTH:
 			return Rect2(position.x, position.y - 12.0, 32.0, 16.0)
 		DoorOrientation.WEST:
@@ -239,10 +325,64 @@ func get_open_trigger_rect() -> Rect2:
 		_:
 			return Rect2(position.x, position.y, 32.0, 32.0)
 
+## Retorna os limites retangulares físicos da parede/porta
+func get_wall_rect() -> Rect2:
+	if is_breakable_wall:
+		var spec: Dictionary = BREAKABLE_WALL_SPECS.get(render_type_id, {})
+		return Rect2(position.x, position.y, float(spec.get("width", 32.0)), float(spec.get("height", 32.0)))
+	return Rect2(position.x, position.y, 32.0, 32.0)
+
+## Verifica se o soco de Snake atinge a parede oca na direção correta (logic/doors/opendoor.asm:350-373)
+func check_punch(player_pos: Vector2, player_dir: int) -> bool:
+	if not is_breakable_wall or is_open:
+		return false
+	if player_dir != punch_required_direction:
+		return false
+
+	var wall_box: Rect2 = get_wall_rect()
+	var touch_box: Rect2 = wall_box
+	match punch_required_direction:
+		PlayerController.Direction.UP:
+			touch_box = Rect2(wall_box.position.x - 4.0, wall_box.end.y - 4.0, wall_box.size.x + 8.0, 24.0)
+		PlayerController.Direction.DOWN:
+			touch_box = Rect2(wall_box.position.x - 4.0, wall_box.position.y - 20.0, wall_box.size.x + 8.0, 24.0)
+		PlayerController.Direction.LEFT:
+			touch_box = Rect2(wall_box.end.x - 4.0, wall_box.position.y - 4.0, 24.0, wall_box.size.y + 8.0)
+		PlayerController.Direction.RIGHT:
+			touch_box = Rect2(wall_box.position.x - 20.0, wall_box.position.y - 4.0, 24.0, wall_box.size.y + 8.0)
+
+	if touch_box.has_point(player_pos):
+		print("HOLLOW_WALL_PUNCH: Parede oca (Porta %d) soada na sala %d! Som metálico/oco autêntico (SFX 0Ah)." % [door_id, room_id])
+		return true
+	return false
+
+## Verifica se a explosão da bomba plástica detonou a parede quebrável (logic/doors/opendoor.asm:331-348)
+func check_bomb_explosion(bomb_pos: Vector2, radius: float, collision_grid: Array) -> bool:
+	if not is_breakable_wall or is_open:
+		return false
+	var wall_box: Rect2 = get_wall_rect()
+	var blast_box: Rect2 = wall_box.grow(radius)
+	if blast_box.has_point(bomb_pos):
+		open_door(collision_grid)
+		print("BASEMENT_WALL_DESTROYED: Parede da masmorra (Porta %d) destruída por bomba plástica na sala %d!" % [door_id, room_id])
+		return true
+	return false
+
 ## Verifica interação do jogador com a porta (logic/doors/opendoor.asm e enterdoor.asm)
 ## Retorna o ID da sala de destino se o jogador atravessar a porta aberta, ou -1 caso contrário.
 func check_interaction(player: PlayerController, inventory: InventoryManager, collision_grid: Array) -> int:
 	if player == null:
+		return -1
+
+	# Paredes quebráveis do Basement
+	if is_breakable_wall:
+		if not is_open:
+			return -1
+		if destination_room != -1 and destination_room != room_id:
+			var enter_box: Rect2 = get_enter_trigger_rect()
+			if enter_box.has_point(player.position):
+				print("BASEMENT_WALL_ENTER: Snake atravessou a parede %d rumo à sala %d!" % [door_id, destination_room])
+				return destination_room
 		return -1
 
 	# Portas de cela e passagens de prisão (regras canônicas ChkPrisonWalls)
@@ -329,8 +469,25 @@ func close_door(collision_grid: Array) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	# Toda a arte visual das salas, passagens e caminhões provém integralmente dos
-	# snapshots de metatiles originais da ROM MSX2.
-	# RoomDoor atua de forma limpa como entidade física de colisão e trigger de transição,
-	# sem sobrepor caixas ou desenhos procedurais artificiais sobre o cenário autêntico.
-	return
+	# Portas abertas revelam o vão da moldura/parede já desenhado no snapshot de fundo (DrawDoors/EraseDoor)
+	# Paredes quebráveis do Basement permanecem integradas à arte da sala e bloqueadas puramente pelas colisões
+	if is_open or is_breakable_wall:
+		return
+
+	if _doors_texture == null:
+		load_door_textures()
+
+	if _doors_texture != null:
+		match render_type_id:
+			1: # Porta Norte (24x32 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 24.0, 32.0), Rect2(0.0, 0.0, 24.0, 32.0))
+			5: # Porta de Elevador (24x32 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 24.0, 32.0), Rect2(24.0, 0.0, 24.0, 32.0))
+			2: # Porta Sul (32x8 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 32.0, 8.0), Rect2(48.0, 0.0, 32.0, 8.0))
+			3: # Porta Oeste em perspectiva (8x60 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 8.0, 60.0), Rect2(80.0, 0.0, 8.0, 60.0))
+			4: # Porta Leste em perspectiva (8x60 px)
+				draw_texture_rect_region(_doors_texture, Rect2(0.0, 0.0, 8.0, 60.0), Rect2(88.0, 0.0, 8.0, 60.0))
+			_:
+				pass

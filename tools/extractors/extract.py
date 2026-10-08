@@ -15,9 +15,9 @@ from tools.extractors.reference import load_reference
 from tools.extractors.codecs import (read, word, pointer, nibble, collision_bits,
     planar, flip_x, terminated, rgb_palette, png_indexed, connection_index)
 from tools.reverse_engineering.analyze import expand_metatiles, PINNED_REVISION
+from tools.rom import identify, load_profiles, resolve_canonical_rom
 
 VERSION = '0.1.0'
-PRIMARY_SHA256 = '254ffcd94d9ba2322c00df88b21b33b338e3238b90962820bbcaa2bb621e18cf'
 
 
 def encode(value):
@@ -25,6 +25,10 @@ def encode(value):
 
 
 def build(rom, reference_path):
+    profiles = load_profiles()
+    profile_id = identify(rom, profiles)
+    if profile_id != profiles['canonical']:
+        raise ValueError(f'Input is not the canonical ROM (detected: {profile_id or "unknown"})')
     ref = load_reference(reference_path, rom)
     color_map = list(ref.literal('Banks0123.asm', 'ColorsTileset'))
     default = ref.literal('Banks0123.asm', 'DefaultPalette')
@@ -250,7 +254,7 @@ def build(rom, reference_path):
     package['manifest']={'format_version':'0.1.0','tool_version':VERSION,'reference_commit':PINNED_REVISION,
         'input_size':len(rom),'input_crc32':f'{zlib.crc32(rom)&0xffffffff:08X}',
         'input_sha1':hashlib.sha1(rom).hexdigest(),'input_sha256':hashlib.sha256(rom).hexdigest(),
-        'input_role':'primary' if hashlib.sha256(rom).hexdigest()==PRIMARY_SHA256 else 'region_verified_candidate',
+        'input_role':'canonical','rom_profile':profile_id,
         'verification_scope':'all exported source-data segments compared byte-for-byte; behavior statically inspected',
         'verified_segments':ref.segments,'source_hashes':ref.source_hashes()}
     return package
@@ -332,7 +336,7 @@ def publish(output, files):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--rom',required=True,type=Path)
+    parser.add_argument('--rom',type=Path,help='Explicit ROM; validated against the canonical hash')
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--reference',type=Path,default=ROOT/'external/MetalGear')
     parser.add_argument('--dry-run',action='store_true')
@@ -344,12 +348,11 @@ def main():
         raise ValueError('Output must be a new directory under data/extracted')
     if output.exists() or output.is_symlink():
         raise ValueError('Output exists; refusing overwrite')
-    rom=args.rom.read_bytes()
-    package=build(rom,args.reference)
+    canonical=resolve_canonical_rom(args.rom)
+    package=build(canonical.data,args.reference)
     from tools.extractors.schema import validate_package
     validate_package(package)
-    if args.rom.read_bytes()!=rom:
-        raise ValueError('Input changed during extraction')
+    canonical.assert_unchanged()
     counts={k:len(package[k]) for k in ('rooms','layouts','metatile_sets','tilesets','doors','entities','paths','items','diagnostics')}
     if not args.dry_run:
         files={'package.json':encode(package),**previews(package)}

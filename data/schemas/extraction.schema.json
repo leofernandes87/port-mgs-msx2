@@ -875,9 +875,12 @@
         },
         "input_role": {
           "enum": [
-            "primary",
-            "region_verified_candidate"
+            "canonical"
           ]
+        },
+        "rom_profile": {
+          "type": "string",
+          "pattern": "^[a-z0-9.-]+$"
         },
         "verification_scope": {
           "type": "string"
@@ -932,6 +935,7 @@
         "input_sha1",
         "input_sha256",
         "input_role",
+        "rom_profile",
         "verification_scope",
         "verified_segments",
         "source_hashes"
