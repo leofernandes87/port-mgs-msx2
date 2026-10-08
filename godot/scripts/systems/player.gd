@@ -24,10 +24,10 @@ enum Direction {
 	RIGHT = 4,
 }
 
-# Velocidade em pixels por segundo conforme MSX2 NTSC 60Hz (Banks0123.asm:8415 PlayerMovSpeed = 200h -> 2.0 px/frame * 60 = 120 px/s)
-const SPEED_NORMAL_PX_PER_SEC: float = 120.0
-const SPEED_SLOW_PX_PER_SEC: float = 60.0    # Água e escadas (1.0 px/frame * 60 = 60 px/s, Banks0123.asm:9360)
-const SPEED_NORMAL: float = 2.0               # Equivalente discreto por frame a 60 Hz (120 * 1/60 = 2.0 px)
+# PlayerMovSpeed em 8.8 por tick (Banks0123.asm:8415-8416 = 200h; 100h em Banks0123.asm:9360).
+const MOV_SPEED_NORMAL: int = 0x200
+const MOV_SPEED_SLOW: int = 0x100
+const SPEED_NORMAL: float = MOV_SPEED_NORMAL / 256.0  # pixels por tick
 const ANIM_TICKS_PER_FRAME: int = 6           # 6 frames na ROM MSX2 (Banks0123.asm:9724 cp 6)
 const ANIM_STEP_SEC: float = 6.0 / 60.0       # 0.100s por frame de animação
 
@@ -284,6 +284,29 @@ func apply_damage(amount: int) -> bool:
 		return true
 	return false
 
+## ChkControlPlayer (Banks0123.asm:8825-8848): any held direction moves; PlayerDirectionNew = 0
+## keeps PlayerDirection. No held direction stops the player at once (SetStopPlayer).
+func step_control(controls_hold: int, direction_new: int, delta: float = 1.0 / 60.0) -> bool:
+	var dir: int = 0
+	if controls_hold & PlayerControls.DIRECTIONS != 0:
+		dir = direction_new if direction_new != 0 else int(current_direction)
+	return step_tick(direction_vector(dir), delta)
+
+
+static func direction_vector(dir: int) -> Vector2i:
+	match dir:
+		Direction.UP:
+			return Vector2i(0, -1)
+		Direction.DOWN:
+			return Vector2i(0, 1)
+		Direction.LEFT:
+			return Vector2i(-1, 0)
+		Direction.RIGHT:
+			return Vector2i(1, 0)
+	return Vector2i.ZERO
+
+
+## One game tick of NormalCtrl movement; delta only advances the timers stored in seconds.
 func step_tick(input_dir: Vector2i, delta: float = 1.0 / 60.0) -> bool:
 	if is_dead or not can_control:
 		is_moving = false
@@ -328,21 +351,24 @@ func step_tick(input_dir: Vector2i, delta: float = 1.0 / 60.0) -> bool:
 
 	current_direction = new_dir
 
-	var speed_px_per_sec: float = SPEED_SLOW_PX_PER_SEC if (anim_mode == AnimMode.SWIM_SURFACE or anim_mode == AnimMode.CLIMB) else SPEED_NORMAL_PX_PER_SEC
-	var step_dist: float = speed_px_per_sec * delta
-
-	var speed_vector := Vector2.ZERO
+	# ControlPlayer2..UpdatePlayerSpd (Banks0123.asm:8850-8917): velocidade só no eixo da direção.
+	var mov_speed: int = MOV_SPEED_SLOW if (anim_mode == AnimMode.SWIM_SURFACE or anim_mode == AnimMode.CLIMB) else MOV_SPEED_NORMAL
+	var speed_x: int = 0
+	var speed_y: int = 0
 	match current_direction:
 		Direction.UP:
-			speed_vector = Vector2(0.0, -step_dist)
+			speed_y = -mov_speed
 		Direction.DOWN:
-			speed_vector = Vector2(0.0, step_dist)
+			speed_y = mov_speed
 		Direction.LEFT:
-			speed_vector = Vector2(-step_dist, 0.0)
+			speed_x = -mov_speed
 		Direction.RIGHT:
-			speed_vector = Vector2(step_dist, 0.0)
+			speed_x = mov_speed
 
-	var next_pos := position + speed_vector
+	# MovePlayerX/MovePlayerY (Banks0123.asm:9549-9573): PlayerXdec/PlayerYdec += velocidade em 8.8.
+	var x_dec: int = int(roundf(position.x * 256.0)) + speed_x
+	var y_dec: int = int(roundf(position.y * 256.0)) + speed_y
+	var next_pos := Vector2(float(x_dec) / 256.0, float(y_dec) / 256.0)
 
 	if is_colliding_at(next_pos, current_direction):
 		is_moving = false

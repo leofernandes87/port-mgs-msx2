@@ -24,6 +24,8 @@ var inventory: InventoryManager = InventoryManager.new()
 var weapon_system: WeaponSystem = WeaponSystem.new()
 var radio_system: RadioSystem = RadioSystem.new()
 var game_clock: GameClock = GameClock.new()
+var player_controls: PlayerControls = PlayerControls.new()
+var controls_override: int = -1  # >= 0 substitui o teclado (testes headless)
 var radio_dialog: RadioDialog
 var cameras: Array[SecurityCamera] = []
 var laser_system: LaserSystem
@@ -1753,6 +1755,7 @@ func reset_player() -> void:
 func reset_game_state() -> void:
 	if prisoner_dialog:
 		prisoner_dialog.close()
+	player_controls.reset()
 	# 1. Limpar e liberar projéteis e entidades dinâmicas
 	for b: Bullet in bullets:
 		if is_instance_valid(b):
@@ -2218,6 +2221,8 @@ func _iteration_cadence() -> int:
 ## 12015-12208). Ported counters advance one tick per call; no real-time delta is used.
 func game_tick() -> void:
 	var delta: float = GameClock.TICK_DELTA
+	# UpdateControls roda em todo GameMode, antes do despacho (Banks0123.asm:12015-12089).
+	player_controls.store(controls_override if controls_override >= 0 else PlayerControls.read_keyboard())
 	if prisoner_dialog and prisoner_dialog.is_active:
 		prisoner_dialog.step_tick(delta)
 		return
@@ -2255,15 +2260,16 @@ func game_tick() -> void:
 	if (radio_dialog and radio_dialog.is_active) or (weapon_menu and weapon_menu.visible) or (item_menu and item_menu.visible) or (pause_menu and pause_menu.visible):
 		return
 
-	# Leitura de entrada com prioridade de eixos autêntica MSX
+	# Míssil e elevador ainda leem ControlsHold em cascata vertical primeiro; a caminhada usa GetPlayerDir.
+	var held: int = player_controls.hold
 	var input_dir := Vector2i.ZERO
-	if Input.is_key_pressed(KEY_UP) or Input.is_key_pressed(KEY_W):
+	if held & PlayerControls.UP:
 		input_dir = Vector2i(0, -1)
-	elif Input.is_key_pressed(KEY_DOWN) or Input.is_key_pressed(KEY_S):
+	elif held & PlayerControls.DOWN:
 		input_dir = Vector2i(0, 1)
-	elif Input.is_key_pressed(KEY_LEFT) or Input.is_key_pressed(KEY_A):
+	elif held & PlayerControls.LEFT:
 		input_dir = Vector2i(-1, 0)
-	elif Input.is_key_pressed(KEY_RIGHT) or Input.is_key_pressed(KEY_D):
+	elif held & PlayerControls.RIGHT:
 		input_dir = Vector2i(1, 0)
 
 	# Se um míssil teleguiado estiver ativo, o controle direcional é transferido exclusivamente para ele (Banks0123.asm:8468)
@@ -2373,7 +2379,9 @@ func game_tick() -> void:
 				player.queue_redraw()
 	else:
 		_update_prison_wall(delta)
-		var moved: bool = player.step_tick(input_dir, delta)
+		# NormalCtrl: GetPlayerDir não roda durante o soco (PunchLogic, Banks0123.asm:8447-8460).
+		var dir_new: int = 0 if player.punch_timer_sec > 0.0 else player_controls.get_player_dir()
+		var moved: bool = player.step_control(player_controls.hold, dir_new, delta)
 		if moved:
 			_check_and_handle_room_transition()
 

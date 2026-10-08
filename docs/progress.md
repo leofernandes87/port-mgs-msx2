@@ -3,16 +3,6 @@
 Somente as entradas mais recentes. Histórico completo, sem edição, em `docs/progress/`;
 índice com arquivo e linha em `docs/progress/INDEX.md`. Rotação: `python3 -m tools.context.build_index`.
 
-## 2026-10-05 — Inventário progressivo: hazards ambientais e lógica especial de salas
-
-**Feito:** inventário Z80 da edição inglesa antes de qualquer alteração no Godot, dados ou testes.
-14 features em `hazards-special-rooms`: PARTIAL 4 (`gas`, `electrified-floor`, `cameras-lasers`, `hazard-breakable-walls`), PROVISIONAL 1 (`hazard-environmental-palette`), NOT_STARTED 9 (`hazard-water-environment`, `hazard-pitfall-trap`, `hazard-dark-rooms`, `hazard-roof-wind`, `hazard-roof-bridge-fall`, `hazard-minefield`, `hazard-roof-freefall`, `hazard-desert-loop`, `hazard-room78-narrow-channel`), UNMAPPED 0, INVESTIGATING 0.
-Evidência: `logic/damagegas.asm:9-53`, `logic/damageelectric.asm:8-63`, `data/laserconfig.asm:6-51`, `logic/laserbeams.asm:11-101`, `Banks0123.asm:9141-9277,8999-9008,9284-9325,8587-8603,2937-2974`, `logic/pitfall.asm:10-69`, `logic/actors/pitfall.asm:7-99`, `data/doors.asm:293-305,923-1085`, `logic/doors/drawdoors.asm:233-261`, `logic/doors/opendoor.asm:280-385`, `logic/bridge.asm:8-48`, `logic/actors/mine.asm:7-75`, `logic/nextroom.asm:33-48,204-260`, `powerswitch.asm:37-67`.
-Divergências registradas: ausência de esteiras (conveyor belts) e correnteza em MG1 MSX2; paredes ocas e quebráveis unificadas como a mesma mecânica (C4 + soco direcional); conflito estrutural de salas 211/212 (canal de água na ROM vs aliases da prisão no Godot); aproximações por overlay alfa/senoidal no Godot vs alteração de paleta direta do VDP MSX2; sala 204 bloqueada como "o limbo" em vez do pátio de paraquedas; loop do deserto (sala 103) contornado no Godot sem checagem de Compass. Nenhum arquivo de gameplay alterado.
-**Testes:** `python3 tools/validate.py` fora do sandbox: exit 0, 38 etapas PASS; `build_index --check`: exit 0.
-**Pendências:** implementação/correção de hazards e resolução do conflito de IDs 211/212 sob demanda.
-**Git:** commit a pedido do usuário, sem push e sem tag; `godot/project.godot` preservado fora do commit.
-
 ## 2026-10-05 — Inventário progressivo: topologia de salas, conexões espaciais e navegação
 
 **Feito:** inventário Z80 da edição inglesa antes de qualquer alteração no Godot, dados ou testes.
@@ -52,3 +42,16 @@ rolling_barrel) e `capture_prison_test` usa `step_tick`. `validate.py`: exit 0, 
 **Pendências:** máquina europeia é 50 Hz; cadência de rádio/menus/binóculos/captura não medida;
 overrun variável não modelado; `RadioDialog`/typewriter em tempo real; ordem fina de `PlayModeLogic`.
 **Git:** commit desta entrega na branch feature/core-001-game-clock, tag `v0.2.4`.
+
+## 2026-10-08 — CORE-002: movimento cardinal fiel (GetPlayerDir e 8.8)
+
+**Feito:** `PlayerControls` porta `StoreControls` (logic/controls.asm:23-30), `GetPlayerDir` com
+`DirectionMask`/`DirectionMaskOld` e `IdsDirection` (Banks0123.asm:8702-8782) e `DisableControls`.
+`PlayerController.step_control` aplica `ChkControlPlayer` (8825-8917): direção nova vence a mantida,
+duas mantidas conservam a direção, soltar a nova volta à antiga, parada imediata. Velocidade 200h em
+8.8 inteiro por tick (`MovePlayerX/Y`, 9549-9573), sem `delta`. O sandbox grava os controles no início
+de cada `game_tick` e chama `GetPlayerDir` só na caminhada fora do soco.
+**Testes:** `player_controls_test.gd` (novo, registrado); movimento, combate, transição e relógio
+sem regressão. `validate.py`: exit 0, 40 etapas, 165 testes Python.
+**Pendências:** wrap de 16 bits; `DisableControls` em
+elevador/paraquedas/escada; 100h em água sem evidência (feature de água). **Git:** commit desta entrega na branch feature/core-002-player-movement, tag `v0.2.5`.

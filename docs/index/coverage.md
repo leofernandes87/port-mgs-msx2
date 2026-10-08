@@ -5314,29 +5314,29 @@ Nenhuma entrada.
 
 **Original:** Loop de movimentação cardinal em NormalCtrl (Banks0123.asm:8467-8512) e ChkControlPlayer (8825-8926); velocidade fixa de 2.0 pixels por tick (PlayerMovSpeed = 0x0200 em 8.8, 8415-8416); integração em MovePlayerX/MovePlayerY (9549-9573) adicionando velocidade com sinal ao subpixel de 16-bits (PlayerXdec/PlayerYdec); parada imediata sem inércia quando nenhum direcional está ativo (StopPlayerFlag, 8834-8837); sistema de prioridade de direções em GetPlayerDir (8702-8760), onde novo input (ControlsTrigger) tem precedência sobre direções mantidas (ControlsHold), com memória em DirectionMask e DirectionMaskOld.
 
-**Classificação:** Há movimentação nas 4 direções e avanço de 2.0 px por passo no sandbox, mas o runtime opera com floats e multiplicação por delta (120 * delta), sem a aritmética discreta de 16 bits (8.8) e sem o sistema de precedência direcional com memória de teclas do Z80.
+**Classificação:** Precedência direcional, velocidade 8.8, parada imediata e bloqueio com míssil ativo fiéis ao asm; restam wrap de 16 bits e as chamadas de DisableControls de outros modos.
 
-**Assembly:** Variables.asm:105 PlayerMovSpeed; Banks0123.asm:8415-8416; Banks0123.asm:8467-8512 NormalCtrl; Banks0123.asm:8702-8760 GetPlayerDir; Banks0123.asm:8791-8807 ControlPlayerV; Banks0123.asm:8808-8817 ControlPlayerH; Banks0123.asm:8825-8914 ChkControlPlayer; Banks0123.asm:8915-8926 UpdatePlayerSpd; Banks0123.asm:9549-9565 MovePlayerX; Banks0123.asm:9566-9573 MovePlayerY
+**Assembly:** Variables.asm:105 PlayerMovSpeed; Banks0123.asm:8415-8416; Banks0123.asm:8467-8512 NormalCtrl; Banks0123.asm:8702-8760 GetPlayerDir; Banks0123.asm:8791-8807 ControlPlayerV; Banks0123.asm:8808-8817 ControlPlayerH; Banks0123.asm:8825-8914 ChkControlPlayer; Banks0123.asm:8915-8926 UpdatePlayerSpd; Banks0123.asm:9549-9565 MovePlayerX; Banks0123.asm:9566-9573 MovePlayerY; logic/controls.asm:23-30 StoreControls; Banks0123.asm:8767-8782 IdsDirection; logic/nextroom.asm:380-384 DisableControls
 
 **Extractors:** tools/extractors/extract.py
 
 **Dados canônicos locais:** Nenhum localizado neste recorte.
 
-**Godot relacionado:** godot/scripts/systems/player.gd
+**Godot relacionado:** godot/scripts/systems/player.gd; godot/scripts/systems/player_controls.gd
 
-**Integração inspecionada:** godot/scripts/systems/player.gd::step_tick
+**Integração inspecionada:** godot/scripts/systems/player.gd::step_control; godot/scripts/systems/player.gd::step_tick; godot/scripts/scenes/sandbox_gameplay.gd::game_tick
 
-**Testes existentes:** godot-player-movement
+**Testes existentes:** godot-player-movement; godot-player-controls
 
 **Documentação:** docs/reverse_engineering/movement-and-collision.md; docs/reverse_engineering/stage-5-movement-and-collision.md
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4; docs/progress.md::2026-10-08 — CORE-002: movimento cardinal fiel (GetPlayerDir e 8.8)
 
-**Implementado:** Movimentação cardinal (UP, DOWN, LEFT, RIGHT), velocidade base SPEED_NORMAL_PX_PER_SEC = 120.0 (2.0 px/frame a 60 Hz), parada sem inércia com input zero e atualização da posição Vector2.
+**Implementado:** PlayerControls (godot/scripts/systems/player_controls.gd) porta StoreControls (trigger = bits recém-pressionados, uma vez por iteração), GetPlayerDir com DirectionMask/DirectionMaskOld e IdsDirection, e DisableControls.; PlayerController.step_control aplica ChkControlPlayer: move enquanto qualquer direção estiver mantida, PlayerDirectionNew = 0 conserva a direção, parada imediata sem direção mantida.; Velocidade PlayerMovSpeed 200h em 8.8 inteiro somada por tick em um só eixo (MovePlayerX/MovePlayerY), sem delta; frações de 1/256 preservadas na posição.; Sandbox: UpdateControls no início de cada game_tick; GetPlayerDir só no caminho de caminhada e fora do soco.; NormalCtrl ignora controles com míssil teleguiado ativo (PlayerShotsList = ID do 1º tiro = MISSILE 7; Banks0123.asm:8468-8470, constants/Enums.asm:10, constants/structures.asm:3661-3662): o sandbox transfere a direção ao míssil e não move Snake.
 
-**Faltante / não comprovado:** Aritmética inteira canônica 8.8 com PlayerXdec/PlayerYdec em 16-bits; sistema de precedência direcional com DirectionMask e DirectionMaskOld (Godot usa cascata if/elif fixa em step_tick:320-327 que prioriza vertical sobre horizontal).
+**Faltante / não comprovado:** Overflow de 16 bits de PlayerXdec/PlayerYdec não modelado (posição em Vector2 com fração 1/256).; Chamadas de DisableControls ao entrar/sair de elevador, paraquedas e escadas (logic/nextroom.asm:374-384, 488-494, 581-591) não integradas; míssil e elevador ainda leem o hold em cascata vertical-primeiro.; Port usa 100h em água de superfície sem evidência: PlayerMovSpeed só recebe 200h/100h em Banks0123.asm:8415-8416, 8435-8436, 9360, 9400-9401 (fica para player-water-movement).
 
-**Notas de evidência:** step_tick acumula posição em float via Vector2 next_pos = position + speed_vector * delta. O teste godot-player-movement valida passos de 2.0 px com delta = 1/60 fixo, mas não valida a resolução de conflito de teclas opostas ou diagonais simultâneas do MSX2.
+**Notas de evidência:** GetPlayerDir: trigger tem prioridade fixa cima, baixo, esquerda, direita; com duas direções mantidas IdsDirection dá 0 e a direção é conservada; soltar a nova volta à DirectionMaskOld. Testado em godot-player-controls (unidade e sandbox).; Collision (ChkPlayerColl) continua testando posição + velocidade antes de MovePlayerX/Y; regressão coberta por godot-player-movement.
 
 
 <a id="player-facing-animation"></a>
@@ -5802,19 +5802,19 @@ Nenhuma entrada.
 
 **Dados canônicos locais:** Nenhum localizado neste recorte.
 
-**Godot relacionado:** godot/scripts/systems/player.gd
+**Godot relacionado:** godot/scripts/systems/player.gd; godot/scripts/systems/player_controls.gd
 
 **Integração inspecionada:** godot/scripts/systems/player.gd::step_tick; godot/scripts/scenes/sandbox_gameplay.gd::game_tick
 
-**Testes existentes:** godot-player-movement; godot-combat-health; godot-game-clock
+**Testes existentes:** godot-player-movement; godot-combat-health; godot-game-clock; godot-player-controls
 
 **Documentação:** docs/reverse_engineering/movement-and-collision.md
 
-**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4; docs/progress.md::2026-10-06 — CORE-001: relógio de jogo determinístico e cadência medida
+**Histórico consultado:** docs/progress/2026-09.md::2026-09-20 — Etapa 5: Movimento Fiel e Colisão com Gameplay Sandbox no Godot 4; docs/progress.md::2026-10-06 — CORE-001: relógio de jogo determinístico e cadência medida; docs/progress.md::2026-10-08 — CORE-002: movimento cardinal fiel (GetPlayerDir e 8.8)
 
-**Implementado:** Flag can_control impedindo movimento e ações quando falsa; congelamento em soco (is_punching), morte (is_dead), rádio, diálogo e menus.; PlayerControlLogic equivalente (player.step_tick e congelamentos) roda uma vez por iteração do GameClock, com TICK_DELTA fixo, na cadência de jogo.
+**Implementado:** Flag can_control impedindo movimento e ações quando falsa; congelamento em soco (is_punching), morte (is_dead), rádio, diálogo e menus.; PlayerControlLogic equivalente (player.step_tick e congelamentos) roda uma vez por iteração do GameClock, com TICK_DELTA fixo, na cadência de jogo.; UpdateControls/StoreControls roda em toda iteração antes do despacho; GetPlayerDir só no modo de caminhada (não durante o soco), como NormalCtrl versus PunchLogic; DisableControls disponível em PlayerControls.
 
-**Faltante / não comprovado:** Máquina de estados canônica PlayerControlMod com enum de 9 modos e despacho por índice; congelamento automático de controle durante a explosão do Metal Gear.
+**Faltante / não comprovado:** Máquina de estados canônica PlayerControlMod com enum de 9 modos e despacho por índice; congelamento automático de controle durante a explosão do Metal Gear.; Chamadas de DisableControls nas transições de elevador, paraquedas e escadas.
 
 **Notas de evidência:** A arquitetura atual no Godot utiliza variáveis booleanas dispersas em vez da máquina de estados discreta indexada por byte da ROM.
 
