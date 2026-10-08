@@ -26,6 +26,38 @@ PlayerControlMod tem nove entradas em PlayerControlLogic (:8447): normal, soco, 
 
 NormalCtrl encadeia direção → água → vento → soco → velocidade → colisão → animação → saída. `chkPunch` usa trigger do segundo botão, rejeita água/caixa, configura contador 8 e modo de soco. Colisão do soco possui offset próprio. Água depende de salas e IDs de tiles, não só da máscara sólida. Elevadores e escadas têm limites e controles próprios.
 
+## Direção e combinações de teclas (CORE-002)
+
+**E:** `StoreControls` (logic/controls.asm:23-30) grava `ControlsHold` e `ControlsTrigger` =
+bits recém-pressionados, uma vez por iteração em qualquer GameMode. `GetPlayerDir`
+(Banks0123.asm:8702-8759) resolve `PlayerDirectionNew` assim:
+
+1. Há direção nova no trigger: `DirectionMaskOld` ← `DirectionMask`; `DirectionMask` ← a primeira
+   nova na ordem fixa cima, baixo, esquerda, direita.
+2. Sem trigger, se o hold ainda contém `DirectionMask`: índice = hold inteiro. Com duas ou mais
+   direções mantidas, `IdsDirection` dá 0 e a direção atual é conservada.
+3. Senão, se o hold contém `DirectionMaskOld`: volta à antiga, que vira `DirectionMask`, e zera
+   `DirectionMaskOld`.
+4. Senão: índice = hold inteiro, sem atualizar máscaras.
+
+`ChkControlPlayer` (8825-8848) move enquanto qualquer direção estiver mantida (mesmo com
+`PlayerDirectionNew` = 0) e zera as duas velocidades na hora quando nenhuma está (`SetStopPlayer`).
+`DisableControls` (logic/nextroom.asm:380-384) zera as máscaras ao entrar/sair de elevador,
+paraquedas e escadas; a entrada normal por porta (`SetPlayerInDoor2`) não as zera.
+`PlayerMovSpeed` só é gravado com 200h (8415-8416, 9400-9401) e 100h (intro, 8435-8436; escada,
+9360): nenhum ramo de água altera esse valor.
+
+**Port:** `PlayerControls` (`godot/scripts/systems/player_controls.gd`) porta StoreControls,
+GetPlayerDir e DisableControls; `PlayerController.step_control` aplica ChkControlPlayer e soma a
+velocidade em 8.8 inteiro por tick (`MovePlayerX/Y`), sem `delta`. Míssil e elevador ainda leem o
+hold em cascata vertical-primeiro.
+
 ## Pendências
 
-P: frequência efetiva de atualização, relação com 50/60 Hz, todas as alterações de PlayerMovSpeed, overflow exato em bordas, comportamento de combinações simultâneas, temporização real de animação, equivalência binária de cada rotina nas ROMs. Não converter 0x0200 diretamente em uma constante por segundo antes de medir. Nenhum CharacterBody2D ou sistema de movimento foi implementado nesta etapa.
+`NormalCtrl` (8468-8470) ignora os controles quando `PlayerShotsList` = 7: é o ID do primeiro tiro
+(constants/structures.asm:3661-3662) e 7 = `MISSILE` (constants/Enums.asm:10), ou seja, míssil
+teleguiado ativo; o sandbox já transfere a direção ao míssil.
+
+P: overflow de 16 bits nas bordas (o port não faz wrap), chamadas de `DisableControls` em elevador/paraquedas/escada,
+velocidade 100h em água de superfície no port sem evidência no asm (feature de água), temporização
+real de animação, equivalência binária de cada rotina nas ROMs.

@@ -14,6 +14,7 @@ GODOT_TESTS = [
     ("godot-game-clock", "game_clock_test.gd", "GAME_CLOCK_OK:", "Teste do relógio de jogo"),
     ("godot-room-snapshot", "room_snapshot_test.gd", "ROOM_SNAPSHOT_OK:", "Teste de snapshot"),
     ("godot-player-movement", "player_movement_test.gd", "PLAYER_MOVEMENT_OK:", "Teste de movimento do jogador"),
+    ("godot-player-controls", "player_controls_test.gd", "PLAYER_CONTROLS_OK:", "Teste de controles e direção do jogador"),
     ("godot-room-transition", "room_transition_test.gd", "ROOM_TRANSITION_OK:", "Teste de transição de salas"),
     ("godot-enemy-patrol", "enemy_patrol_test.gd", "ENEMY_PATROL_OK:", "Teste de patrulha e visão de inimigos"),
     ("godot-combat-health", "combat_and_health_test.gd", "COMBAT_AND_HEALTH_OK:", "Teste de combate e vida"),

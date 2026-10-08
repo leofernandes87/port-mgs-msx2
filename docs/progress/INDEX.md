@@ -107,8 +107,9 @@ Gerado por `tools/context/progress_archive.py`; não editar. Leia uma entrada: `
 | docs/progress/2026-10.md:524 | 2026-10-04 — Sistema de rádio: tabela canônica, chamadas e AUTO-REPLY/WAIT-CALL |
 | docs/progress/2026-10.md:543 | 2026-10-05 — Inventário progressivo: eventos de campanha e progressão global |
 | docs/progress/2026-10.md:557 | 2026-10-05 — Inventário progressivo: núcleo do jogador, física e estados de controle |
-| docs/progress.md:6 | 2026-10-05 — Inventário progressivo: hazards ambientais e lógica especial de salas |
-| docs/progress.md:16 | 2026-10-05 — Inventário progressivo: topologia de salas, conexões espaciais e navegação |
-| docs/progress.md:26 | 2026-10-05 — Normalização de consistência e ownership do catálogo canônico |
-| docs/progress.md:33 | 2026-10-06 — Plano mestre de implementação e resolução de milestones |
-| docs/progress.md:40 | 2026-10-06 — CORE-001: relógio de jogo determinístico e cadência medida |
+| docs/progress/2026-10.md:567 | 2026-10-05 — Inventário progressivo: hazards ambientais e lógica especial de salas |
+| docs/progress.md:6 | 2026-10-05 — Inventário progressivo: topologia de salas, conexões espaciais e navegação |
+| docs/progress.md:16 | 2026-10-05 — Normalização de consistência e ownership do catálogo canônico |
+| docs/progress.md:23 | 2026-10-06 — Plano mestre de implementação e resolução de milestones |
+| docs/progress.md:30 | 2026-10-06 — CORE-001: relógio de jogo determinístico e cadência medida |
+| docs/progress.md:46 | 2026-10-08 — CORE-002: movimento cardinal fiel (GetPlayerDir e 8.8) |

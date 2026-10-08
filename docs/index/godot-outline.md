@@ -4,83 +4,83 @@ Gerado por `tools/context/build_index.py` para .gd com 300+ linhas; não editar.
 Leia por faixa (`Read offset/limit` ou `python3 -m tools.context.lookup gd ARQUIVO FUNC`),
 nunca o arquivo inteiro. Formato: `- início-fim assinatura`; `nome@linha` em sinais/constantes.
 
-## godot/scripts/scenes/sandbox_gameplay.gd (3171 linhas)
+## godot/scripts/scenes/sandbox_gameplay.gd (3179 linhas)
 class_name SandboxGameplay · extends Control
-const/enum: ROOMS_SHOT_SECURE@89, ELEVATOR_STATE_IDLE@103, ELEVATOR_STATE_MOVING@104, INITIAL_ROOM_ID@132, DEFAULT_SPAWN_X@133, DEFAULT_SPAWN_Y@134
-var: intro_cutscene@16, play_intro_cutscene@17, snapshot@19, player@20, room_manager@21, enemies@22, inventory@23, weapon_system@24, radio_system@25, game_clock@26, radio_dialog@27, cameras@28, laser_system@29, bullets@30, hud@31, silencer_dropped_room_150@32, item_boxes@33, room_doors@34, runtime_collision@35, room_texture@36, use_remastered_maps@42, show_collision@44, show_enemy_vision@45, infinite_life@46, god_mode_btn@47, zoom@48, canvas_origin@49, alert_system@50, rank_system@51, prisoners@52, dialog_banner_label@53, prisoner_dialog@54, _world_process_before_dialog@55, is_game_over@56, game_over_banner@57, shot_gunner@60, shot_gunner_bullets@61, boss_dialog_label@62, defeated_bosses@63, gas_hazard_system@66, gas_clouds@67, rolling_barrels@70, active_missile@73, active_plastic_bomb@76, broken_basement_walls@77, capture_system@80, capture_cutscene@81, tilemap_layer@82, electrified_floor_system@85, power_panel@86, is_player_shocked_flash@87, previous_room_id@96, room_entry_direction@97, is_in_elevator@98, elevator_cabin@99, elevator_y@100, elevator_target_y@101, elevator_state@102, elevator_spawner_timer_sec@105, elevator_spawner_timer@106, elevator_guard2_delay_sec@112, elevator_guard2_delay@113, status_label@119, call_badge@120, weapon_menu@122, item_menu@123, pause_menu@124, binocular_system@127, binocular_overlay@128, home_enemies_backup@129, guard1_exited_lorry@136, guard2_exited_lorry@137, guard3_exited_lorry@138, viewport_area@417, game_world@418, room_display@419
-- 140-324 func _ready() -> void
-- 326-332 func _on_weapon_menu_selected(w_name: String) -> void
-- 334-342 func _on_item_menu_selected(i_name: String) -> void
-- 344-357 func _toggle_pause_menu() -> void
-- 359-380 func _give_debug_arsenal() -> void
-- 382-386 func _on_radio_closed() -> void
-- 388-394 func _on_intro_radio_requested(pages: Array[String]) -> void
-- 396-403 func _on_intro_finished() -> void
-- 404-406 func _radio_enter_room(room_id: int) -> void
-- 408-419 func _sync_radio_conditions() -> void
-- 421-423 func _post_ready_layout() -> void
-- 425-427 func _on_viewport_resized() -> void
-- 429-437 func _update_world_transform(area_size: Vector2) -> void
-- 439-459 func _draw_room_and_collision() -> void
-- 461-494 func _load_initial_room() -> void
-- 496-524 func _apply_snapshot() -> void
-- 526-756 func _spawn_room_enemies(room_id: int) -> void
-- 757-810 func _should_hide_guard(room_id: int, act_y: int, act_x: int) -> bool
-- 812-960 func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> void
-- 962-964 func _on_chow_time_called() -> void
-- 966-970 func _on_guard_sleepy_dialog(text: String) -> void
-- 971-999 func _process_elevator_spawner(delta: float = 1.0 / 60.0) -> void
-- 1001-1021 func _spawn_relieve_guard(target_x: float, is_speaker: bool) -> void
-- 1023-1047 func open_binoculars() -> bool
-- 1049-1068 func close_binoculars() -> void
-- 1070-1074 func toggle_binoculars() -> void
-- 1076-1086 func _binocular_look(dir: PlayerController.Direction) -> bool
-- 1088-1110 func _show_binocular_preview(room_id: int) -> void
-- 1112-1140 func _restore_binocular_home() -> void
-- 1142-1180 func _process_binoculars(delta: float = 1.0 / 60.0) -> void
-- 1182-1215 func _backup_home_enemies() -> void
-- 1217-1265 func _restore_home_enemies() -> void
-- 1267-1361 func _spawn_room_items(room_id: int) -> void
-- 1364-1505 func _spawn_room_doors(room_id: int) -> void
-- 1507-1549 func _spawn_room_prisoners(room_id: int) -> void
-- 1551-1577 func _on_prisoner_rescued(prisoner: Prisoner) -> void
-- 1579-1629 func _spawn_room_power_panel(room_id: int) -> void
-- 1631-1639 func show_dialog_message(speaker: String, text: String, duration_seconds: float = 6.0) -> void
-- 1641-1674 func _create_synthetic_fallback_room() -> void
-- 1676-1686 func _is_position_safe(pos: Vector2) -> bool
-- 1688-1718 func _get_safe_spawn_position() -> Vector2
-- 1720-1752 func reset_player() -> void
-- 1753-1856 func reset_game_state() -> void
-- 1858-1859 func _on_player_died() -> void
-- 1861-1878 func trigger_game_over(instant: bool = false) -> void
-- 1880-1903 func _execute_game_restart() -> void
-- 1905-2200 func _input(event: InputEvent) -> void
-- 2201-2205 func _physics_process(_delta: float) -> void
-- 2207-2218 func _iteration_cadence() -> int
-- 2219-2728 func game_tick() -> void
-- 2731-2774 func _check_and_handle_room_transition() -> void
-- 2776-2788 func _clamp_to_room_bounds(exit_dir: int) -> void
-- 2790-2912 func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, from_door_id: int = -1) -> bool
-- 2913-2948 func _transition_elevator_room(next_room_id: int, move_dir_y: int) -> void
-- 2950-2953 func _on_camera_detected(_cam: SecurityCamera) -> void
-- 2955-2958 func _on_laser_triggered(_laser_id: int = 0) -> void
-- 2960-2963 func _trigger_alarm() -> void
-- 2965-2971 func _on_alert_state_changed(_old_state: AlertSystem.AlertState, new_state: AlertSystem.AlertState) -> void
-- 2973-2990 func _on_reinforcement_requested(enemy_id: int, spawn_pos: Vector2) -> void
-- 2992-2996 func _on_boss_intro_dialog(text: String) -> void
-- 2998-3015 func _on_boss_shot_fired(origin: Vector2, target: Vector2) -> void
-- 3017-3022 func _on_boss_bullet_hit_player(damage: int) -> void
-- 3024-3050 func _on_boss_defeated() -> void
-- 3051-3062 func _check_boss_bullet_collision(b: Bullet) -> bool
-- 3064-3070 func _on_missile_exploded(pos: Vector2) -> void
-- 3072-3108 func _on_plastic_bomb_exploded(bomb_pos: Vector2, radius: float, damage: int) -> void
-- 3110-3116 func _on_plastic_bomb_finished(bomb_node: Node2D) -> void
-- 3118-3129 func _trigger_capture_event() -> void
-- 3131-3136 func _on_capture_teleport_requested() -> void
-- 3138-3141 func _on_capture_cutscene_finished() -> void
-- 3143-3150 func _update_prison_wall(delta: float) -> void
-- 3152-3164 func break_prison_wall(door_id: int = 103) -> void
-- 3166-3171 func _on_equipment_restored() -> void
+const/enum: ROOMS_SHOT_SECURE@91, ELEVATOR_STATE_IDLE@105, ELEVATOR_STATE_MOVING@106, INITIAL_ROOM_ID@134, DEFAULT_SPAWN_X@135, DEFAULT_SPAWN_Y@136
+var: intro_cutscene@16, play_intro_cutscene@17, snapshot@19, player@20, room_manager@21, enemies@22, inventory@23, weapon_system@24, radio_system@25, game_clock@26, player_controls@27, controls_override@28, radio_dialog@29, cameras@30, laser_system@31, bullets@32, hud@33, silencer_dropped_room_150@34, item_boxes@35, room_doors@36, runtime_collision@37, room_texture@38, use_remastered_maps@44, show_collision@46, show_enemy_vision@47, infinite_life@48, god_mode_btn@49, zoom@50, canvas_origin@51, alert_system@52, rank_system@53, prisoners@54, dialog_banner_label@55, prisoner_dialog@56, _world_process_before_dialog@57, is_game_over@58, game_over_banner@59, shot_gunner@62, shot_gunner_bullets@63, boss_dialog_label@64, defeated_bosses@65, gas_hazard_system@68, gas_clouds@69, rolling_barrels@72, active_missile@75, active_plastic_bomb@78, broken_basement_walls@79, capture_system@82, capture_cutscene@83, tilemap_layer@84, electrified_floor_system@87, power_panel@88, is_player_shocked_flash@89, previous_room_id@98, room_entry_direction@99, is_in_elevator@100, elevator_cabin@101, elevator_y@102, elevator_target_y@103, elevator_state@104, elevator_spawner_timer_sec@107, elevator_spawner_timer@108, elevator_guard2_delay_sec@114, elevator_guard2_delay@115, status_label@121, call_badge@122, weapon_menu@124, item_menu@125, pause_menu@126, binocular_system@129, binocular_overlay@130, home_enemies_backup@131, guard1_exited_lorry@138, guard2_exited_lorry@139, guard3_exited_lorry@140, viewport_area@419, game_world@420, room_display@421
+- 142-326 func _ready() -> void
+- 328-334 func _on_weapon_menu_selected(w_name: String) -> void
+- 336-344 func _on_item_menu_selected(i_name: String) -> void
+- 346-359 func _toggle_pause_menu() -> void
+- 361-382 func _give_debug_arsenal() -> void
+- 384-388 func _on_radio_closed() -> void
+- 390-396 func _on_intro_radio_requested(pages: Array[String]) -> void
+- 398-405 func _on_intro_finished() -> void
+- 406-408 func _radio_enter_room(room_id: int) -> void
+- 410-421 func _sync_radio_conditions() -> void
+- 423-425 func _post_ready_layout() -> void
+- 427-429 func _on_viewport_resized() -> void
+- 431-439 func _update_world_transform(area_size: Vector2) -> void
+- 441-461 func _draw_room_and_collision() -> void
+- 463-496 func _load_initial_room() -> void
+- 498-526 func _apply_snapshot() -> void
+- 528-758 func _spawn_room_enemies(room_id: int) -> void
+- 759-812 func _should_hide_guard(room_id: int, act_y: int, act_x: int) -> bool
+- 814-962 func _spawn_room_enemies_fallback(room_id: int, enemy_scene: PackedScene) -> void
+- 964-966 func _on_chow_time_called() -> void
+- 968-972 func _on_guard_sleepy_dialog(text: String) -> void
+- 973-1001 func _process_elevator_spawner(delta: float = 1.0 / 60.0) -> void
+- 1003-1023 func _spawn_relieve_guard(target_x: float, is_speaker: bool) -> void
+- 1025-1049 func open_binoculars() -> bool
+- 1051-1070 func close_binoculars() -> void
+- 1072-1076 func toggle_binoculars() -> void
+- 1078-1088 func _binocular_look(dir: PlayerController.Direction) -> bool
+- 1090-1112 func _show_binocular_preview(room_id: int) -> void
+- 1114-1142 func _restore_binocular_home() -> void
+- 1144-1182 func _process_binoculars(delta: float = 1.0 / 60.0) -> void
+- 1184-1217 func _backup_home_enemies() -> void
+- 1219-1267 func _restore_home_enemies() -> void
+- 1269-1363 func _spawn_room_items(room_id: int) -> void
+- 1366-1507 func _spawn_room_doors(room_id: int) -> void
+- 1509-1551 func _spawn_room_prisoners(room_id: int) -> void
+- 1553-1579 func _on_prisoner_rescued(prisoner: Prisoner) -> void
+- 1581-1631 func _spawn_room_power_panel(room_id: int) -> void
+- 1633-1641 func show_dialog_message(speaker: String, text: String, duration_seconds: float = 6.0) -> void
+- 1643-1676 func _create_synthetic_fallback_room() -> void
+- 1678-1688 func _is_position_safe(pos: Vector2) -> bool
+- 1690-1720 func _get_safe_spawn_position() -> Vector2
+- 1722-1754 func reset_player() -> void
+- 1755-1859 func reset_game_state() -> void
+- 1861-1862 func _on_player_died() -> void
+- 1864-1881 func trigger_game_over(instant: bool = false) -> void
+- 1883-1906 func _execute_game_restart() -> void
+- 1908-2203 func _input(event: InputEvent) -> void
+- 2204-2208 func _physics_process(_delta: float) -> void
+- 2210-2221 func _iteration_cadence() -> int
+- 2222-2736 func game_tick() -> void
+- 2739-2782 func _check_and_handle_room_transition() -> void
+- 2784-2796 func _clamp_to_room_bounds(exit_dir: int) -> void
+- 2798-2920 func change_to_room(new_room_id: int, entry_pos: Vector2, entry_dir: int = -1, from_door_id: int = -1) -> bool
+- 2921-2956 func _transition_elevator_room(next_room_id: int, move_dir_y: int) -> void
+- 2958-2961 func _on_camera_detected(_cam: SecurityCamera) -> void
+- 2963-2966 func _on_laser_triggered(_laser_id: int = 0) -> void
+- 2968-2971 func _trigger_alarm() -> void
+- 2973-2979 func _on_alert_state_changed(_old_state: AlertSystem.AlertState, new_state: AlertSystem.AlertState) -> void
+- 2981-2998 func _on_reinforcement_requested(enemy_id: int, spawn_pos: Vector2) -> void
+- 3000-3004 func _on_boss_intro_dialog(text: String) -> void
+- 3006-3023 func _on_boss_shot_fired(origin: Vector2, target: Vector2) -> void
+- 3025-3030 func _on_boss_bullet_hit_player(damage: int) -> void
+- 3032-3058 func _on_boss_defeated() -> void
+- 3059-3070 func _check_boss_bullet_collision(b: Bullet) -> bool
+- 3072-3078 func _on_missile_exploded(pos: Vector2) -> void
+- 3080-3116 func _on_plastic_bomb_exploded(bomb_pos: Vector2, radius: float, damage: int) -> void
+- 3118-3124 func _on_plastic_bomb_finished(bomb_node: Node2D) -> void
+- 3126-3137 func _trigger_capture_event() -> void
+- 3139-3144 func _on_capture_teleport_requested() -> void
+- 3146-3149 func _on_capture_cutscene_finished() -> void
+- 3151-3158 func _update_prison_wall(delta: float) -> void
+- 3160-3172 func break_prison_wall(door_id: int = 103) -> void
+- 3174-3179 func _on_equipment_restored() -> void
 
 ## godot/scripts/scenes/title_screen.gd (299 linhas)
 extends Control
@@ -206,10 +206,10 @@ var: tex_weapons@84, tex_items@85, tex_call@86, tex_msx_font@87, current_life@90
 - 323-328 func _draw_msx_string(text: String, pos: Vector2, color: Color = COLOR_WHITE) -> void
 - 330-344 func _draw_msx_char(ascii_code: int, pos: Vector2, color: Color = COLOR_WHITE) -> void
 
-## godot/scripts/systems/player.gd (823 linhas)
+## godot/scripts/systems/player.gd (849 linhas)
 class_name PlayerController · extends Node2D
 signals: player_died@46
-const/enum: Direction@20, SPEED_NORMAL_PX_PER_SEC@28, SPEED_SLOW_PX_PER_SEC@29, SPEED_NORMAL@30, ANIM_TICKS_PER_FRAME@31, ANIM_STEP_SEC@32, PUNCH_DURATION_SEC@34, INVULNERABLE_DURATION_SEC@35, SHOOT_FLASH_SEC@36, COLLIDER_OFFSETS@39, AnimMode@94
+const/enum: Direction@20, MOV_SPEED_NORMAL@28, MOV_SPEED_SLOW@29, SPEED_NORMAL@30, ANIM_TICKS_PER_FRAME@31, ANIM_STEP_SEC@32, PUNCH_DURATION_SEC@34, INVULNERABLE_DURATION_SEC@35, SHOOT_FLASH_SEC@36, COLLIDER_OFFSETS@39, AnimMode@94
 var: current_direction@48, is_moving@49, anim_timer_sec@50, anim_wait_cnt@51, frame_num@56, collision_grid@58, show_debug_colliders@59, life@62, max_life@63, invulnerable_timer_sec@65, invulnerable_timer@66, punch_timer_sec@72, punch_timer@73, is_punching@78, infinite_life@79, equipped_weapon@82, shoot_timer_sec@83, shoot_timer@84, is_in_box@91, anim_mode@105, climb_frame@106, water_frame@107, is_dead@110, can_control@111
 - 114-118 func set_rank_life(new_max_life: int, full_heal: bool = true) -> void
 - 120-132 func die() -> void
@@ -221,10 +221,12 @@ var: current_direction@48, is_moving@49, anim_timer_sec@50, anim_wait_cnt@51, fr
 - 227-229 func set_grid_position(px: float, py: float) -> void
 - 231-243 func punch() -> bool
 - 244-270 func fire_weapon(weapon_sys: WeaponSystem) -> Bullet
-- 272-285 func apply_damage(amount: int) -> bool
-- 287-363 func step_tick(input_dir: Vector2i, delta: float = 1.0 / 60.0) -> bool
-- 365-385 func is_colliding_at(target_pos: Vector2, dir: Direction) -> bool
-- 387-823 func _draw() -> void
+- 272-288 func apply_damage(amount: int) -> bool
+- 289-293 func step_control(controls_hold: int, direction_new: int, delta: float = 1.0 / 60.0) -> bool
+- 296-309 static func direction_vector(dir: int) -> Vector2i
+- 310-389 func step_tick(input_dir: Vector2i, delta: float = 1.0 / 60.0) -> bool
+- 391-411 func is_colliding_at(target_pos: Vector2, dir: Direction) -> bool
+- 413-849 func _draw() -> void
 
 ## godot/scripts/systems/radio_dialog.gd (548 linhas)
 class_name RadioDialog · extends Control

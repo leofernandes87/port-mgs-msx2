@@ -1,21 +1,20 @@
 # Estado atual
 
-Atualizado em 2026-10-06. Curto por regra (skill `delivery`); histórico em `docs/progress/`.
+Atualizado em 2026-10-08. Curto por regra (skill `delivery`); histórico em `docs/progress/`.
 Confirme sempre com `git log --oneline -3` e `git status --short`.
 
 ## Onde estamos
 
-- Última tag: `v0.2.4` (CORE-001: relógio de jogo determinístico), branch feature/core-001-game-clock.
-- Último commit: `feat(core)` (confira com `git log --oneline -1`).
-- Implementação recente: CORE-001, relógio determinístico `GameClock`. Interrupção de
-  60 Hz em `_physics_process`, iteração `game_tick()` a cada 2 interrupções em jogo e a cada 1 na janela
-  de texto (cadência medida no openMSX; a máquina europeia real é PAL 50 Hz, R#9 = 82h).
-- Anterior: núcleo do rádio fiel à ROM (`radio_system.gd`, tag `v0.2.3`).
+- Última tag: `v0.2.5` (CORE-002: movimento cardinal fiel), branch feature/core-002-player-movement.
+- Último commit: `feat(player)` (confira com `git log --oneline -1`).
+- Implementação recente: CORE-002, movimento cardinal fiel. `PlayerControls` porta
+  StoreControls/GetPlayerDir/DisableControls; `step_control` move 200h em 8.8 por tick com parada imediata.
+- Anterior: CORE-001, relógio `GameClock` (60 Hz, jogo a cada 2 interrupções; máquina europeia é 50 Hz).
 - ROM canônica `en-eu-rc750` por SHA-256 (`tools/rom.py`); o Godot só aceita dados de
   `data/extracted/en-eu-rc750/` com essa proveniência.
 - Sandbox jogável a partir da sala 121; catálogo progressivo e cadeias em
   `python3 -m tools.context.lookup mech` (`docs/index/mechanics.json`).
-- Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 39 etapas PASS,
+- Validação atual: `python3 tools/validate.py` fora do sandbox, exit 0; 40 etapas PASS,
   165 testes Python; importação/boot Godot 4.7.2 e suítes existentes aprovados.
 - `godot/project.godot` versionado sem `[physics]` nem `resizable` (60 Hz definido por `GameClock`).
 
@@ -29,7 +28,7 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 - `hazards-special-rooms`: 14 features (IMPLEMENTED 0, PARTIAL 4, PROVISIONAL 1, NOT_STARTED 9).
 - `world-rooms-navigation`: 10 features (IMPLEMENTED 0, PARTIAL 6, PROVISIONAL 0, NOT_STARTED 4).
 - Catálogo: 201 features normalizadas, ownership consolidado e 0 erros de integridade.
-- Próxima tarefa sugerida, só após pedido: próxima issue do Milestone 1 de docs/IMPLEMENTATION_PLAN.md.
+- Próxima tarefa sugerida, só após pedido: CORE-003 (facing e animação) de docs/IMPLEMENTATION_PLAN.md.
 
 ## Decisões pendentes do usuário
 
@@ -45,6 +44,8 @@ Confirme sempre com `git log --oneline -3` e `git status --short`.
 - Grey Fox: SFX e captura dinâmica do diálogo.
 - Tick: `RadioDialog`/typewriter ainda em tempo real; cadência de rádio/menus/binóculos/captura não
   medida; `game_tick` não segue rotina a rotina `PlayModeLogic` (`game-loop`).
+- Movimento: wrap de 16 bits; `DisableControls` em elevador/paraquedas/escada;
+  velocidade 100h em água sem evidência no asm (`player-movement`).
 - Fora do escopo até pedido: modo 50 Hz opcional; bloco de RAM 0xF29C–0xF2D9.
 
 ## Onde procurar
