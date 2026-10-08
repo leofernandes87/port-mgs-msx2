@@ -97,12 +97,7 @@ var card_number: int = 0
 var has_incoming_call: bool = false
 
 # Controle de Piscar do Sinal CALL (logic/hud.asm:40 - bit 3 do tick counter = 8 frames on / 8 frames off)
-var call_timer_sec: float = 0.0
-var call_tick_counter: int:
-	get:
-		return int(roundf(call_timer_sec * 60.0))
-	set(v):
-		call_timer_sec = float(v) / 60.0
+var call_tick_counter: int = 0  # TickCounter, copied from GameClock each game iteration
 var call_sign_visible: bool = false
 
 # Referências fracas aos sistemas
@@ -158,8 +153,7 @@ func _on_rank_changed(new_rank: int) -> void:
 		max_life = _rank_system.get_max_life()
 	queue_redraw()
 
-func _process(delta: float) -> void:
-	call_timer_sec += delta
+func _process(_delta: float) -> void:
 	# Alternância canônica Z80: bit 3 de TickCounter (período de 16 ticks: 8 on, 8 off)
 	var prev_blink := call_sign_visible
 	call_sign_visible = ((call_tick_counter >> 3) & 1) == 0

@@ -8,10 +8,12 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - arquivo: .agents/skills/delivery/SKILL.md, .agents/skills/implement-faithful-mechanic/SKILL.md, .agents/skills/inspect-msx-disassembly/SKILL.md, AGENTS.md, docs/index/README.md, docs/index/mechanics.json, docs/reverse_engineering/architecture.md, docs/reverse_engineering/enemies.md, docs/reverse_engineering/inventory-and-events.md, docs/reverse_engineering/memory-and-banks.md, docs/reverse_engineering/movement-and-collision.md, docs/reverse_engineering/stage-12b-actors-and-items-evidence.md, docs/reverse_engineering/stage-19-gas-hazard.md, docs/reverse_engineering/stage-3-results.md, docs/reverse_engineering/stage-5-movement-and-collision.md, godot/scripts/systems/elevator_system.gd, godot/scripts/systems/room_manager.gd, tests/test_region_tools.py, tools/extractors/extract.py, tools/extractors/extract_hud_assets.py, tools/extractors/extract_radio_dialogue.py, tools/extractors/extract_rolling_barrel.py, tools/extractors/extract_transceiver_sprites.py, tools/extractors/reference.py
 - 7: docs/reference.md
 - 8: docs/reverse_engineering/architecture.md
-- 440: docs/index/mechanics.json, docs/reverse_engineering/architecture.md
-- 440-466: docs/reverse_engineering/intro-fence-timing.md, godot/scripts/systems/intro_cutscene.gd
+- 440: docs/reverse_engineering/architecture.md
+- 440-466: docs/reverse_engineering/intro-fence-timing.md
+- 440-471: docs/index/mechanics.json, docs/reverse_engineering/architecture.md, godot/scripts/systems/game_clock.gd, godot/scripts/systems/intro_cutscene.gd, godot/tests/game_clock_test.gd
 - 552: docs/reverse_engineering/architecture.md
 - 554: docs/reverse_engineering/en-eu-reextraction.md, tools/reverse_engineering/compare_regions.py
+- 599-601: docs/index/mechanics.json
 - 621: docs/reverse_engineering/memory-and-banks.md
 - 889: docs/reverse_engineering/stage-6-room-transitions.md, godot/scripts/systems/room_manager.gd
 - 889-918: docs/index/mechanics.json, docs/index/rooms.md
@@ -113,6 +115,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 6470-6471: docs/index/mechanics.json
 - 6550-6720: godot/scripts/systems/alert_system.gd
 - 6559-6628: docs/index/mechanics.json, docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md, godot/scripts/systems/alert_system.gd
+- 6572: docs/reverse_engineering/architecture.md
 - 6576: godot/scripts/systems/alert_system.gd
 - 6635-6640: docs/index/mechanics.json
 - 6635-6713: docs/reverse_engineering/stage-17-alert-evasion-reinforcements.md
@@ -280,6 +283,8 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 9913-9928: docs/index/mechanics.json
 - 9946-9949: docs/index/mechanics.json
 - 10058: docs/reverse_engineering/architecture.md
+- 10058-10060: docs/reverse_engineering/architecture.md, godot/scripts/systems/game_clock.gd, godot/tests/game_clock_test.gd
+- 10058-10081: docs/index/mechanics.json, godot/scripts/scenes/sandbox_gameplay.gd
 - 10410-10430: docs/index/mechanics.json
 - 10410-10500: docs/index/mechanics.json
 - 10435-10455: docs/index/mechanics.json
@@ -330,9 +335,11 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 11914-11916: docs/reverse_engineering/intro-water-colors.md, tools/extractors/extract_snake_sprites.py
 - 11998: docs/index/mechanics.json
 - 12015: docs/reverse_engineering/architecture.md
+- 12015-12089: docs/index/mechanics.json
 - 12072-12087: docs/reverse_engineering/grey-fox-dialogue.md
-- 12151: .agents/skills/implement-faithful-mechanic/SKILL.md, docs/index/mechanics.json, docs/reverse_engineering/architecture.md
+- 12151: .agents/skills/implement-faithful-mechanic/SKILL.md, docs/reverse_engineering/architecture.md
 - 12151-12153: docs/index/mechanics.json
+- 12151-12208: docs/index/mechanics.json, docs/reverse_engineering/architecture.md
 - 12151-12209: docs/index/mechanics.json
 - 12154-12160: docs/index/mechanics.json
 - 12161-12167: godot/scripts/scenes/sandbox_gameplay.gd
@@ -765,7 +772,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 114-134: docs/index/mechanics.json
 
 ## logic/actors/dog.asm
-- arquivo: godot/scripts/systems/enemy.gd
+- arquivo: docs/reverse_engineering/architecture.md, godot/scripts/systems/enemy.gd
 - 7-22: godot/tests/dog_patrol_test.gd
 - 11-17: godot/scripts/systems/enemy.gd
 - 29-36: godot/scripts/systems/enemy.gd
@@ -945,6 +952,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 115-132: godot/scripts/systems/rolling_barrel.gd
 
 ## logic/actors/scorpion.asm
+- arquivo: docs/reverse_engineering/architecture.md
 - 26-74: docs/index/mechanics.json
 
 ## logic/actors/sentinel.asm
@@ -998,6 +1006,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 235-243: docs/index/mechanics.json
 
 ## logic/actors/tankshell.asm
+- arquivo: docs/reverse_engineering/architecture.md
 - 9-26: docs/index/mechanics.json
 
 ## logic/actors/tankshot.asm
@@ -1073,7 +1082,8 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 
 ## logic/common.asm
 - arquivo: godot/tests/capture_prison_test.gd, tools/extractors/extract_capture_prison_data.py
-- 8: docs/index/mechanics.json, docs/reverse_engineering/architecture.md
+- 8: docs/reverse_engineering/architecture.md
+- 8-47: docs/index/mechanics.json, docs/reverse_engineering/architecture.md
 - 15: docs/index/mechanics.json
 - 21: docs/reverse_engineering/prison-wall.md
 - 26-47: godot/scripts/scenes/sandbox_gameplay.gd, godot/scripts/systems/capture_cutscene.gd, godot/scripts/systems/capture_system.gd, godot/tests/capture_prison_test.gd, tools/extractors/extract_capture_prison_data.py
@@ -1229,6 +1239,7 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 ## logic/inithardware.asm
 - 14: docs/reverse_engineering/architecture.md
 - 27-31: docs/reverse_engineering/stage-4-results.md
+- 68-71: docs/index/mechanics.json
 
 ## logic/introscene.asm
 - arquivo: docs/index/mechanics.json, godot/scripts/systems/intro_cutscene.gd, godot/scripts/systems/radio_dialog.gd
@@ -1406,6 +1417,8 @@ excluído). Antes de mudar uma rotina, veja quem depende dela: `rg -n "^## logic
 - 101-126: godot/scripts/systems/rolling_barrel.gd
 
 ## logic/regionlock.asm
+- arquivo: docs/reverse_engineering/architecture.md
+- 27-37: docs/index/mechanics.json
 - 28: docs/reverse_engineering/en-eu-reextraction.md
 
 ## logic/saveload.asm

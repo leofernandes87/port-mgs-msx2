@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # Índice derivado: docs/index/tests.md (tools/context/build_index.py).
 GODOT_TESTS = [
     ("godot-smoke", "smoke_test.gd", "SMOKE_OK:", "Teste Godot"),
+    ("godot-game-clock", "game_clock_test.gd", "GAME_CLOCK_OK:", "Teste do relógio de jogo"),
     ("godot-room-snapshot", "room_snapshot_test.gd", "ROOM_SNAPSHOT_OK:", "Teste de snapshot"),
     ("godot-player-movement", "player_movement_test.gd", "PLAYER_MOVEMENT_OK:", "Teste de movimento do jogador"),
     ("godot-room-transition", "room_transition_test.gd", "ROOM_TRANSITION_OK:", "Teste de transição de salas"),

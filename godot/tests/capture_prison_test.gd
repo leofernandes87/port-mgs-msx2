@@ -400,7 +400,7 @@ func _test_capture_cutscene_dialog_and_timing() -> void:
 	)
 
 	# 1. Passa os 2 frames de delay inicial -> Guarda A profere "DON'T MOVE!"
-	cutscene._process(0.04) # > 2/60s
+	cutscene.step_tick(0.04) # > 2/60s
 	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_A_SPEAK, "Transitou para estado GUARD_A_SPEAK")
 	_assert(cutscene.show_message_box, "Caixa de mensagem Type 4 ativa")
 	_assert(cutscene.current_message_text == "DON'T MOVE!", "Texto do Guarda A é o canônico 'DON'T MOVE!' (data/texts.asm:189)")
@@ -408,27 +408,27 @@ func _test_capture_cutscene_dialog_and_timing() -> void:
 	_assert(cutscene.guard_b_visible, "Guarda B torna-se visível no spawn")
 
 	# 2. Conclui fala do Guarda A -> Inicia marcha em X do Guarda B
-	cutscene._process(CaptureCutscene.DURATION_SPEAK_A_SEC + 0.01)
+	cutscene.step_tick(CaptureCutscene.DURATION_SPEAK_A_SEC + 0.01)
 	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_B_WALK_X, "Transitou para GUARD_B_WALK_X")
 	_assert(not cutscene.show_message_box, "Caixa de mensagem fechada durante a marcha")
 	_assert(cutscene.guard_b_moving, "Guarda B em movimento")
 
 	# 3. Guarda B marcha a 120 px/s em X: de 240 até 184 (distância 56 px -> ~0.467s)
-	cutscene._process(0.2)
+	cutscene.step_tick(0.2)
 	_assert(cutscene.guard_b_pos.x == 240.0 - 120.0 * 0.2, "Guarda B avança em X a exatos 120 px/s (SetWalkSpeedFast)")
-	cutscene._process(0.3)
+	cutscene.step_tick(0.3)
 	_assert(cutscene.guard_b_pos.x == CaptureCutscene.GUARD_B_STOP_X, "Guarda B atinge X=184 (0xB8) e para avanço horizontal")
 	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_B_WALK_Y, "Transitou para marcha vertical GUARD_B_WALK_Y")
 	_assert(cutscene.guard_b_dir == PlayerController.Direction.UP, "Guarda B vira para CIMA em direção a Snake (Y=176 -> Y=100)")
 
 	# 4. Guarda B marcha em Y até alinhar com Snake
-	cutscene._process(1.0)
+	cutscene.step_tick(1.0)
 	_assert(cutscene.guard_b_pos.y == player.position.y, "Guarda B alinhou perfeitamente no Y de Snake")
 	_assert(cutscene.guard_b_dir == PlayerController.Direction.LEFT, "Guarda B vira para a ESQUERDA encarando Snake de frente")
 	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_B_ARRIVED, "Transitou para GUARD_B_ARRIVED")
 
 	# 5. Pausa de 2 frames -> Guarda B profere "YOU ARE CAPTURED!"
-	cutscene._process(0.04)
+	cutscene.step_tick(0.04)
 	_assert(cutscene.current_state == CaptureCutscene.State.GUARD_B_SPEAK, "Transitou para GUARD_B_SPEAK")
 	_assert(cutscene.show_message_box, "Caixa de mensagem ativa para Guarda B")
 	_assert(cutscene.current_message_text == "YOU ARE CAPTURED!", "Texto do Guarda B é o canônico 'YOU ARE CAPTURED!' (data/texts.asm:190)")
@@ -458,25 +458,25 @@ func _test_capture_cutscene_fade_and_completion() -> void:
 	# Avança rapidamente pelos diálogos e marcha
 	cutscene.current_state = CaptureCutscene.State.WAIT_BEFORE_FADE
 	cutscene.state_timer = 0.01
-	cutscene._process(0.02)
+	cutscene.step_tick(0.02)
 	_assert(cutscene.current_state == CaptureCutscene.State.FADE_OUT, "Transitou para FADE_OUT")
 
 	# Simula fade out progressivo
-	cutscene._process(0.5)
+	cutscene.step_tick(0.5)
 	_assert(cutscene.fade_alpha > 0.0 and cutscene.fade_alpha < 1.0, "fade_alpha intermediário no escurecimento progressivo")
-	cutscene._process(0.6)
+	cutscene.step_tick(0.6)
 	_assert(cutscene.fade_alpha == 1.0, "fade_alpha atinge 1.0 (100% escuro)")
 	_assert(cutscene.current_state == CaptureCutscene.State.IN_DARKNESS, "Transitou para IN_DARKNESS")
 	_assert(flags["teleport"], "Sinal teleport_requested emitido no ápice da escuridão para transportar Snake")
 
 	# Simula despertar na Cela 211
-	cutscene._process(CaptureCutscene.DURATION_DARKNESS_SEC + 0.01)
+	cutscene.step_tick(CaptureCutscene.DURATION_DARKNESS_SEC + 0.01)
 	_assert(cutscene.current_state == CaptureCutscene.State.FADE_IN, "Transitou para FADE_IN na Cela 211")
 	_assert(not cutscene.guard_a_visible, "Guardas ocultados após transporte para a cela")
 	_assert(not cutscene.guard_b_visible, "Guardas ocultados após transporte para a cela")
 
 	# Conclui clareamento
-	cutscene._process(CaptureCutscene.DURATION_FADE_IN_SEC + 0.01)
+	cutscene.step_tick(CaptureCutscene.DURATION_FADE_IN_SEC + 0.01)
 	_assert(cutscene.current_state == CaptureCutscene.State.FINISHED, "Estado final FINISHED")
 	_assert(not cutscene.is_active, "Cutscene inativa")
 	_assert(player.can_control, "Controles de Snake liberados com sucesso na Cela 211 (logic/capturescene.asm:115)")

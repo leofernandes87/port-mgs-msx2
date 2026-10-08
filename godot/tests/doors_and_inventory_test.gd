@@ -276,7 +276,7 @@ func _run() -> void:
 	sandbox.player.position = Vector2(s8_door.position.x + 16.0, s8_door.position.y + 36.0)
 	for step in range(20):
 		sandbox.player.step_tick(Vector2i.UP)
-		sandbox.call("_physics_process", 1.0 / 60.0)
+		sandbox.call("game_tick")
 	if not require(not s8_door.is_open, "Porta 1 NÃO deve abrir sem CARD1"): return
 	if not require(sandbox.snapshot.room_id == 8, "Snake NÃO deve transicionar para Sala 138 sem CARD1"): return
 	if not require(sandbox.player.position.y >= s8_door.position.y + 24.0, "Colisão da porta trancada deve bloquear Snake fisicamente"): return
@@ -286,10 +286,10 @@ func _run() -> void:
 	# Confirmar que o cartão não está necessariamente selecionado (pode estar, mas não é exigência)
 	if not require(sandbox.inventory.has_item("CARD1"), "CARD1 deve estar no inventário"): return
 	sandbox.player.current_direction = PlayerController.Direction.UP
-	sandbox.call("_physics_process", 1.0 / 60.0)
+	sandbox.call("game_tick")
 	# Snake avança para dentro da porta aberta e entra na Item Room 138
 	sandbox.player.position = Vector2(s8_door.position.x + 16.0, s8_door.position.y + 16.0)
-	sandbox.call("_physics_process", 1.0 / 60.0)
+	sandbox.call("game_tick")
 	if not require(sandbox.snapshot.room_id == 138, "Snake deve transicionar para Item Room 138 através da porta aberta"): return
 	if not require(sandbox.item_boxes.size() > 0 and sandbox.item_boxes[0].item_id == "GAS_MASK", "Sala 138 deve conter a Máscara de Gás"): return
 
@@ -297,7 +297,7 @@ func _run() -> void:
 	var exit_138: RoomDoor = sandbox.room_doors[0]
 	sandbox.player.position = Vector2(exit_138.position.x + 16.0, exit_138.position.y)
 	sandbox.player.current_direction = PlayerController.Direction.DOWN
-	sandbox.call("_physics_process", 1.0 / 60.0)
+	sandbox.call("game_tick")
 	if not require(sandbox.snapshot.room_id == 8, "Snake deve retornar para a Sala 8 ao sair da Item Room"): return
 
 	# 8. Teste de Bloqueio de Borda da Sala 7 para Sala 11 (requer CARD4)
